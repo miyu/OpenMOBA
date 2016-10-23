@@ -1,0 +1,88 @@
+{
+  "locked": false,
+  "version": 2,
+  "targets": {
+    ".NETFramework,Version=v4.6.1": {
+      "Clipper/6.2.10": {
+        "type": "package",
+        "compile": {
+          "lib/net40/clipper_library.dll": {}
+        },
+        "runtime": {
+          "lib/net40/clipper_library.dll": {}
+        }
+      },
+      "OptimizedPriorityQueue/3.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net45/Priority Queue.dll": {}
+        },
+        "runtime": {
+          "lib/net45/Priority Queue.dll": {}
+        }
+      },
+      "Poly2Tri/1.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net35-Client/Poly2Tri.dll": {}
+        },
+        "runtime": {
+          "lib/net35-Client/Poly2Tri.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Clipper/6.2.10": {
+      "sha512": "kRWC+nQTLu+s5Llu5eS4zZgZZM1sxbtffn+JX6r26aXvdYeP8h/3ay+g0V3sLlieC4Bh09KBeAQ9viegGGL86w==",
+      "type": "package",
+      "path": "Clipper/6.2.10",
+      "files": [
+        "Clipper.6.2.10.nupkg.sha512",
+        "Clipper.nuspec",
+        "lib/net40/clipper_library.dll"
+      ]
+    },
+    "OptimizedPriorityQueue/3.0.0": {
+      "sha512": "GXbOU6jLgARm+ksgpI7rQX7OiteqA1qs+CiwgobpA0hmjHMV2a1+pYmgKs/gtRgfejplf9/zGkl7sOWD4xdRyA==",
+      "type": "package",
+      "path": "OptimizedPriorityQueue/3.0.0",
+      "files": [
+        "OptimizedPriorityQueue.3.0.0.nupkg.sha512",
+        "OptimizedPriorityQueue.nuspec",
+        "lib/net20/Priority Queue.dll",
+        "lib/net20/Priority Queue.pdb",
+        "lib/net20/Priority Queue.xml",
+        "lib/net45/Priority Queue.dll",
+        "lib/net45/Priority Queue.pdb",
+        "lib/net45/Priority Queue.xml",
+        "lib/netcore45/Priority Queue.dll",
+        "lib/netcore45/Priority Queue.pdb",
+        "lib/netcore45/Priority Queue.xml"
+      ]
+    },
+    "Poly2Tri/1.0.1": {
+      "sha512": "+/V/DLKkJov+Lc83QE2aRAMqxl+cE6sjhMZ1kdfj1l7B/r0fPcBeLj5uU4sxrKkZVVN+j4JUNf6e2xW5vrhwqQ==",
+      "type": "package",
+      "path": "Poly2Tri/1.0.1",
+      "files": [
+        "Poly2Tri.1.0.1.nupkg.sha512",
+        "Poly2Tri.nuspec",
+        "lib/net35-Client/Poly2Tri.dll"
+      ]
+    }
+  },
+  "projectFileDependencyGroups": {
+    "": [
+      "Clipper >= 6.2.10",
+      "OptimizedPriorityQueue >= 3.0.0",
+      "Poly2Tri >= 1.0.1"
+    ],
+    ".NETFramework,Version=v4.6.1": [
+      "System.Drawing >= 4.0.0",
+      "System.Windows.Forms >= 4.0.0"
+    ]
+  },
+  "tools": {},
+  "projectFileToolGroups": {}
+}

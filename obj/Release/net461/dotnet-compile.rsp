@@ -1,0 +1,27 @@
+--temp-output:V:\my-repositories\OpenMOBA\obj\Release\net461\
+--out:V:\my-repositories\OpenMOBA\bin\Release\net461\OpenMOBA.exe
+--define:RELEASE
+--define:TRACE
+--define:NET461
+--suppress-warning:CS1701
+--suppress-warning:CS1702
+--suppress-warning:CS1705
+--platform:x64
+--optimize:True
+--emit-entry-point:True
+--output-name:OpenMOBA
+--file-version:1.0.0.0
+--version:1.0.0.0
+--informational-version:1.0.0
+--target-framework:.NETFramework,Version=v4.6.1
+--reference:C:\Users\Warty\.nuget\packages\Clipper\6.2.10\lib\net40\clipper_library.dll
+--reference:C:\Users\Warty\.nuget\packages\OptimizedPriorityQueue\3.0.0\lib\net45\Priority Queue.dll
+--reference:C:\Users\Warty\.nuget\packages\Poly2Tri\1.0.1\lib\net35-Client\Poly2Tri.dll
+--reference:C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Drawing.dll
+--reference:C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Windows.Forms.dll
+--reference:C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\mscorlib.dll
+--reference:C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.dll
+--reference:C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.Core.dll
+--reference:C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\Microsoft.CSharp.dll
+V:\my-repositories\OpenMOBA\Program.cs
+V:\my-repositories\OpenMOBA\Triangulator.cs
