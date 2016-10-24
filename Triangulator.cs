@@ -1,11 +1,10 @@
-﻿using System;
-using ClipperLib;
+﻿using ClipperLib;
 using Poly2Tri;
 using Poly2Tri.Triangulation.Delaunay;
 using Poly2Tri.Triangulation.Polygon;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Resources;
 
 namespace OpenMOBA {
    public class ConnectedMesh {

@@ -5,14 +5,17 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Windows.Forms;
+using Poly2Tri.Triangulation;
+using Poly2Tri.Triangulation.Polygon;
+using Poly2Tri.Utility;
 using Priority_Queue;
 
 namespace ConsoleApplication {
    public class Program {
       public static void Main(string[] args) {
-         Console.WriteLine("!");
          var worldRectangle = Polygon.CreateRect(0, 0, 1000, 1000);
          var holeA = Polygon.CreateRect(100, 100, 300, 300);
          var holeB = Polygon.CreateRect(400, 200, 100, 100);
@@ -20,23 +23,164 @@ namespace ConsoleApplication {
          var holeD = Polygon.CreateRect(600, 600, 300, 300);
          var holeE = Polygon.CreateRect(700, 500, 100, 100);
          var holeF = Polygon.CreateRect(200, 700, 100, 100);
-         var donutA = Polygon.CreateRect(600, 100, 300, 100);
-         var donutB = Polygon.CreateRect(600, 200, 100, 100);
-         var donutC = Polygon.CreateRect(800, 200, 100, 100);
-         var donutD = Polygon.CreateRect(600, 300, 300, 100);
+         var donutA = Polygon.CreateRect(600, 100, 300, 50);
+         var donutB = Polygon.CreateRect(600, 150, 50, 200);
+         var donutC = Polygon.CreateRect(850, 150, 50, 200);
+         var donutD = Polygon.CreateRect(600, 350, 300, 50);
+         var donutE = Polygon.CreateRect(700, 200, 100, 100);
+         var holes = new[] { holeA, holeB, holeC, holeD, holeE, holeF, donutA, donutB, donutC, donutD, donutE };
          var punchResult = GeometryOperations.Punch()
                                              .Include(worldRectangle)
-                                             .Exclude(holeA, holeB, holeC, holeD, holeE, holeF, donutA, donutB, donutC, donutD)
+                                             .Exclude(holes)
                                              .Execute();
-         GeometryDisplay.CreateShow().DrawPolygons(punchResult.FlattenToPolygons());
+         var punchResultPolygons = punchResult.FlattenToPolygons();
+         var display = GeometryDisplay.CreateShow();
+         display.DrawPolygons(punchResultPolygons);
 
          var triangulator = new Triangulator();
          var meshes = triangulator.Triangulate(punchResult);
          Console.WriteLine(meshes.Count);
-         var display = GeometryDisplay.CreateShow();
-         display.DrawMeshes(meshes);
 
-         Path(display, meshes, 50, 50, 700, 80);
+//         var holesUnionResult = GeometryOperations.CleanPolygons(
+//            GeometryOperations.Union()
+//                              .Include(holes)
+//                              .Execute().FlattenToPolygons());
+//         display.DrawPolygons(holesUnionResult.FlattenToPolygons());
+
+         Visibility(display, punchResult);
+//         var display = GeometryDisplay.CreateShow();
+//         display.DrawMeshes(meshes);
+//         Path(display, meshes, 60, 40, 930, 300);
+      }
+
+      /// <summary>
+      /// This is sort of confusing.
+      /// In the provided polynode, outers represent holes, holes represent holes in holes (land).
+      /// In other words, the polygon provided contains outlines of holes.
+      /// </summary>
+      /// <param name="geometryDisplay"></param>
+      /// <param name="hole"></param>
+      private static void Visibility(GeometryDisplay display, PolyNode hole) {
+         List<LineSegment> visibilityBarriers = new List<LineSegment>();
+         FindVisibilityObstructionSegments(hole, visibilityBarriers);
+         foreach (var visibilityBarrier in visibilityBarriers) {
+            display.DrawLine(visibilityBarrier.X1, visibilityBarrier.Y1, visibilityBarrier.X2, visibilityBarrier.Y2, Color.Goldenrod, 1);
+         }
+
+         List<IntPoint> waypoints = new List<IntPoint>();
+         FindWaypoints(hole, waypoints, true);
+         foreach (var waypoint in waypoints) {
+            display.DrawPoint(waypoint.X, waypoint.Y, Brushes.Red);
+         }
+
+         for (int i = 0; i < waypoints.Count - 1; i++) {
+            for (int j = i + 1; j < waypoints.Count; j++) {
+               var query = new LineSegment {
+                  X1 = (int)waypoints[i].X,
+                  Y1 = (int)waypoints[i].Y,
+                  X2 = (int)waypoints[j].X,
+                  Y2 = (int)waypoints[j].Y
+               };
+               
+               if (visibilityBarriers.Any(vb => vb.Intersects(query))) {
+                  continue;
+               }
+
+               display.DrawLine(query.X1, query.Y1, query.X2, query.Y2, Color.Cyan, 1);
+            }
+         }
+      }
+
+      public class LineSegment {
+         public int X1 { get; set; }
+         public int Y1 { get; set; }
+
+         public int X2 { get; set; }
+         public int Y2 { get; set; }
+
+         public bool Intersects(LineSegment other) {
+            int ax = X1, ay = Y1, bx = X2, by = Y2;
+            int cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+
+            // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
+            var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
+            var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
+            var bl = Math.Sign((cx - ax) * (dy - ay) - (cy - ay) * (dx - ax));
+            var br = Math.Sign((cx - bx) * (dy - by) - (cy - by) * (dx - bx));
+
+            return tl == -tr && bl == -br;
+         }
+      }
+
+      private static void FindVisibilityObstructionSegments(PolyNode hole, List<LineSegment> results) {
+         if (!hole.IsHole) {
+            throw new InvalidOperationException("Provided 'hole' was not a hole.");
+         }
+
+         // union all the children, who are connectable.
+         foreach (var child in hole.Childs) {
+            // dilation to move holes inward
+            const int kDilationFactor = 10;
+            
+            // expansion to make corners hit
+            const int kExpansionFactor = 5;
+
+            var childPolygons = child.FlattenToPolygons();
+            var erodedChildPolytree = GeometryOperations.Offset()
+                                                        .Include(childPolygons)
+                                                        .Dilate(10)
+                                                        .Execute();
+
+            foreach (var polygon in erodedChildPolytree.FlattenToPolygons()) {
+               foreach (var pair in polygon.Points.Zip(polygon.Points.Skip(1), Tuple.Create)) {
+                  var x1 = (int)pair.Item1.X;
+                  var y1 = (int)pair.Item1.Y;
+                  var x2 = (int)pair.Item2.X;
+                  var y2 = (int)pair.Item2.Y;
+
+                  var dx = (float)(x2 - x1);
+                  var dy = (float)(y2 - y1);
+                  var mag = Math.Abs(dx * dx + dy * dy);
+                  dx = dx * kExpansionFactor / mag;
+                  dy = dy * kExpansionFactor / mag;
+
+                  results.Add(new LineSegment {
+                     X1 = (int)(x1 - dx),
+                     Y1 = (int)(y1 - dy),
+                     X2 = (int)(x2 - dx),
+                     Y2 = (int)(y2 - dy)
+                  });
+               }
+            }
+
+            foreach (var innerChild in child.Childs) {
+               FindVisibilityObstructionSegments(innerChild, results);
+            }
+         }
+      }
+
+      private static void FindWaypoints(PolyNode hole, List<IntPoint> results, bool isHole) {
+         foreach (var child in hole.Childs) {
+            if (child.Contour.First() != child.Contour.Last()) {
+               throw new InvalidOperationException("Expected closed");
+            }
+
+            var contour = child.Contour;
+            var contourCount = child.Contour.Count - 1; // closed poly duplicates first vertex
+            var waypointClockness = COUNTERCLOCKWISE;
+            for (int i = 0; i < contourCount; i++) {
+               var a = contour[i];
+               var b = contour[(i + 1) % contourCount];
+               var c = contour[(i + 2) % contourCount];
+
+               var clockness = Clockness(a.X, a.Y, b.X, b.Y, c.X, c.Y);
+               if (clockness == waypointClockness) {
+                  results.Add(b);
+               }
+            }
+
+            FindWaypoints(child, results, !isHole);
+         }
       }
 
       private static void Path(GeometryDisplay display, IReadOnlyList<ConnectedMesh> meshes, double sx, double sy, double ex, double ey) {
@@ -57,9 +201,234 @@ namespace ConsoleApplication {
          var mesh = startMesh;
 
          var trianglePath = AStar(startMesh, startTriangle, endTriangle);
-//         foreach (var triangle in trianglePath) {
-//            display.DrawTriangle(triangle);
-//         }
+         foreach (var triangle in trianglePath) {
+            display.DrawTriangle(triangle);
+         }
+
+         var funnelEdges = FunnelEdges(display, trianglePath, ex, ey);
+         var path = new List<TriangulationPoint>();
+         FunnelAlgorithm(display, sx, sy, ex, ey, funnelEdges, 0, path);
+
+         foreach (var segment in path.Zip(path.Skip(1), Tuple.Create)) {
+            display.DrawLine(segment.Item1.X, segment.Item1.Y, segment.Item2.X, segment.Item2.Y, Color.Red);
+         }
+      }
+
+      private static void FunnelAlgorithm(GeometryDisplay display, double sx, double sy, double ex, double ey, List<FunnelEdge> edges, int edgesStartIndex, List<TriangulationPoint> path) {
+         var apex = new TriangulationPoint(sx, sy);
+         path.Add(apex);
+         display.DrawPoint(apex.X, apex.Y, Brushes.Red);
+         Console.WriteLine("Enter at apex " + apex + " ESI " + edgesStartIndex);
+
+         // advance extesStartIndex until the corresponding edge does not share a point with the apex.
+         while (edgesStartIndex < edges.Count && (apex.Equals(edges[edgesStartIndex].Left) || apex.Equals(edges[edgesStartIndex].Right))) {
+            Console.WriteLine("Skip edge sharing apex: " + edges[edgesStartIndex].Left + " " + edges[edgesStartIndex].Right);
+            edgesStartIndex++;
+         }
+
+
+         if (edges.Count == edgesStartIndex) {
+            goto terminatePath;
+         }
+
+         var currentLeft = edges[edgesStartIndex].Left;
+         var currentRight = edges[edgesStartIndex].Right;
+         Console.WriteLine("Final edge: " + currentLeft + " " + currentRight + " ESI " + edgesStartIndex);
+         var lastEdgeIndex = edgesStartIndex;
+
+         display.DrawLine(apex.X, apex.Y, currentLeft.X, currentLeft.Y, Color.Lime);
+         display.DrawLine(apex.X, apex.Y, currentRight.X, currentRight.Y, Color.Orange);
+
+         display.DrawLine(currentLeft.X, currentLeft.Y, currentRight.X, currentRight.Y, Color.Goldenrod);
+
+         var edge = edges[edgesStartIndex];
+         var lastCross = UnitCross(edge.Left, apex, edge.Right);
+         var lastAngle = Angle(edge.Left, apex, edge.Right) * 180 / Math.PI;
+         int lastLeftAdvancedEdgeIndex = edgesStartIndex;
+         int lastRightAdvancedEdgeIndex = edgesStartIndex;
+         while (true) {
+            if (lastCross < 0) {
+               throw new InvalidOperationException("lastCross was negative??");
+            }
+
+            var nextEdgeIndex = lastEdgeIndex + 1;
+            bool isLeftAdvancement;
+            TriangulationPoint nextPoint;
+            if (nextEdgeIndex == edges.Count) {
+               goto terminatePath;
+            } else {
+               var lastEdge = edges[lastEdgeIndex];
+               var nextEdge = edges[nextEdgeIndex];
+               if (ReferenceEquals(lastEdge.Left, nextEdge.Left)) {
+                  isLeftAdvancement = false;
+                  nextPoint = nextEdge.Right;
+               } else {
+                  isLeftAdvancement = true;
+                  nextPoint = nextEdge.Left;
+               }
+            }
+
+            var nextCross = isLeftAdvancement ? UnitCross(nextPoint, apex, currentRight) : UnitCross(currentLeft, apex, nextPoint);
+            var nextAngle = isLeftAdvancement ? Angle(nextPoint, apex, currentRight) : Angle(currentLeft, apex, nextPoint);
+            nextAngle *= 180 / Math.PI;
+
+            Console.WriteLine("NP: " + nextPoint.X + " " + nextPoint.Y +  " Last: " + lastCross + " (" + lastAngle + "); Next: " + nextCross + " (" + nextAngle + ")");
+
+            if (nextCross < 0) {
+               var minLastAdvancedEdgeIndex = Math.Min(lastLeftAdvancedEdgeIndex, lastRightAdvancedEdgeIndex);
+               Console.WriteLine("Recurse at lAEI " + minLastAdvancedEdgeIndex);
+               if (isLeftAdvancement) {
+                  display.DrawLine(apex.X, apex.Y, currentRight.X, currentRight.Y, Color.Red);
+                  FunnelAlgorithm(display, currentRight.X, currentRight.Y, ex, ey, edges, minLastAdvancedEdgeIndex, path);
+               } else {
+                  display.DrawLine(apex.X, apex.Y, currentLeft.X, currentLeft.Y, Color.Red);
+                  FunnelAlgorithm(display, currentLeft.X, currentLeft.Y, ex, ey, edges, minLastAdvancedEdgeIndex, path);
+               }
+               return;
+            } else if (nextAngle < lastAngle) {
+               if (isLeftAdvancement) {
+                  currentLeft = nextPoint;
+               } else {
+                  currentRight = nextPoint;
+               }
+               display.DrawLine(currentLeft.X, currentLeft.Y, currentRight.X, currentRight.Y, Color.Goldenrod);
+               lastCross = nextCross;
+               lastAngle = nextAngle;
+               lastLeftAdvancedEdgeIndex = nextEdgeIndex;
+               lastRightAdvancedEdgeIndex = nextEdgeIndex;
+            } else {
+               if (isLeftAdvancement) {
+                  lastLeftAdvancedEdgeIndex = nextEdgeIndex;
+               } else {
+                  lastRightAdvancedEdgeIndex = nextEdgeIndex;
+               }
+            }
+            lastEdgeIndex = nextEdgeIndex;
+         }
+
+      terminatePath:
+         var terminalPoint = new TriangulationPoint(ex, ey);
+         if (!path.Last().Equals(terminalPoint)) {
+            path.Add(terminalPoint);
+         }
+      }
+
+      private static List<FunnelEdge> FunnelEdges(GeometryDisplay display, List<DelaunayTriangle> path, double terminalX, double terminalY) {
+         var edges = new List<FunnelEdge>(path.Count - 1);
+         for (int i = 0; i < path.Count - 1; i++) {
+            var first = path[i];
+            var second = path[i + 1];
+
+            var excludedVertexIndex = FindSecondTriangleUniqueVertexIndex(first, second);
+            var right = second.Points[(excludedVertexIndex + 1) % 3];
+            var left = second.Points[(excludedVertexIndex + 2) % 3];
+            var s = first.Centroid();
+            if (Clockness(right, s, left) != CLOCKWISE) {
+               var temp = right;
+               right = left;
+               left = temp;
+            }
+            edges.Add(new FunnelEdge { Left = left, Right = right });
+            display.DrawPoint(right.X, right.Y, Brushes.Blue);
+            display.DrawPoint(left.X, left.Y, Brushes.Lime);
+            display.DrawText((left.X + right.X) / 2 - 20, (left.Y + right.Y) / 2 - 10, $"{i}");
+         }
+
+         // add terminal edge consisting of end point and one of the prior edge's nodes.
+         var terminalPoint = new TriangulationPoint(terminalX, terminalY);
+         edges.Add(new FunnelEdge {
+            Left = edges.Last().Left,
+            Right = terminalPoint
+         });
+
+         // add terminal edge consisting of end point solely
+         edges.Add(new FunnelEdge {
+            Left = terminalPoint,
+            Right = terminalPoint
+         });
+         return edges;
+      }
+
+      public class FunnelEdge {
+         public TriangulationPoint Left { get; set; }
+         public TriangulationPoint Right { get; set; }
+      }
+
+      const int CLOCKWISE = -1;
+      const int COUNTERCLOCKWISE = 1;
+
+      private static int Clockness(TriangulationPoint a, TriangulationPoint b, TriangulationPoint c) {
+         return Clockness(a.X, a.Y, b.X, b.Y, c.X, c.Y);
+      }
+
+      private static int Clockness(double ax, double ay, double bx, double by, double cx, double cy) {
+         return Math.Sign(Cross(ax, ay, bx, by, cx, cy));
+      }
+
+      private static double Cross(TriangulationPoint a, TriangulationPoint b, TriangulationPoint c) {
+         return Cross(a.X, a.Y, b.X, b.Y, c.X, c.Y);
+      }
+
+
+      private static double Cross(double ax, double ay, double bx, double by, double cx, double cy) {
+         var bax = ax - bx;
+         var bay = ay - by;
+         var bcx = cx - bx;
+         var bcy = cy - by;
+
+         return Cross(bax, bay, bcx, bcy);
+      }
+
+      private static double UnitCross(TriangulationPoint a, TriangulationPoint b, TriangulationPoint c) {
+         return UnitCross(a.X, a.Y, b.X, b.Y, c.X, c.Y);
+      }
+
+
+      private static double UnitCross(double ax, double ay, double bx, double by, double cx, double cy) {
+         var bax = ax - bx;
+         var bay = ay - by;
+         var baMagnitude = Math.Sqrt(bax * bax + bay * bay);
+
+         var bcx = cx - bx;
+         var bcy = cy - by;
+         var bcMagnitude = Math.Sqrt(bcx * bcx + bcy * bcy);
+
+         return Cross(bax / baMagnitude, bay / baMagnitude, bcx / bcMagnitude, bcy / bcMagnitude);
+      }
+
+      private static double Cross(double bax, double bay, double bcx, double bcy) {
+         return bax * bcy - bay * bcx;
+      }
+
+      private static double Angle(TriangulationPoint a, TriangulationPoint b, TriangulationPoint c) {
+         return Angle(a.X, a.Y, b.X, b.Y, c.X, c.Y);
+      }
+
+
+      private static double Angle(double ax, double ay, double bx, double by, double cx, double cy) {
+         var bax = ax - bx;
+         var bay = ay - by;
+         var baMagnitude = Math.Sqrt(bax * bax + bay * bay);
+
+         var bcx = cx - bx;
+         var bcy = cy - by;
+         var bcMagnitude = Math.Sqrt(bcx * bcx + bcy * bcy);
+
+         return Math.Acos(Dot(bax / baMagnitude, bay / baMagnitude, bcx / bcMagnitude, bcy / bcMagnitude));
+      }
+
+      private static double Dot(double bax, double bay, double bcx, double bcy) {
+         return bax * bcx + bay * bcy;
+      }
+
+      private static int FindSecondTriangleUniqueVertexIndex(DelaunayTriangle a, DelaunayTriangle b) {
+         if (b.Points.Item0 != a.Points.Item0 && b.Points.Item0 != a.Points.Item1 && b.Points.Item0 != a.Points.Item2) {
+            return 0;
+         } else if (b.Points.Item1 != a.Points.Item0 && b.Points.Item1 != a.Points.Item1 && b.Points.Item1 != a.Points.Item2) {
+            return 1;
+         } else {
+            return 2;
+         }
       }
 
       private static List<DelaunayTriangle> AStar(ConnectedMesh mesh, DelaunayTriangle start, DelaunayTriangle end) {
@@ -70,7 +439,6 @@ namespace ConsoleApplication {
          var minTriangleDistance = new Dictionary<DelaunayTriangle, float>();
 
          while (q.Any()) {
-            Console.WriteLine(q.Count);
             var current = q.Dequeue();
 
             // If the triangle has been visited, a shorter path has already gotten here.
@@ -88,7 +456,7 @@ namespace ConsoleApplication {
                return result;
             }
 
-            foreach (var neighbor in current.Triangle.Neighbors.Where(n => n != null)) {
+            foreach (var neighbor in current.Triangle.Neighbors.Where(n => n != null && n.IsInterior)) {
                if (visited.Contains(neighbor)) continue;
 
                var currentCentroid = current.Triangle.Centroid();
@@ -103,7 +471,7 @@ namespace ConsoleApplication {
                }
 
                minTriangleDistance[neighbor] = distance;
-               q.Enqueue(new AStarNode { Parent = current }, current.Priority + distance);
+               q.Enqueue(new AStarNode { Parent = current, Triangle = neighbor }, current.Priority + distance);
             }
          }
          throw new InvalidOperationException();
@@ -136,27 +504,41 @@ namespace ConsoleApplication {
 
       public Form Form { get; set; }
 
-      public void DrawPolygon(Polygon polygon) {
+      public void DrawPolygon(Polygon polygon, bool alternateColors) {
+         var color = alternateColors ? (polygon.IsHole ? Color.Lime : Color.DarkGoldenrod) : (polygon.IsHole ? Color.Red : Color.Black);
+         DrawPolygon(polygon.Points, color);
+      }
+
+      public void DrawPolygons(IReadOnlyList<Polygon> polygons, bool alternateColors = false) {
+         foreach (var polygon in polygons) {
+            DrawPolygon(polygon, alternateColors);
+         }
+      }
+
+      public void DrawPolygon(List<IntPoint> polygon, Color color) {
          lock (synchronization) {
+            using (var pen = new Pen(color))
             using (var g = Graphics.FromImage(bitmap)) {
-               for (var i = 0; i < polygon.Points.Count; i++) {
-                  var a = polygon.Points[i];
-                  var b = polygon.Points[(i + 1) % polygon.Points.Count];
-                  var pen = polygon.IsHole ? Pens.Red : Pens.Black;
+               for (var i = 0; i < polygon.Count; i++) {
+                  var a = polygon[i];
+                  var b = polygon[(i + 1) % polygon.Count];
                   g.DrawLine(pen, a.X + drawPadding.X, a.Y + drawPadding.Y, b.X + drawPadding.X, b.Y + drawPadding.Y);
 
-                  if (i != polygon.Points.Count - 1) {
+                  if (i != polygon.Count - 1) {
                      g.DrawString($"{i}", Form.Font, Brushes.Black, a.X + drawPadding.X, a.Y + drawPadding.Y);
                   }
                }
             }
+            UpdateDisplay();
          }
-         UpdateDisplay();
       }
 
-      public void DrawPolygons(IReadOnlyList<Polygon> polygons) {
-         foreach (var polygon in polygons) {
-            DrawPolygon(polygon);
+      public void DrawText(double x, double y, string text) {
+         lock (synchronization) {
+            using (var g = Graphics.FromImage(bitmap)) {
+               g.DrawString(text, Form.Font, Brushes.Black, (float)x + drawPadding.X, (float)y + drawPadding.Y);
+            }
+            UpdateDisplay();
          }
       }
 
@@ -172,9 +554,12 @@ namespace ConsoleApplication {
 
       public static GeometryDisplay CreateShow(Size displaySize = default(Size)) {
          var display = new GeometryDisplay(displaySize);
+         var shownLatch = new ManualResetEvent(false);
+         display.Form.Shown += (s, e) => shownLatch.Set();
          new Thread(() => {
             Application.Run(display.Form);
          }) { ApartmentState = ApartmentState.STA }.Start();
+         shownLatch.WaitOne();
          return display;
       }
 
@@ -227,18 +612,33 @@ namespace ConsoleApplication {
          }
       }
 
+      public void DrawLine(double sx, double sy, double ex, double ey, Color color = default(Color), int thickness = 3) {
+         lock (synchronization) {
+            using (var pen = new Pen(color == default(Color) ? Color.Black : color, thickness))
+            using (var g = Graphics.FromImage(bitmap)) {
+               g.DrawLine(
+                  pen,
+                  (float)sx + drawPadding.X,
+                  (float)sy + drawPadding.Y,
+                  (float)ex + drawPadding.X,
+                  (float)ey + drawPadding.Y);
+            }
+            UpdateDisplay();
+         }
+      }
+
       public void DrawMeshes(IReadOnlyList<ConnectedMesh> meshes) {
          foreach (var mesh in meshes) {
             DrawMesh(mesh);
          }
       }
 
-      public void DrawPoint(double x, double y) {
+      public void DrawPoint(double x, double y, Brush brush = null) {
          const float radius = 9f;
          const float width = 1.0f + 2 * radius;
          lock (synchronization) {
             using (var g = Graphics.FromImage(bitmap)) {
-               g.FillEllipse(Brushes.Magenta, (float)x - radius + drawPadding.X, (float)y - radius + drawPadding.Y, width, width);
+               g.FillEllipse(brush ?? Brushes.Magenta, (float)x - radius + drawPadding.X, (float)y - radius + drawPadding.Y, width, width);
             }
             UpdateDisplay();
          }
@@ -290,11 +690,18 @@ namespace ConsoleApplication {
             return this;
          }
 
-         public PolyTree Execute() {
+         public PolyTree Execute(double additionalErosionDilation = 0.0) {
             var polytree = new PolyTree();
             clipper.Execute(ClipType.ctDifference, polytree, PolyFillType.pftPositive, PolyFillType.pftPositive);
 
-            return CleanPolygons(FlattenToPolygons(polytree));
+            // Used to remove degeneracies where additionalErosion is 0.
+            const double baseErosion = 0.05;
+            return GeometryOperations.Offset()
+                                     .Include(FlattenToPolygons(polytree))
+                                     .Erode(baseErosion)
+                                     .Dilate(baseErosion)
+                                     .ErodeOrDilate(additionalErosionDilation)
+                                     .Execute();
          }
       }
 
@@ -303,6 +710,12 @@ namespace ConsoleApplication {
       public class OffsetOperation {
          private readonly List<double> offsets = new List<double>();
          private readonly List<Polygon> includedPolygons = new List<Polygon>(); 
+
+         /// <param name="delta">Positive dilates, negative erodes</param>
+         public OffsetOperation ErodeOrDilate(double delta) {
+            offsets.Add(delta);
+            return this;
+         }
 
          public OffsetOperation Erode(double delta) {
             if (delta < 0) {
@@ -357,7 +770,7 @@ namespace ConsoleApplication {
 
       }
 
-      public static List<Polygon> FlattenToPolygons(this PolyTree polytree) {
+      public static List<Polygon> FlattenToPolygons(this PolyNode polytree) {
          var results = new List<Polygon>();
          FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results);
          return results;
