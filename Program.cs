@@ -33,7 +33,7 @@ namespace ConsoleApplication {
          var punchResult = GeometryOperations.Punch()
                                              .Include(worldRectangle)
                                              .Exclude(holes)
-                                             .Execute();
+                                             .Execute(-10);
          var punchResultPolygons = punchResult.FlattenToPolygons();
          var display = GeometryDisplay.CreateShow();
          display.DrawPolygons(punchResultPolygons);
@@ -64,6 +64,39 @@ namespace ConsoleApplication {
          }
 
          var path = Pathfind(visibilityGraph, 60, 40, 930, 300);
+         Console.WriteLine(path.Count);
+         foreach (var pair in path.Zip(path.Skip(1), Tuple.Create)) {
+            display.DrawLine(
+               pair.Item1.X,
+               pair.Item1.Y,
+               pair.Item2.X,
+               pair.Item2.Y,
+               Color.Lime);
+         }
+
+         path = Pathfind(visibilityGraph, 675, 175, 825, 300);
+         Console.WriteLine(path.Count);
+         foreach (var pair in path.Zip(path.Skip(1), Tuple.Create)) {
+            display.DrawLine(
+               pair.Item1.X,
+               pair.Item1.Y,
+               pair.Item2.X,
+               pair.Item2.Y,
+               Color.Lime);
+         }
+
+         path = Pathfind(visibilityGraph, 50, 900, 950, 475);
+         Console.WriteLine(path.Count);
+         foreach (var pair in path.Zip(path.Skip(1), Tuple.Create)) {
+            display.DrawLine(
+               pair.Item1.X,
+               pair.Item1.Y,
+               pair.Item2.X,
+               pair.Item2.Y,
+               Color.Lime);
+         }
+
+         path = Pathfind(visibilityGraph, 50, 500, 80, 720);
          Console.WriteLine(path.Count);
          foreach (var pair in path.Zip(path.Skip(1), Tuple.Create)) {
             display.DrawLine(
@@ -929,7 +962,7 @@ namespace ConsoleApplication {
                PolyTree polytree = new PolyTree();
                var clipper = new ClipperOffset();
                foreach (var polygon in currentPolygons) {
-                  clipper.AddPath(polygon.Points, JoinType.jtSquare, EndType.etClosedPolygon);
+                  clipper.AddPath(polygon.Points, JoinType.jtMiter, EndType.etClosedPolygon);
                }
                clipper.Execute(ref polytree, offsets[i]);
                if (i + 1 == offsets.Count) {
