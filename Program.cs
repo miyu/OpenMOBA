@@ -3,6 +3,7 @@ using OpenMOBA;
 using Poly2Tri.Triangulation.Delaunay;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -37,9 +38,9 @@ namespace ConsoleApplication {
          var display = GeometryDisplay.CreateShow();
          display.DrawPolygons(punchResultPolygons);
 
-         var triangulator = new Triangulator();
-         var meshes = triangulator.Triangulate(punchResult);
-         Console.WriteLine(meshes.Count);
+//         var triangulator = new Triangulator();
+//         var meshes = triangulator.Triangulate(punchResult);
+//         Console.WriteLine(meshes.Count);
 
 //         var holesUnionResult = GeometryOperations.CleanPolygons(
 //            GeometryOperations.Union()
@@ -47,10 +48,145 @@ namespace ConsoleApplication {
 //                              .Execute().FlattenToPolygons());
 //         display.DrawPolygons(holesUnionResult.FlattenToPolygons());
 
-         Visibility(display, punchResult);
-//         var display = GeometryDisplay.CreateShow();
-//         display.DrawMeshes(meshes);
-//         Path(display, meshes, 60, 40, 930, 300);
+         var visibilityGraph = CreateVisibilityGraph(punchResult, display);
+         for (int i = 0; i < visibilityGraph.Nodes.Count - 1; i++) {
+            for (int j = i + 1; j < visibilityGraph.Nodes.Count; j++) {
+               if (!double.IsNaN(visibilityGraph.Distances[i, j])) {
+                  display.DrawLine(
+                     visibilityGraph.Nodes[i].Location.X,
+                     visibilityGraph.Nodes[i].Location.Y,
+                     visibilityGraph.Nodes[j].Location.X,
+                     visibilityGraph.Nodes[j].Location.Y,
+                     Color.Cyan,
+                     1);
+               }
+            }
+         }
+
+         var path = Pathfind(visibilityGraph, 60, 40, 930, 300);
+         Console.WriteLine(path.Count);
+         foreach (var pair in path.Zip(path.Skip(1), Tuple.Create)) {
+            display.DrawLine(
+               pair.Item1.X,
+               pair.Item1.Y,
+               pair.Item2.X,
+               pair.Item2.Y,
+               Color.Lime);
+         }
+
+         //         while (true) {
+         //            var sw = new Stopwatch();
+         //            sw.Start();
+         //            for (var i = 0; i < 1000; i++) {
+         //               var visibilityGraph = CreateVisibilityGraph(punchResult, display);
+         //            }
+         //            Console.WriteLine(sw.ElapsedMilliseconds);
+         //         }
+         //         var display = GeometryDisplay.CreateShow();
+         //         display.DrawMeshes(meshes);
+         //         Path(display, meshes, 60, 40, 930, 300);
+      }
+
+      public class VisibilityGraph {
+         public List<LineSegment> Barriers { get; set; }
+         public List<VisibilityNode> Nodes { get; set; }
+         public double[,] Distances { get; set; }
+      }
+
+      public class VisibilityNode {
+         public IntPoint Location { get; set; }
+      }
+
+      private static List<IntPoint> Pathfind(VisibilityGraph visibilityGraph, int sx, int sy, int ex, int ey) {
+         var startNode = new VisibilityNode { Location = new IntPoint(sx, sy) };
+         var endNode = new VisibilityNode { Location = new IntPoint(ex, ey) };
+
+         var sideLength = visibilityGraph.Nodes.Count;
+         var distances = new double[sideLength + 2, sideLength + 2];
+         for (int i = 0; i < sideLength; i++) {
+            for (int j = 0; j < sideLength; j++) {
+               distances[i, j] = visibilityGraph.Distances[i, j];
+            }
+         }
+
+         var nodes = visibilityGraph.Nodes.Concat(new[] { startNode, endNode }).ToArray();
+         var startNodeIndex = sideLength;
+         var endNodeIndex = sideLength + 1;
+
+         Action<int, int> handleNewNodePair = (i, j) => {
+            var a = nodes[i];
+            var b = nodes[j];
+            var segment = new LineSegment {
+               X1 = (int)a.Location.X,
+               Y1 = (int)a.Location.Y,
+               X2 = (int)b.Location.X,
+               Y2 = (int)b.Location.Y
+            };
+            if (visibilityGraph.Barriers.Any(barrier => barrier.Intersects(segment))) {
+               distances[i, j] = distances[j, i] = double.NaN;
+               return;
+            }
+            var dx = segment.X1 - segment.X2;
+            var dy = segment.Y1 - segment.Y2;
+            var distance = Math.Sqrt(dx * dx + dy * dy);
+            distances[i, j] = distances[j, i] = distance;
+         };
+         for (int i = 0; i < sideLength; i++) {
+            handleNewNodePair(i, startNodeIndex);
+            handleNewNodePair(i, endNodeIndex);
+         }
+         handleNewNodePair(startNodeIndex, endNodeIndex);
+         distances[startNodeIndex, startNodeIndex] = double.NaN;
+         distances[endNodeIndex, endNodeIndex] = double.NaN;
+
+         var q = new FastPriorityQueue<VisibilityPathFindNode>(short.MaxValue);
+         q.Enqueue(new VisibilityPathFindNode { GraphNodeIndex = startNodeIndex }, 0);
+
+         var visitedNodeIds = new HashSet<int>();
+         var minDistanceByNodeId = new Dictionary<int, double>();
+         minDistanceByNodeId[startNodeIndex] = 0;
+
+         while (q.Count != 0) {
+            var node = q.Dequeue();
+
+            if (!visitedNodeIds.Add(node.GraphNodeIndex)) {
+               continue;
+            }
+
+            if (node.GraphNodeIndex == endNodeIndex) {
+               var result = new List<IntPoint>();
+               var current = node;
+               while (current != null) {
+                  result.Add(nodes[current.GraphNodeIndex].Location);
+                  current = current.Previous;
+               }
+               result.Reverse();
+               return result;
+            }
+
+            for (int j = 0; j < sideLength + 2; j++) {
+               var distance = distances[node.GraphNodeIndex, j];
+               if (double.IsNaN(distance)) {
+                  continue;
+               }
+
+               var totalDistance = node.Priority + distance;
+               double minDistance;
+               if (minDistanceByNodeId.TryGetValue(j, out minDistance)) {
+                  if (minDistance <= totalDistance) {
+                     continue;
+                  }
+               }
+               minDistanceByNodeId[j] = totalDistance;
+               q.Enqueue(new VisibilityPathFindNode { GraphNodeIndex = j, Previous = node }, (float)totalDistance);
+            }
+         }
+         return null;
+      }
+
+      public class VisibilityPathFindNode : FastPriorityQueueNode {
+         public int GraphNodeIndex { get; set; }
+         public VisibilityPathFindNode Previous { get; set; }
       }
 
       /// <summary>
@@ -58,37 +194,70 @@ namespace ConsoleApplication {
       /// In the provided polynode, outers represent holes, holes represent holes in holes (land).
       /// In other words, the polygon provided contains outlines of holes.
       /// </summary>
-      /// <param name="geometryDisplay"></param>
       /// <param name="hole"></param>
-      private static void Visibility(GeometryDisplay display, PolyNode hole) {
-         List<LineSegment> visibilityBarriers = new List<LineSegment>();
-         FindVisibilityObstructionSegments(hole, visibilityBarriers);
-         foreach (var visibilityBarrier in visibilityBarriers) {
-            display.DrawLine(visibilityBarrier.X1, visibilityBarrier.Y1, visibilityBarrier.X2, visibilityBarrier.Y2, Color.Goldenrod, 1);
-         }
+      private static VisibilityGraph CreateVisibilityGraph(PolyNode hole, GeometryDisplay display) {
+         // 660 time
+         var barriers = new List<LineSegment>();
+         FindVisibilityObstructionSegments(hole, barriers);
 
-         List<IntPoint> waypoints = new List<IntPoint>();
+         var waypoints = new List<IntPoint>();
          FindWaypoints(hole, waypoints, true);
-         foreach (var waypoint in waypoints) {
-            display.DrawPoint(waypoint.X, waypoint.Y, Brushes.Red);
+
+//         var barrierQuadTree = new QuadTree<LineSegment>(16, 5, new Rectangle(0, 0, 1024, 1024));
+//         foreach (var barrierSegment in barriers) {
+//            barrierQuadTree.Insert(barrierSegment, barrierSegment.ToBoundingBox());
+//         }
+
+//         var s = new Stack<QuadTree<LineSegment>.Node>();
+//         s.Push(barrierQuadTree.Root);
+//         while (s.Any()) {
+//            var node = s.Pop();
+//            display.DrawLine(node.Rect.Left, node.Rect.Top, node.Rect.Right, node.Rect.Top);
+//            display.DrawLine(node.Rect.Right, node.Rect.Bottom, node.Rect.Right, node.Rect.Top);
+//            display.DrawLine(node.Rect.Right, node.Rect.Bottom, node.Rect.Left, node.Rect.Bottom);
+//            display.DrawLine(node.Rect.Left, node.Rect.Top, node.Rect.Left, node.Rect.Bottom);
+//            if (node.TopLeft != null) {
+//               s.Push(node.TopLeft);
+//               s.Push(node.TopRight);
+//               s.Push(node.BottomLeft);
+//               s.Push(node.BottomRight);
+//            }
+//         }
+
+         // +2 for start/end of search queries, NaN distance = not connected.
+         var sideLength = waypoints.Count + 2;
+         double[,] distances = new double[sideLength, sideLength];
+         for (int i = 0; i < sideLength * sideLength; i++) {
+            distances[i / sideLength, i % sideLength] = double.NaN;
          }
 
-         for (int i = 0; i < waypoints.Count - 1; i++) {
-            for (int j = i + 1; j < waypoints.Count; j++) {
+         var nodes = waypoints.Select(p => new VisibilityNode { Location = p }).ToList();
+         for (int i = 0; i < nodes.Count - 1; i++) {
+            for (int j = i + 1; j < nodes.Count; j++) {
                var query = new LineSegment {
                   X1 = (int)waypoints[i].X,
                   Y1 = (int)waypoints[i].Y,
                   X2 = (int)waypoints[j].X,
                   Y2 = (int)waypoints[j].Y
                };
-               
-               if (visibilityBarriers.Any(vb => vb.Intersects(query))) {
+
+//               var barrierCandidates = barrierQuadTree.Query(query.ToBoundingBox());
+               var barrierCandidates = barriers;
+               if (barrierCandidates.Any(vb => vb.Intersects(query))) {
                   continue;
                }
 
-               display.DrawLine(query.X1, query.Y1, query.X2, query.Y2, Color.Cyan, 1);
+               var dx = query.X2 - query.X1;
+               var dy = query.Y2 - query.Y1;
+               distances[i, j] = distances[j, i] = Math.Sqrt(dx * dx + dy * dy);
             }
          }
+
+         return new VisibilityGraph {
+            Barriers = barriers,
+            Nodes = nodes,
+            Distances = distances
+         };
       }
 
       public class LineSegment {
@@ -110,6 +279,14 @@ namespace ConsoleApplication {
 
             return tl == -tr && bl == -br;
          }
+
+         public Rectangle ToBoundingBox() {
+            var minX = Math.Min(X1, X2);
+            var minY = Math.Min(Y1, Y2);
+            var width = Math.Abs(X1 - X2) + 1;
+            var height = Math.Abs(Y1 - Y2) + 1;
+            return new Rectangle(minX, minY, width, height);
+         }
       }
 
       private static void FindVisibilityObstructionSegments(PolyNode hole, List<LineSegment> results) {
@@ -128,28 +305,32 @@ namespace ConsoleApplication {
             var childPolygons = child.FlattenToPolygons();
             var erodedChildPolytree = GeometryOperations.Offset()
                                                         .Include(childPolygons)
-                                                        .Dilate(10)
+                                                        .Dilate(kDilationFactor)
                                                         .Execute();
 
             foreach (var polygon in erodedChildPolytree.FlattenToPolygons()) {
-               foreach (var pair in polygon.Points.Zip(polygon.Points.Skip(1), Tuple.Create)) {
-                  var x1 = (int)pair.Item1.X;
-                  var y1 = (int)pair.Item1.Y;
-                  var x2 = (int)pair.Item2.X;
-                  var y2 = (int)pair.Item2.Y;
+               // skip last point as it's a duplicate of the first.
+               for (int i = 0; i < polygon.Points.Count - 2; i++) {
+                  var x1 = (int)polygon.Points[i].X;
+                  var y1 = (int)polygon.Points[i].Y;
 
-                  var dx = (float)(x2 - x1);
-                  var dy = (float)(y2 - y1);
-                  var mag = (float)Math.Sqrt(dx * dx + dy * dy);
-                  dx = dx * kExpansionFactor / mag;
-                  dy = dy * kExpansionFactor / mag;
+//                  for (int j = i + 1; j < polygon.Points.Count - 1; j++) {
+                     var x2 = (int)polygon.Points[i + 1].X;
+                     var y2 = (int)polygon.Points[i + 1].Y;
 
-                  results.Add(new LineSegment {
-                     X1 = (int)(x1 - dx),
-                     Y1 = (int)(y1 - dy),
-                     X2 = (int)(x2 + dx),
-                     Y2 = (int)(y2 + dy)
-                  });
+                     var dx = x2 - x1;
+                     var dy = y2 - y1;
+                     var mag = (int)Math.Sqrt(dx * dx + dy * dy);
+                     dx = dx * kExpansionFactor / mag;
+                     dy = dy * kExpansionFactor / mag;
+
+                     results.Add(new LineSegment {
+                        X1 = x1 - dx,
+                        Y1 = y1 - dy,
+                        X2 = x2 + dx,
+                        Y2 = y2 + dy
+                     });
+//                  }
                }
             }
 
@@ -842,7 +1023,7 @@ namespace ConsoleApplication {
    public class Polygon {
       public Polygon(List<IntPoint> points, bool isHole) {
          if (points[0] != points.Last()) {
-            Console.WriteLine("Warn: Polygon took open (non-closed) poly");
+//            Console.WriteLine("Warn: Polygon took open (non-closed) poly");
             points.Add(points[0]);
          }
 

@@ -6,7 +6,7 @@
     "dependencies": {
         "Clipper": "6.2.10",
         "Poly2Tri": "1.0.1",
-        "OptimizedPriorityQueue": "3.0.0"  
+        "OptimizedPriorityQueue": "3.0.0"
     },
     "frameworks": {
         "net461": {
