@@ -140,15 +140,15 @@ namespace ConsoleApplication {
 
                   var dx = (float)(x2 - x1);
                   var dy = (float)(y2 - y1);
-                  var mag = Math.Abs(dx * dx + dy * dy);
+                  var mag = (float)Math.Sqrt(dx * dx + dy * dy);
                   dx = dx * kExpansionFactor / mag;
                   dy = dy * kExpansionFactor / mag;
 
                   results.Add(new LineSegment {
                      X1 = (int)(x1 - dx),
                      Y1 = (int)(y1 - dy),
-                     X2 = (int)(x2 - dx),
-                     Y2 = (int)(y2 - dy)
+                     X2 = (int)(x2 + dx),
+                     Y2 = (int)(y2 + dy)
                   });
                }
             }
