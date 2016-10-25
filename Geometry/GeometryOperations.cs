@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
-using Poly2Tri.Triangulation.Polygon;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryOperations {

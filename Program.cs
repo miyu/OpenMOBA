@@ -1,8 +1,8 @@
-﻿using OpenMOBA.Debugging;
+﻿using System;
+using System.Drawing;
+using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
-using System;
-using System.Drawing;
 
 namespace OpenMOBA {
    public class Program {

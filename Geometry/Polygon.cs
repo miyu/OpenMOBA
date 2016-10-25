@@ -9,9 +9,9 @@ namespace OpenMOBA.Geometry {
             points.Add(points[0]);
          }
 
-         this.Points = points;
-         this.IsHole = isHole;
-         this.IsClosed = Points.First() == Points.Last();
+         Points = points;
+         IsHole = isHole;
+         IsClosed = Points.First() == Points.Last();
       }
 
       public List<IntVector2> Points { get; set; }

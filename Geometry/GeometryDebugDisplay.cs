@@ -1,8 +1,8 @@
-﻿using OpenMOBA.Debugging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using OpenMOBA.Debugging;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryDebugDisplay {

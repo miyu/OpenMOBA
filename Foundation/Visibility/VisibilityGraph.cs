@@ -1,10 +1,9 @@
-﻿using ClipperLib;
-using OpenMOBA.Geometry;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Windows.Forms;
+using ClipperLib;
+using OpenMOBA.Geometry;
 using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation.Visibility {
@@ -21,8 +20,8 @@ namespace OpenMOBA.Foundation.Visibility {
    }
 
    /// <summary>
-   /// Represents a lower-triangular distance matrix.
-   /// M[i,j] == M[j,i] by definition.
+   ///    Represents a lower-triangular distance matrix.
+   ///    M[i,j] == M[j,i] by definition.
    /// </summary>
    public struct DistanceMatrix {
       public DistanceMatrix(int sideLength, float[] storage) {
@@ -33,8 +32,7 @@ namespace OpenMOBA.Foundation.Visibility {
       public int SideLength { get; }
       public float[] Storage { get; }
 
-      public float this[int row, int col]
-      {
+      public float this[int row, int col] {
          get { return Storage[ComputeIndex(row, col)]; }
          set { Storage[ComputeIndex(row, col)] = value; }
       }
@@ -49,9 +47,9 @@ namespace OpenMOBA.Foundation.Visibility {
       }
 
       public static DistanceMatrix CreateZeroedToNaN(int sideLength) {
-         int elementCount = CountElementsFromRows(sideLength);
+         var elementCount = CountElementsFromRows(sideLength);
          var storage = new float[elementCount];
-         for (int i = 0; i < storage.Length; i++) {
+         for (var i = 0; i < storage.Length; i++) {
             storage[i] = float.NaN;
          }
          return new DistanceMatrix(sideLength, storage);
@@ -60,19 +58,17 @@ namespace OpenMOBA.Foundation.Visibility {
       private static int CountElementsFromRows(int row) => row * (row + 1) / 2;
 
       /// <summary>
-      /// NumElements = NumRows * (NumRows + 1) / 2
-      /// 2 NumElements = NumRows * (NumRows + 1)
-      /// 2 NumElements = NumRows**2 + NumRows
-      /// 0 = 1 NumRows**2 + 1 NumRows + (-2NumElements)
-      /// 
-      /// NumRows = (-1 +/- sqrt(1*1 - 4(1)(-2NumElements))) / (2 * 1)
-      ///         = (-1 + sqrt(1 - 8 NumElements)) / 2
-      /// 
-      /// Take the + for the +/- (this is a parabola zero-intersect, one will
-      /// result in a negative count).
+      ///    NumElements = NumRows * (NumRows + 1) / 2
+      ///    2 NumElements = NumRows * (NumRows + 1)
+      ///    2 NumElements = NumRows**2 + NumRows
+      ///    0 = 1 NumRows**2 + 1 NumRows + (-2NumElements)
+      ///    NumRows = (-1 +/- sqrt(1*1 - 4(1)(-2NumElements))) / (2 * 1)
+      ///    = (-1 + sqrt(1 - 8 NumElements)) / 2
+      ///    Take the + for the +/- (this is a parabola zero-intersect, one will
+      ///    result in a negative count).
       /// </summary>
       private static int CountRowsFromElements(int elements) => (-1 + (int)Math.Round(Math.Sqrt(1 + 8 * elements))) / 2;
-      
+
       public DistanceMatrix CopyExpandedNotZeroedToNaN(int expansionFactor) {
          var previousRowCount = CountRowsFromElements(Storage.Length);
          if (CountElementsFromRows(previousRowCount) != Storage.Length) {
@@ -113,10 +109,10 @@ namespace OpenMOBA.Foundation.Visibility {
          var tempWaypoints = new List<IntVector2>();
          FindWaypoints(punchResult, tempWaypoints, true);
          var waypoints = tempWaypoints.ToArray();
-         
+
          var sideLength = waypoints.Length;
          var distances = DistanceMatrix.CreateZeroedToNaN(sideLength);
-         
+
          for (var i = 0; i < waypoints.Length - 1; i++) {
             for (var j = i + 1; j < waypoints.Length; j++) {
                UpdateDistanceMatrix(waypoints, barriers, i, j, distances);
@@ -126,7 +122,7 @@ namespace OpenMOBA.Foundation.Visibility {
          return new VisibilityGraph(barriers, waypoints, distances);
       }
 
-      private static void UpdateDistanceMatrix(IntVector2[] waypoints, IntLineSegment2[] barriers,  int firstWaypointIndex, int secondWaypointIndex, DistanceMatrix distances) {
+      private static void UpdateDistanceMatrix(IntVector2[] waypoints, IntLineSegment2[] barriers, int firstWaypointIndex, int secondWaypointIndex, DistanceMatrix distances) {
          var a = waypoints[firstWaypointIndex];
          var b = waypoints[secondWaypointIndex];
          var segment = new IntLineSegment2(a, b);
@@ -164,7 +160,7 @@ namespace OpenMOBA.Foundation.Visibility {
                var pointCount = polygon.IsClosed ? polygon.Points.Count - 1 : polygon.Points.Count;
 
                // skip last point as it's a duplicate of the first.
-               for (int i = 0; i < pointCount; i++) {
+               for (var i = 0; i < pointCount; i++) {
                   var a = polygon.Points[i];
                   var b = polygon.Points[(i + 1) % pointCount];
 
@@ -193,7 +189,7 @@ namespace OpenMOBA.Foundation.Visibility {
             var contourIsOpen = contour.First() != contour.Last();
             var pointCount = contourIsOpen ? child.Contour.Count : child.Contour.Count - 1;
             var waypointClockness = Clockness.CounterClockwise;
-            for (int i = 0; i < pointCount; i++) {
+            for (var i = 0; i < pointCount; i++) {
                var a = contour[i].ToOpenMobaPoint();
                var b = contour[(i + 1) % pointCount].ToOpenMobaPoint();
                var c = contour[(i + 2) % pointCount].ToOpenMobaPoint();
@@ -221,14 +217,14 @@ namespace OpenMOBA.Foundation.Visibility {
          var endNodeIndex = waypointCount + 1;
 
          var waypoints = new IntVector2[waypointCount + 2];
-         for (int i = 0; i < waypointCount; i++) {
+         for (var i = 0; i < waypointCount; i++) {
             waypoints[i] = visibilityGraph.Waypoints[i];
          }
          waypoints[startNodeIndex] = startNode;
          waypoints[endNodeIndex] = endNode;
 
          var distances = visibilityGraph.Distances.CopyExpandedNotZeroedToNaN(2);
-         for (int i = 0; i < waypointCount; i++) {
+         for (var i = 0; i < waypointCount; i++) {
             UpdateDistanceMatrix(waypoints, visibilityGraph.Barriers, i, startNodeIndex, distances);
             UpdateDistanceMatrix(waypoints, visibilityGraph.Barriers, i, endNodeIndex, distances);
          }
@@ -260,7 +256,7 @@ namespace OpenMOBA.Foundation.Visibility {
                return new Path(result.ToArray(), node.Distance);
             }
 
-            for (int j = 0; j < waypointCount + 2; j++) {
+            for (var j = 0; j < waypointCount + 2; j++) {
                var distance = distances[node.WaypointIndex, j];
                if (float.IsNaN(distance)) {
                   continue;
@@ -295,4 +291,3 @@ namespace OpenMOBA.Foundation.Visibility {
       }
    }
 }
-

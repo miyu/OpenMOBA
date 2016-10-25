@@ -1,24 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Threading;
 using System.Windows.Forms;
-using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Debugging {
    public class DebugDisplay {
-      private readonly object synchronization = new object();
-
-      private readonly Point drawPadding;
-      private readonly Size displaySize;
       private readonly Bitmap bitmap;
-      private readonly PictureBox pb;
+      private readonly Size displaySize;
+
+      private readonly object synchronization = new object();
+      private readonly Point drawPadding;
       private readonly Form form;
+      private readonly PictureBox pb;
 
       public DebugDisplay(Size inputDisplaySize = default(Size), Point inputDrawPadding = new Point()) {
-         this.displaySize = inputDisplaySize == default(Size) ? new Size(1000, 1000) : inputDisplaySize;
-         this.drawPadding = inputDrawPadding == default(Point) ? new Point(100, 100) : inputDrawPadding;
+         displaySize = inputDisplaySize == default(Size) ? new Size(1000, 1000) : inputDisplaySize;
+         drawPadding = inputDrawPadding == default(Point) ? new Point(100, 100) : inputDrawPadding;
 
          var paddedSize = new Size(displaySize.Width + 2 * drawPadding.X, displaySize.Height + 2 * drawPadding.Y);
          form = new Form { ClientSize = paddedSize };
@@ -41,9 +39,7 @@ namespace OpenMOBA.Debugging {
       }
 
       public void DrawText(string text, double x, double y) {
-         Draw(g => {
-            g.DrawString(text, form.Font, Brushes.Black, (float)x, (float)y);
-         });
+         Draw(g => { g.DrawString(text, form.Font, Brushes.Black, (float)x, (float)y); });
       }
 
       private void UpdateDisplay() {
@@ -60,9 +56,7 @@ namespace OpenMOBA.Debugging {
          var display = new DebugDisplay(displaySize);
          var shownLatch = new ManualResetEvent(false);
          display.form.Shown += (s, e) => shownLatch.Set();
-         new Thread(() => {
-            Application.Run(display.form);
-         }) { ApartmentState = ApartmentState.STA }.Start();
+         new Thread(() => { Application.Run(display.form); }) { ApartmentState = ApartmentState.STA }.Start();
          shownLatch.WaitOne();
          return display;
       }

@@ -4,25 +4,24 @@ using System.Linq;
 
 namespace OpenMOBA.Utilities {
    public class QuadTree<T> {
-      private readonly int subdivisionItemCountThreshold;
       private readonly int maxQuadDepth;
-      private readonly Node root;
-
-      public Node Root => root;
+      private readonly int subdivisionItemCountThreshold;
 
       public QuadTree(int subdivisionItemCountThreshold, int maxQuadDepth, Rectangle bounds) {
          this.subdivisionItemCountThreshold = subdivisionItemCountThreshold;
          this.maxQuadDepth = maxQuadDepth;
 
-         root = new Node(0, Rect.FromRectangle(bounds));
+         Root = new Node(0, Rect.FromRectangle(bounds));
       }
+
+      public Node Root { get; }
 
       public ICollection<T> Query(Rectangle query) {
          var region = Rect.FromRectangle(query);
 
          var results = new HashSet<T>();
          var s = new Stack<Node>();
-         s.Push(root);
+         s.Push(Root);
          while (s.Any()) {
             var node = s.Pop();
             if (node.Rect.IntersectsWith(region)) {
@@ -44,13 +43,13 @@ namespace OpenMOBA.Utilities {
       public void Insert(T item, Rectangle region) {
          var regionRect = Rect.FromRectangle(region);
          var itemAndRect = new ItemAndRect { Item = item, Rect = regionRect };
-         InsertToNode(root, itemAndRect);
+         InsertToNode(Root, itemAndRect);
       }
 
       private void InsertToNode(Node node, ItemAndRect itemAndRect) {
          if (!node.Rect.IntersectsWith(itemAndRect.Rect)) return;
 
-//         Console.WriteLine("Insert into " + node.Rect + " " + itemAndRect.Rect);
+         //         Console.WriteLine("Insert into " + node.Rect + " " + itemAndRect.Rect);
 
          if (node.TopLeft == null) {
             node.ItemAndRects.Add(itemAndRect);
@@ -112,8 +111,8 @@ namespace OpenMOBA.Utilities {
 
       public class Node {
          public Node(int depth, Rect rect) {
-            this.Depth = depth;
-            this.Rect = rect;
+            Depth = depth;
+            Rect = rect;
          }
 
          public int Depth { get; }

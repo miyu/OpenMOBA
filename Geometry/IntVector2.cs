@@ -18,6 +18,7 @@ namespace OpenMOBA.Geometry {
       public static bool operator !=(IntVector2 a, IntVector2 b) => a.X != b.X || a.Y != b.Y;
       public override bool Equals(object other) => other is IntVector2 && Equals((IntVector2)other);
       public bool Equals(IntVector2 other) => X == other.X && Y == other.Y;
+
       public override int GetHashCode() {
          unchecked {
             return (X * 397) ^ Y;

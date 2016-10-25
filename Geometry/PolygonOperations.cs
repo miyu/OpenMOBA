@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using ClipperLib;
 
 namespace OpenMOBA.Geometry {
@@ -32,6 +30,33 @@ namespace OpenMOBA.Geometry {
 
       public static UnionOperation Union() => new UnionOperation();
 
+      public static PunchOperation Punch() => new PunchOperation();
+
+      public static OffsetOperation Offset() => new OffsetOperation();
+
+      public static PolyTree CleanPolygons(List<Polygon> polygons) {
+         return Offset().Include(polygons)
+                        .Erode(0.05)
+                        .Dilate(0.05)
+                        .Execute();
+      }
+
+      public static List<Polygon> FlattenToPolygons(this PolyNode polytree) {
+         var results = new List<Polygon>();
+         FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results);
+         return results;
+      }
+
+      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon> results) {
+         if (current.Contour.Count > 0) {
+            results.Add(new Polygon(ToOpenMobaPoints(current.Contour), isHole));
+         }
+         foreach (var child in current.Childs) {
+            // We avoid node.isHole as that traverses upwards recursively and wastefully.
+            FlattenPolyTreeToPolygonsHelper(child, !isHole, results);
+         }
+      }
+
       public class UnionOperation {
          private readonly Clipper clipper = new Clipper { StrictlySimple = true };
 
@@ -50,8 +75,6 @@ namespace OpenMOBA.Geometry {
             return polytree;
          }
       }
-
-      public static PunchOperation Punch() => new PunchOperation();
 
       public class PunchOperation {
          private readonly Clipper clipper = new Clipper { StrictlySimple = true };
@@ -88,11 +111,9 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      public static OffsetOperation Offset() => new OffsetOperation();
-
       public class OffsetOperation {
-         private readonly List<double> offsets = new List<double>();
          private readonly List<Polygon> includedPolygons = new List<Polygon>();
+         private readonly List<double> offsets = new List<double>();
 
          /// <param name="delta">Positive dilates, negative erodes</param>
          public OffsetOperation ErodeOrDilate(double delta) {
@@ -127,8 +148,8 @@ namespace OpenMOBA.Geometry {
 
          public PolyTree Execute() {
             var currentPolygons = includedPolygons;
-            for (int i = 0; i < offsets.Count; i++) {
-               PolyTree polytree = new PolyTree();
+            for (var i = 0; i < offsets.Count; i++) {
+               var polytree = new PolyTree();
                var clipper = new ClipperOffset();
                foreach (var polygon in currentPolygons) {
                   clipper.AddPath(ToClipperPoints(polygon.Points), JoinType.jtMiter, EndType.etClosedPolygon);
@@ -141,30 +162,6 @@ namespace OpenMOBA.Geometry {
                }
             }
             throw new ArgumentException("Must specify some polygons to include!");
-         }
-      }
-
-      public static PolyTree CleanPolygons(List<Polygon> polygons) {
-         return Offset().Include(polygons)
-                        .Erode(0.05)
-                        .Dilate(0.05)
-                        .Execute();
-
-      }
-
-      public static List<Polygon> FlattenToPolygons(this PolyNode polytree) {
-         var results = new List<Polygon>();
-         FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results);
-         return results;
-      }
-
-      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon> results) {
-         if (current.Contour.Count > 0) {
-            results.Add(new Polygon(ToOpenMobaPoints(current.Contour), isHole));
-         }
-         foreach (var child in current.Childs) {
-            // We avoid node.isHole as that traverses upwards recursively and wastefully.
-            FlattenPolyTreeToPolygonsHelper(child, !isHole, results);
          }
       }
    }

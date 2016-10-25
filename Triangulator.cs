@@ -1,10 +1,10 @@
-﻿using ClipperLib;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using ClipperLib;
 using Poly2Tri;
 using Poly2Tri.Triangulation.Delaunay;
 using Poly2Tri.Triangulation.Polygon;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace OpenMOBA {
    public class ConnectedMesh {
@@ -12,7 +12,7 @@ namespace OpenMOBA {
       public BoundingBox BoundingBox { get; set; }
 
       public static ConnectedMesh Create(List<DelaunayTriangle> triangles) {
-         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = Double.MinValue;
+         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
          foreach (var triangle in triangles) {
             foreach (var point in triangle.Points) {
                minX = Math.Min(point.X, minX);
@@ -115,7 +115,7 @@ namespace OpenMOBA {
       }
 
       private void DebugPrint(object s) {
-//         Console.WriteLine(s);
+         //         Console.WriteLine(s);
       }
    }
 }

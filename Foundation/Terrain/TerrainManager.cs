@@ -1,8 +1,8 @@
-﻿using OpenMOBA.Geometry;
-using OpenMOBA.Utilities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using OpenMOBA.Geometry;
+using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation {
    public class MapConfiguration {
@@ -33,13 +33,13 @@ namespace OpenMOBA.Foundation {
    public class TerrainManager {
       private const int kMaxBarrierCount = short.MaxValue;
 
-      private readonly MapConfiguration mapConfiguration;
+      private readonly PriorityQueue<TemporaryBarrier> barrierQueue = new PriorityQueue<TemporaryBarrier>(BarrierEndTimeComparer);
       private readonly GameTimeManager gameTimeManager;
 
-      private readonly PriorityQueue<TemporaryBarrier> barrierQueue = new PriorityQueue<TemporaryBarrier>(BarrierEndTimeComparer);
+      private readonly MapConfiguration mapConfiguration;
+      private TerrainSnapshot snapshot;
 
       private int version;
-      private TerrainSnapshot snapshot;
 
       public TerrainManager(MapConfiguration mapConfiguration, GameTimeManager gameTimeManager) {
          this.mapConfiguration = mapConfiguration;
@@ -51,13 +51,13 @@ namespace OpenMOBA.Foundation {
       }
 
       public TerrainSnapshot TakeSnapshot() {
-         if (snapshot == null || snapshot.Version != version ) {
+         if (snapshot == null || snapshot.Version != version) {
             var now = gameTimeManager.Now;
             while (!barrierQueue.IsEmpty && barrierQueue.Peek().EndTime >= now) {
                barrierQueue.Dequeue();
             }
 
-//            snapshot = BuildSnapshot(mapConfiguration, barrierQueue);
+            //            snapshot = BuildSnapshot(mapConfiguration, barrierQueue);
          }
 
          return snapshot;
@@ -74,10 +74,11 @@ namespace OpenMOBA.Foundation {
 
    public class TemporaryBarrier {
       /// <summary>
-      /// Time in game ticks at which the barrier disappears.
-      /// At the given tick, the barrier is no longer valid.
+      ///    Time in game ticks at which the barrier disappears.
+      ///    At the given tick, the barrier is no longer valid.
       /// </summary>
       public GameTime EndTime { get; set; }
+
       public IReadOnlyList<Polygon> Polygons { get; set; }
    }
 
