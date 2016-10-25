@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
 
-namespace OpenMOBA {
+namespace OpenMOBA.Utilities {
    public class QuadTree<T> {
       private readonly int subdivisionItemCountThreshold;
       private readonly int maxQuadDepth;
