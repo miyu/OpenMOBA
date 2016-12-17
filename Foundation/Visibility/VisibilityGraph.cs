@@ -145,10 +145,10 @@ namespace OpenMOBA.Foundation.Visibility {
          // union all the children, who are connectable.
          foreach (var child in hole.Childs) {
             // dilation to move holes inward
-            const int kDilationFactor = 10;
+            const int kDilationFactor = 4;
 
             // expansion to make corners hit
-            const int kExpansionFactor = 5;
+            const int kExpansionFactor = 2;
 
             var childPolygons = child.FlattenToPolygons();
             var erodedChildPolytree = PolygonOperations.Offset()

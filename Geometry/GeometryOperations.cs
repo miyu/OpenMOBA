@@ -10,11 +10,28 @@ namespace OpenMOBA.Geometry {
       public static Clockness Clockness(int ax, int ay, int bx, int by, int cx, int cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
       public static Clockness Clockness(int bax, int bay, int bcx, int bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static int Cross(IntVector2 ba, IntVector2 bc) => Cross(ba.X, ba.Y, bc.X, bc.Y);
-      public static int Cross(int bax, int bay, int bcx, int bcy) => bax * bcy - bay * bcx;
+      public static int Cross(IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      public static int Cross(int ax, int ay, int bx, int by) => ax * by - ay * bx;
 
       public static double Cross(double bax, double bay, double bcx, double bcy) => bax * bcy - bay * bcx;
+      
+      public static IntVector2 FindLineLineIntersection(IntLineSegment2 a, IntLineSegment2 b) {
+         var p1 = a.First;
+         var p2 = a.Second;
+         var p3 = b.First;
+         var p4 = b.Second;
 
+         var p1xp2 = Cross(p1, p2); // x1y2 - y1x2
+         var p3xp4 = Cross(p3, p4); // x3y4 - y3x4
+         var v21 = p1 - p2; // (x1 - x2, y1 - y2)
+         var v43 = p3 - p4; // (x3 - x4, y3 - y4)
+
+         var denominator = Cross(v21, v43);
+         var numeratorX = p1xp2 * v43.X - v21.X * p3xp4;
+         var numeratorY = p1xp2 * v43.Y - v21.Y * p3xp4;
+
+         return new IntVector2(numeratorX / denominator, numeratorY / denominator);
+      }
 
       public static bool TryIntersect(double x, double y, IReadOnlyList<ConnectedMesh> meshes, out ConnectedMesh mesh, out DelaunayTriangle triangle) {
          foreach (var m in meshes) {

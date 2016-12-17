@@ -6,11 +6,14 @@ using OpenMOBA.Debugging;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryDebugDisplay {
-      public static void DrawPoints(this DebugDisplay display, IReadOnlyList<IntVector2> points, Pen pen) {
+      public static void DrawPoint(this DebugDisplay display, IntVector2 point, Brush brush, float radius = 5.0f) {
+         DrawPoints(display, new [] { point }, brush, radius);
+      }
+
+      public static void DrawPoints(this DebugDisplay display, IReadOnlyList<IntVector2> points, Brush brush, float radius = 5.0f) {
          display.Draw(g => {
-            var r = pen.Width / 2.0f;
             for (var i = 0; i < points.Count; i ++) {
-               g.DrawEllipse(pen, points[i].X - r, points[i].Y - r, r * 2, r * 2);
+               g.FillEllipse(brush, points[i].X - radius, points[i].Y - radius, radius * 2, radius * 2);
             }
          });
       }
@@ -42,9 +45,17 @@ namespace OpenMOBA.Geometry {
       }
 
       public static void DrawPolygon(this DebugDisplay display, Polygon polygon, Color color) {
-         using (var pen = new Pen(color)) {
-            display.DrawLineStrip(polygon.Points, pen);
-         }
+         display.Draw(g => {
+            using (var pen = new Pen(color)) {
+               g.DrawPolygon(pen, polygon.Points.Select(p => new Point(p.X, p.Y)).ToArray());
+            }
+         });
+      }
+
+      public static void FillPolygon(this DebugDisplay display, Polygon polygon, Brush brush) {
+         display.Draw(g => {
+            g.FillPolygon(brush, polygon.Points.Select(p => new Point(p.X, p.Y)).ToArray());
+         });
       }
 
       public static void DrawLineStrip(this DebugDisplay display, IReadOnlyList<IntVector2> points, Pen pen) {
