@@ -53,10 +53,16 @@ namespace OpenMOBA.Debugging {
       }
 
       public static DebugDisplay CreateShow(Size displaySize = default(Size)) {
-         var display = new DebugDisplay(displaySize);
+         DebugDisplay display = null;
          var shownLatch = new ManualResetEvent(false);
-         display.form.Shown += (s, e) => shownLatch.Set();
-         new Thread(() => { Application.Run(display.form); }) { ApartmentState = ApartmentState.STA }.Start();
+         var thread = new Thread(() =>
+         {
+             display = new DebugDisplay(displaySize);
+             display.form.Shown += (s, e) => shownLatch.Set();
+             Application.Run(display.form);
+         });
+         thread.SetApartmentState(ApartmentState.STA);
+         thread.Start();
          shownLatch.WaitOne();
          return display;
       }
