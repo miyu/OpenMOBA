@@ -1,7 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-
-namespace OpenMOBA.Foundation
-{
+﻿namespace OpenMOBA.Foundation {
    public interface IReadableGameTimeService
    {
       int TicksPerSecond { get; }

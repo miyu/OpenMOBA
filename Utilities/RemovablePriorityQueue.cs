@@ -5,15 +5,13 @@ using System.Collections.Generic;
 namespace OpenMOBA.Utilities
 {
    /// <summary>
-   /// Because no other implementation that doesn't suck exists.
-   /// Seriously, C#?
-   /// Traditional minheap-based pq. Allows duplicate entry,
-   /// supports resizing. Unlike PriorityQueue, supports deletion
-   /// at the cost of log(N) hashmap operations per insert,
-   /// log(N) hashmap operations (and a percolateDown) per deletion.
-   /// Items are thrown into a hashmap and compared via ReferenceEquals.
+   /// Minheap-based PQ supporting removal.
+   /// Items must be class instances, does not support null items. Equality
+   /// is reference-based, instances' hashcodes must not change after insertion.
+   /// 
+   /// log(N) deletion, does not support inserting an instance more than once.
    /// </summary>
-   public class RemovablePriorityQueue<TItem> : IReadOnlyCollection<TItem> {
+   public class RemovablePriorityQueue<TItem> : IReadOnlyCollection<TItem> where TItem : class {
       // 1 + 4 + 16 + 64 = 5 + 16 + 64 = 21 + 64 = 85
       private const int kNodesPerLevel = 4;
       private const int kInitialCapacity = 1 + kNodesPerLevel;
@@ -58,14 +56,7 @@ namespace OpenMOBA.Utilities
             throw new InvalidOperationException("The queue is empty");
          }
 
-         var result = items[0];
-
-         Count--;
-         var tail = items[Count];
-         items[Count] = default(TItem);
-
-         PercolateDown(0, tail);
-         return result;
+         return RemoveAtIndex(0);
       }
 
       private void PercolateDown(int currentIndex, TItem item) {
@@ -74,6 +65,7 @@ namespace OpenMOBA.Utilities
 
          // handle childless case
          if (childrenStartIndexInclusive == childrenEndIndexExclusive) {
+            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
             return;
          }
@@ -88,10 +80,12 @@ namespace OpenMOBA.Utilities
 
          if (itemComparer(items[leastChildIndex], item) < 0) {
             // Our least child is smaller than item, move it up the heap and percolate further.
+            itemIndices[items[leastChildIndex]] = currentIndex;
             items[currentIndex] = items[leastChildIndex];
             PercolateDown(leastChildIndex, item);
          } else {
             // Our item is greater than its descendents, store.
+            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
          }
       }
@@ -106,15 +100,18 @@ namespace OpenMOBA.Utilities
 
       private void PercolateUp(int currentIndex, TItem item) {
          if (currentIndex == 0) {
+            itemIndices[item] = 0;
             items[0] = item;
             return;
          }
 
          var parentIndex = (currentIndex - 1) / kNodesPerLevel;
          if (itemComparer(item, items[parentIndex]) < 0) {
+            itemIndices[items[parentIndex]] = currentIndex;
             items[currentIndex] = items[parentIndex];
             PercolateUp(parentIndex, item);
          } else {
+            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
          }
       }
@@ -132,6 +129,27 @@ namespace OpenMOBA.Utilities
             }
             items = newPriorities;
          }
+      }
+
+      public bool Remove(TItem item) {
+         int itemIndex;
+         if (!itemIndices.TryGetValue(item, out itemIndex)) {
+            return false;
+         }
+         RemoveAtIndex(itemIndex);
+         return true;
+      }
+
+      private TItem RemoveAtIndex(int i) {
+         var result = items[i];
+         itemIndices.Remove(result);
+
+         Count--;
+         var tail = items[Count];
+         items[Count] = default(TItem);
+
+         PercolateDown(i, tail);
+         return result;
       }
 
       private class ReferenceEqualityComparer<T> : IEqualityComparer<T>

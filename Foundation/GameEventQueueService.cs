@@ -8,12 +8,12 @@ namespace OpenMOBA.Foundation
       void RemoveGameEvent(GameEvent banlist);
    }
 
-   public class GameLoop : IGameEventQueueService
+   public class GameEventQueueService : IGameEventQueueService
    {
-      private readonly PriorityQueue<GameEvent> gameEventQueue = new PriorityQueue<GameEvent>(GameEvent.CompareByTime);
+      private readonly RemovablePriorityQueue<GameEvent> gameEventQueue = new RemovablePriorityQueue<GameEvent>(GameEvent.CompareByTime);
       private readonly GameTimeService gameTimeService;
 
-      public GameLoop(GameTimeService gameTimeService)
+      public GameEventQueueService(GameTimeService gameTimeService)
       {
          this.gameTimeService = gameTimeService;
       }
@@ -23,17 +23,15 @@ namespace OpenMOBA.Foundation
          gameEventQueue.Enqueue(gameEvent);
       }
 
-      public void RunLoop()
-      {
-         while (true)
-         {
-            var now = gameTimeService.Now;
-            while (now >= gameEventQueue.Peek().Time)
-            {
-               var gameEvent = gameEventQueue.Dequeue();
-               gameEvent.Execute();
-            }
-            gameTimeService.IncrementTicks();
+      public void RemoveGameEvent(GameEvent gameEvent) {
+         gameEventQueue.Remove(gameEvent);
+      }
+
+      public void ProcessPendingGameEvents() {
+         var now = gameTimeService.Now;
+         while (!gameEventQueue.IsEmpty && now >= gameEventQueue.Peek().Time) {
+            var gameEvent = gameEventQueue.Dequeue();
+            gameEvent.Execute();
          }
       }
    }

@@ -1,16 +1,19 @@
-﻿using System;
-using System.Drawing;
-using System.Drawing.Text;
-using System.Linq;
-using OpenMOBA.Debugging;
+﻿using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
+using System;
+using System.Drawing;
+using System.Linq;
+using OpenMOBA.Foundation;
 
 namespace OpenMOBA {
    public class Program {
       public static void Main(string[] args) {
-         X();
-         return;
+         var gameInstance = new GameInstanceFactory().Create();
+         gameInstance.Run();
+      }
+
+      private static void H() {
          var points = new[] {
             new IntVector2(100, 50),
             new IntVector2(100, 100),
@@ -52,7 +55,7 @@ namespace OpenMOBA {
          };
 
          var holeSquiggle = PolylineOperations.ExtrudePolygon(
-            new[] {a
+            new[] {
                new IntVector2(100, 50),
                new IntVector2(100, 100),
                new IntVector2(200, 100),
@@ -86,7 +89,7 @@ namespace OpenMOBA {
                var path = visibilityGraph.FindPath(query.Item1, query.Item2);
                display.DrawLineStrip(path.Points, pen);
             }
-
+         }
       }
    }
 }

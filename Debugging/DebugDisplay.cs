@@ -18,8 +18,9 @@ namespace OpenMOBA.Debugging {
          displaySize = inputDisplaySize == default(Size) ? new Size(1000, 1000) : inputDisplaySize;
          drawPadding = inputDrawPadding == default(Point) ? new Point(100, 100) : inputDrawPadding;
 
+         const double scale = 1.0f;
          var paddedSize = new Size(displaySize.Width + 2 * drawPadding.X, displaySize.Height + 2 * drawPadding.Y);
-         form = new Form { ClientSize = new Size(paddedSize.Width / 2, paddedSize.Height / 2) };
+         form = new Form { ClientSize = new Size((int)(paddedSize.Width * scale), (int)(paddedSize.Height * scale)) };
          form.BackColor = Color.White;
          form.StartPosition = FormStartPosition.CenterScreen;
          pb = new PictureBox { Dock = DockStyle.Fill }; //Size = paddedSize };
