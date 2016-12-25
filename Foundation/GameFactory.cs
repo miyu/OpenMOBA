@@ -19,11 +19,11 @@ namespace OpenMOBA.Foundation {
       public MapConfiguration MapConfiguration { get; set; }
       public TerrainService TerrainService { get; set; }
       public void Run() {
-         var r = new Random();
+         var r = new Random(7);
          for (int i = 0; i < 10; i++) {
             var poly = Polygon.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
-            var startTicks = r.Next(0, 100);
-            var endTicks = r.Next(startTicks + 1, 120);
+            var startTicks = r.Next(0, 60);
+            var endTicks = r.Next(startTicks + 20, 120);
             var terrainHole = new TerrainHole { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
@@ -35,6 +35,7 @@ namespace OpenMOBA.Foundation {
             HandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
+            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             if (GameTimeService.Ticks > 120) return;
          }
       }

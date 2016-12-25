@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenMOBA.Utilities {
    /// <summary>
@@ -13,10 +14,10 @@ namespace OpenMOBA.Utilities {
       // 1 + 4 + 16 + 64 = 5 + 16 + 64 = 21 + 64 = 85
       private const int kNodesPerLevel = 4;
       private const int kInitialCapacity = 1 + kNodesPerLevel;
+      private const bool kDisableValidation = true;
       private readonly Comparison<TItem> itemComparer;
 
       private TItem[] items = new TItem[kInitialCapacity];
-      private int version;
 
       public PriorityQueue() : this(Comparer<TItem>.Default.Compare) { }
 
@@ -30,12 +31,14 @@ namespace OpenMOBA.Utilities {
       public int Count { get; private set; }
 
       public IEnumerator<TItem> GetEnumerator() {
-         var versionCapture = version;
+         var clone = new PriorityQueue<TItem>(itemComparer);
+         clone.items = new TItem[items.Length];
+         clone.Count = Count;
          for (var i = 0; i < Count; i++) {
-            if (version != versionCapture) {
-               throw new InvalidOperationException("PriorityQueue modified during iteration.");
-            }
-            yield return items[i];
+            clone.items[i] = items[i];
+         }
+         while (!clone.IsEmpty) {
+            yield return clone.Dequeue();
          }
       }
 
@@ -54,18 +57,20 @@ namespace OpenMOBA.Utilities {
          }
 
          var result = items[0];
+         items[0] = default(TItem);
 
          Count--;
          var tail = items[Count];
          items[Count] = default(TItem);
 
          PercolateDown(0, tail);
+         Validate();
          return result;
       }
 
       private void PercolateDown(int currentIndex, TItem item) {
-         var childrenStartIndexInclusive = Math.Min(Count, currentIndex * kNodesPerLevel + 1);
-         var childrenEndIndexExclusive = Math.Min(Count, currentIndex * kNodesPerLevel + kNodesPerLevel);
+         int childrenStartIndexInclusive, childrenEndIndexExclusive;
+         ComputeChildrenIndices(currentIndex, out childrenStartIndexInclusive, out childrenEndIndexExclusive);
 
          // handle childless case
          if (childrenStartIndexInclusive == childrenEndIndexExclusive) {
@@ -75,7 +80,7 @@ namespace OpenMOBA.Utilities {
 
          // select least child for replacement
          var leastChildIndex = childrenStartIndexInclusive;
-         for (var i = leastChildIndex + 1; i < childrenEndIndexExclusive; i++) {
+         for (var i = childrenStartIndexInclusive + 1; i < childrenEndIndexExclusive; i++) {
             if (itemComparer(items[i], items[leastChildIndex]) < 0) {
                leastChildIndex = i;
             }
@@ -96,7 +101,8 @@ namespace OpenMOBA.Utilities {
 
          PercolateUp(Count, item);
          Count++;
-         version++;
+
+         Validate();
       }
 
       private void PercolateUp(int currentIndex, TItem item) {
@@ -127,6 +133,31 @@ namespace OpenMOBA.Utilities {
             }
             items = newPriorities;
          }
+      }
+
+      private void Validate() {
+         if (IsEmpty || kDisableValidation) return;
+
+         var s = new Stack<int>();
+         s.Push(0);
+
+         while (s.Any()) {
+            var current = s.Pop();
+            int childrenStartIndexInclusive, childrenEndIndexExclusive;
+            ComputeChildrenIndices(current, out childrenStartIndexInclusive, out childrenEndIndexExclusive);
+
+            for (int childIndex = childrenStartIndexInclusive; childIndex < childrenEndIndexExclusive; childIndex++) {
+               s.Push(childIndex);
+               if (itemComparer(items[current], items[childIndex]) > 0) {
+                  throw new InvalidOperationException("Priority Queue - Heap breaks invariant!");
+               }
+            }
+         }
+      }
+
+      private void ComputeChildrenIndices(int currentIndex, out int childrenStartIndexInclusive, out int childrenEndIndexExclusive) {
+         childrenStartIndexInclusive = Math.Min(Count, currentIndex * kNodesPerLevel + 1);
+         childrenEndIndexExclusive = Math.Min(Count, currentIndex * kNodesPerLevel + kNodesPerLevel + 1);
       }
    }
 }

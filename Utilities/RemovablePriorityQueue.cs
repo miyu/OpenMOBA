@@ -19,7 +19,6 @@ namespace OpenMOBA.Utilities
 
       private TItem[] items = new TItem[kInitialCapacity];
       private Dictionary<TItem, int> itemIndices = new Dictionary<TItem, int>(ReferenceEqualityComparer<TItem>.Instance);
-      private int version;
 
       public RemovablePriorityQueue() : this(Comparer<TItem>.Default.Compare) { }
 
@@ -33,12 +32,15 @@ namespace OpenMOBA.Utilities
       public int Count { get; private set; }
 
       public IEnumerator<TItem> GetEnumerator() {
-         var versionCapture = version;
-         for (var i = 0; i < Count; i++) {
-            if (version != versionCapture) {
-               throw new InvalidOperationException("PriorityQueue modified during iteration.");
-            }
-            yield return items[i];
+         var clone = new RemovablePriorityQueue<TItem>(itemComparer);
+         clone.items = new TItem[items.Length];
+         for (int i = 0; i < Count; i++) {
+            clone.items[i] = items[i];
+         }
+         clone.itemIndices = new Dictionary<TItem, int>(itemIndices);
+         clone.Count = Count;
+         while (!clone.IsEmpty) {
+            yield return clone.Dequeue();
          }
       }
 
@@ -60,8 +62,8 @@ namespace OpenMOBA.Utilities
       }
 
       private void PercolateDown(int currentIndex, TItem item) {
-         var childrenStartIndexInclusive = Math.Min(Count, currentIndex * kNodesPerLevel + 1);
-         var childrenEndIndexExclusive = Math.Min(Count, currentIndex * kNodesPerLevel + kNodesPerLevel);
+         int childrenStartIndexInclusive, childrenEndIndexExclusive;
+         ComputeChildrenIndices(currentIndex, out childrenStartIndexInclusive, out childrenEndIndexExclusive);
 
          // handle childless case
          if (childrenStartIndexInclusive == childrenEndIndexExclusive) {
@@ -95,7 +97,6 @@ namespace OpenMOBA.Utilities
 
          PercolateUp(Count, item);
          Count++;
-         version++;
       }
 
       private void PercolateUp(int currentIndex, TItem item) {
@@ -150,6 +151,11 @@ namespace OpenMOBA.Utilities
 
          PercolateDown(i, tail);
          return result;
+      }
+
+      private void ComputeChildrenIndices(int currentIndex, out int childrenStartIndexInclusive, out int childrenEndIndexExclusive) {
+         childrenStartIndexInclusive = Math.Min(Count, currentIndex * kNodesPerLevel + 1);
+         childrenEndIndexExclusive = Math.Min(Count, currentIndex * kNodesPerLevel + kNodesPerLevel + 1);
       }
 
       private class ReferenceEqualityComparer<T> : IEqualityComparer<T>

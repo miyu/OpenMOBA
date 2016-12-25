@@ -1,4 +1,5 @@
-﻿using OpenMOBA.Foundation.Terrain;
+﻿using System;
+using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation {
@@ -43,6 +44,8 @@ namespace OpenMOBA.Foundation {
       public static int CompareByTime(GameEvent a, GameEvent b) {
          return a.Time.CompareTo(b.Time);
       }
+
+      public override string ToString() => $"[{GetType().Name} at {Time.Ticks} Ticks]";
    }
 
    public class AddTemporaryHoleGameEvent : GameEvent {
@@ -55,6 +58,7 @@ namespace OpenMOBA.Foundation {
       }
 
       public override void Execute() {
+         Console.WriteLine("Add " + terrainHole.GetHashCode() + " at " + Time.Ticks);
          terrainService.AddTemporaryHole(terrainHole);
       }
    }
@@ -69,6 +73,7 @@ namespace OpenMOBA.Foundation {
       }
 
       public override void Execute() {
+         Console.WriteLine("Remove " + terrainHole.GetHashCode() + " at " + Time.Ticks);
          terrainService.RemoveTemporaryHole(terrainHole);
       }
    }
