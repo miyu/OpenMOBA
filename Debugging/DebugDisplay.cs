@@ -19,8 +19,11 @@ namespace OpenMOBA.Debugging {
          drawPadding = inputDrawPadding == default(Point) ? new Point(100, 100) : inputDrawPadding;
 
          var paddedSize = new Size(displaySize.Width + 2 * drawPadding.X, displaySize.Height + 2 * drawPadding.Y);
-         form = new Form { ClientSize = paddedSize };
-         pb = new PictureBox { Size = paddedSize };
+         form = new Form { ClientSize = new Size(paddedSize.Width / 2, paddedSize.Height / 2) };
+         form.BackColor = Color.White;
+         form.StartPosition = FormStartPosition.CenterScreen;
+         pb = new PictureBox { Dock = DockStyle.Fill }; //Size = paddedSize };
+         pb.SizeMode = PictureBoxSizeMode.Zoom;
          form.Controls.Add(pb);
 
          bitmap = new Bitmap(paddedSize.Width, paddedSize.Height);

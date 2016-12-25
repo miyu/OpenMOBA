@@ -52,7 +52,7 @@ namespace OpenMOBA {
          };
 
          var holeSquiggle = PolylineOperations.ExtrudePolygon(
-            new[] {
+            new[] {a
                new IntVector2(100, 50),
                new IntVector2(100, 100),
                new IntVector2(200, 100),
@@ -68,6 +68,7 @@ namespace OpenMOBA {
                new IntVector2(221, 400)
             }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
          holes = holes.Concat(holeSquiggle).ToArray();
+
 
          var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(mapDimensions, PolygonOperations.Offset().Include(holes).Dilate(15).Execute().FlattenToPolygons());
          var display = DebugDisplay.CreateShow();
@@ -85,7 +86,7 @@ namespace OpenMOBA {
                var path = visibilityGraph.FindPath(query.Item1, query.Item2);
                display.DrawLineStrip(path.Points, pen);
             }
-         }
+
       }
    }
 }
