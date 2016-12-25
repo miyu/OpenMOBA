@@ -72,11 +72,10 @@ namespace OpenMOBA {
             }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
          holes = holes.Concat(holeSquiggle).ToArray();
 
-
          var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(mapDimensions, PolygonOperations.Offset().Include(holes).Dilate(15).Execute().FlattenToPolygons());
-         var display = DebugDisplay.CreateShow();
-         display.DrawPolygons(holes, Color.Red);
-         display.DrawVisibilityGraph(visibilityGraph);
+         var debugCanvas = DebugCanvasHost.CreateAndShowCanvas();
+         debugCanvas.DrawPolygons(holes, Color.Red);
+         debugCanvas.DrawVisibilityGraph(visibilityGraph);
          var testPathFindingQueries = new[] {
             Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
             Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
@@ -87,7 +86,7 @@ namespace OpenMOBA {
          using (var pen = new Pen(Color.Lime, 2)) {
             foreach (var query in testPathFindingQueries) {
                var path = visibilityGraph.FindPath(query.Item1, query.Item2);
-               display.DrawLineStrip(path.Points, pen);
+               debugCanvas.DrawLineStrip(path.Points, pen);
             }
          }
       }

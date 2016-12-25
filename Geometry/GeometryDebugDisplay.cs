@@ -6,24 +6,24 @@ using OpenMOBA.Debugging;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryDebugDisplay {
-      public static void DrawPoint(this DebugDisplay display, IntVector2 point, Brush brush, float radius = 5.0f) {
-         DrawPoints(display, new [] { point }, brush, radius);
+      public static void DrawPoint(this DebugCanvas canvas, IntVector2 point, Brush brush, float radius = 5.0f) {
+         DrawPoints(canvas, new [] { point }, brush, radius);
       }
 
-      public static void DrawPoints(this DebugDisplay display, IReadOnlyList<IntVector2> points, Brush brush, float radius = 5.0f) {
-         display.Draw(g => {
+      public static void DrawPoints(this DebugCanvas canvas, IReadOnlyList<IntVector2> points, Brush brush, float radius = 5.0f) {
+         canvas.Draw(g => {
             for (var i = 0; i < points.Count; i ++) {
                g.FillEllipse(brush, points[i].X - radius, points[i].Y - radius, radius * 2, radius * 2);
             }
          });
       }
 
-      public static void DrawLineList(this DebugDisplay display, IReadOnlyList<IntVector2> points, Pen pen) {
+      public static void DrawLineList(this DebugCanvas canvas, IReadOnlyList<IntVector2> points, Pen pen) {
          if (points.Count % 2 != 0) {
             throw new ArgumentException("Line List points must have even length.");
          }
 
-         display.Draw(g => {
+         canvas.Draw(g => {
             for (var i = 0; i < points.Count; i += 2) {
                var a = points[i];
                var b = points[i + 1];
@@ -32,34 +32,34 @@ namespace OpenMOBA.Geometry {
          });
       }
 
-      public static void DrawLineList(this DebugDisplay display, IReadOnlyList<IntLineSegment2> segments, Pen pen) {
-         display.DrawLineList(segments.SelectMany(s => s.Points).ToList(), pen);
+      public static void DrawLineList(this DebugCanvas canvas, IReadOnlyList<IntLineSegment2> segments, Pen pen) {
+         canvas.DrawLineList(segments.SelectMany(s => s.Points).ToList(), pen);
       }
 
-      public static void DrawPolygons(this DebugDisplay display, IReadOnlyList<Polygon> polygons, Color color) {
+      public static void DrawPolygons(this DebugCanvas canvas, IReadOnlyList<Polygon> polygons, Color color) {
          using (var pen = new Pen(color)) {
             foreach (var polygon in polygons) {
-               display.DrawLineStrip(polygon.Points, pen);
+               canvas.DrawLineStrip(polygon.Points, pen);
             }
          }
       }
 
-      public static void DrawPolygon(this DebugDisplay display, Polygon polygon, Color color) {
-         display.Draw(g => {
+      public static void DrawPolygon(this DebugCanvas canvas, Polygon polygon, Color color) {
+         canvas.Draw(g => {
             using (var pen = new Pen(color)) {
                g.DrawPolygon(pen, polygon.Points.Select(p => new Point(p.X, p.Y)).ToArray());
             }
          });
       }
 
-      public static void FillPolygon(this DebugDisplay display, Polygon polygon, Brush brush) {
-         display.Draw(g => {
+      public static void FillPolygon(this DebugCanvas canvas, Polygon polygon, Brush brush) {
+         canvas.Draw(g => {
             g.FillPolygon(brush, polygon.Points.Select(p => new Point(p.X, p.Y)).ToArray());
          });
       }
 
-      public static void DrawLineStrip(this DebugDisplay display, IReadOnlyList<IntVector2> points, Pen pen) {
-         display.Draw(g => {
+      public static void DrawLineStrip(this DebugCanvas canvas, IReadOnlyList<IntVector2> points, Pen pen) {
+         canvas.Draw(g => {
             for (var i = 0; i < points.Count - 1; i++) {
                var a = points[i];
                var b = points[(i + 1) % points.Count];

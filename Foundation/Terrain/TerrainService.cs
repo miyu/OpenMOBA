@@ -42,7 +42,7 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
-      public TerrainSnapshot BuildSnapshot(int characterRadius) {
+      public TerrainSnapshot BuildSnapshot() {
          if (cachedSnapshot?.Version == version) {
             return cachedSnapshot;
          }

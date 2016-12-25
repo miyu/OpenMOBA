@@ -1,13 +1,17 @@
-﻿using System;
+﻿using OpenMOBA.Debugging;
+using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Visibility;
+using OpenMOBA.Geometry;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
-using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation {
-   public interface IGameEventFactory {}
+   public interface IGameEventFactory {
+      GameEvent CreateAddTemporaryHoleEvent(GameTime time, TerrainHole temporaryHole);
+      GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, TerrainHole temporaryHole);
+   }
 
    public class GameInstance : IGameEventFactory {
       public GameTimeService GameTimeService { get; set; }
@@ -15,10 +19,63 @@ namespace OpenMOBA.Foundation {
       public MapConfiguration MapConfiguration { get; set; }
       public TerrainService TerrainService { get; set; }
       public void Run() {
+         var r = new Random();
+         for (int i = 0; i < 10; i++) {
+            var poly = Polygon.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
+            var startTicks = r.Next(0, 100);
+            var endTicks = r.Next(startTicks + 1, 120);
+            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+         }
+
+         var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(MapConfiguration.Size, new Point(100, 100));
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
+            HandleFrameEnd(debugMultiCanvasHost);
+
             GameTimeService.IncrementTicks();
+            if (GameTimeService.Ticks > 120) return;
          }
+      }
+
+      private void HandleFrameEnd(DebugMultiCanvasHost debugMultiCanvasHost) {
+         var terrainSnapshot = TerrainService.BuildSnapshot();
+         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
+         var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(
+            MapConfiguration.Size,
+            PolygonOperations.Offset()
+                             .Include(temporaryHolePolygons)
+                             .Dilate(15)
+                             .Execute()
+                             .FlattenToPolygons()
+         );
+         var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
+         debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
+         debugCanvas.DrawVisibilityGraph(visibilityGraph);
+         var testPathFindingQueries = new[] {
+            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
+            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
+            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
+            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
+         };
+
+         using (var pen = new Pen(Color.Lime, 2)) {
+            foreach (var query in testPathFindingQueries) {
+               var path = visibilityGraph.FindPath(query.Item1, query.Item2);
+               if (path != null) {
+                  debugCanvas.DrawLineStrip(path.Points, pen);
+               }
+            }
+         }
+      }
+
+      public GameEvent CreateAddTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {
+         return new AddTemporaryHoleGameEvent(time, TerrainService, terrainHole);
+      }
+
+      public GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {
+         return new RemoveTemporaryHoleGameEvent(time, TerrainService, terrainHole);
       }
    }
 
