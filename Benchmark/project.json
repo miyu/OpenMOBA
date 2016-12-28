@@ -1,0 +1,19 @@
+﻿{
+    "version": "1.0.0-*",
+    "buildOptions": {
+        "emitEntryPoint": true
+    },
+
+    "dependencies": {
+        "BenchmarkDotNet": "*",
+        "OpenMOBA": "*" 
+    },
+
+    "frameworks": {
+        "net461": {
+            "frameworkAssemblies": {
+                "System.Drawing": "*" 
+            }
+        }
+    }
+}
