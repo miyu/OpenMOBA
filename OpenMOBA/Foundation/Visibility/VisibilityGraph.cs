@@ -8,15 +8,17 @@ using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation.Visibility {
    public class VisibilityGraph {
-      public VisibilityGraph(IntLineSegment2[] barriers, IntVector2[] waypoints, DistanceMatrix distances) {
+      public VisibilityGraph(IntLineSegment2[] barriers, IntVector2[] waypoints, DistanceMatrix distances, PolyTree landHolePunchResult) {
          Barriers = barriers;
          Waypoints = waypoints;
          Distances = distances;
+         LandHolePunchResult = landHolePunchResult;
       }
 
       public IntLineSegment2[] Barriers { get; }
       public IntVector2[] Waypoints { get; }
       public DistanceMatrix Distances { get; }
+      public PolyTree LandHolePunchResult { get; set; }
    }
 
    /// <summary>
@@ -95,18 +97,13 @@ namespace OpenMOBA.Foundation.Visibility {
    }
 
    public static class VisibilityGraphOperations {
-      public static VisibilityGraph CreateVisibilityGraph(Size mapDimensions, IEnumerable<Polygon> holePolygons) {
-         var landPoly = Polygon.CreateRect(0, 0, mapDimensions.Width, mapDimensions.Height);
-         var punchResult = PolygonOperations.Punch()
-                                            .Include(landPoly)
-                                            .Exclude(holePolygons)
-                                            .Execute();
-
-         var tempBarriers = new List<IntLineSegment2>();
-         FindVisibilityObstructionSegments(punchResult, tempBarriers);
-         var barriers = tempBarriers.ToArray();
+      public static VisibilityGraph CreateVisibilityGraph(PolyTree landPunchResult) {
+         landPunchResult.AssertIsContourlessRootHolePunchResult();
+         var barriersList = new List<IntLineSegment2>();
+         FindVisibilityObstructionSegments(landPunchResult, barriersList);
+         var barriers = barriersList.ToArray();
          var tempWaypoints = new List<IntVector2>();
-         FindWaypoints(punchResult, tempWaypoints, true);
+         FindWaypoints(landPunchResult, tempWaypoints, true);
          var waypoints = tempWaypoints.ToArray();
 
          var sideLength = waypoints.Length;
@@ -118,7 +115,7 @@ namespace OpenMOBA.Foundation.Visibility {
             }
          }
 
-         return new VisibilityGraph(barriers, waypoints, distances);
+         return new VisibilityGraph(barriers, waypoints, distances, landPunchResult);
       }
 
       private static void UpdateDistanceMatrix(IntVector2[] waypoints, IntLineSegment2[] barriers, int firstWaypointIndex, int secondWaypointIndex, DistanceMatrix distances) {

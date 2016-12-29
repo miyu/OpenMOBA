@@ -21,7 +21,7 @@
 
       public int TicksPerSecond { get; }
       public int Ticks { get; private set; }
-      public GameTime Now => new GameTime {Ticks = Ticks};
+      public GameTime Now => new GameTime(Ticks);
       public double ElapsedTimeSeconds { get; private set; }
 
       public void IncrementTicks()

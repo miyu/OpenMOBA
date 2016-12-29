@@ -70,7 +70,7 @@ namespace OpenMOBA.Debugging {
          var paddedSize = new Size(canvasSize.Width + 2 * canvasPadding.X, canvasSize.Height + 2 * canvasPadding.Y);
          var displaySize = new Size((int)(paddedSize.Width * scale), (int)(paddedSize.Height * scale));
          form = new Form {
-            ClientSize = new Size(displaySize.Width, displaySize.Height + 100)
+            ClientSize = new Size(displaySize.Width, displaySize.Height + 40)
          };
          pb = new PictureBox {
             Location = Point.Empty,
@@ -80,7 +80,7 @@ namespace OpenMOBA.Debugging {
          slider = new TrackBar {
             Orientation = Orientation.Horizontal,
             Location = new Point(0, displaySize.Height),
-            Size = new Size(displaySize.Width, 100)
+            Size = new Size(displaySize.Width, 40)
          };
          slider.ValueChanged += HandleSliderValueChanged;
          form.Controls.Add(pb);

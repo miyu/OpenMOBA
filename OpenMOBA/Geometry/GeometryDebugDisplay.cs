@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using ClipperLib;
 using OpenMOBA.Debugging;
 
 namespace OpenMOBA.Geometry {
@@ -40,6 +41,20 @@ namespace OpenMOBA.Geometry {
          using (var pen = new Pen(color)) {
             foreach (var polygon in polygons) {
                canvas.DrawLineStrip(polygon.Points, pen);
+            }
+         }
+      }
+
+      public static void DrawPolyTree(this DebugCanvas canvas, PolyTree polytree) {
+         var s = new Stack<PolyNode>();
+         s.Push(polytree);
+         while (s.Any()) {
+            var node = s.Pop();
+            node.Childs.ForEach(s.Push);
+            if (node.Contour.Any()) {
+               canvas.DrawPolygon(
+                  new Polygon(node.Contour.ToOpenMobaPoints(), node.IsHole),
+                  node.IsHole ? Color.Brown : Color.Orange);
             }
          }
       }

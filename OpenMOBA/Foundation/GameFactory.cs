@@ -3,7 +3,6 @@ using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 
@@ -18,6 +17,8 @@ namespace OpenMOBA.Foundation {
       public GameEventQueueService GameEventQueueService { get; set; }
       public MapConfiguration MapConfiguration { get; set; }
       public TerrainService TerrainService { get; set; }
+      public EntityService EntityService { get; set; }
+
       public void Run() {
          var r = new Random(1);
          for (int i = 0; i < 10; i++) {
@@ -32,7 +33,8 @@ namespace OpenMOBA.Foundation {
          var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(MapConfiguration.Size, new Point(100, 100));
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
-            HandleFrameEnd(debugMultiCanvasHost);
+            EntityService.ProcessSystems();
+            DebugHandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
@@ -40,10 +42,11 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      private void HandleFrameEnd(DebugMultiCanvasHost debugMultiCanvasHost) {
+      private void DebugHandleFrameEnd(DebugMultiCanvasHost debugMultiCanvasHost) {
          var terrainSnapshot = TerrainService.BuildSnapshot();
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
-         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(15);
+         var holeDilationRadius = 15.0;
+         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
          var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
          debugCanvas.DrawVisibilityGraph(visibilityGraph);
@@ -59,6 +62,22 @@ namespace OpenMOBA.Foundation {
                var path = visibilityGraph.FindPath(query.Item1, query.Item2);
                if (path != null) {
                   debugCanvas.DrawLineStrip(path.Points, pen);
+               }
+            }
+         }
+
+         debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
+
+         for (int x = -50; x < 1100; x += 100) {
+            for (int y = -50; y < 1100; y += 100) {
+               var query = new IntVector2(x, y);
+               IntVector2 nearestLandPoint;
+               var isInHole = terrainSnapshot.FindNearestLandPointAndIsInHole(holeDilationRadius, query, out nearestLandPoint);
+               debugCanvas.DrawPoint(query, isInHole ? Brushes.Red : Brushes.Lime, 3.0f);
+               if (isInHole) {
+                  debugCanvas.DrawLineStrip(
+                     new [] { query, nearestLandPoint },
+                     Pens.Magenta);
                }
             }
          }
@@ -79,11 +98,13 @@ namespace OpenMOBA.Foundation {
          var gameLoop = new GameEventQueueService(gameTimeService);
          var mapConfiguration = CreateDefaultMapConfiguration();
          var terrainService = new TerrainService(mapConfiguration, gameTimeService);
+         var entityService = new EntityService();
          return new GameInstance {
             GameTimeService = gameTimeService,
             GameEventQueueService = gameLoop,
             MapConfiguration = mapConfiguration,
-            TerrainService = terrainService
+            TerrainService = terrainService,
+            EntityService = entityService
          };
       }
 

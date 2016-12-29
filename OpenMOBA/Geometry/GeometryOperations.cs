@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
 
 namespace OpenMOBA.Geometry {
@@ -83,6 +84,38 @@ namespace OpenMOBA.Geometry {
          var v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
          return (u >= 0) && (v >= 0) && (u + v < 1);
+      }
+
+      public static ContourNearestPointResult FindNearestPoint(List<IntPoint> contour, IntVector2 query) {
+         var result = new ContourNearestPointResult {
+            Distance = float.PositiveInfinity,
+            Query = query
+         };
+         var pointCount = contour.First().Equals(contour.Last()) ? contour.Count - 1 : contour.Count;
+         for (int i = 0; i < pointCount; i++) {
+            var p1 = contour[i];
+            var p2 = contour[(i + 1) % pointCount];
+            var p1p2 = new IntVector2((int)(p2.X - p1.X), (int)(p2.Y - p1.Y));
+            var p1Query = new IntVector2((int)(query.X - p1.X), (int)(query.Y - p1.Y));
+            var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
+            IntVector2 nearestPoint;
+            if (p1QueryProjP1P2Component <= 0) {
+               nearestPoint = p1.ToOpenMobaPoint();
+            } else if (p1QueryProjP1P2Component >= 1) {
+               nearestPoint = p2.ToOpenMobaPoint();
+            } else {
+               var p1p2Perp = new IntVector2(p1p2.Y, -p1p2.X);
+               var p1QueryProjOntoP1P2Perp = p1Query.LossyProjectOnto(p1p2Perp);
+               nearestPoint = query - p1QueryProjOntoP1P2Perp;
+            }
+            var distance = (query - nearestPoint).Norm2F();
+            if (distance < result.Distance) {
+               result.Distance = distance;
+               result.SegmentFirstPointContourIndex = i;
+               result.NearestPoint = nearestPoint;
+            }
+         }
+         return result;
       }
    }
 }

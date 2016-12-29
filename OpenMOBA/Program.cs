@@ -10,8 +10,6 @@ using OpenMOBA.Utilities;
 namespace OpenMOBA {
    public class Program {
       public static void Main(string[] args) {
-//         X();
-//         return;
          var gameInstance = new GameInstanceFactory().Create();
          gameInstance.Run();
       }
@@ -75,7 +73,17 @@ namespace OpenMOBA {
             }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
          holes = holes.Concat(holeSquiggle).ToArray();
 
-         var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(mapDimensions, PolygonOperations.Offset().Include(holes).Dilate(15).Execute().FlattenToPolygons());
+         var landPoly = Polygon.CreateRect(0, 0, 1000, 1000);
+         var holesUnionResult = PolygonOperations.Offset()
+                                                 .Include(holes)
+                                                 .Include(holeSquiggle)
+                                                 .Dilate(15)
+                                                 .Execute();
+         var landHolePunchResult = PolygonOperations.Punch()
+                                                    .Include(landPoly)
+                                                    .Exclude(holesUnionResult.FlattenToPolygons())
+                                                    .Execute();
+         var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(landHolePunchResult);
          var debugCanvas = DebugCanvasHost.CreateAndShowCanvas();
          debugCanvas.DrawPolygons(holes, Color.Red);
          debugCanvas.DrawVisibilityGraph(visibilityGraph);
