@@ -18,28 +18,52 @@ namespace OpenMOBA.Foundation {
       public MapConfiguration MapConfiguration { get; set; }
       public TerrainService TerrainService { get; set; }
       public EntityService EntityService { get; set; }
+      public PathfinderCalculator PathfinderCalculator { get; set; }
+      public MovementSystemService MovementSystemService { get; set; }
+      public GameLogicFacade GameLogicFacade { get; set; }
 
       public void Run() {
          var r = new Random(1);
-         for (int i = 0; i < 10; i++) {
+         for (int i = 0; i < 30; i++) {
             var poly = Polygon.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
-            var startTicks = r.Next(0, 60);
-            var endTicks = r.Next(startTicks + 20, 120);
+            var startTicks = r.Next(0, 500);
+            var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new TerrainHole { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
 
+         var a = CreateTestEntity(new DoubleVector2(60, 40), 80);
+         var b = CreateTestEntity(new DoubleVector2(675, 175), 70);
+         var c = CreateTestEntity(new DoubleVector2(50, 900), 60);
+         var d = CreateTestEntity(new DoubleVector2(50, 500), 50);
+
+         MovementSystemService.Pathfind(a, new DoubleVector2(930, 300));
+         MovementSystemService.Pathfind(b, new DoubleVector2(825, 300));
+         MovementSystemService.Pathfind(c, new DoubleVector2(950, 475));
+         MovementSystemService.Pathfind(d, new DoubleVector2(80, 720));
+
          var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(MapConfiguration.Size, new Point(100, 100));
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
             EntityService.ProcessSystems();
-            DebugHandleFrameEnd(debugMultiCanvasHost);
+            if (GameTimeService.Ticks % 6 == 0)
+               DebugHandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
-            if (GameTimeService.Ticks > 120) return;
+            if (GameTimeService.Ticks > 800) return;
          }
+      }
+
+      private Entity CreateTestEntity(DoubleVector2 initialPosition, float movementSpeed) {
+         var entity = EntityService.CreateEntity();
+         EntityService.AddEntityComponent(entity, new MovementComponent {
+            Position = initialPosition,
+            BaseRadius = 15,
+            BaseSpeed = movementSpeed
+         });
+         return entity;
       }
 
       private void DebugHandleFrameEnd(DebugMultiCanvasHost debugMultiCanvasHost) {
@@ -50,45 +74,75 @@ namespace OpenMOBA.Foundation {
          var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
          debugCanvas.DrawVisibilityGraph(visibilityGraph);
-         var testPathFindingQueries = new[] {
-            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
-            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
-            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
-            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
-         };
+//         var testPathFindingQueries = new[] {
+//            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
+//            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
+//            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
+//            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
+//         };
 
          using (var pen = new Pen(Color.Lime, 2)) {
-            foreach (var query in testPathFindingQueries) {
-               var path = visibilityGraph.FindPath(query.Item1, query.Item2);
-               if (path != null) {
-                  debugCanvas.DrawLineStrip(path.Points, pen);
-               }
+            foreach (var entity in EntityService.EnumerateEntities()) {
+               var movementComponent = entity.MovementComponent;
+               if (movementComponent == null) continue;
+               var pathPoints = entity.MovementComponent.PathingBreadcrumbs.Select(p => p.LossyToIntVector2()).ToList();
+               pathPoints.Insert(0, movementComponent.Position.LossyToIntVector2());
+               debugCanvas.DrawLineStrip(pathPoints, pen);
             }
          }
 
+         debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
          debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
 
-         for (int x = -50; x < 1100; x += 100) {
-            for (int y = -50; y < 1100; y += 100) {
-               var query = new IntVector2(x, y);
-               IntVector2 nearestLandPoint;
-               var isInHole = terrainSnapshot.FindNearestLandPointAndIsInHole(holeDilationRadius, query, out nearestLandPoint);
-               debugCanvas.DrawPoint(query, isInHole ? Brushes.Red : Brushes.Lime, 3.0f);
-               if (isInHole) {
-                  debugCanvas.DrawLineStrip(
-                     new [] { query, nearestLandPoint },
-                     Pens.Magenta);
-               }
+         foreach(var entity in EntityService.EnumerateEntities()) {
+            var movementComponent = entity.MovementComponent;
+            if (movementComponent != null) {
+               debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
             }
          }
+
+//         for (int x = -50; x < 1100; x += 100) {
+//            for (int y = -50; y < 1100; y += 100) {
+//               var query = new IntVector2(x, y);
+//               IntVector2 nearestLandPoint;
+//               var isInHole = terrainSnapshot.FindNearestLandPointAndIsInHole(holeDilationRadius, query, out nearestLandPoint);
+//               debugCanvas.DrawPoint(query, isInHole ? Brushes.Red : Brushes.Lime, 3.0f);
+//               if (isInHole) {
+//                  debugCanvas.DrawLineStrip(
+//                     new [] { query, nearestLandPoint },
+//                     Pens.Magenta);
+//               }
+//            }
+//         }
       }
 
       public GameEvent CreateAddTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {
-         return new AddTemporaryHoleGameEvent(time, TerrainService, terrainHole);
+         return new AddTemporaryHoleGameEvent(time, GameLogicFacade, terrainHole);
       }
 
       public GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {
-         return new RemoveTemporaryHoleGameEvent(time, TerrainService, terrainHole);
+         return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, terrainHole);
+      }
+   }
+
+   public class GameLogicFacade {
+      private readonly TerrainService terrainService;
+      private readonly MovementSystemService movementSystemService;
+
+      public GameLogicFacade(TerrainService terrainService, MovementSystemService movementSystemService) {
+         this.terrainService = terrainService;
+         this.movementSystemService = movementSystemService;
+      }
+
+      public void AddTemporaryHole(TerrainHole hole) {
+         terrainService.AddTemporaryHole(hole);
+         // todo: can optimize to only invalidate paths intersecting hole.
+         movementSystemService.HandleHoleAdded(hole);
+      }
+
+      public void RemoveTemporaryHole(TerrainHole hole) {
+         terrainService.RemoveTemporaryHole(hole);
+         movementSystemService.InvalidatePaths();
       }
    }
 
@@ -99,12 +153,20 @@ namespace OpenMOBA.Foundation {
          var mapConfiguration = CreateDefaultMapConfiguration();
          var terrainService = new TerrainService(mapConfiguration, gameTimeService);
          var entityService = new EntityService();
+         var statsCalculator = new StatsCalculator();
+         var pathfinderCalculator = new PathfinderCalculator(terrainService, statsCalculator);
+         var movementSystemService = new MovementSystemService(entityService, gameTimeService, statsCalculator, terrainService, pathfinderCalculator);
+         entityService.AddEntitySystem(movementSystemService);
+         var gameLogicFacade = new GameLogicFacade(terrainService, movementSystemService);
          return new GameInstance {
             GameTimeService = gameTimeService,
             GameEventQueueService = gameLoop,
             MapConfiguration = mapConfiguration,
             TerrainService = terrainService,
-            EntityService = entityService
+            EntityService = entityService,
+            PathfinderCalculator = pathfinderCalculator,
+            MovementSystemService = movementSystemService,
+            GameLogicFacade = gameLogicFacade
          };
       }
 

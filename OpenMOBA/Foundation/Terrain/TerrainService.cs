@@ -162,4 +162,22 @@ namespace OpenMOBA.Foundation.Terrain {
    public class TerrainHole {
       public IReadOnlyList<Polygon> Polygons { get; set; }
    }
+
+   public static class TerrainHoleHelpers {
+      public static bool ContainsPoint(this TerrainHole terrainHole, double holeDilationRadius, DoubleVector2 point) {
+         // Padding so that when flooring the point, we don't accidentally say a point isn't
+         // in the hole when in reality, it is. 
+         var paddedHoleShapeUnion = PolygonOperations.Offset()
+                                                     .Dilate(holeDilationRadius)
+                                                     .Include(terrainHole.Polygons)
+                                                     .Execute();
+
+         PolyNode node;
+         bool isHole;
+         paddedHoleShapeUnion.PickDeepestPolynodeGivenHoleShapePolytree(point.LossyToIntVector2().ToClipperPoint(), out node, out isHole);
+
+         // we want land inside the hole-shape-union because we want to know if we're in the hole, not a hole of the hole shape.
+         return !isHole;
+      }
+   }
 }

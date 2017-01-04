@@ -200,11 +200,11 @@ namespace OpenMOBA.Foundation.Visibility {
          }
       }
 
-      public static Path FindPath(this VisibilityGraph visibilityGraph, IntVector2 start, IntVector2 end) {
-         return visibilityGraph.FindPath(start.X, start.Y, end.X, end.Y);
+      public static bool TryFindPath(this VisibilityGraph visibilityGraph, IntVector2 start, IntVector2 end, out Path path) {
+         return visibilityGraph.TryFindPath(start.X, start.Y, end.X, end.Y, out path);
       }
 
-      public static Path FindPath(this VisibilityGraph visibilityGraph, int sx, int sy, int ex, int ey) {
+      public static bool TryFindPath(this VisibilityGraph visibilityGraph, int sx, int sy, int ex, int ey, out Path path) {
          var startNode = new IntVector2(sx, sy);
          var endNode = new IntVector2(ex, ey);
 
@@ -249,7 +249,8 @@ namespace OpenMOBA.Foundation.Visibility {
                   current = current.Previous;
                }
                result.Reverse();
-               return new Path(result.ToArray(), node.Distance);
+               path = new Path(result.ToArray(), node.Distance);
+               return true;
             }
 
             for (var j = 0; j < waypointCount + 2; j++) {
@@ -269,7 +270,8 @@ namespace OpenMOBA.Foundation.Visibility {
                q.Enqueue(new VisibilityGraphPathfindingNode(j, totalDistance, node));
             }
          }
-         return null;
+         path = null;
+         return false;
       }
 
       public class VisibilityGraphPathfindingNode : IComparable<VisibilityGraphPathfindingNode> {

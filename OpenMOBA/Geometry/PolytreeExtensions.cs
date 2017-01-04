@@ -49,5 +49,41 @@ namespace OpenMOBA.Geometry {
             current = match;
          }
       }
+
+
+      /// <summary>
+      /// Note: Containment definition varies by hole vs terrain: Containment for holes
+      /// does not include the hole edge, containment for terrain includes the terrain edge.
+      /// This is important, else e.g. knockback + terrain push placing an entity on an edge
+      /// would potentially infinite loop.
+      /// </summary>
+      public static void PickDeepestPolynodeGivenHoleShapePolytree(this PolyTree polyTree, IntPoint query, out PolyNode result, out bool isHole) {
+         polyTree.AssertIsContourlessRootHolePunchResult();
+         PolyNode current = polyTree;
+         while (true) {
+            // current is a hole of a hole's shape
+            PolyNode match;
+
+            // if we fail to find the first child land node border-inclusively containing the query point
+            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(query, child.Contour) == (int)ClipperPointInPolygonResult.InPolygon, out match)) {
+               result = current;
+               isHole = true;
+               return;
+            }
+
+            // next off, current is land of a hole's shape
+            current = match;
+
+            // If we fail to find a child hole border-excludingly containing the query point
+            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(query, child.Contour) != (int)ClipperPointInPolygonResult.OutsidePolygon, out match)) {
+               result = current;
+               isHole = false;
+               return;
+            }
+
+            // next off, current is a hole of a hole's shape
+            current = match;
+         }
+      }
    }
 }

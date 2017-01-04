@@ -49,32 +49,32 @@ namespace OpenMOBA.Foundation {
    }
 
    public class AddTemporaryHoleGameEvent : GameEvent {
-      private readonly TerrainService terrainService;
+      private readonly GameLogicFacade gameLogicFacade;
       private readonly TerrainHole terrainHole;
 
-      public AddTemporaryHoleGameEvent(GameTime time, TerrainService terrainService, TerrainHole terrainHole) : base(time) {
-         this.terrainService = terrainService;
+      public AddTemporaryHoleGameEvent(GameTime time, GameLogicFacade gameLogicFacade, TerrainHole terrainHole) : base(time) {
+         this.gameLogicFacade = gameLogicFacade;
          this.terrainHole = terrainHole;
       }
 
       public override void Execute() {
          Console.WriteLine("Add " + terrainHole.GetHashCode() + " at " + Time.Ticks);
-         terrainService.AddTemporaryHole(terrainHole);
+         gameLogicFacade.AddTemporaryHole(terrainHole);
       }
    }
 
    public class RemoveTemporaryHoleGameEvent : GameEvent {
-      private readonly TerrainService terrainService;
+      private readonly GameLogicFacade gameLogicFacade;
       private readonly TerrainHole terrainHole;
 
-      public RemoveTemporaryHoleGameEvent(GameTime time, TerrainService terrainService, TerrainHole terrainHole) : base(time) {
-         this.terrainService = terrainService;
+      public RemoveTemporaryHoleGameEvent(GameTime time, GameLogicFacade gameLogicFacade, TerrainHole terrainHole) : base(time) {
+         this.gameLogicFacade = gameLogicFacade;
          this.terrainHole = terrainHole;
       }
 
       public override void Execute() {
          Console.WriteLine("Remove " + terrainHole.GetHashCode() + " at " + Time.Ticks);
-         terrainService.RemoveTemporaryHole(terrainHole);
+         gameLogicFacade.RemoveTemporaryHole(terrainHole);
       }
    }
 }

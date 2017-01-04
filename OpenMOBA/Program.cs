@@ -96,8 +96,9 @@ namespace OpenMOBA {
 
          using (var pen = new Pen(Color.Lime, 2)) {
             foreach (var query in testPathFindingQueries) {
-               var path = visibilityGraph.FindPath(query.Item1, query.Item2);
-               debugCanvas.DrawLineStrip(path.Points, pen);
+               Path path;
+               if (visibilityGraph.TryFindPath(query.Item1, query.Item2, out path))
+                  debugCanvas.DrawLineStrip(path.Points, pen);
             }
          }
       }
