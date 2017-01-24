@@ -34,25 +34,25 @@ namespace OpenMOBA.Geometry {
          return new IntVector2(numeratorX / denominator, numeratorY / denominator);
       }
 
-      public static bool TryIntersect(double x, double y, IReadOnlyList<ConnectedMesh> meshes, out ConnectedMesh mesh, out DelaunayTriangle triangle) {
-         foreach (var m in meshes) {
-            if (m.TryIntersect(x, y, out triangle)) {
-               mesh = m;
+      public static bool TryIntersect(double x, double y, Triangulation triangulation, out TriangulationIsland island, out DelaunayTriangle triangle) {
+         foreach (var candidateIsland in triangulation.Islands) {
+            if (candidateIsland.TryIntersect(x, y, out triangle)) {
+               island = candidateIsland;
                return true;
             }
          }
-         mesh = null;
+         island = null;
          triangle = null;
          return false;
       }
 
-      public static bool TryIntersect(this ConnectedMesh mesh, double x, double y, out DelaunayTriangle triangle) {
-         if (x < mesh.BoundingBox.MinX || y < mesh.BoundingBox.MinY ||
-             x > mesh.BoundingBox.MaxX || y > mesh.BoundingBox.MaxY) {
+      public static bool TryIntersect(this TriangulationIsland island, double x, double y, out DelaunayTriangle triangle) {
+         if (x < island.BoundingBox.MinX || y < island.BoundingBox.MinY ||
+             x > island.BoundingBox.MaxX || y > island.BoundingBox.MaxY) {
             triangle = null;
             return false;
          }
-         triangle = mesh.Triangles.FirstOrDefault(tri => IsPointInTriangle(x, y, tri));
+         triangle = island.Triangles.FirstOrDefault(tri => IsPointInTriangle(x, y, tri));
          return triangle != null;
       }
 

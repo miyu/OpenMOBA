@@ -7,11 +7,12 @@ using Poly2Tri.Triangulation.Delaunay;
 using Poly2Tri.Triangulation.Polygon;
 
 namespace OpenMOBA {
-   public class ConnectedMesh {
+   // Connected Components. We avoid that term because 'Component' is pretty overloaded in meaning.
+   public class TriangulationIsland {
       public List<DelaunayTriangle> Triangles { get; set; }
       public BoundingBox BoundingBox { get; set; }
 
-      public static ConnectedMesh Create(List<DelaunayTriangle> triangles) {
+      public static TriangulationIsland Create(List<DelaunayTriangle> triangles) {
          double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
          foreach (var triangle in triangles) {
             foreach (var point in triangle.Points) {
@@ -22,7 +23,7 @@ namespace OpenMOBA {
             }
          }
 
-         return new ConnectedMesh {
+         return new TriangulationIsland {
             Triangles = triangles,
             BoundingBox = new BoundingBox {
                MinX = minX,
@@ -41,23 +42,36 @@ namespace OpenMOBA {
       public double MinX { get; set; }
    }
 
+   public class Triangulation {
+      public IReadOnlyList<DelaunayTriangle> Triangles { get; set; }
+      public IReadOnlyList<TriangulationIsland> Islands { get; set; }
+
+   }
+
    public class Triangulator {
-      public IReadOnlyList<ConnectedMesh> Triangulate(PolyTree polyTree) {
+      public Triangulation Triangulate(PolyTree polyTree) {
          var triangles = new List<DelaunayTriangle>();
-         TriangulateHelper(polyTree, triangles);
+         if (!polyTree.IsHole || polyTree.Contour.Any()) {
+            throw new ArgumentException("Expected polytree to be contourless root hole!");
+         }
+         foreach (var child in polyTree.Childs) {
+            TriangulateHelper(child, triangles);
+         }
+
+         return new Triangulation { Triangles = triangles };
 
          var visitedTriangles = new HashSet<DelaunayTriangle>();
-         var meshes = new List<ConnectedMesh>();
+         var islands = new List<TriangulationIsland>();
          foreach (var triangle in triangles) {
             if (!triangle.IsInterior) continue;
             if (!visitedTriangles.Add(triangle)) continue;
 
-            var connectedTriangles = new List<DelaunayTriangle>();
+            var islandTriangles = new List<DelaunayTriangle>();
             var s = new Stack<DelaunayTriangle>();
             s.Push(triangle);
             while (s.Count > 0) {
                var current = s.Pop();
-               connectedTriangles.Add(current);
+               islandTriangles.Add(current);
 
                foreach (var neighbor in current.Neighbors.Where(n => n != null)) {
                   if (!neighbor.IsInterior) continue;
@@ -66,43 +80,32 @@ namespace OpenMOBA {
                   }
                }
             }
-            meshes.Add(ConnectedMesh.Create(connectedTriangles));
+            islands.Add(TriangulationIsland.Create(islandTriangles));
          }
-         return meshes;
+
+         return new Triangulation {
+            Triangles = triangles,
+            Islands = islands
+         };
       }
 
       private void TriangulateHelper(PolyNode node, List<DelaunayTriangle> results) {
-         if (node.IsHole) {
-            DebugPrint("Warning: Node was unexpectedly a hole.");
-            foreach (var child in node.Childs) {
-               DebugPrint(child.Parent == node);
-               TriangulateHelper(child, results);
-            }
-            return;
-         } else {
-            DebugPrint("Good: Node was not a hole.");
+         DebugPrint("Triangulate out");
+
+         var cps = new Polygon(ConvertToTriangulationPoints(node.Contour));
+         foreach (var hole in node.Childs) {
+            cps.AddHole(new Polygon(ConvertToTriangulationPoints(hole.Contour)));
          }
+         P2T.Triangulate(cps);
+         results.AddRange(cps.Triangles);
 
-         if (node.Contour.Count > 0) {
-            DebugPrint("Triangulate out");
-            var cps = new Polygon(ConvertToTriangulationPoints(node.Contour, node.IsOpen));
-            foreach (var child in node.Childs) {
-               DebugPrint(child.Parent == node);
-               DebugPrint("Triangulate hole");
-               cps.AddHole(new Polygon(ConvertToTriangulationPoints(child.Contour, child.IsOpen)));
-
-               foreach (var innerChild in child.Childs) {
-                  DebugPrint("Go inner");
-                  DebugPrint(innerChild.Parent == child);
-                  TriangulateHelper(innerChild, results);
-               }
-            }
-            P2T.Triangulate(cps);
-            results.AddRange(cps.Triangles);
+         foreach (var innerChild in node.Childs.SelectMany(hole => hole.Childs)) {
+            TriangulateHelper(innerChild, results);
          }
       }
 
-      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntPoint> points, bool isOpen) {
+      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntPoint> points) {
+         var isOpen = points[0] != points[points.Count - 1];
          var results = new List<PolygonPoint>(points.Count);
          var limit = isOpen ? points.Count : points.Count - 1;
          for (var i = 0; i < limit; i++) {

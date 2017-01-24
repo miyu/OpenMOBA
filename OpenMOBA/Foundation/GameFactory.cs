@@ -93,6 +93,7 @@ namespace OpenMOBA.Foundation {
 
          debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
          debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
+         debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
 
          foreach(var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;

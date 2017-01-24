@@ -82,5 +82,18 @@ namespace OpenMOBA.Geometry {
             }
          });
       }
+
+      public static void DrawTriangulation(this DebugCanvas canvas, Triangulation triangulation) {
+         canvas.Draw(g => {
+            foreach (var triangle in triangulation.Triangles) {
+               g.DrawLines(Pens.DarkGray, new[] {
+                  new PointF(triangle.Points[0].Xf, triangle.Points[0].Yf),
+                  new PointF(triangle.Points[1].Xf, triangle.Points[1].Yf),
+                  new PointF(triangle.Points[2].Xf, triangle.Points[2].Yf),
+                  new PointF(triangle.Points[0].Xf, triangle.Points[0].Yf)
+               });
+            }
+         });
+      }
    }
 }

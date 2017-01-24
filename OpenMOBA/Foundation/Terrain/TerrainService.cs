@@ -25,6 +25,7 @@ namespace OpenMOBA.Foundation.Terrain {
       private readonly Dictionary<double, PolyTree> dilatedHolesUnionCache = new Dictionary<double, PolyTree>();
       private readonly Dictionary<double, PolyTree> punchedLandCache = new Dictionary<double, PolyTree>();
       private readonly Dictionary<double, VisibilityGraph> visibilityGraphCache = new Dictionary<double, VisibilityGraph>();
+      private readonly Dictionary<double, Triangulation> triangulationCache = new Dictionary<double, Triangulation>();
 
       public PolyTree ComputeDilatedHolesUnion(double holeDilationRadius) {
          PolyTree dilatedHolesUnion;
@@ -65,6 +66,16 @@ namespace OpenMOBA.Foundation.Terrain {
             visibilityGraphCache[holeDilationRadius] = visibilityGraph;
          }
          return visibilityGraph;
+      }
+
+      public Triangulation ComputeTriangulation(double holeDilationRadius) {
+         Triangulation triangulation;
+         if (!triangulationCache.TryGetValue(holeDilationRadius, out triangulation)) {
+            var triangulator = new Triangulator();
+            triangulation = triangulator.Triangulate(ComputePunchedLand(holeDilationRadius));
+            triangulationCache[holeDilationRadius] = triangulation;
+         }
+         return triangulation;
       }
    }
 
