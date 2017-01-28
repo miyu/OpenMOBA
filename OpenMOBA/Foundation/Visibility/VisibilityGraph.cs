@@ -141,7 +141,7 @@ namespace OpenMOBA.Foundation.Visibility {
          // union all the children, who are connectable.
          foreach (var child in hole.Childs) {
             // dilation to move holes inward
-            const int kDilationFactor = 4;
+            const int kDilationFactor = 5;
 
             // expansion to make corners hit
             const int kExpansionFactor = 2;
