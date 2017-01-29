@@ -7,17 +7,17 @@ namespace OpenMOBA.Utilities {
       private readonly int maxQuadDepth;
       private readonly int subdivisionItemCountThreshold;
 
-      public QuadTree(int subdivisionItemCountThreshold, int maxQuadDepth, Rectangle bounds) {
+      public QuadTree(int subdivisionItemCountThreshold, int maxQuadDepth, IntRect2 bounds) {
          this.subdivisionItemCountThreshold = subdivisionItemCountThreshold;
          this.maxQuadDepth = maxQuadDepth;
 
-         Root = new Node(0, Rect.FromRectangle(bounds));
+         Root = new Node(0, bounds);
       }
 
       public Node Root { get; }
 
       public ICollection<T> Query(Rectangle query) {
-         var region = Rect.FromRectangle(query);
+         var region = IntRect2.FromRectangle(query);
 
          var results = new HashSet<T>();
          var s = new Stack<Node>();
@@ -40,8 +40,7 @@ namespace OpenMOBA.Utilities {
          return results;
       }
 
-      public void Insert(T item, Rectangle region) {
-         var regionRect = Rect.FromRectangle(region);
+      public void Insert(T item, IntRect2 regionRect) {
          var itemAndRect = new ItemAndRect { Item = item, Rect = regionRect };
          InsertToNode(Root, itemAndRect);
       }
@@ -70,10 +69,10 @@ namespace OpenMOBA.Utilities {
          var rect = node.Rect;
          var cx = (rect.Left + rect.Right) / 2;
          var cy = (rect.Top + rect.Bottom) / 2;
-         node.TopLeft = new Node(node.Depth + 1, new Rect { Left = rect.Left, Top = rect.Top, Right = cx, Bottom = cy });
-         node.TopRight = new Node(node.Depth + 1, new Rect { Left = cx + 1, Top = rect.Top, Right = rect.Right, Bottom = cy });
-         node.BottomLeft = new Node(node.Depth + 1, new Rect { Left = rect.Left, Top = cy + 1, Right = cx, Bottom = rect.Bottom });
-         node.BottomRight = new Node(node.Depth + 1, new Rect { Left = cx + 1, Top = cy + 1, Right = rect.Right, Bottom = rect.Bottom });
+         node.TopLeft = new Node(node.Depth + 1, new IntRect2 { Left = rect.Left, Top = rect.Top, Right = cx, Bottom = cy });
+         node.TopRight = new Node(node.Depth + 1, new IntRect2 { Left = cx + 1, Top = rect.Top, Right = rect.Right, Bottom = cy });
+         node.BottomLeft = new Node(node.Depth + 1, new IntRect2 { Left = rect.Left, Top = cy + 1, Right = cx, Bottom = rect.Bottom });
+         node.BottomRight = new Node(node.Depth + 1, new IntRect2 { Left = cx + 1, Top = cy + 1, Right = rect.Right, Bottom = rect.Bottom });
 
          foreach (var itemAndRect in node.ItemAndRects) {
             InsertToNode(node, itemAndRect);
@@ -83,40 +82,14 @@ namespace OpenMOBA.Utilities {
          node.ItemAndRects.Capacity = 0;
       }
 
-      public class Rect {
-         public int Left { get; set; }
-         public int Top { get; set; }
-         public int Right { get; set; }
-         public int Bottom { get; set; }
-
-         public bool IntersectsWith(Rect rect) {
-            if (Right < rect.Left) return false;
-            if (Left > rect.Right) return false;
-            if (Bottom < rect.Top) return false;
-            if (Top > rect.Bottom) return false;
-            return true;
-         }
-
-         public static Rect FromRectangle(Rectangle rect) {
-            return new Rect {
-               Left = rect.Left,
-               Top = rect.Top,
-               Right = rect.Right,
-               Bottom = rect.Bottom
-            };
-         }
-
-         public override string ToString() => $"Rect {Left} {Top} {Right} {Bottom}";
-      }
-
       public class Node {
-         public Node(int depth, Rect rect) {
+         public Node(int depth, IntRect2 rect) {
             Depth = depth;
             Rect = rect;
          }
 
-         public int Depth { get; }
-         public Rect Rect { get; }
+         public int Depth;
+         public IntRect2 Rect;
          public List<ItemAndRect> ItemAndRects { get; } = new List<ItemAndRect>();
 
          public Node TopLeft { get; set; }
@@ -127,7 +100,34 @@ namespace OpenMOBA.Utilities {
 
       public class ItemAndRect {
          public T Item { get; set; }
-         public Rect Rect { get; set; }
+         public IntRect2 Rect { get; set; }
       }
+   }
+
+   public struct IntRect2 {
+      public int Left;
+      public int Top;
+      public int Right;
+      // below top, has greater value than top
+      public int Bottom;
+
+      public bool IntersectsWith(IntRect2 rect) {
+         if (Right < rect.Left) return false;
+         if (Left > rect.Right) return false;
+         if (Bottom < rect.Top) return false;
+         if (Top > rect.Bottom) return false;
+         return true;
+      }
+
+      public static IntRect2 FromRectangle(Rectangle rect) {
+         return new IntRect2 {
+            Left = rect.Left,
+            Top = rect.Top,
+            Right = rect.Right,
+            Bottom = rect.Bottom
+         };
+      }
+
+      public override string ToString() => $"Rect {Left} {Top} {Right} {Bottom}";
    }
 }

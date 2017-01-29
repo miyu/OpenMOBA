@@ -13,5 +13,9 @@ namespace OpenMOBA {
          firstMatch = default(T);
          return false;
       }
+
+      public static IReadOnlyList<T> CastToReadOnlyList<T>(this IList<T> list) {
+         return (IReadOnlyList<T>)list;
+      }
    }
 }

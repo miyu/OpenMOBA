@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using ClipperLib;
+using Poly2Tri.Triangulation;
 
 namespace OpenMOBA.Geometry {
    public static class PolygonOperations {
@@ -26,6 +27,10 @@ namespace OpenMOBA.Geometry {
             result.Add(ToOpenMobaPoint(p));
          }
          return result;
+      }
+
+      public static DoubleVector2 ToOpenMobaPointD(this TriangulationPoint input) {
+         return new DoubleVector2(input.X, input.Y);
       }
 
       public static UnionOperation Union() => new UnionOperation();

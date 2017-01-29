@@ -37,7 +37,7 @@ namespace OpenMOBA.Geometry {
             (other.Y * numerator) / denominator);
       }
 
-      public IntVector2 LossyToIntVector2() => new IntVector2((int)X, (int)Y);
+      public IntVector2 LossyToIntVector2() => new IntVector2((int)Math.Floor(X), (int)Math.Floor(Y));
 
       public override int GetHashCode() {
          unchecked {

@@ -34,7 +34,7 @@ namespace OpenMOBA.Geometry {
          return new IntVector2(numeratorX / denominator, numeratorY / denominator);
       }
 
-      public static bool TryIntersect(double x, double y, Triangulation triangulation, out TriangulationIsland island, out DelaunayTriangle triangle) {
+      public static bool TryIntersect(this Triangulation triangulation, double x, double y, out TriangulationIsland island, out Triangle triangle) {
          foreach (var candidateIsland in triangulation.Islands) {
             if (candidateIsland.TryIntersect(x, y, out triangle)) {
                island = candidateIsland;
@@ -42,29 +42,35 @@ namespace OpenMOBA.Geometry {
             }
          }
          island = null;
-         triangle = null;
+         triangle = default(Triangle);
          return false;
       }
 
-      public static bool TryIntersect(this TriangulationIsland island, double x, double y, out DelaunayTriangle triangle) {
-         if (x < island.BoundingBox.MinX || y < island.BoundingBox.MinY ||
-             x > island.BoundingBox.MaxX || y > island.BoundingBox.MaxY) {
-            triangle = null;
+      public static bool TryIntersect(this TriangulationIsland island, double x, double y, out Triangle triangle) {
+         if (x < island.IntBounds.Left || y < island.IntBounds.Top ||
+             x > island.IntBounds.Right || y > island.IntBounds.Bottom) {
+            triangle = default(Triangle);
             return false;
          }
-         triangle = island.Triangles.FirstOrDefault(tri => IsPointInTriangle(x, y, tri));
-         return triangle != null;
+         for (var i = 0; i < island.Triangles.Length; i++) {
+            if (IsPointInTriangle(x, y, ref island.Triangles[i])) {
+               triangle = island.Triangles[i];
+               return true;
+            }
+         }
+         triangle = default(Triangle);
+         return false;
       }
 
-      public static bool IsPointInTriangle(double px, double py, DelaunayTriangle triangle) {
+      public static bool IsPointInTriangle(double px, double py, ref Triangle triangle) {
          // Barycentric coordinates for PIP w/ triangle test http://blackpawn.com/texts/pointinpoly/
 
-         var ax = triangle.Points.Item0.X;
-         var ay = triangle.Points.Item0.Y;
-         var bx = triangle.Points.Item1.X;
-         var by = triangle.Points.Item1.Y;
-         var cx = triangle.Points.Item2.X;
-         var cy = triangle.Points.Item2.Y;
+         var ax = triangle.Points.A.X;
+         var ay = triangle.Points.A.Y;
+         var bx = triangle.Points.B.X;
+         var by = triangle.Points.B.Y;
+         var cx = triangle.Points.C.X;
+         var cy = triangle.Points.C.Y;
 
          var v0x = cx - ax;
          var v0y = cy - ay;

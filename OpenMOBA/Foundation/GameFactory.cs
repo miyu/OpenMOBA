@@ -3,8 +3,10 @@ using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation {
    public interface IGameEventFactory {
@@ -47,8 +49,7 @@ namespace OpenMOBA.Foundation {
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
             EntityService.ProcessSystems();
-            if (GameTimeService.Ticks % 6 == 0)
-               DebugHandleFrameEnd(debugMultiCanvasHost);
+            DebugHandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
@@ -72,49 +73,86 @@ namespace OpenMOBA.Foundation {
          var holeDilationRadius = 15.0;
          var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
          var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
-         debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
-         debugCanvas.DrawVisibilityGraph(visibilityGraph);
-//         var testPathFindingQueries = new[] {
-//            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
-//            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
-//            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
-//            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
-//         };
 
-         using (var pen = new Pen(Color.Lime, 2)) {
-            foreach (var entity in EntityService.EnumerateEntities()) {
-               var movementComponent = entity.MovementComponent;
-               if (movementComponent == null) continue;
-               var pathPoints = entity.MovementComponent.PathingBreadcrumbs.Select(p => p.LossyToIntVector2()).ToList();
-               pathPoints.Insert(0, movementComponent.Position.LossyToIntVector2());
-               debugCanvas.DrawLineStrip(pathPoints, pen);
+         debugCanvas.Draw(g => {
+            debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
+            debugCanvas.DrawVisibilityGraph(visibilityGraph);
+            //         var testPathFindingQueries = new[] {
+            //            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
+            //            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
+            //            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
+            //            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
+            //         };
+
+            using (var pen = new Pen(Color.Lime, 2)) {
+               foreach (var entity in EntityService.EnumerateEntities()) {
+                  var movementComponent = entity.MovementComponent;
+                  if (movementComponent == null) continue;
+                  var pathPoints = entity.MovementComponent.PathingBreadcrumbs.Select(p => p.LossyToIntVector2()).ToList();
+                  pathPoints.Insert(0, movementComponent.Position.LossyToIntVector2());
+                  debugCanvas.DrawLineStrip(pathPoints, pen);
+               }
             }
-         }
 
-         debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
-         debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
-         debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
+            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
+            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
+            var hdrTriangulation = terrainSnapshot.ComputeTriangulation(holeDilationRadius);
+            debugCanvas.DrawTriangulation(hdrTriangulation, Pens.DarkGray);
 
-         foreach(var entity in EntityService.EnumerateEntities()) {
-            var movementComponent = entity.MovementComponent;
-            if (movementComponent != null) {
-               debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
-            }
-         }
-
-//         for (int x = -50; x < 1100; x += 100) {
-//            for (int y = -50; y < 1100; y += 100) {
-//               var query = new IntVector2(x, y);
-//               IntVector2 nearestLandPoint;
-//               var isInHole = terrainSnapshot.FindNearestLandPointAndIsInHole(holeDilationRadius, query, out nearestLandPoint);
-//               debugCanvas.DrawPoint(query, isInHole ? Brushes.Red : Brushes.Lime, 3.0f);
-//               if (isInHole) {
-//                  debugCanvas.DrawLineStrip(
-//                     new [] { query, nearestLandPoint },
-//                     Pens.Magenta);
+//            // draw triangulation quadtree
+//            foreach (var island in hdrTriangulation.Islands) {
+//               var s = new Stack<Tuple<int, QuadTree<int>.Node>>();
+//               s.Push(Tuple.Create(0, island.TriangleIndexQuadTree.Root));
+//               while (s.Any()) {
+//                  var tuple = s.Pop();
+//                  var depth = tuple.Item1;
+//                  var node = tuple.Item2;
+//                  debugCanvas.DrawRectangle(node.Rect);
+//                  if (node.TopLeft != null) {
+//                     s.Push(Tuple.Create(depth + 1, node.TopLeft));
+//                     s.Push(Tuple.Create(depth + 1, node.TopRight));
+//                     s.Push(Tuple.Create(depth + 1, node.BottomLeft));
+//                     s.Push(Tuple.Create(depth + 1, node.BottomRight));
+//                  }
 //               }
 //            }
-//         }
+
+            using (var highlightPen = new Pen(Brushes.Red, 3.0f)) {
+               foreach (var entity in EntityService.EnumerateEntities()) {
+                  var movementComponent = entity.MovementComponent;
+                  if (movementComponent != null) {
+                     var triangulation = terrainSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
+                     TriangulationIsland island;
+                     Triangle triangle;
+                     if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangle)) {
+                        debugCanvas.DrawTriangle(triangle, highlightPen);
+                     }
+
+                  }
+               }
+            }
+
+            foreach (var entity in EntityService.EnumerateEntities()) {
+               var movementComponent = entity.MovementComponent;
+               if (movementComponent != null) {
+                  debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
+               }
+            }
+
+            //         for (int x = -50; x < 1100; x += 100) {
+            //            for (int y = -50; y < 1100; y += 100) {
+            //               var query = new IntVector2(x, y);
+            //               IntVector2 nearestLandPoint;
+            //               var isInHole = terrainSnapshot.FindNearestLandPointAndIsInHole(holeDilationRadius, query, out nearestLandPoint);
+            //               debugCanvas.DrawPoint(query, isInHole ? Brushes.Red : Brushes.Lime, 3.0f);
+            //               if (isInHole) {
+            //                  debugCanvas.DrawLineStrip(
+            //                     new [] { query, nearestLandPoint },
+            //                     Pens.Magenta);
+            //               }
+            //            }
+            //         }
+         });
       }
 
       public GameEvent CreateAddTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {

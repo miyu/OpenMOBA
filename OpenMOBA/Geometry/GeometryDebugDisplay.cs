@@ -1,9 +1,10 @@
-﻿using System;
+﻿using ClipperLib;
+using OpenMOBA.Debugging;
+using OpenMOBA.Utilities;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using ClipperLib;
-using OpenMOBA.Debugging;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryDebugDisplay {
@@ -83,16 +84,30 @@ namespace OpenMOBA.Geometry {
          });
       }
 
-      public static void DrawTriangulation(this DebugCanvas canvas, Triangulation triangulation) {
+      public static void DrawTriangulation(this DebugCanvas canvas, Triangulation triangulation, Pen pen) {
          canvas.Draw(g => {
-            foreach (var triangle in triangulation.Triangles) {
-               g.DrawLines(Pens.DarkGray, new[] {
-                  new PointF(triangle.Points[0].Xf, triangle.Points[0].Yf),
-                  new PointF(triangle.Points[1].Xf, triangle.Points[1].Yf),
-                  new PointF(triangle.Points[2].Xf, triangle.Points[2].Yf),
-                  new PointF(triangle.Points[0].Xf, triangle.Points[0].Yf)
-               });
+            foreach (var island in triangulation.Islands) {
+               foreach (var triangle in island.Triangles) {
+                  DrawTriangle(canvas, triangle, pen);
+               }
             }
+         });
+      }
+
+      public static void DrawTriangle(this DebugCanvas canvas, Triangle triangle, Pen pen) {
+         canvas.Draw(g => {
+            g.DrawLines(pen, new[] {
+               new PointF((float)triangle.Points[0].X, (float)triangle.Points[0].Y),
+               new PointF((float)triangle.Points[1].X, (float)triangle.Points[1].Y),
+               new PointF((float)triangle.Points[2].X, (float)triangle.Points[2].Y),
+               new PointF((float)triangle.Points[0].X, (float)triangle.Points[0].Y)
+            });
+         });
+      }
+
+      public static void DrawRectangle(this DebugCanvas canvas, IntRect2 nodeRect) {
+         canvas.Draw(g => {
+            g.DrawRectangle(Pens.Black, nodeRect.Left, nodeRect.Top, nodeRect.Right - nodeRect.Left + 1, nodeRect.Bottom - nodeRect.Top + 1);
          });
       }
    }

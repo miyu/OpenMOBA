@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Debugging {
    public class DebugCanvasHost {
@@ -177,13 +178,23 @@ namespace OpenMOBA.Debugging {
 
       public Font Font => SystemFonts.DefaultFont;
 
+      private bool isRecursion = false;
+      private Graphics g;
+
       public void Draw(Action<Graphics> callback) {
          lock (synchronization) {
-            using (var g = Graphics.FromImage(bitmap)) {
-               g.Transform = new Matrix(1, 0, 0, 1, drawPadding.X, drawPadding.Y);
+            if (!isRecursion) {
+               using (g = Graphics.FromImage(bitmap)) {
+                  g.Transform = new Matrix(1, 0, 0, 1, drawPadding.X, drawPadding.Y);
+                  isRecursion = true;
+                  callback(g);
+                  isRecursion = false;
+               }
+               g = null;
+               UpdateDisplay();
+            } else {
                callback(g);
             }
-            UpdateDisplay();
          }
       }
 
