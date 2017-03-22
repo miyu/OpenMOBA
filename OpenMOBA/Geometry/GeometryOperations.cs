@@ -6,6 +6,10 @@ using Poly2Tri.Triangulation.Delaunay;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryOperations {
+      // C# double.Epsilon is denormal = terrible perf; avoid and use this instead.
+      // https://www.johndcook.com/blog/2012/01/05/double-epsilon-dbl_epsilon/
+      public const double kEpsilon = 10E-16;
+
       public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
       public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
       public static Clockness Clockness(int ax, int ay, int bx, int by, int cx, int cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
@@ -14,8 +18,13 @@ namespace OpenMOBA.Geometry {
       public static int Cross(IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
       public static int Cross(int ax, int ay, int bx, int by) => ax * by - ay * bx;
 
+      public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
+      public static Clockness Clockness(DoubleVector2 ba, DoubleVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
+      public static Clockness Clockness(double ax, double ay, double bx, double by, double cx, double cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
+      public static Clockness Clockness(double bax, double bay, double bcx, double bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
+
       public static double Cross(double bax, double bay, double bcx, double bcy) => bax * bcy - bay * bcx;
-      
+
       public static IntVector2 FindLineLineIntersection(IntLineSegment2 a, IntLineSegment2 b) {
          var p1 = a.First;
          var p2 = a.Second;
@@ -89,7 +98,37 @@ namespace OpenMOBA.Geometry {
          var u = (dot11 * dot02 - dot01 * dot12) * invDenom;
          var v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
-         return (u >= 0) && (v >= 0) && (u + v < 1);
+         return (u >= 0) && (v >= 0) && (u + v <= 1);
+      }
+
+      public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle triangle, out int indexOpposingEdge) {
+         // See my explanation on http://math.stackexchange.com/questions/2139740/fast-3d-algorithm-to-find-a-ray-triangle-edge-intersection/2197942#2197942
+         // Note: Triangle points (A = p1, B = p2, C = p3) are CCW, origin is p, direction is v.
+         // Results are undefined if ray origin is not in triangle (though you can probably math out what it means).
+         // If a point is on the edge of the triangle, there will be neither-neither for clockness on the correct edge.
+         for (int i = 0; i < 3; i++) {
+            var va = triangle.Points[i] - origin;
+            var vb = triangle.Points[(i + 1) % 3] - origin;
+            var cvad = Clockness(va, direction);
+            var cdvb = Clockness(direction, vb);
+
+            // In-triangle case
+            if (cvad == Geometry.Clockness.CounterClockwise &&
+                cdvb == Geometry.Clockness.CounterClockwise) {
+               indexOpposingEdge = (i + 2) % 3;
+               return true;
+            }
+
+            // On-edge case
+            if (cvad == Geometry.Clockness.Neither &&
+                cdvb == Geometry.Clockness.Neither) {
+               indexOpposingEdge = (i + 2) % 3;
+               return true;
+            }
+         }
+         indexOpposingEdge = -1;
+         return false;
+         //         throw new ArgumentException("Presumably origin wasn't in triangle (is this case reachable even with malformed input?)");
       }
 
       public static ContourNearestPointResult FindNearestPoint(List<IntPoint> contour, IntVector2 query) {

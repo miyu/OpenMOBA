@@ -37,6 +37,8 @@ namespace OpenMOBA.Geometry {
             (other.Y * numerator) / denominator);
       }
 
+      public DoubleVector2 ToUnit() => this / Norm2D();
+
       public IntVector2 LossyToIntVector2() => new IntVector2((int)Math.Floor(X), (int)Math.Floor(Y));
 
       public override int GetHashCode() {
@@ -67,6 +69,8 @@ namespace OpenMOBA.Geometry {
          var y = radius * Math.Sin(radians);
          return new DoubleVector2(x, y);
       }
+
+      public override string ToString() => $"[{X}, {Y}]";
    }
 
    public struct IntVector2 {

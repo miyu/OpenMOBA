@@ -24,12 +24,14 @@ namespace OpenMOBA {
    }
 
    public struct Triangle {
+      public const int NO_NEIGHBOR_INDEX = -1;
+
       public int Index;
 
-      // in clockwise order
+      // in counterclockwise order
       public Array3<DoubleVector2> Points;
 
-      // also in clockwise order, -1 indicates no neighbor
+      // also in counterclockwise order, NO_NEIGHBOR_INDEX indicates no neighbor
       public Array3<int> NeighborOppositePointIndices;
 
       public IntRect2 IntPaddedBounds;
@@ -114,6 +116,24 @@ namespace OpenMOBA {
             for (int j = 0; j < 3; j++) {
                if (p2tTriangle.Neighbors[j] != null && p2tTriangle.Neighbors[j].IsInterior)
                   triangles[i].NeighborOppositePointIndices[j] = p2tTriangleToIndex[p2tTriangle.Neighbors[j]];
+               else
+                  triangles[i].NeighborOppositePointIndices[j] = Triangle.NO_NEIGHBOR_INDEX;
+#if DEBUG
+               var p0 = triangles[i].Points[0];
+               var p1 = triangles[i].Points[1];
+               var p2 = triangles[i].Points[2];
+               var centroid = (p0 + p1 + p2) / 3;
+               var cp0 = p0 - centroid;
+               var cp1 = p1 - centroid;
+               var cp2 = p2 - centroid;
+               var cl01 = GeometryOperations.Clockness(cp0, cp1);
+               var cl12 = GeometryOperations.Clockness(cp1, cp2);
+               var cl20 = GeometryOperations.Clockness(cp2, cp0);
+               var cond = cl01 == cl12 && cl12 == cl20 && cl20 == Clockness.CounterClockwise;
+               if (!cond) {
+                  throw new ArgumentException("P2T Triangle Clockness wasn't expected");
+               }
+#endif
             }
          }
          var islandBoundingBox = new IntRect2 {

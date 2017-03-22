@@ -1,12 +1,9 @@
-﻿using OpenMOBA.Geometry;
+﻿using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Visibility;
+using OpenMOBA.Geometry;
 using System;
 using System.Collections.Generic;
-using System.IO.Pipes;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using ClipperLib;
-using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Foundation.Visibility;
 
 namespace OpenMOBA.Foundation {
    public class Entity {
@@ -108,7 +105,20 @@ namespace OpenMOBA.Foundation {
       /// once terrain changes, pathing may attempt to resume.
       /// </summary>
       public DoubleVector2 PathingDestination { get; set; }
-      public List<DoubleVector2> PathingBreadcrumbs { get; set; } = new List<DoubleVector2>(); // poor datastructure use, but irrelevant for perf 
+      // poor datastructure use, but irrelevant for perf 
+      public List<DoubleVector2> PathingBreadcrumbs { get; set; } = new List<DoubleVector2>();
+      
+      /// <summary>
+      /// Only when in swarm mode.
+      /// </summary>
+      public DoubleVector2 SwarmlingVelocity { get; set; }
+
+      /// <summary>
+      /// List of other entities in swarm.
+      /// </summary>
+      public List<Entity> Swarm { get; set; }
+
+      public List<Tuple<DoubleVector2, DoubleVector2>> DebugLines { get; set; }
    }
 
    public abstract class EntitySystemService {
@@ -195,7 +205,7 @@ namespace OpenMOBA.Foundation {
          foreach (var entity in AssociatedEntities) {
             var movementComponent = entity.MovementComponent;
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
-            var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius;
+            var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
             if (hole.ContainsPoint(paddedHoleDilationRadius, movementComponent.Position)) {
                IntVector2 nearestLandPoint;
                if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, movementComponent.Position.LossyToIntVector2(), out nearestLandPoint)) {
@@ -222,28 +232,144 @@ namespace OpenMOBA.Foundation {
                Pathfind(entity, movementComponent.PathingDestination);
             }
 
-            if (movementComponent.PathingBreadcrumbs.Any()) {
-               var movementSpeed = statsCalculator.ComputeMovementSpeed(entity);
-               var distanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;
-               while (distanceRemaining > 0 && movementComponent.PathingBreadcrumbs.Any()) {
-                  // vect from position to next pathing breadcrumb
-                  var pb = movementComponent.PathingBreadcrumbs[0] - movementComponent.Position;
-                  movementComponent.LookAt = pb;
+            if (movementComponent.Swarm == null) {
+               ExecutePathNonswarmer(entity, movementComponent);
+            } else {
+               ExecutePathSwarmer(entity, movementComponent);
+            }
+         }
+      }
 
-                  // |pb| - distance to next pathing breadcrumb
-                  var d = pb.Norm2D();
+      private void ExecutePathNonswarmer(Entity entity, MovementComponent movementComponent) {
+         if (!movementComponent.PathingBreadcrumbs.Any()) return;
 
-                  if (Math.Abs(d) <= float.Epsilon || d <= distanceRemaining) {
-                     movementComponent.Position = movementComponent.PathingBreadcrumbs[0];
-                     movementComponent.PathingBreadcrumbs.RemoveAt(0);
-                     distanceRemaining -= d;
-                  } else {
-                     movementComponent.Position += (pb * distanceRemaining) / d;
-                     distanceRemaining = 0;
+         var movementSpeed = statsCalculator.ComputeMovementSpeed(entity);
+         var distanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;
+         while (distanceRemaining > 0 && movementComponent.PathingBreadcrumbs.Any()) {
+            // vect from position to next pathing breadcrumb
+            var pb = movementComponent.PathingBreadcrumbs[0] - movementComponent.Position;
+            movementComponent.LookAt = pb;
+
+            // |pb| - distance to next pathing breadcrumb
+            var d = pb.Norm2D();
+
+            if (Math.Abs(d) <= float.Epsilon || d <= distanceRemaining) {
+               movementComponent.Position = movementComponent.PathingBreadcrumbs[0];
+               movementComponent.PathingBreadcrumbs.RemoveAt(0);
+               distanceRemaining -= d;
+            } else {
+               movementComponent.Position += (pb * distanceRemaining) / d;
+               distanceRemaining = 0;
+            }
+         }
+      }
+
+      private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
+         var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
+         var triangulation = terrainService.BuildSnapshot().ComputeTriangulation(characterRadius + TerrainConstants.AdditionalHoleDilationRadius);
+
+         // p = position of entity to move (updated incrementally)
+         var p = movementComponent.Position;
+
+         // d = remaining distance vector of entity to move
+         var d = movementComponent.SwarmlingVelocity * gameTimeService.SecondsPerTick;
+         var distanceRemaining = d.Norm2D();
+
+         // Find triangle we're currently sitting on.
+         TriangulationIsland island;
+         Triangle triangle;
+         if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangle)) {
+            Console.WriteLine("Warning: Entity not on land.");
+            return;
+         }
+
+         movementComponent.DebugLines = new List<Tuple<DoubleVector2, DoubleVector2>>();
+
+         while (distanceRemaining > GeometryOperations.kEpsilon) {
+            // opposingVertexIndex = index of vertex opposing edge (e[0], e[1]) our ray of motion intersects.
+            int opposingVertexIndex;
+            if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p, d, ref triangle, out opposingVertexIndex)) {
+               // we're presumably on an edge.
+               for (int i = 0; i < 3; i++) {
+                  var a = triangle.Points[i];
+                  var b = triangle.Points[(i + 1) % 3];
+                  if (GeometryOperations.Clockness(a, p, b) == Clockness.Neither) {
+                     var ab = b - a;
+                     var abPerp = new DoubleVector2(ab.Y, -ab.X);
+                     p -= abPerp.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
+                     continue;
                   }
                }
             }
+
+            // Project p-e0 onto perp(e0-e1) to find shortest vector to edge.
+            var e0 = triangle.Points[(opposingVertexIndex + 1) % 3];
+            var e1 = triangle.Points[(opposingVertexIndex + 2) % 3];
+            var e01 = e1 - e0;
+            var e01Perp = new DoubleVector2(e01.Y, -e01.X); // points outside of current triangle.
+
+            var pe0 = e0 - p;
+            var pToEdge = pe0.ProjectOnto(e01Perp);
+
+            // Project d onto pToEdge to see if we're moving beyond edge boundary
+            var pToEdgeComponentRemaining = d.ProjectOntoComponentD(pToEdge);
+
+//            Console.WriteLine("p " + p);
+//            Console.WriteLine("d " + d);
+//            Console.WriteLine("tr " + triangle.Points[0] + " " + triangle.Points[1] + " " + triangle.Points[2]);
+//            Console.WriteLine("e01perp " + e01Perp);
+//            Console.WriteLine("pToEdge " + pToEdge);
+//            Console.WriteLine("CR " + pToEdgeComponentRemaining);
+
+            for (var i = 0; i < 3; i++) {
+               movementComponent.DebugLines.Add(Tuple.Create(p, triangle.Points[i]));
+            }
+
+            // If we're sitting right on the edge, push us into the triangle before doing any work
+            // Otherwise, it's ambiguous as to what edge we're passing through on exit.
+            if (pToEdge.Norm2D() < GeometryOperations.kEpsilon) {
+               p -= e01Perp.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
+               continue;
+            }
+
+            if (pToEdgeComponentRemaining < 1) {
+               // Finish motion, don't leave triangle
+               // TODO: Handle when this gets us very close to triangle edge e.g. cR = 0.99999.
+               p += d;
+               d = DoubleVector2.Zero;
+               distanceRemaining = 0;
+            } else {
+               // TODO: This is slightly worrying code when dealing with triangle slivers.
+               // A better approach might dilate the triangles to ensure in-ness of our points,
+               // or pull points towards (but not past) the triangle centroid.
+
+               // Adding d would go out of triangle. Move to edge.
+               // Ensure TriangleEdgeBufferRadius respected.
+               var neighborTriangleIndex = triangle.NeighborOppositePointIndices[opposingVertexIndex];
+//               Console.WriteLine("NTI " + neighborTriangleIndex);
+
+               if (neighborTriangleIndex == Triangle.NO_NEIGHBOR_INDEX) {
+                  // Move near edge of this triangle
+                  var deltaP = d / pToEdgeComponentRemaining;
+                  deltaP -= deltaP.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
+                  p += deltaP;
+                  d -= deltaP;
+                  distanceRemaining = 0;
+               } else {
+                  // Move to and past edge of other triangle. 
+                  var deltaP = d / pToEdgeComponentRemaining;
+                  deltaP += deltaP.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
+                  p += deltaP;
+                  d -= deltaP;
+                  distanceRemaining -= deltaP.Norm2D();
+
+                  triangle = island.Triangles[neighborTriangleIndex];
+               }
+            }
          }
+
+//         Console.WriteLine("p' " + p);
+         movementComponent.Position = p;
       }
    }
 

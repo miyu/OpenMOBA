@@ -14,5 +14,12 @@ namespace OpenMOBA.Foundation.Terrain {
       /// such situations well) due to floating point error.
       /// </summary>
       public const double AdditionalHoleDilationRadius = 3.0;
+
+      /// <summary>
+      /// Minimum distance from a character point to an (already dilated) land triangle edge.
+      /// This ensures future land triangle lookups of the character position succeed rather
+      /// than failing due to ambiguity in position of on-edge points.
+      /// </summary>
+      public const double TriangleEdgeBufferRadius = 0.005;
    }
 }
