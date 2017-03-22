@@ -83,9 +83,9 @@ namespace OpenMOBA.Foundation {
                   var selfToOtherMagnitude = selfToOther.Norm2D();
                   var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
                   var separateWeight = 0.0;
-                  if (selfToOtherMagnitude < 200) {
-                     var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude + 1);
-                     separateWeight = 5000 * separateFactor;
+                  if (selfToOtherMagnitude < 400) {
+                     var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
+                     separateWeight = 640000 * separateFactor;
                   }
                   vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
                   vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));

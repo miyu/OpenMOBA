@@ -354,6 +354,7 @@ namespace OpenMOBA.Foundation {
                   deltaP -= deltaP.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
                   p += deltaP;
                   d -= deltaP;
+
                   distanceRemaining = 0;
                } else {
                   // Move to and past edge of other triangle. 
