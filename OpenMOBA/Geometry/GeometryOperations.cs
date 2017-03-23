@@ -10,6 +10,9 @@ namespace OpenMOBA.Geometry {
       // https://www.johndcook.com/blog/2012/01/05/double-epsilon-dbl_epsilon/
       public const double kEpsilon = 10E-16;
 
+      public static bool IsReal(double v) => !(double.IsNaN(v) || double.IsInfinity(v));
+      public static bool IsReal(DoubleVector2 v) => IsReal(v.X) && IsReal(v.Y);
+
       public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
       public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
       public static Clockness Clockness(int ax, int ay, int bx, int by, int cx, int cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);

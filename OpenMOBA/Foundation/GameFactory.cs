@@ -70,8 +70,8 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             var swarmlingSpeed = 100;
-            var destination = new DoubleVector2(700, 500);
-//            var destination = new DoubleVector2(1000, 300);
+//            var destination = new DoubleVector2(700, 500);
+            var destination = new DoubleVector2(1000, 380);
             foreach (var swarmling in swarm) {
                // seek to point
                var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
@@ -116,7 +116,7 @@ namespace OpenMOBA.Foundation {
 //               }
 //            }
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 10) return;
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 50) return;
          }
       }
 
@@ -199,6 +199,14 @@ namespace OpenMOBA.Foundation {
                if (movementComponent != null) {
                   debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
                   debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.White, movementComponent.BaseRadius - 2);
+
+                  if (movementComponent.Swarm != null && movementComponent.SwarmlingVelocity.Norm2D() > GeometryOperations.kEpsilon) {
+                     debugCanvas.DrawLineList(
+                        new[] {
+                           movementComponent.Position.LossyToIntVector2(),
+                           (movementComponent.Position + movementComponent.SwarmlingVelocity.ToUnit() * movementComponent.BaseRadius).LossyToIntVector2()
+                        }, Pens.Gray);
+                  }
 
                   if (movementComponent.DebugLines != null) {
                      foreach (var l in movementComponent.DebugLines) {

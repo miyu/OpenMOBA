@@ -204,17 +204,23 @@ namespace OpenMOBA.Foundation {
          InvalidatePaths();
 
          foreach (var entity in AssociatedEntities) {
-            var movementComponent = entity.MovementComponent;
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
-            if (hole.ContainsPoint(paddedHoleDilationRadius, movementComponent.Position)) {
-               IntVector2 nearestLandPoint;
-               if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, movementComponent.Position.LossyToIntVector2(), out nearestLandPoint)) {
-                  throw new InvalidOperationException("In new hole but not terrain snapshot hole.");
-               }
-               movementComponent.Position = nearestLandPoint.ToDoubleVector2();
+            if (hole.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) {
+               FixEntityInHole(entity);
             }
          }
+      }
+
+      private void FixEntityInHole(Entity entity) {
+         var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
+         var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
+         MovementComponent movementComponent = entity.MovementComponent;
+         IntVector2 nearestLandPoint;
+         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, movementComponent.Position.LossyToIntVector2(), out nearestLandPoint)) {
+            throw new InvalidOperationException("In new hole but not terrain snapshot hole.");
+         }
+         movementComponent.Position = nearestLandPoint.ToDoubleVector2();
       }
 
       /// <summary>
@@ -277,7 +283,13 @@ namespace OpenMOBA.Foundation {
          int triangleIndex;
          if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangleIndex)) {
             Console.WriteLine("Warning: Entity not on land.");
-            return;
+            FixEntityInHole(entity);
+
+            p = movementComponent.Position;
+            if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangleIndex)) {
+               Console.WriteLine("Warning: fixing entity not on land failed?");
+               return;
+            }
          }
 
          // Figure out how much further entity can move this tick
@@ -339,6 +351,10 @@ namespace OpenMOBA.Foundation {
          out DoubleVector2 nextPosition,
          out int nextTriangleIndex
       ) {
+         Debug.Assert(GeometryOperations.IsReal(position));
+         Debug.Assert(GeometryOperations.IsReal(preferredDirectionUnit));
+         Debug.Assert(GeometryOperations.IsReal(distanceRemaining));
+
          // Make this a ref in C# 7.0 for minor perf gains
          var triangle = island.Triangles[triangleIndex];
 
@@ -389,8 +405,18 @@ namespace OpenMOBA.Foundation {
          var pe0 = e0 - position;
          var pToEdge = pe0.ProjectOnto(e01Perp);
 
+         // If we're sitting right on the edge, push us into the triangle before doing any work
+         // Otherwise, it can be ambiguous as to what edge we're passing through on exit.
+         // Don't delete this or we'll crash.
+         if (pToEdge.Norm2D() < GeometryOperations.kEpsilon) {
+            nextPosition = position - e01Perp.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
+            nextTriangleIndex = triangleIndex;
+            return WalkResult.Progress; // is this the best result?
+         }
+
          // Project d onto pToEdge to see if we're moving beyond edge boundary
          var pToEdgeComponentRemaining = d.ProjectOntoComponentD(pToEdge);
+         Debug.Assert(GeometryOperations.IsReal(pToEdgeComponentRemaining));
 
          if (pToEdgeComponentRemaining < 1) {
             // Motion finishes within triangle.
@@ -405,6 +431,7 @@ namespace OpenMOBA.Foundation {
          // Proposed motion would finish outside the triangle
          var neighborTriangleIndex = triangle.NeighborOppositePointIndices[opposingVertexIndex];
          var dToEdge = d / pToEdgeComponentRemaining;
+         Debug.Assert(GeometryOperations.IsReal(dToEdge));
 
          if (neighborTriangleIndex != Triangle.NO_NEIGHBOR_INDEX) {
             // Move towards and past the edge between us and the other triangle.
