@@ -71,7 +71,7 @@ namespace OpenMOBA.Foundation {
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             var swarmlingSpeed = 100;
 //            var destination = new DoubleVector2(700, 500);
-            var destination = new DoubleVector2(1000, 380);
+            var destination = new DoubleVector2(950, 50);
             foreach (var swarmling in swarm) {
                // seek to point
                var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
@@ -116,7 +116,7 @@ namespace OpenMOBA.Foundation {
 //               }
 //            }
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 50) return;
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 80) return;
          }
       }
 
