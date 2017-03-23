@@ -43,31 +43,31 @@ namespace OpenMOBA.Geometry {
          return new IntVector2(numeratorX / denominator, numeratorY / denominator);
       }
 
-      public static bool TryIntersect(this Triangulation triangulation, double x, double y, out TriangulationIsland island, out Triangle triangle) {
+      public static bool TryIntersect(this Triangulation triangulation, double x, double y, out TriangulationIsland island, out int triangleIndex) {
          foreach (var candidateIsland in triangulation.Islands) {
-            if (candidateIsland.TryIntersect(x, y, out triangle)) {
+            if (candidateIsland.TryIntersect(x, y, out triangleIndex)) {
                island = candidateIsland;
                return true;
             }
          }
          island = null;
-         triangle = default(Triangle);
+         triangleIndex = -1;
          return false;
       }
 
-      public static bool TryIntersect(this TriangulationIsland island, double x, double y, out Triangle triangle) {
+      public static bool TryIntersect(this TriangulationIsland island, double x, double y, out int triangleIndex) {
          if (x < island.IntBounds.Left || y < island.IntBounds.Top ||
              x > island.IntBounds.Right || y > island.IntBounds.Bottom) {
-            triangle = default(Triangle);
+            triangleIndex = -1;
             return false;
          }
          for (var i = 0; i < island.Triangles.Length; i++) {
             if (IsPointInTriangle(x, y, ref island.Triangles[i])) {
-               triangle = island.Triangles[i];
+               triangleIndex = i;
                return true;
             }
          }
-         triangle = default(Triangle);
+         triangleIndex = -1;
          return false;
       }
 

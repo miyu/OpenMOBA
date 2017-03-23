@@ -186,9 +186,9 @@ namespace OpenMOBA.Foundation {
                   if (movementComponent != null) {
                      var triangulation = terrainSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
                      TriangulationIsland island;
-                     Triangle triangle;
-                     if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangle)) {
-                        debugCanvas.DrawTriangle(triangle, highlightPen);
+                     int triangleIndex;
+                     if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
+                        debugCanvas.DrawTriangle(island.Triangles[triangleIndex], highlightPen);
                      }
                   }
                }
