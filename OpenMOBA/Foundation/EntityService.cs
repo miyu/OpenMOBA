@@ -271,10 +271,6 @@ namespace OpenMOBA.Foundation {
          // p = position of entity to move (updated incrementally)
          var p = movementComponent.Position;
 
-         // d = remaining distance vector of entity to move
-         var d = movementComponent.SwarmlingVelocity * gameTimeService.SecondsPerTick;
-         var distanceRemaining = d.Norm2D();
-
          // Find triangle we're currently sitting on.
          TriangulationIsland island;
          Triangle triangle;
@@ -283,24 +279,34 @@ namespace OpenMOBA.Foundation {
             return;
          }
 
-//         movementComponent.DebugLines = new List<Tuple<DoubleVector2, DoubleVector2>>();
+         // Figure out how much further entity can move this tick
+         var distanceRemaining = movementComponent.SwarmlingVelocity.Norm2D() * gameTimeService.SecondsPerTick;
+         var preferredDirection = movementComponent.SwarmlingVelocity.ToUnit();
 
          while (distanceRemaining > GeometryOperations.kEpsilon) {
             // opposingVertexIndex = index of vertex opposing edge (e[0], e[1]) our ray of motion intersects.
             int opposingVertexIndex;
-            if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p, d, ref triangle, out opposingVertexIndex)) {
-               // we're presumably on an edge.
+            if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p, preferredDirection, ref triangle, out opposingVertexIndex)) {
+               Console.WriteLine("Fix?");
+
+               // If this fails, we're confused as to whether we're in the triangle or not, because we're on an
+               // edge and floating point arithmetic error makes us confused. Simply push us slightly into the triangle.
                for (int i = 0; i < 3; i++) {
-                  var a = triangle.Points[i];
-                  var b = triangle.Points[(i + 1) % 3];
-                  if (GeometryOperations.Clockness(a, p, b) == Clockness.Neither) {
-                     var ab = b - a;
-                     var abPerp = new DoubleVector2(ab.Y, -ab.X);
+                  var edge0 = triangle.Points[i];
+                  var edge1 = triangle.Points[(i + 1) % 3];
+                  if (GeometryOperations.Clockness(edge0, p, edge1) != Clockness.Clockwise) {
+                     var ab = edge1 - edge0;
+                     var abPerp = new DoubleVector2(ab.Y, -ab.X); // points out of triangle
                      p -= abPerp.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
                      continue;
                   }
                }
+
+               throw new Exception("Fix Failed");
             }
+
+            // Let d = remaining "preferred" motion
+            var d = preferredDirection * distanceRemaining;
 
             // Project p-e0 onto perp(e0-e1) to find shortest vector to edge.
             var e0 = triangle.Points[(opposingVertexIndex + 1) % 3];
@@ -314,26 +320,26 @@ namespace OpenMOBA.Foundation {
             // Project d onto pToEdge to see if we're moving beyond edge boundary
             var pToEdgeComponentRemaining = d.ProjectOntoComponentD(pToEdge);
 
-//            Console.WriteLine("p " + p);
-//            Console.WriteLine("d " + d);
-//            Console.WriteLine("tr " + triangle.Points[0] + " " + triangle.Points[1] + " " + triangle.Points[2]);
-//            Console.WriteLine("e01perp " + e01Perp);
-//            Console.WriteLine("pToEdge " + pToEdge);
-//            Console.WriteLine("CR " + pToEdgeComponentRemaining);
+            //            Console.WriteLine("p " + p);
+            //            Console.WriteLine("d " + d);
+            //            Console.WriteLine("tr " + triangle.Points[0] + " " + triangle.Points[1] + " " + triangle.Points[2]);
+            //            Console.WriteLine("e01perp " + e01Perp);
+            //            Console.WriteLine("pToEdge " + pToEdge);
+            //            Console.WriteLine("CR " + pToEdgeComponentRemaining);
 
-//            for (var i = 0; i < 3; i++) {
-//               movementComponent.DebugLines.Add(Tuple.Create(p, triangle.Points[i]));
-//            }
+            //            for (var i = 0; i < 3; i++) {
+            //               movementComponent.DebugLines.Add(Tuple.Create(p, triangle.Points[i]));
+            //            }
 
             // If we're sitting right on the edge, push us into the triangle before doing any work
             // Otherwise, it's ambiguous as to what edge we're passing through on exit.
-            if (pToEdge.Norm2D() < GeometryOperations.kEpsilon) {
-               p -= e01Perp.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
-               continue;
-            }
+//            if (pToEdge.Norm2D() < GeometryOperations.kEpsilon) {
+//               p -= e01Perp.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
+//               continue;
+//            }
 
             if (pToEdgeComponentRemaining < 1) {
-               // Finish motion, don't leave triangle
+               // Motion finishes within triangle.
                // TODO: Handle when this gets us very close to triangle edge e.g. cR = 0.99999.
                p += d;
                d = DoubleVector2.Zero;
@@ -346,10 +352,10 @@ namespace OpenMOBA.Foundation {
                // Adding d would go out of triangle. Move to edge.
                // Ensure TriangleEdgeBufferRadius respected.
                var neighborTriangleIndex = triangle.NeighborOppositePointIndices[opposingVertexIndex];
-//               Console.WriteLine("NTI " + neighborTriangleIndex);
+               //               Console.WriteLine("NTI " + neighborTriangleIndex);
 
                if (neighborTriangleIndex == Triangle.NO_NEIGHBOR_INDEX) {
-                  // Move near edge of this triangle
+                  // Move onto edge of this triangle
                   var deltaP = d / pToEdgeComponentRemaining;
                   deltaP -= deltaP.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
                   p += deltaP;
@@ -368,8 +374,7 @@ namespace OpenMOBA.Foundation {
                }
             }
          }
-
-//         Console.WriteLine("p' " + p);
+         //         Console.WriteLine("p' " + p);
          movementComponent.Position = p;
       }
    }
