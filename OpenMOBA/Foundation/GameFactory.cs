@@ -87,7 +87,7 @@ namespace OpenMOBA.Foundation {
                   var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
                   var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
                   separateWeight = 1280000 * mul * separateFactor;
-                  var wtot = (0.1 * regroupWeight - separateWeight) * 0.5;
+                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
                   if (wtot > 0) {
                      vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
                   } else {
@@ -116,7 +116,7 @@ namespace OpenMOBA.Foundation {
 //               }
 //            }
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > 800) return;
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 10) return;
          }
       }
 
