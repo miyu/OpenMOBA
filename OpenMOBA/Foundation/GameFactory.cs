@@ -47,8 +47,8 @@ namespace OpenMOBA.Foundation {
 
          var swarmlingRadius = 10f;
          var swarm = new List<Entity>();
-         for (var y = 0; y < 5; y++) {
-            for (var x = 0; x < 5; x++) {
+         for (var y = 0; y < 10; y++) {
+            for (var x = 0; x < 10; x++) {
                var swarmling = CreateTestEntity(new DoubleVector2(50 + x * swarmlingRadius * 2, 500 + y * swarmlingRadius * 2), swarmlingRadius, 40f);
                swarmling.MovementComponent.Swarm = swarm;
                swarmling.MovementComponent.SwarmlingVelocity = new DoubleVector2();
@@ -71,11 +71,12 @@ namespace OpenMOBA.Foundation {
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             var swarmlingSpeed = 100;
             var destination = new DoubleVector2(700, 500);
+//            var destination = new DoubleVector2(1000, 300);
             foreach (var swarmling in swarm) {
                // seek to point
+               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
                var vs = new List<Tuple<double, DoubleVector2>>();
-               var seek = (destination - swarmling.MovementComponent.Position).ToUnit();
-               vs.Add(Tuple.Create(100.0, seek));
+               vs.Add(Tuple.Create(100.0, seekUnit));
 
                foreach (var other in swarm) {
                   if (other == swarmling) continue;
@@ -83,15 +84,24 @@ namespace OpenMOBA.Foundation {
                   var selfToOtherMagnitude = selfToOther.Norm2D();
                   var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
                   var separateWeight = 0.0;
-                  if (selfToOtherMagnitude < 400) {
-                     var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
-                     separateWeight = 640000 * separateFactor;
+                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
+                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
+                  separateWeight = 1280000 * mul * separateFactor;
+                  var wtot = (0.1 * regroupWeight - separateWeight) * 0.5;
+                  if (wtot > 0) {
+                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
+                  } else {
+                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
                   }
-                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
-                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
+//                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
+                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
+                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
                }
 
-               swarmling.MovementComponent.SwarmlingVelocity = swarmlingSpeed * vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2) / vs.Sum(it => it.Item1);
+               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
+               var wsumvsw = vs.Sum(it => it.Item1);
+               var wavs = wsumvs / wsumvsw;
+               swarmling.MovementComponent.SwarmlingVelocity = swarmlingSpeed * wavs;
             }
 //            for (var i = 0; i < swarm.Count - 1; i++) {
 //               for (var j = i + 1; j < swarm.Count; j++) {
@@ -188,6 +198,7 @@ namespace OpenMOBA.Foundation {
                var movementComponent = entity.MovementComponent;
                if (movementComponent != null) {
                   debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
+                  debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.White, movementComponent.BaseRadius - 2);
 
                   if (movementComponent.DebugLines != null) {
                      foreach (var l in movementComponent.DebugLines) {

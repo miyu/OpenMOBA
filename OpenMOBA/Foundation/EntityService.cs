@@ -266,7 +266,7 @@ namespace OpenMOBA.Foundation {
 
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
          var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
-         var triangulation = terrainService.BuildSnapshot().ComputeTriangulation(characterRadius + TerrainConstants.AdditionalHoleDilationRadius);
+         var triangulation = terrainService.BuildSnapshot().ComputeTriangulation(characterRadius);
 
          // p = position of entity to move (updated incrementally)
          var p = movementComponent.Position;
@@ -283,7 +283,7 @@ namespace OpenMOBA.Foundation {
             return;
          }
 
-         movementComponent.DebugLines = new List<Tuple<DoubleVector2, DoubleVector2>>();
+//         movementComponent.DebugLines = new List<Tuple<DoubleVector2, DoubleVector2>>();
 
          while (distanceRemaining > GeometryOperations.kEpsilon) {
             // opposingVertexIndex = index of vertex opposing edge (e[0], e[1]) our ray of motion intersects.
@@ -321,9 +321,9 @@ namespace OpenMOBA.Foundation {
 //            Console.WriteLine("pToEdge " + pToEdge);
 //            Console.WriteLine("CR " + pToEdgeComponentRemaining);
 
-            for (var i = 0; i < 3; i++) {
-               movementComponent.DebugLines.Add(Tuple.Create(p, triangle.Points[i]));
-            }
+//            for (var i = 0; i < 3; i++) {
+//               movementComponent.DebugLines.Add(Tuple.Create(p, triangle.Points[i]));
+//            }
 
             // If we're sitting right on the edge, push us into the triangle before doing any work
             // Otherwise, it's ambiguous as to what edge we're passing through on exit.
