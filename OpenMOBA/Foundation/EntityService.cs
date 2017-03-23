@@ -435,6 +435,9 @@ namespace OpenMOBA.Foundation {
 
          if (neighborTriangleIndex != Triangle.NO_NEIGHBOR_INDEX) {
             // Move towards and past the edge between us and the other triangle.
+            // There's a potential bug here where the other triangle is a sliver.
+            // The edge buffer radius could potentially move us past TWO of its edges, out of it.
+            // In practice, this bug happens OFTEN and is counteracted by the in-hole hack-fix.
             var dToAndPastEdge = dToEdge + dToEdge.ToUnit() * TerrainConstants.TriangleEdgeBufferRadius;
             nextPosition = position + dToAndPastEdge;
             nextTriangleIndex = neighborTriangleIndex;
