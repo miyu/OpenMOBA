@@ -79,12 +79,13 @@ namespace OpenMOBA.Foundation {
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
             EntityService.ProcessSystems();
-            DebugHandleFrameEnd(debugMultiCanvasHost);
+            if (GameTimeService.Ticks % 10 == 0)
+               DebugHandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 20) {
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 80) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
                return;
             }

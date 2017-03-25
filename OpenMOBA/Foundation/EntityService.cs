@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation {
    public class Entity {
@@ -264,6 +265,36 @@ namespace OpenMOBA.Foundation {
          }
       }
 
+      public bool NN(TriangulationIsland island, DoubleVector2 destination, out Dictionary<int, int> d) {
+         int rootTriangleIndex;
+         if (!island.TryIntersect(destination.X, destination.Y, out rootTriangleIndex)) {
+            d = null;
+            return false;
+         }
+
+         d = new Dictionary<int, int>();
+         var s = new PriorityQueue<Tuple<int, int, double>>((a, b) => a.Item3.CompareTo(b.Item3));
+         s.Enqueue(Tuple.Create(rootTriangleIndex, -1, 0.0));
+         while (s.Any()) {
+            var t = s.Dequeue();
+            var ti = t.Item1;
+            if (d.ContainsKey(ti)) {
+               continue;
+            }
+            var pi = t.Item2;
+            var prevDist = t.Item3;
+            d[ti] = pi;
+            for (var i = 0; i < 3; i++) {
+               var nti = island.Triangles[ti].NeighborOppositePointIndices[i];
+               if (nti != Triangle.NO_NEIGHBOR_INDEX) {
+                  var addDist = (island.Triangles[nti].Centroid - island.Triangles[ti].Centroid).Norm2D();
+                  s.Enqueue(Tuple.Create(nti, ti, prevDist + addDist));
+               }
+            }
+         }
+         return true;
+      }
+
       public override void Execute() {
          goto the_new_code;
          goto derp;
@@ -369,6 +400,22 @@ namespace OpenMOBA.Foundation {
             }
          }
 
+         // for each (island, dest) compute spanning dijkstras of tree centroids to dest triangle
+         var ds = new Dictionary<Tuple<TriangulationIsland, DoubleVector2>, Dictionary<int, int>>();
+         foreach (var swarm in swarms) {
+            for (var i = 0; i < swarm.Entities.Count; i++) {
+               var entity = swarm.Entities[i];
+               Dictionary<int, int> d;
+               var key = Tuple.Create(entity.MovementComponent.SwarmingIsland, swarm.Destination);
+               if (ds.ContainsKey(key)) {
+                  continue;
+               }
+
+               NN(entity.MovementComponent.SwarmingIsland, swarm.Destination, out d);
+               ds[key] = d;
+            }
+         }
+
          // for each entity pairing, compute separation force vector which prevents overlap
          // and "regroup" force vector, which causes clustering within swarms.
          // Logic contained within should be scale invariant!
@@ -435,12 +482,29 @@ namespace OpenMOBA.Foundation {
 
             if (a.Swarm == null) continue;
 
-            var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
-            var triangleMeshSeekUnit = vectorField[key];
-            var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
 
-            const double triangleMeshSeekWeight = 1.0;
-            var seekUnit = triangleMeshSeekUnit * triangleMeshSeekWeight + directionalSeekUnit * (1.0 - triangleMeshSeekWeight);
+            var seekAggregate = DoubleVector2.Zero;
+            var seekWeightAggregate = 0.0;
+
+            var d = ds[Tuple.Create(a.SwarmingIsland, a.Swarm.Destination)];
+            int nti;
+            if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle.NO_NEIGHBOR_INDEX) {
+               var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).ToUnit();
+               const double mul = 1.0;
+               seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
+               seekWeightAggregate += mul;
+            }
+               
+            var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
+            var triangleCentroidOptimalSeekUnit = vectorField[key];
+            seekAggregate += triangleCentroidOptimalSeekUnit;
+            seekWeightAggregate += 1.0;
+//
+//            var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
+//            seekAggregate += directionalSeekUnit;
+//            seekWeightAggregate += 1.0;
+
+            var seekUnit = seekWeightAggregate < GeometryOperations.kEpsilon ? DoubleVector2.Zero : seekAggregate.ToUnit();
 
             const double seekWeight = 1.0;
             a.WeightedSumNBodyForces += seekWeight * seekUnit;
