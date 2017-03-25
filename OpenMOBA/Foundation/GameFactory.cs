@@ -14,6 +14,11 @@ namespace OpenMOBA.Foundation {
       GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, TerrainHole temporaryHole);
    }
 
+   public class Swarm {
+      public List<Entity> Entities { get; set; } = new List<Entity>();
+      public DoubleVector2 Destination { get; set; }
+   }
+
    public class GameInstance : IGameEventFactory {
       public GameTimeService GameTimeService { get; set; }
       public GameEventQueueService GameEventQueueService { get; set; }
@@ -45,18 +50,22 @@ namespace OpenMOBA.Foundation {
 //         MovementSystemService.Pathfind(c, new DoubleVector2(950, 475));
 //         MovementSystemService.Pathfind(d, new DoubleVector2(80, 720));
 
-         var swarmlingRadius = 10f;
-         var swarm = new List<Entity>();
+         var benchmarkDestination = new DoubleVector2(950, 50);
+         var benchmarkUnitBaseSpeed = 100.0f;
+         var swarm = new Swarm { Destination = benchmarkDestination };
          for (var y = 0; y < 10; y++) {
             for (var x = 0; x < 10; x++) {
-               var swarmling = CreateTestEntity(new DoubleVector2(50 + x * swarmlingRadius * 2, 500 + y * swarmlingRadius * 2), swarmlingRadius, 40f);
+               var swarmlingRadius = 10f;
+               var p = new DoubleVector2(50, 500);
+               var offset = new DoubleVector2(x * swarmlingRadius * 2, y * swarmlingRadius * 2);
+               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed);
                swarmling.MovementComponent.Swarm = swarm;
-               swarmling.MovementComponent.SwarmlingVelocity = new DoubleVector2();
-               swarm.Add(swarmling);
+               swarm.Entities.Add(swarmling);
             }
          }
 
-//         MovementSystemService.
+         var optimal = CreateTestEntity(new DoubleVector2(50 + 9 * 10*2, 500), 10, 100f);
+         MovementSystemService.Pathfind(optimal, benchmarkDestination);
 
          var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(MapConfiguration.Size, new Point(100, 100));
          DebugHandleFrameEnd(debugMultiCanvasHost);
@@ -69,54 +78,8 @@ namespace OpenMOBA.Foundation {
 
             GameTimeService.IncrementTicks();
             Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
-            var swarmlingSpeed = 100;
-//            var destination = new DoubleVector2(700, 500);
-            var destination = new DoubleVector2(950, 50);
-            foreach (var swarmling in swarm) {
-               // seek to point
-               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
-               var vs = new List<Tuple<double, DoubleVector2>>();
-               vs.Add(Tuple.Create(100.0, seekUnit));
-
-               foreach (var other in swarm) {
-                  if (other == swarmling) continue;
-                  var selfToOther = other.MovementComponent.Position - swarmling.MovementComponent.Position;
-                  var selfToOtherMagnitude = selfToOther.Norm2D();
-                  var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
-                  var separateWeight = 0.0;
-                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
-                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
-                  separateWeight = 1280000 * mul * separateFactor;
-                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
-                  if (wtot > 0) {
-                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
-                  } else {
-                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
-                  }
-//                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
-                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
-                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
-               }
-
-               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
-               var wsumvsw = vs.Sum(it => it.Item1);
-               var wavs = wsumvs / wsumvsw;
-               swarmling.MovementComponent.SwarmlingVelocity = swarmlingSpeed * wavs;
-            }
-//            for (var i = 0; i < swarm.Count - 1; i++) {
-//               for (var j = i + 1; j < swarm.Count; j++) {
-//                  // regroup
-//                  var iToJ = swarm[j].MovementComponent.Position - swarm[i].MovementComponent.Position;
-//                  var dIToJ = iToJ.Norm2D();
-//                  var regroup = Math.Max(10000.0, dIToJ * dIToJ) / 10000.0;
-//                  var separate = 3500 * 1.0 / (dIToJ * dIToJ + 1);
-//                  var f = (regroup - separate) * iToJ;
-//                  swarm[i].MovementComponent.SwarmlingVelocity += f;
-//                  swarm[j].MovementComponent.SwarmlingVelocity -= f;
-//               }
-//            }
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 80) return;
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 10) return;
          }
       }
 
@@ -200,11 +163,11 @@ namespace OpenMOBA.Foundation {
                   debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
                   debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.White, movementComponent.BaseRadius - 2);
 
-                  if (movementComponent.Swarm != null && movementComponent.SwarmlingVelocity.Norm2D() > GeometryOperations.kEpsilon) {
+                  if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
                      debugCanvas.DrawLineList(
                         new[] {
                            movementComponent.Position.LossyToIntVector2(),
-                           (movementComponent.Position + movementComponent.SwarmlingVelocity.ToUnit() * movementComponent.BaseRadius).LossyToIntVector2()
+                           (movementComponent.Position + movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius).LossyToIntVector2()
                         }, Pens.Gray);
                   }
 
