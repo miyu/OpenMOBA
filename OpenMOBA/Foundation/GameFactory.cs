@@ -84,7 +84,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 10) {
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 80) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
                return;
             }

@@ -154,6 +154,9 @@ namespace OpenMOBA.Foundation {
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static int Square(int x) => x * x;
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static int Quad(int x) => Square(Square(x));
+
       public static int Sqrt(int x) {
          if (x < 0) {
             throw new ArgumentException($"sqrti({x})");
@@ -337,10 +340,14 @@ namespace OpenMOBA.Foundation {
                   // Case: Overlapping, may or may not be in same swarm.
                   // Let D = radius sum
                   // Let d = center distance 
-                  // Separate Force Weight: ((D - d) / D)^2
+                  // Separate Force Weight: (k * (D - d) / D)^2
                   // Intuitively D-d represents overlapness.
+                  // k impacts how quickly overlapping overwhelms seeking.
+                  // k = 1: When fully overlapping
+                  // k = 2: When half overlapped.
+                  const int k = 16;
                   var centerDistance = IntMath.Sqrt(centerDistanceSquared);
-                  w = IntMath.Square(radiusSum - centerDistance) / (double)radiusSumSquared;
+                  w = IntMath.Square(k * (radiusSum - centerDistance)) / (double)radiusSumSquared;
 
                   // And the force vector (outer code will tounit this)
                   aForce = aToB.SquaredNorm2() == 0
@@ -353,8 +360,11 @@ namespace OpenMOBA.Foundation {
                   var spacingBetweenBoundaries = IntMath.Sqrt(centerDistanceSquared) - radiusSum;
                   var maxAttractionDistance = radiusSum * groupingTolerance;
 
-                  // regroup = ((D - d) / D)^2
-                  w = IntMath.Square(spacingBetweenBoundaries - maxAttractionDistance) / (double)IntMath.Square(maxAttractionDistance);
+                  if (spacingBetweenBoundaries > maxAttractionDistance)
+                     continue;
+
+                  // regroup = ((D - d) / D)^4
+                  w = 0.001 * (double)IntMath.Quad(spacingBetweenBoundaries - maxAttractionDistance) / (double)IntMath.Quad(maxAttractionDistance);
                   aForce = aToB;
                } else {
                   // todo: experiment with continue vs zero-weight for no failed branch prediction
