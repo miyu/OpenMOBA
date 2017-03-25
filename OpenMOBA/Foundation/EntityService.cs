@@ -241,14 +241,18 @@ namespace OpenMOBA.Foundation {
       }
 
       private void FixEntityInHole(Entity entity) {
-         var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
-         var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
+         var computedRadius = statsCalculator.ComputeCharacterRadius(entity);
          MovementComponent movementComponent = entity.MovementComponent;
+         movementComponent.Position = PushToLand(movementComponent.Position, computedRadius);
+      }
+
+      private DoubleVector2 PushToLand(DoubleVector2 vect, double computedRadius) {
+         var paddedHoleDilationRadius = computedRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
          IntVector2 nearestLandPoint;
-         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, movementComponent.Position.LossyToIntVector2(), out nearestLandPoint)) {
+         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, vect.LossyToIntVector2(), out nearestLandPoint)) {
             throw new InvalidOperationException("In new hole but not terrain snapshot hole.");
          }
-         movementComponent.Position = nearestLandPoint.ToDoubleVector2();
+         return nearestLandPoint.ToDoubleVector2();
       }
 
       /// <summary>
@@ -314,7 +318,56 @@ namespace OpenMOBA.Foundation {
 
          // Only operate on movement components and swarms onward.
          var movementComponents = entities.Select(e => e.MovementComponent).ToArray();
-         var swarms = entities.Select(e => e.MovementComponent.Swarm).ToArray();
+         var swarms = entities.Select(e => e.MovementComponent.Swarm)
+                              .Where(s => s != null)
+                              .Distinct()
+                              .ToArray();
+
+         // for each entity, update triangle
+         for (var i = 0; i < movementComponents.Length; i++) {
+            var a = movementComponents[i];
+            if (a.Swarm == null) continue;
+
+            var terrainSnapshot = terrainService.BuildSnapshot();
+            var triangulation = terrainSnapshot.ComputeTriangulation(a.ComputedRadius);
+
+            TriangulationIsland island;
+            int triangleIndex;
+            if (!triangulation.TryIntersect(a.Position.X, a.Position.Y, out island, out triangleIndex)) {
+               Console.WriteLine("Warning: Entity not on land.");
+               a.Position = PushToLand(a.Position, a.ComputedRadius);
+
+               if (!triangulation.TryIntersect(a.Position.X, a.Position.Y, out island, out triangleIndex)) {
+                  Console.WriteLine("Warning: fixing entity not on land failed?");
+                  continue;
+               }
+            }
+
+            a.SwarmingIsland = island;
+            a.SwarmingTriangleIndex = triangleIndex;
+         }
+
+         // for each (int, triangleIndex, island, dest) tuple, compute optimal direction (or 0, 0)
+         var vectorField = new Dictionary<Tuple<int, int, TriangulationIsland, DoubleVector2>, DoubleVector2>();
+         foreach (var swarm in swarms) {
+            var dest = swarm.Destination;
+            foreach (var entity in swarm.Entities) {
+               var mc = entity.MovementComponent;
+               var k = Tuple.Create(mc.ComputedRadius, mc.SwarmingTriangleIndex, mc.SwarmingIsland, dest);
+               if (vectorField.ContainsKey(k)) {
+                  continue;
+               }
+
+               var triangleCentroid = mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid;
+               var dilation = mc.ComputedRadius + TerrainConstants.AdditionalHoleDilationRadius;
+               List<DoubleVector2> path;
+               if (!pathfinderCalculator.TryFindPath(dilation, triangleCentroid, dest, out path) || path.Count < 2) {
+                  vectorField[k] = DoubleVector2.Zero;
+               } else {
+                  vectorField[k] = (path[1] - path[0]).ToUnit();
+               }
+            }
+         }
 
          // for each entity pairing, compute separation force vector which prevents overlap
          // and "regroup" force vector, which causes clustering within swarms.
@@ -382,8 +435,14 @@ namespace OpenMOBA.Foundation {
 
             if (a.Swarm == null) continue;
 
+            var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
+            var triangleMeshSeekUnit = vectorField[key];
+            var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
+
+            const double triangleMeshSeekWeight = 1.0;
+            var seekUnit = triangleMeshSeekUnit * triangleMeshSeekWeight + directionalSeekUnit * (1.0 - triangleMeshSeekWeight);
+
             const double seekWeight = 1.0;
-            var seekUnit = (a.Swarm.Destination - a.Position).ToUnit();
             a.WeightedSumNBodyForces += seekWeight * seekUnit;
             a.SumWeightsNBodyForces += seekWeight;
             a.SwarmlingVelocity = (a.WeightedSumNBodyForces / a.SumWeightsNBodyForces) * a.ComputedSpeed;
