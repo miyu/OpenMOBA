@@ -123,6 +123,9 @@ namespace OpenMOBA.Foundation {
       public int ComputedSpeed { get; set; }
       public DoubleVector2 WeightedSumNBodyForces { get; set; }
       public double SumWeightsNBodyForces { get; set; }
+
+      // Final computed swarmling velocity
+      public DoubleVector2 SwarmlingVelocity { get; set; }
    }
 
    public abstract class EntitySystemService {
@@ -145,7 +148,7 @@ namespace OpenMOBA.Foundation {
    }
 
    public static class IntMath {
-      private const int MaxLutIntExclusive = 1024;
+      private const int MaxLutIntExclusive = 1024 * 1024;
       private static readonly int[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (int)Math.Sqrt(x)).ToArray();
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -255,6 +258,45 @@ namespace OpenMOBA.Foundation {
       }
 
       public override void Execute() {
+         goto the_new_code;
+         goto derp;
+         foreach (var swarm in AssociatedEntities.Where(e => e.MovementComponent.Swarm != null).Select(e => e.MovementComponent.Swarm).Distinct().ToArray()) {
+            var destination = swarm.Destination;
+            foreach (var swarmling in swarm.Entities) {
+               // seek to point
+               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
+               var vs = new List<Tuple<double, DoubleVector2>>();
+               vs.Add(Tuple.Create(100.0, seekUnit));
+
+               foreach (var other in swarm.Entities) {
+                  if (other == swarmling) continue;
+                  var selfToOther = other.MovementComponent.Position - swarmling.MovementComponent.Position;
+                  var selfToOtherMagnitude = selfToOther.Norm2D();
+                  var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
+                  var separateWeight = 0.0;
+                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
+                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
+                  separateWeight = 1280000 * mul * separateFactor;
+                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
+                  if (wtot > 0) {
+                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
+                  } else {
+                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
+                  }
+                  //                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
+                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
+                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
+               }
+
+               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
+               var wsumvsw = vs.Sum(it => it.Item1);
+               var wavs = wsumvs / wsumvsw;
+               swarmling.MovementComponent.WeightedSumNBodyForces = wavs;
+            }
+         }
+         goto derp;
+
+      the_new_code:
          var entities = AssociatedEntities.ToArray();
 
          // Precompute computed entity stats
@@ -289,7 +331,7 @@ namespace OpenMOBA.Foundation {
                // (In the future rather than "in same swarm" probably want "allied".
                var isOverlapping = centerDistanceSquared < radiusSumSquared;
 
-               int wNumerator, wDenominator;
+               double w; // where 1 means equal in weight to isolated-unit pather
                IntVector2 aForce;
                if (isOverlapping) {
                   // Case: Overlapping, may or may not be in same swarm.
@@ -298,8 +340,7 @@ namespace OpenMOBA.Foundation {
                   // Separate Force Weight: ((D - d) / D)^2
                   // Intuitively D-d represents overlapness.
                   var centerDistance = IntMath.Sqrt(centerDistanceSquared);
-                  wNumerator = 100 * IntMath.Square(radiusSum - centerDistance);
-                  wDenominator = radiusSumSquared;
+                  w = IntMath.Square(radiusSum - centerDistance) / (double)radiusSumSquared;
 
                   // And the force vector (outer code will tounit this)
                   aForce = aToB.SquaredNorm2() == 0
@@ -307,32 +348,38 @@ namespace OpenMOBA.Foundation {
                      : -1 * aToB;
                } else if (a.Swarm == b.Swarm && a.Swarm != null) {
                   // Case: Nonoverlapping, in same swarm. Push swarmlings near but nonoverlapping
+                  // TODO: Alignment force.
                   const int groupingTolerance = 8;
                   var spacingBetweenBoundaries = IntMath.Sqrt(centerDistanceSquared) - radiusSum;
                   var maxAttractionDistance = radiusSum * groupingTolerance;
 
                   // regroup = ((D - d) / D)^2
-                  wNumerator = IntMath.Square(spacingBetweenBoundaries - maxAttractionDistance);
-                  wDenominator = IntMath.Square(maxAttractionDistance);
-
+                  w = IntMath.Square(spacingBetweenBoundaries - maxAttractionDistance) / (double)IntMath.Square(maxAttractionDistance);
                   aForce = aToB;
                } else {
-                  // todo: experiment with continue vs no failed branch prediction
-                  wNumerator = 0;
-                  wDenominator = 1;
-                  aForce = IntVector2.Zero;
+                  // todo: experiment with continue vs zero-weight for no failed branch prediction
+                  // (this is pretty pipeliney code)
+                  continue;
                }
 
-               var aWeight = (double)wNumerator / wDenominator;
-               var aWeightedForce = aForce.ToDoubleVector2().ToUnit() * aWeight;
+               var wf = w * aForce.ToDoubleVector2().ToUnit();
+               a.WeightedSumNBodyForces += wf;
+               a.SumWeightsNBodyForces += w;
 
-               a.WeightedSumNBodyForces += aWeightedForce;
-               a.SumWeightsNBodyForces += aWeight;
-
-               b.WeightedSumNBodyForces -= aWeightedForce;
-               b.SumWeightsNBodyForces += aWeight;
+               b.WeightedSumNBodyForces -= wf;
+               b.SumWeightsNBodyForces += w;
             }
+
+            if (a.Swarm == null) continue;
+
+            const double seekWeight = 1.0;
+            var seekUnit = (a.Swarm.Destination - a.Position).ToUnit();
+            a.WeightedSumNBodyForces += seekWeight * seekUnit;
+            a.SumWeightsNBodyForces += seekWeight;
+            a.SwarmlingVelocity = (a.WeightedSumNBodyForces / a.SumWeightsNBodyForces) * a.ComputedSpeed;
          }
+
+
 
          // foreach swarmling, compute vector to dest and vector recommended by triangulation
 //         foreach (var swarm in swarms) {
@@ -350,19 +397,20 @@ namespace OpenMOBA.Foundation {
 //               }
 //            }
 //         }
-//
-//         foreach (var entity in AssociatedEntities) {
-//            var movementComponent = entity.MovementComponent;
-//            if (movementComponent.PathingIsInvalidated) {
-//               Pathfind(entity, movementComponent.PathingDestination);
-//            }
-//
-//            if (movementComponent.Swarm == null) {
-//               ExecutePathNonswarmer(entity, movementComponent);
-//            } else {
-//               ExecutePathSwarmer(entity, movementComponent);
-//            }
-//         }
+
+derp:
+         foreach (var entity in AssociatedEntities) {
+            var movementComponent = entity.MovementComponent;
+            if (movementComponent.PathingIsInvalidated) {
+               Pathfind(entity, movementComponent.PathingDestination);
+            }
+
+            if (movementComponent.Swarm == null) {
+               ExecutePathNonswarmer(entity, movementComponent);
+            } else {
+               ExecutePathSwarmer(entity, movementComponent);
+            }
+         }
       }
 
       private void ExecutePathNonswarmer(Entity entity, MovementComponent movementComponent) {
@@ -411,10 +459,10 @@ namespace OpenMOBA.Foundation {
          }
 
          // Figure out how much further entity can move this tick
-//         var preferredDirectionUnit = movementComponent.SwarmlingVelocity.ToUnit();
-//         var distanceRemaining = movementComponent.SwarmlingVelocity.Norm2D() * gameTimeService.SecondsPerTick;
+         var preferredDirectionUnit = movementComponent.SwarmlingVelocity.ToUnit();
+         var distanceRemaining = movementComponent.SwarmlingVelocity.Norm2D() * gameTimeService.SecondsPerTick;
 
-//         movementComponent.Position = CPU(distanceRemaining, p, preferredDirectionUnit, island, triangleIndex);
+         movementComponent.Position = CPU(distanceRemaining, p, preferredDirectionUnit, island, triangleIndex);
       }
 
       private DoubleVector2 CPU(double distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {

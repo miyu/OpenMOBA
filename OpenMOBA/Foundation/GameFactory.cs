@@ -4,6 +4,7 @@ using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using OpenMOBA.Utilities;
@@ -71,15 +72,22 @@ namespace OpenMOBA.Foundation {
          DebugHandleFrameEnd(debugMultiCanvasHost);
          GameTimeService.IncrementTicks();
 
+         IntMath.Sqrt(0); // init static
+
+         var sw = new Stopwatch();
+         sw.Start();
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
             EntityService.ProcessSystems();
             DebugHandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
-            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
+//            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 10) return;
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 10) {
+               Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
+               return;
+            }
          }
       }
 
