@@ -31,6 +31,8 @@ namespace OpenMOBA {
       // in counterclockwise order
       public Array3<DoubleVector2> Points;
 
+      public DoubleVector2 Centroid;
+
       // also in counterclockwise order, NO_NEIGHBOR_INDEX indicates no neighbor
       public Array3<int> NeighborOppositePointIndices;
 
@@ -112,6 +114,7 @@ namespace OpenMOBA {
                p2tTriangle.Points[1].ToOpenMobaPointD(),
                p2tTriangle.Points[2].ToOpenMobaPointD()
             );
+            triangles[i].Centroid = (triangles[i].Points[0] + triangles[i].Points[1] + triangles[i].Points[2]) / 3.0;
             triangles[i].IntPaddedBounds = CreatePaddedIntAxisAlignedBoundingBox(ref triangles[i].Points);
             for (int j = 0; j < 3; j++) {
                if (p2tTriangle.Neighbors[j] != null && p2tTriangle.Neighbors[j].IsInterior)
@@ -122,7 +125,7 @@ namespace OpenMOBA {
                var p0 = triangles[i].Points[0];
                var p1 = triangles[i].Points[1];
                var p2 = triangles[i].Points[2];
-               var centroid = (p0 + p1 + p2) / 3;
+               var centroid = triangles[i].Centroid;
                var cp0 = p0 - centroid;
                var cp1 = p1 - centroid;
                var cp2 = p2 - centroid;

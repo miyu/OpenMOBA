@@ -119,6 +119,9 @@ namespace OpenMOBA.Foundation {
       /// </summary>
       public List<Entity> Swarm { get; set; }
 
+      public TriangulationIsland SwarmingIsland { get; set; }
+      public int SwarmingTriangleIndex { get; set; }
+
       public List<Tuple<DoubleVector2, DoubleVector2>> DebugLines { get; set; }
    }
 
@@ -374,11 +377,10 @@ namespace OpenMOBA.Foundation {
             // edge and floating point arithmetic error makes us confused. Simply push us slightly into the triangle
             // by pulling us towards its centroid
             // (A previous variant pulled based on perp of nearest edge, however the results are probably pretty similar)
-            var centroid = triangle.Points.Aggregate(new DoubleVector2(), (acc, it) => acc + it) / 3.0;
-            var offsetToCentroid = centroid - position;
+            var offsetToCentroid = triangle.Centroid - position;
             if (offsetToCentroid.Norm2D() < TerrainConstants.TriangleEdgeBufferRadius) {
                Console.WriteLine("Warning: Triangle width less than edge buffer radius!");
-               nextPosition = centroid;
+               nextPosition = triangle.Centroid;
                nextTriangleIndex = triangleIndex;
                return WalkResult.PushInward;
             } else {
