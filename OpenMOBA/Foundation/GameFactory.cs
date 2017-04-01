@@ -54,12 +54,14 @@ namespace OpenMOBA.Foundation {
          var benchmarkDestination = new DoubleVector2(950, 50);
          var benchmarkUnitBaseSpeed = 100.0f;
          var swarm = new Swarm { Destination = benchmarkDestination };
+         var swarmMeanRadius = 10.0f;
          for (var y = 0; y < 10; y++) {
             for (var x = 0; x < 10; x++) {
-               var swarmlingRadius = 10f;
+               // var swarmlingRadius = 10f;
+               var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
                var p = new DoubleVector2(50, 500);
-               var offset = new DoubleVector2(x * swarmlingRadius * 2, y * swarmlingRadius * 2);
-               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed);
+               var offset = new DoubleVector2(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2);
+               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
                swarmling.MovementComponent.Swarm = swarm;
                swarm.Entities.Add(swarmling);
             }

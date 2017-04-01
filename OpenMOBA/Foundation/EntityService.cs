@@ -448,6 +448,7 @@ namespace OpenMOBA.Foundation {
                   const int k = 16;
                   var centerDistance = IntMath.Sqrt(centerDistanceSquared);
                   w = IntMath.Square(k * (radiusSum - centerDistance)) / (double)radiusSumSquared;
+                  Debug.Assert(GeometryOperations.IsReal(w));
 
                   // And the force vector (outer code will tounit this)
                   aForce = aToB.SquaredNorm2() == 0
@@ -464,7 +465,9 @@ namespace OpenMOBA.Foundation {
                      continue;
 
                   // regroup = ((D - d) / D)^4
-                  w = 0.001 * (double)IntMath.Quad(spacingBetweenBoundaries - maxAttractionDistance) / (double)IntMath.Quad(maxAttractionDistance);
+                  w = 0.001 * (double)Math.Pow(spacingBetweenBoundaries - maxAttractionDistance, 4.0) / Math.Pow(maxAttractionDistance, 4.0);
+                  Debug.Assert(GeometryOperations.IsReal(w));
+
                   aForce = aToB;
                } else {
                   // todo: experiment with continue vs zero-weight for no failed branch prediction
@@ -472,7 +475,11 @@ namespace OpenMOBA.Foundation {
                   continue;
                }
 
+
                var wf = w * aForce.ToDoubleVector2().ToUnit();
+               Debug.Assert(GeometryOperations.IsReal(wf));
+               Debug.Assert(GeometryOperations.IsReal(w));
+
                a.WeightedSumNBodyForces += wf;
                a.SumWeightsNBodyForces += w;
 
@@ -490,7 +497,7 @@ namespace OpenMOBA.Foundation {
             int nti;
             if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle.NO_NEIGHBOR_INDEX) {
                var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).ToUnit();
-               const double mul = 1.0;
+               const double mul = 0.5;
                seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
                seekWeightAggregate += mul;
             }
@@ -499,10 +506,10 @@ namespace OpenMOBA.Foundation {
             var triangleCentroidOptimalSeekUnit = vectorField[key];
             seekAggregate += triangleCentroidOptimalSeekUnit;
             seekWeightAggregate += 1.0;
-//
-//            var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
-//            seekAggregate += directionalSeekUnit;
-//            seekWeightAggregate += 1.0;
+
+            // var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
+            // seekAggregate += directionalSeekUnit;
+            // seekWeightAggregate += 1.0;
 
             var seekUnit = seekWeightAggregate < GeometryOperations.kEpsilon ? DoubleVector2.Zero : seekAggregate.ToUnit();
 
@@ -510,6 +517,7 @@ namespace OpenMOBA.Foundation {
             a.WeightedSumNBodyForces += seekWeight * seekUnit;
             a.SumWeightsNBodyForces += seekWeight;
             a.SwarmlingVelocity = (a.WeightedSumNBodyForces / a.SumWeightsNBodyForces) * a.ComputedSpeed;
+            Debug.Assert(GeometryOperations.IsReal(a.SwarmlingVelocity));
          }
 
 
