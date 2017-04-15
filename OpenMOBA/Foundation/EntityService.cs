@@ -497,7 +497,7 @@ namespace OpenMOBA.Foundation {
             int nti;
             if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle.NO_NEIGHBOR_INDEX) {
                var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).ToUnit();
-               const double mul = 0.5;
+               const double mul = 0.3;
                seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
                seekWeightAggregate += mul;
             }
@@ -511,7 +511,7 @@ namespace OpenMOBA.Foundation {
             // seekAggregate += directionalSeekUnit;
             // seekWeightAggregate += 1.0;
 
-            var seekUnit = seekWeightAggregate < GeometryOperations.kEpsilon ? DoubleVector2.Zero : seekAggregate.ToUnit();
+            var seekUnit = seekWeightAggregate < GeometryOperations.kEpsilon || seekAggregate.SquaredNorm2D() < GeometryOperations.kEpsilon ? DoubleVector2.Zero : seekAggregate.ToUnit();
 
             const double seekWeight = 1.0;
             a.WeightedSumNBodyForces += seekWeight * seekUnit;

@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "OpenMOBA", "OpenMOBA\OpenMOBA.xproj", "{E10B146C-0B98-40A6-8346-D26A62776ABF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenMOBA", "OpenMOBA\OpenMOBA.csproj", "{E10B146C-0B98-40A6-8346-D26A62776ABF}"
 EndProject
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Benchmark", "Benchmark\Benchmark.xproj", "{BA12F6F5-D6A5-4B30-BA8F-75C7B38FA4D2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benchmark.csproj", "{BA12F6F5-D6A5-4B30-BA8F-75C7B38FA4D2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

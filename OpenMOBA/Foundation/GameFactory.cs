@@ -81,7 +81,7 @@ namespace OpenMOBA.Foundation {
          while (true) {
             GameEventQueueService.ProcessPendingGameEvents();
             EntityService.ProcessSystems();
-            if (GameTimeService.Ticks % 10 == 0)
+            if (GameTimeService.Ticks % 1 == 0)
                DebugHandleFrameEnd(debugMultiCanvasHost);
 
             GameTimeService.IncrementTicks();
