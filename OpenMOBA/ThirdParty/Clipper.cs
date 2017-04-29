@@ -48,12 +48,18 @@
 //use_lines: Enables open path clipping. Adds a very minor cost to performance.
 #define use_lines
 
+//use_intvector: Don't use Clipper's intpoint type.
+#define use_intvector
 
 using System;
 using System.Collections.Generic;
 //using System.Text;          //for Int128.AsString() & StringBuilder
 //using System.IO;            //debugging with streamReader & StreamWriter
 //using System.Windows.Forms; //debugging to clipboard
+
+#if use_intvector
+using IntPoint = OpenMOBA.Geometry.IntVector2;
+#endif
 
 namespace ClipperLib {
 
@@ -318,6 +324,7 @@ namespace ClipperLib {
    //------------------------------------------------------------------------------
    //------------------------------------------------------------------------------
 
+#if !use_intvector
    public struct IntPoint {
       public cInt X;
       public cInt Y;
@@ -378,7 +385,7 @@ namespace ClipperLib {
       }
 
    }// end struct IntPoint
-
+#endif // ifelse use_intvector
    public struct IntRect {
       public cInt left;
       public cInt top;
@@ -1930,7 +1937,9 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       internal void SwapPoints(ref IntPoint pt1, ref IntPoint pt2) {
-         IntPoint tmp = new IntPoint(pt1);
+         // Note to self: This was new IntPoint(pt1) but pt1 is struct, so this should
+         // be a value copy into tmp.
+         IntPoint tmp = pt1;
          pt1 = pt2;
          pt2 = tmp;
       }
@@ -2788,7 +2797,7 @@ namespace ClipperLib {
                   if ((e.OutIdx >= 0) && (e.WindDelta != 0) && ePrev != null &&
                       (ePrev.OutIdx >= 0) && (ePrev.Curr.X == e.Curr.X) &&
                       (ePrev.WindDelta != 0)) {
-                     IntPoint ip = new IntPoint(e.Curr);
+                     IntPoint ip = e.Curr; // new IntPoint(e.Curr);
 #if use_xyz
                 SetZ(ref ip, ePrev, e);
 #endif
