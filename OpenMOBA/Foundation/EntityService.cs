@@ -9,6 +9,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenMOBA.Utilities;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA.Foundation {
    public class Entity {
       public EntityComponentsMask ComponentMask { get; set; }
@@ -150,22 +152,22 @@ namespace OpenMOBA.Foundation {
 
    public static class IntMath {
       private const int MaxLutIntExclusive = 1024 * 1024;
-      private static readonly int[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (int)Math.Sqrt(x)).ToArray();
+      private static readonly cInt[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (cInt)Math.Sqrt(x)).ToArray();
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static int Square(int x) => x * x;
+      public static cInt Square(cInt x) => x * x;
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static int Quad(int x) => Square(Square(x));
+      public static cInt Quad(cInt x) => Square(Square(x));
 
-      public static int Sqrt(int x) {
+      public static cInt Sqrt(cInt x) {
          if (x < 0) {
             throw new ArgumentException($"sqrti({x})");
          } else if (x < MaxLutIntExclusive) {
             return SqrtLut[x];
          } else {
 //            Console.WriteLine($"Sqrt Lut Miss: {x}");
-            return (int)Math.Sqrt(x);
+            return (cInt)Math.Sqrt(x);
          }
       }
    }

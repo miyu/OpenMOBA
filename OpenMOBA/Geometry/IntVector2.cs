@@ -1,9 +1,11 @@
 ﻿using System;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA.Geometry {
    public struct DoubleVector2 {
-      public double X { get; set; }
-      public double Y { get; set; }
+      public double X;
+      public double Y;
 
       public DoubleVector2(double x, double y) {
          X = x;
@@ -74,17 +76,17 @@ namespace OpenMOBA.Geometry {
    }
 
    public struct IntVector2 {
-      public int X { get; set; }
-      public int Y { get; set; }
+      public cInt X;
+      public cInt Y;
 
-      public IntVector2(int x, int y) {
+      public IntVector2(cInt x, cInt y) {
          X = x;
          Y = y;
       }
 
-      public int Dot(IntVector2 other) => X * other.X + Y * other.Y;
+      public cInt Dot(IntVector2 other) => X * other.X + Y * other.Y;
 
-      public int SquaredNorm2() => Dot(this);
+      public cInt SquaredNorm2() => Dot(this);
       public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
 
       /// <summary>
@@ -113,7 +115,7 @@ namespace OpenMOBA.Geometry {
 
       public override int GetHashCode() {
          unchecked {
-            return (X * 397) ^ Y;
+            return (int)((X * 397) ^ Y);
          }
       }
 
@@ -131,8 +133,8 @@ namespace OpenMOBA.Geometry {
       public bool Equals(IntVector2 other) => X == other.X && Y == other.Y;
 
       public static IntVector2 FromRadiusAngle(int radius, double radians) {
-         var x = (int)(radius * Math.Cos(radians));
-         var y = (int)(radius * Math.Sin(radians));
+         var x = (cInt)(radius * Math.Cos(radians));
+         var y = (cInt)(radius * Math.Sin(radians));
          return new IntVector2(x, y);
       }
    }

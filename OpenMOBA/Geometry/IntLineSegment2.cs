@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Drawing;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA.Geometry {
    public struct IntLineSegment2 {
       public IntLineSegment2(IntVector2 first, IntVector2 second) {
@@ -9,18 +11,18 @@ namespace OpenMOBA.Geometry {
       }
 
       public IntVector2 First { get; }
-      public int X1 => First.X;
-      public int Y1 => First.Y;
+      public cInt X1 => First.X;
+      public cInt Y1 => First.Y;
 
       public IntVector2 Second { get; }
-      public int X2 => Second.X;
-      public int Y2 => Second.Y;
+      public cInt X2 => Second.X;
+      public cInt Y2 => Second.Y;
 
       public IntVector2[] Points => new[] { First, Second };
 
       public bool Intersects(IntLineSegment2 other) {
-         int ax = X1, ay = Y1, bx = X2, by = Y2;
-         int cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
 
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
          var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
@@ -37,7 +39,7 @@ namespace OpenMOBA.Geometry {
          var width = Math.Abs(X1 - X2) + 1;
          var height = Math.Abs(Y1 - Y2) + 1;
 
-         return new Rectangle(minX, minY, width, height);
+         return new Rectangle((int)minX, (int)minY, (int)width, (int)height);
       }
    }
 }

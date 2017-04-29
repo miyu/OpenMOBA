@@ -21,7 +21,7 @@ namespace OpenMOBA.Geometry {
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static void PickDeepestPolynode(this PolyTree polyTree, IntPoint query, out PolyNode result, out bool isHole) {
+      public static void PickDeepestPolynode(this PolyTree polyTree, IntVector2 query, out PolyNode result, out bool isHole) {
          polyTree.AssertIsContourlessRootHolePunchResult();
          PolyNode current = polyTree;
          while (true) {
@@ -57,7 +57,7 @@ namespace OpenMOBA.Geometry {
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static void PickDeepestPolynodeGivenHoleShapePolytree(this PolyTree polyTree, IntPoint query, out PolyNode result, out bool isHole) {
+      public static void PickDeepestPolynodeGivenHoleShapePolytree(this PolyTree polyTree, IntVector2 query, out PolyNode result, out bool isHole) {
          polyTree.AssertIsContourlessRootHolePunchResult();
          PolyNode current = polyTree;
          while (true) {

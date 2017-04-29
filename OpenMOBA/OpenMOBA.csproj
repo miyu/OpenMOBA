@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Clipper" Version="6.2.10" />
     <PackageReference Include="Poly2Tri" Version="1.0.1" />
   </ItemGroup>
 

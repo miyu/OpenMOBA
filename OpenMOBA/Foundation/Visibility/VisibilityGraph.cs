@@ -6,6 +6,8 @@ using ClipperLib;
 using OpenMOBA.Geometry;
 using OpenMOBA.Utilities;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA.Foundation.Visibility {
    public class VisibilityGraph {
       public VisibilityGraph(IntLineSegment2[] barriers, IntVector2[] waypoints, DistanceMatrix distances, PolyTree landHolePunchResult) {
@@ -162,7 +164,7 @@ namespace OpenMOBA.Foundation.Visibility {
 
                   var dx = b.X - a.X;
                   var dy = b.Y - a.Y;
-                  var mag = (int)Math.Sqrt(dx * dx + dy * dy);
+                  var mag = (cInt)Math.Sqrt(dx * dx + dy * dy);
                   dx = dx * kExpansionFactor / mag;
                   dy = dy * kExpansionFactor / mag;
 
@@ -204,7 +206,7 @@ namespace OpenMOBA.Foundation.Visibility {
          return visibilityGraph.TryFindPath(start.X, start.Y, end.X, end.Y, out path);
       }
 
-      public static bool TryFindPath(this VisibilityGraph visibilityGraph, int sx, int sy, int ex, int ey, out Path path) {
+      public static bool TryFindPath(this VisibilityGraph visibilityGraph, cInt sx, cInt sy, cInt ex, cInt ey, out Path path) {
          var startNode = new IntVector2(sx, sy);
          var endNode = new IntVector2(ex, ey);
 

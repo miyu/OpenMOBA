@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using ClipperLib;
 using Poly2Tri.Triangulation;
 
+using IntPoint = OpenMOBA.Geometry.IntVector2;
+
 namespace OpenMOBA.Geometry {
    public static class PolygonOperations {
       public static IntPoint ToClipperPoint(this IntVector2 input) {

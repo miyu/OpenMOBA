@@ -54,7 +54,7 @@ namespace OpenMOBA.Geometry {
             node.Childs.ForEach(s.Push);
             if (node.Contour.Any()) {
                canvas.DrawPolygon(
-                  new Polygon(node.Contour.ToOpenMobaPoints(), node.IsHole),
+                  new Polygon(node.Contour, node.IsHole),
                   node.IsHole ? Color.Brown : Color.Orange);
             }
          }
@@ -63,14 +63,14 @@ namespace OpenMOBA.Geometry {
       public static void DrawPolygon(this DebugCanvas canvas, Polygon polygon, Color color) {
          canvas.Draw(g => {
             using (var pen = new Pen(color)) {
-               g.DrawPolygon(pen, polygon.Points.Select(p => new Point(p.X, p.Y)).ToArray());
+               g.DrawPolygon(pen, polygon.Points.Select(p => new Point((int)p.X, (int)p.Y)).ToArray());
             }
          });
       }
 
       public static void FillPolygon(this DebugCanvas canvas, Polygon polygon, Brush brush) {
          canvas.Draw(g => {
-            g.FillPolygon(brush, polygon.Points.Select(p => new Point(p.X, p.Y)).ToArray());
+            g.FillPolygon(brush, polygon.Points.Select(p => new Point((int)p.X, (int)p.Y)).ToArray());
          });
       }
 

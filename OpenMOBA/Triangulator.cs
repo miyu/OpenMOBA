@@ -11,6 +11,8 @@ using System.Drawing;
 using System.Linq;
 using Polygon = Poly2Tri.Triangulation.Polygon.Polygon;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA {
    // Connected Components. We avoid that term because 'Component' is pretty overloaded in meaning.
    public class TriangulationIsland {
@@ -160,15 +162,15 @@ namespace OpenMOBA {
       }
 
       private IntRect2 CreatePaddedIntAxisAlignedBoundingBox(ref Array3<DoubleVector2> points) {
-         int minX = int.MaxValue;
-         int maxX = int.MinValue;
-         int minY = int.MaxValue;
-         int maxY = int.MinValue;
+         cInt minX = cInt.MaxValue;
+         cInt maxX = cInt.MinValue;
+         cInt minY = cInt.MaxValue;
+         cInt maxY = cInt.MinValue;
          for (int i = 0; i < points.Count; i++) {
-            minX = Math.Min(minX, (int)Math.Floor(points[i].X) - 1);
-            maxX = Math.Max(maxX, (int)Math.Ceiling(points[i].X) + 1);
-            minY = Math.Min(minY, (int)Math.Floor(points[i].Y) - 1);
-            maxY = Math.Max(maxY, (int)Math.Ceiling(points[i].Y) + 1);
+            minX = Math.Min(minX, (cInt)Math.Floor(points[i].X) - 1);
+            maxX = Math.Max(maxX, (cInt)Math.Ceiling(points[i].X) + 1);
+            minY = Math.Min(minY, (cInt)Math.Floor(points[i].Y) - 1);
+            maxY = Math.Max(maxY, (cInt)Math.Ceiling(points[i].Y) + 1);
          }
          return new IntRect2 {
             Left = minX,
@@ -178,7 +180,7 @@ namespace OpenMOBA {
          };
       }
 
-      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntPoint> points) {
+      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntVector2> points) {
          var isOpen = points[0] != points[points.Count - 1];
          var results = new List<PolygonPoint>(points.Count);
          var limit = isOpen ? points.Count : points.Count - 1;

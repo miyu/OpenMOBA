@@ -4,6 +4,8 @@ using System.Linq;
 using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA.Geometry {
    public static class GeometryOperations {
       // C# double.Epsilon is denormal = terrible perf; avoid and use this instead.
@@ -15,11 +17,11 @@ namespace OpenMOBA.Geometry {
 
       public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
       public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
-      public static Clockness Clockness(int ax, int ay, int bx, int by, int cx, int cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
-      public static Clockness Clockness(int bax, int bay, int bcx, int bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
+      public static Clockness Clockness(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
+      public static Clockness Clockness(cInt bax, cInt bay, cInt bcx, cInt bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static int Cross(IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
-      public static int Cross(int ax, int ay, int bx, int by) => ax * by - ay * bx;
+      public static cInt Cross(IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      public static cInt Cross(cInt ax, cInt ay, cInt bx, cInt by) => ax * by - ay * bx;
 
       public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
       public static Clockness Clockness(DoubleVector2 ba, DoubleVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
@@ -134,7 +136,7 @@ namespace OpenMOBA.Geometry {
          //         throw new ArgumentException("Presumably origin wasn't in triangle (is this case reachable even with malformed input?)");
       }
 
-      public static ContourNearestPointResult FindNearestPoint(List<IntPoint> contour, IntVector2 query) {
+      public static ContourNearestPointResult FindNearestPoint(List<IntVector2> contour, IntVector2 query) {
          var result = new ContourNearestPointResult {
             Distance = float.PositiveInfinity,
             Query = query

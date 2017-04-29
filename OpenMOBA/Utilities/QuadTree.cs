@@ -2,6 +2,8 @@
 using System.Drawing;
 using System.Linq;
 
+using cInt = System.Int64;
+
 namespace OpenMOBA.Utilities {
    public class QuadTree<T> {
       private readonly int maxQuadDepth;
@@ -105,11 +107,11 @@ namespace OpenMOBA.Utilities {
    }
 
    public struct IntRect2 {
-      public int Left;
-      public int Top;
-      public int Right;
+      public cInt Left;
+      public cInt Top;
+      public cInt Right;
       // below top, has greater value than top
-      public int Bottom;
+      public cInt Bottom;
 
       public bool IntersectsWith(IntRect2 rect) {
          if (Right < rect.Left) return false;
