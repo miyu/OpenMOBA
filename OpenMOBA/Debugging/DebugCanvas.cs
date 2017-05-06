@@ -86,6 +86,30 @@ namespace OpenMOBA.Debugging {
          slider.ValueChanged += HandleSliderValueChanged;
          form.Controls.Add(pb);
          form.Controls.Add(slider);
+         slider.KeyUp += (s, e) => {
+            if (e.KeyCode != Keys.Space) {
+               return;
+            }
+            if (e.Shift) {
+               new Thread(() => {
+                  var v = slider.Value;
+                  while (slider.Value == v && v != 30) {
+                     v = Math.Max(v - 5, 30);
+                     slider.Invoke(new Action(() => { slider.Value = v; }));
+                     Thread.Sleep(12);
+                  }
+               }).Start();
+            } else {
+               new Thread(() => {
+                  var v = slider.Value;
+                  while (slider.Value == v && v != slider.Maximum) {
+                     v = Math.Min(v + 2, slider.Maximum);
+                     slider.Invoke(new Action(() => { slider.Value = v; }));
+                     Thread.Sleep(12);
+                  }
+               }).Start();
+            }
+         };
       }
 
       public DebugCanvas CreateAndAddCanvas(int timestamp) {

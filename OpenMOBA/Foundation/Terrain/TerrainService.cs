@@ -118,13 +118,13 @@ namespace OpenMOBA.Foundation.Terrain {
          double bestDistance = double.PositiveInfinity;
          if (pickedNode.Contour.Any()) {
             // the hole has a contour; that is, it's a hole inside of a landmass
-            var result = GeometryOperations.FindNearestPointXYZ(pickedNode.Contour, query);
+            var result = GeometryOperations.FindNearestPointXYZOnContour(pickedNode.Contour, query);
             bestDistance = result.Distance;
             nearestLandPoint = result.NearestPoint;
          }
 
          foreach (var childLandNode in pickedNode.Childs) {
-            var result = GeometryOperations.FindNearestPointXYZ(childLandNode.Contour, query);
+            var result = GeometryOperations.FindNearestPointXYZOnContour(childLandNode.Contour, query);
             if (result.Distance < bestDistance) {
                bestDistance = result.Distance;
                nearestLandPoint = result.NearestPoint;

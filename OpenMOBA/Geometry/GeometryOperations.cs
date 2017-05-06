@@ -170,7 +170,7 @@ namespace OpenMOBA.Geometry {
          //         throw new ArgumentException("Presumably origin wasn't in triangle (is this case reachable even with malformed input?)");
       }
 
-      public static ContourNearestPointResult FindNearestPointXYZ(List<IntVector3> contour, DoubleVector3 query) {
+      public static ContourNearestPointResult FindNearestPointXYZOnContour(List<IntVector3> contour, DoubleVector3 query) {
          var result = new ContourNearestPointResult {
             Distance = double.PositiveInfinity,
             Query = query
@@ -179,17 +179,7 @@ namespace OpenMOBA.Geometry {
          for (int i = 0; i < pointCount; i++) {
             var p1 = contour[i].ToDoubleVector3();
             var p2 = contour[(i + 1) % pointCount].ToDoubleVector3();
-            var p1p2 = p2 - p1;
-            var p1Query = query - p1;
-            var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
-            DoubleVector3 nearestPoint;
-            if (p1QueryProjP1P2Component <= 0) {
-               nearestPoint = p1;
-            } else if (p1QueryProjP1P2Component >= 1) {
-               nearestPoint = p2;
-            } else {
-               nearestPoint = p1 + p1QueryProjP1P2Component * p1p2;
-            }
+            var nearestPoint = FindNearestPointXYZ(p1, p2, query);
             var distance = (query - nearestPoint).Norm2D();
             if (distance < result.Distance) {
                result.Distance = distance;
@@ -198,6 +188,34 @@ namespace OpenMOBA.Geometry {
             }
          }
          return result;
+      }
+
+      public static DoubleVector3 FindNearestPointXYZ(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 query) {
+         var p1p2 = p2 - p1;
+         var p1Query = query - p1;
+         var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
+         if (p1QueryProjP1P2Component <= 0) {
+            return p1;
+         } else if (p1QueryProjP1P2Component >= 1) {
+            return p2;
+         } else {
+            return p1 + p1QueryProjP1P2Component * p1p2;
+         }
+      }
+
+      public static DoubleVector2 FindNearestPoint(IntLineSegment2 segment, DoubleVector2 query) {
+         var p1 = segment.First.ToDoubleVector2();
+         var p2 = segment.Second.ToDoubleVector2();
+         var p1p2 = p2 - p1;
+         var p1Query = query - p1;
+         var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
+         if (p1QueryProjP1P2Component <= 0) {
+            return p1;
+         } else if (p1QueryProjP1P2Component >= 1) {
+            return p2;
+         } else {
+            return p1 + p1QueryProjP1P2Component * p1p2;
+         }
       }
    }
 }

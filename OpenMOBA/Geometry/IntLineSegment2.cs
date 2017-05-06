@@ -85,6 +85,11 @@ namespace OpenMOBA.Geometry {
          return new Rectangle((int)minX, (int)minY, (int)width, (int)height);
       }
 
+      public override bool Equals(object obj) => obj is IntLineSegment3 && Equals((IntLineSegment3)obj);
+
+      // Equality by endpoints, not line geometry
+      public bool Equals(IntLineSegment3 other) => First == other.First && Second == other.Second;
+
       public override string ToString() => $"({First}, {Second})";
    }
 }
