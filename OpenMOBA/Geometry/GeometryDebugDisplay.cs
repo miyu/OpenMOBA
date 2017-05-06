@@ -41,7 +41,7 @@ namespace OpenMOBA.Geometry {
       public static void DrawPolygons(this DebugCanvas canvas, IReadOnlyList<Polygon> polygons, Color color) {
          using (var pen = new Pen(color)) {
             foreach (var polygon in polygons) {
-               canvas.DrawLineStrip(polygon.Points, pen);
+               canvas.DrawLineStrip(polygon.Points.Select(p => p.XY).ToList(), pen);
             }
          }
       }
@@ -94,7 +94,7 @@ namespace OpenMOBA.Geometry {
          });
       }
 
-      public static void DrawTriangle(this DebugCanvas canvas, Triangle triangle, Pen pen) {
+      public static void DrawTriangle(this DebugCanvas canvas, Triangle3 triangle, Pen pen) {
          canvas.Draw(g => {
             g.DrawLines(pen, new[] {
                new PointF((float)triangle.Points[0].X, (float)triangle.Points[0].Y),

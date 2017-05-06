@@ -1,22 +1,21 @@
 ﻿using ClipperLib;
 using OpenMOBA.Geometry;
 using OpenMOBA.Utilities;
-using Poly2Tri;
-using Poly2Tri.Triangulation.Delaunay;
-using Poly2Tri.Triangulation.Polygon;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using Polygon = Poly2Tri.Triangulation.Polygon.Polygon;
+using Poly2Tri;
+//using Polygon = Poly2Tri.Polygon;
 
 using cInt = System.Int64;
+using Polygon = OpenMOBA.Geometry.Polygon;
 
 namespace OpenMOBA {
    // Connected Components. We avoid that term because 'Component' is pretty overloaded in meaning.
    public class TriangulationIsland {
-      public Triangle[] Triangles { get; set; }
+      public Triangle3[] Triangles { get; set; }
       public IntRect2 IntBounds { get; set; }
       public QuadTree<int> TriangleIndexQuadTree { get; set; }
    }
@@ -25,20 +24,23 @@ namespace OpenMOBA {
       public IReadOnlyList<TriangulationIsland> Islands { get; set; }
    }
 
-   public struct Triangle {
+   public struct Triangle3 {
       public const int NO_NEIGHBOR_INDEX = -1;
 
       public int Index;
 
       // in counterclockwise order
-      public Array3<DoubleVector2> Points;
+      public Array3<DoubleVector3> Points;
 
-      public DoubleVector2 Centroid;
+      public DoubleVector3 Centroid;
+
+      // Right hand rule, curl fingers in clockwise, thumb-outward is normal.
+      public DoubleVector3 Normal;
 
       // also in counterclockwise order, NO_NEIGHBOR_INDEX indicates no neighbor
       public Array3<int> NeighborOppositePointIndices;
 
-      public IntRect2 IntPaddedBounds;
+      public IntRect2 IntPaddedBounds2D;
    }
 
    public struct Array3<T> : IReadOnlyList<T> {
@@ -96,14 +98,14 @@ namespace OpenMOBA {
       private void TriangulateHelper(PolyNode node, List<TriangulationIsland> islands) {
          DebugPrint("Triangulate out");
 
-         var cps = new Polygon(ConvertToTriangulationPoints(node.Contour));
+         var cps = new Poly2Tri.Polygon(ConvertToTriangulationPoints(node.Contour));
          foreach (var hole in node.Childs) {
-            cps.AddHole(new Polygon(ConvertToTriangulationPoints(hole.Contour)));
+            cps.AddHole(new Poly2Tri.Polygon(ConvertToTriangulationPoints(hole.Contour)));
          }
          P2T.Triangulate(cps);
 
-         var triangles = new Triangle[cps.Triangles.Count];
-         var p2tTriangleToIndex = new Dictionary<DelaunayTriangle, int>();
+         var triangles = new Triangle3[cps.Triangles.Count];
+         var p2tTriangleToIndex = new Dictionary<Poly2Tri.Triangulation.Delaunay.DelaunayTriangle, int>();
          for (int i = 0; i < cps.Triangles.Count; i++) {
             triangles[i].Index = i;
             p2tTriangleToIndex[cps.Triangles[i]] = i;
@@ -111,18 +113,21 @@ namespace OpenMOBA {
 
          for (var i = 0; i < cps.Triangles.Count; i++) {
             var p2tTriangle = cps.Triangles[i];
-            triangles[i].Points = new Array3<DoubleVector2>(
+            ref Triangle3 t = ref triangles[i];
+            t.Points = new Array3<DoubleVector3>(
                p2tTriangle.Points[0].ToOpenMobaPointD(),
                p2tTriangle.Points[1].ToOpenMobaPointD(),
                p2tTriangle.Points[2].ToOpenMobaPointD()
             );
-            triangles[i].Centroid = (triangles[i].Points[0] + triangles[i].Points[1] + triangles[i].Points[2]) / 3.0;
-            triangles[i].IntPaddedBounds = CreatePaddedIntAxisAlignedBoundingBox(ref triangles[i].Points);
+//            Console.WriteLine(string.Join(", ", p2tTriangle.Points.Select(p => p.Z)));
+            t.Centroid = (t.Points[0] + t.Points[1] + t.Points[2]) / 3.0;
+            t.Normal = t.Points[0].To(t.Points[1]).Cross(t.Points[0].To(t.Points[2])).ToUnit();
+            t.IntPaddedBounds2D = CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref triangles[i].Points);
             for (int j = 0; j < 3; j++) {
                if (p2tTriangle.Neighbors[j] != null && p2tTriangle.Neighbors[j].IsInterior)
                   triangles[i].NeighborOppositePointIndices[j] = p2tTriangleToIndex[p2tTriangle.Neighbors[j]];
                else
-                  triangles[i].NeighborOppositePointIndices[j] = Triangle.NO_NEIGHBOR_INDEX;
+                  triangles[i].NeighborOppositePointIndices[j] = Triangle3.NO_NEIGHBOR_INDEX;
 #if DEBUG
                var p0 = triangles[i].Points[0];
                var p1 = triangles[i].Points[1];
@@ -142,14 +147,14 @@ namespace OpenMOBA {
             }
          }
          var islandBoundingBox = new IntRect2 {
-            Left = triangles.Min(t => t.IntPaddedBounds.Left),
-            Top = triangles.Min(t => t.IntPaddedBounds.Top),
-            Right = triangles.Max(t => t.IntPaddedBounds.Right),
-            Bottom = triangles.Max(t => t.IntPaddedBounds.Bottom)
+            Left = triangles.Min(t => t.IntPaddedBounds2D.Left),
+            Top = triangles.Min(t => t.IntPaddedBounds2D.Top),
+            Right = triangles.Max(t => t.IntPaddedBounds2D.Right),
+            Bottom = triangles.Max(t => t.IntPaddedBounds2D.Bottom)
          };
          var triangleIndexQuadTree = new QuadTree<int>(8, 8, islandBoundingBox);
          for (var i = 0; i < triangles.Length; i++) {
-            triangleIndexQuadTree.Insert(i, triangles[i].IntPaddedBounds);
+            triangleIndexQuadTree.Insert(i, triangles[i].IntPaddedBounds2D);
          }
          islands.Add(new TriangulationIsland {
             Triangles = triangles,
@@ -161,7 +166,7 @@ namespace OpenMOBA {
          }
       }
 
-      private IntRect2 CreatePaddedIntAxisAlignedBoundingBox(ref Array3<DoubleVector2> points) {
+      private IntRect2 CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref Array3<DoubleVector3> points) {
          cInt minX = cInt.MaxValue;
          cInt maxX = cInt.MinValue;
          cInt minY = cInt.MaxValue;
@@ -180,14 +185,14 @@ namespace OpenMOBA {
          };
       }
 
-      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntVector2> points) {
+      private List<Poly2Tri.PolygonPoint> ConvertToTriangulationPoints(List<IntVector3> points) {
          var isOpen = points[0] != points[points.Count - 1];
-         var results = new List<PolygonPoint>(points.Count);
+         var results = new List<Poly2Tri.PolygonPoint>(points.Count);
          var limit = isOpen ? points.Count : points.Count - 1;
          for (var i = 0; i < limit; i++) {
             var p = points[i];
             DebugPrint($"P: {p.X}, {p.Y}");
-            results.Add(new PolygonPoint(p.X, p.Y));
+            results.Add(new PolygonPoint(p.X, p.Y, p.Z));
          }
          DebugPrint($"Last: {points.Last().X}, {points.Last().Y}");
          return results;

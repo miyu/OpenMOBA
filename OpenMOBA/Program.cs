@@ -16,19 +16,19 @@ namespace OpenMOBA {
 
       private static void H() {
          var points = new[] {
-            new IntVector2(100, 50),
-            new IntVector2(100, 100),
-            new IntVector2(200, 100),
-            new IntVector2(200, 150),
-            new IntVector2(200, 200),
-            new IntVector2(400, 250),
-            new IntVector2(200, 300),
-            new IntVector2(400, 315),
-            new IntVector2(200, 330),
-            new IntVector2(210, 340),
-            new IntVector2(220, 350),
-            new IntVector2(220, 400),
-            new IntVector2(221, 400)
+            new IntVector3(100, 50, 0),
+            new IntVector3(100, 100, 0),
+            new IntVector3(200, 100, 0),
+            new IntVector3(200, 150, 0),
+            new IntVector3(200, 200, 0),
+            new IntVector3(400, 250, 0),
+            new IntVector3(200, 300, 0),
+            new IntVector3(400, 315, 0),
+            new IntVector3(200, 330, 0),
+            new IntVector3(210, 340, 0),
+            new IntVector3(220, 350, 0),
+            new IntVector3(220, 400, 0),
+            new IntVector3(221, 400, 0)
          };
 //         }.Concat(Enumerable.Range(1, 90).Select(i => {
 //            var p = new IntVector2(220, 400);
@@ -42,38 +42,38 @@ namespace OpenMOBA {
       private static void X() {
          var mapDimensions = new Size(1000, 1000);
          var holes = new[] {
-            Polygon.CreateRect(100, 100, 300, 300),
-            Polygon.CreateRect(400, 200, 100, 100),
-            Polygon.CreateRect(200, -50, 100, 150),
-            Polygon.CreateRect(600, 600, 300, 300),
-            Polygon.CreateRect(700, 500, 100, 100),
-            Polygon.CreateRect(200, 700, 100, 100),
-            Polygon.CreateRect(600, 100, 300, 50),
-            Polygon.CreateRect(600, 150, 50, 200),
-            Polygon.CreateRect(850, 150, 50, 200),
-            Polygon.CreateRect(600, 350, 300, 50),
-            Polygon.CreateRect(700, 200, 100, 100)
+            Polygon.CreateRectXY(100, 100, 300, 300, 0),
+            Polygon.CreateRectXY(400, 200, 100, 100, 0),
+            Polygon.CreateRectXY(200, -50, 100, 150, 0),
+            Polygon.CreateRectXY(600, 600, 300, 300, 0),
+            Polygon.CreateRectXY(700, 500, 100, 100, 0),
+            Polygon.CreateRectXY(200, 700, 100, 100, 0),
+            Polygon.CreateRectXY(600, 100, 300, 50, 0),
+            Polygon.CreateRectXY(600, 150, 50, 200, 0),
+            Polygon.CreateRectXY(850, 150, 50, 200, 0),
+            Polygon.CreateRectXY(600, 350, 300, 50, 0),
+            Polygon.CreateRectXY(700, 200, 100, 100, 0)
          };
 
          var holeSquiggle = PolylineOperations.ExtrudePolygon(
             new[] {
-               new IntVector2(100, 50),
-               new IntVector2(100, 100),
-               new IntVector2(200, 100),
-               new IntVector2(200, 150),
-               new IntVector2(200, 200),
-               new IntVector2(400, 250),
-               new IntVector2(200, 300),
-               new IntVector2(400, 315),
-               new IntVector2(200, 330),
-               new IntVector2(210, 340),
-               new IntVector2(220, 350),
-               new IntVector2(220, 400),
-               new IntVector2(221, 400)
-            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
+               new IntVector3(100, 50, 0),
+               new IntVector3(100, 100, 0),
+               new IntVector3(200, 100, 0),
+               new IntVector3(200, 150, 0),
+               new IntVector3(200, 200, 0),
+               new IntVector3(400, 250, 0),
+               new IntVector3(200, 300, 0),
+               new IntVector3(400, 315, 0),
+               new IntVector3(200, 330, 0),
+               new IntVector3(210, 340, 0),
+               new IntVector3(220, 350, 0),
+               new IntVector3(220, 400, 0),
+               new IntVector3(221, 400, 0)
+            }.Select(iv => new IntVector3(iv.X + 160, iv.Y + 200, iv.Z)).ToArray(), 10).FlattenToPolygons();
          holes = holes.Concat(holeSquiggle).ToArray();
 
-         var landPoly = Polygon.CreateRect(0, 0, 1000, 1000);
+         var landPoly = Polygon.CreateRectXY(0, 0, 1000, 1000, 0);
          var holesUnionResult = PolygonOperations.Offset()
                                                  .Include(holes)
                                                  .Include(holeSquiggle)
@@ -94,13 +94,13 @@ namespace OpenMOBA {
             Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
          };
 
-         using (var pen = new Pen(Color.Lime, 2)) {
-            foreach (var query in testPathFindingQueries) {
-               Path path;
-               if (visibilityGraph.TryFindPath(query.Item1, query.Item2, out path))
-                  debugCanvas.DrawLineStrip(path.Points, pen);
-            }
-         }
+//         using (var pen = new Pen(Color.Lime, 2)) {
+//            foreach (var query in testPathFindingQueries) {
+//               Path path;
+//               if (visibilityGraph.TryFindPath(query.Item1, query.Item2, out path))
+//                  debugCanvas.DrawLineStrip(path.Points, pen);
+//            }
+//         }
       }
    }
 }

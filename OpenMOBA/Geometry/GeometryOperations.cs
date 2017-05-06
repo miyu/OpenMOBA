@@ -14,6 +14,7 @@ namespace OpenMOBA.Geometry {
 
       public static bool IsReal(double v) => !(double.IsNaN(v) || double.IsInfinity(v));
       public static bool IsReal(DoubleVector2 v) => IsReal(v.X) && IsReal(v.Y);
+      public static bool IsReal(DoubleVector3 v) => IsReal(v.X) && IsReal(v.Y) && IsReal(v.Z);
 
       public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
       public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
@@ -76,7 +77,7 @@ namespace OpenMOBA.Geometry {
          return false;
       }
 
-      public static bool IsPointInTriangle(double px, double py, ref Triangle triangle) {
+      public static bool IsPointInTriangle(double px, double py, ref Triangle3 triangle) {
          // Barycentric coordinates for PIP w/ triangle test http://blackpawn.com/texts/pointinpoly/
 
          var ax = triangle.Points.A.X;
@@ -106,14 +107,14 @@ namespace OpenMOBA.Geometry {
          return (u >= 0) && (v >= 0) && (u + v <= 1);
       }
 
-      public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle triangle, out int indexOpposingEdge) {
+      public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle3 triangle, out int indexOpposingEdge) {
          // See my explanation on http://math.stackexchange.com/questions/2139740/fast-3d-algorithm-to-find-a-ray-triangle-edge-intersection/2197942#2197942
          // Note: Triangle points (A = p1, B = p2, C = p3) are CCW, origin is p, direction is v.
          // Results are undefined if ray origin is not in triangle (though you can probably math out what it means).
          // If a point is on the edge of the triangle, there will be neither-neither for clockness on the correct edge.
          for (int i = 0; i < 3; i++) {
-            var va = triangle.Points[i] - origin;
-            var vb = triangle.Points[(i + 1) % 3] - origin;
+            var va = triangle.Points[i].XY - origin;
+            var vb = triangle.Points[(i + 1) % 3].XY - origin;
             var cvad = Clockness(va, direction);
             var cdvb = Clockness(direction, vb);
 
@@ -136,29 +137,27 @@ namespace OpenMOBA.Geometry {
          //         throw new ArgumentException("Presumably origin wasn't in triangle (is this case reachable even with malformed input?)");
       }
 
-      public static ContourNearestPointResult FindNearestPoint(List<IntVector2> contour, IntVector2 query) {
+      public static ContourNearestPointResult FindNearestPointXYZ(List<IntVector3> contour, DoubleVector3 query) {
          var result = new ContourNearestPointResult {
-            Distance = float.PositiveInfinity,
+            Distance = double.PositiveInfinity,
             Query = query
          };
          var pointCount = contour.First().Equals(contour.Last()) ? contour.Count - 1 : contour.Count;
          for (int i = 0; i < pointCount; i++) {
-            var p1 = contour[i];
-            var p2 = contour[(i + 1) % pointCount];
-            var p1p2 = new IntVector2((int)(p2.X - p1.X), (int)(p2.Y - p1.Y));
-            var p1Query = new IntVector2((int)(query.X - p1.X), (int)(query.Y - p1.Y));
+            var p1 = contour[i].ToDoubleVector3();
+            var p2 = contour[(i + 1) % pointCount].ToDoubleVector3();
+            var p1p2 = p2 - p1;
+            var p1Query = query - p1;
             var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
-            IntVector2 nearestPoint;
+            DoubleVector3 nearestPoint;
             if (p1QueryProjP1P2Component <= 0) {
-               nearestPoint = p1.ToOpenMobaPoint();
+               nearestPoint = p1;
             } else if (p1QueryProjP1P2Component >= 1) {
-               nearestPoint = p2.ToOpenMobaPoint();
+               nearestPoint = p2;
             } else {
-               var p1p2Perp = new IntVector2(p1p2.Y, -p1p2.X);
-               var p1QueryProjOntoP1P2Perp = p1Query.LossyProjectOnto(p1p2Perp);
-               nearestPoint = query - p1QueryProjOntoP1P2Perp;
+               nearestPoint = p1 + p1QueryProjP1P2Component * p1p2;
             }
-            var distance = (query - nearestPoint).Norm2F();
+            var distance = (query - nearestPoint).Norm2D();
             if (distance < result.Distance) {
                result.Distance = distance;
                result.SegmentFirstPointContourIndex = i;

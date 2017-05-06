@@ -43,7 +43,7 @@
 //#define use_int32
 
 //use_xyz: adds a Z member to IntPoint. Adds a minor cost to performance.
-//#define use_xyz
+#define use_xyz
 
 //use_lines: Enables open path clipping. Adds a very minor cost to performance.
 #define use_lines
@@ -58,7 +58,11 @@ using System.Collections.Generic;
 //using System.Windows.Forms; //debugging to clipboard
 
 #if use_intvector
+#if use_xyz
+using IntPoint = OpenMOBA.Geometry.IntVector3;
+#else
 using IntPoint = OpenMOBA.Geometry.IntVector2;
+#endif
 #endif
 
 namespace ClipperLib {

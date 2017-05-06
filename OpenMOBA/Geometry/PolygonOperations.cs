@@ -3,36 +3,12 @@ using System.Collections.Generic;
 using ClipperLib;
 using Poly2Tri.Triangulation;
 
-using IntPoint = OpenMOBA.Geometry.IntVector2;
+using IntPoint = OpenMOBA.Geometry.IntVector3;
 
 namespace OpenMOBA.Geometry {
    public static class PolygonOperations {
-      public static IntPoint ToClipperPoint(this IntVector2 input) {
-         return new IntPoint(input.X, input.Y);
-      }
-
-      public static List<IntPoint> ToClipperPoints(this List<IntVector2> points) {
-         var result = new List<IntPoint>(points.Count);
-         foreach (var p in points) {
-            result.Add(ToClipperPoint(p));
-         }
-         return result;
-      }
-
-      public static IntVector2 ToOpenMobaPoint(this IntPoint input) {
-         return new IntVector2((int)input.X, (int)input.Y);
-      }
-
-      public static List<IntVector2> ToOpenMobaPoints(this List<IntPoint> points) {
-         var result = new List<IntVector2>(points.Count);
-         foreach (var p in points) {
-            result.Add(ToOpenMobaPoint(p));
-         }
-         return result;
-      }
-
-      public static DoubleVector2 ToOpenMobaPointD(this TriangulationPoint input) {
-         return new DoubleVector2(input.X, input.Y);
+      public static DoubleVector3 ToOpenMobaPointD(this TriangulationPoint input) {
+         return new DoubleVector3(input.X, input.Y, input.Z);
       }
 
       public static UnionOperation Union() => new UnionOperation();
@@ -56,7 +32,7 @@ namespace OpenMOBA.Geometry {
 
       private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon> results) {
          if (current.Contour.Count > 0) {
-            results.Add(new Polygon(ToOpenMobaPoints(current.Contour), isHole));
+            results.Add(new Polygon(current.Contour, isHole));
          }
          foreach (var child in current.Childs) {
             // We avoid node.isHole as that traverses upwards recursively and wastefully.
@@ -71,7 +47,7 @@ namespace OpenMOBA.Geometry {
 
          public UnionOperation Include(IReadOnlyList<Polygon> polygons) {
             foreach (var polygon in polygons) {
-               clipper.AddPath(ToClipperPoints(polygon.Points), PolyType.ptSubject, polygon.IsClosed);
+               clipper.AddPath(polygon.Points, PolyType.ptSubject, polygon.IsClosed);
             }
             return this;
          }
@@ -90,7 +66,7 @@ namespace OpenMOBA.Geometry {
 
          public PunchOperation Include(IEnumerable<Polygon> polygons) {
             foreach (var polygon in polygons) {
-               clipper.AddPath(ToClipperPoints(polygon.Points), PolyType.ptSubject, polygon.IsClosed);
+               clipper.AddPath(polygon.Points, PolyType.ptSubject, polygon.IsClosed);
             }
             return this;
          }
@@ -99,7 +75,7 @@ namespace OpenMOBA.Geometry {
 
          public PunchOperation Exclude(IEnumerable<Polygon> polygons) {
             foreach (var polygon in polygons) {
-               clipper.AddPath(ToClipperPoints(polygon.Points), PolyType.ptClip, polygon.IsClosed);
+               clipper.AddPath(polygon.Points, PolyType.ptClip, polygon.IsClosed);
             }
             return this;
          }
@@ -159,7 +135,7 @@ namespace OpenMOBA.Geometry {
                var polytree = new PolyTree();
                var clipper = new ClipperOffset();
                foreach (var polygon in currentPolygons) {
-                  clipper.AddPath(ToClipperPoints(polygon.Points), JoinType.jtMiter, EndType.etClosedPolygon);
+                  clipper.AddPath(polygon.Points, JoinType.jtMiter, EndType.etClosedPolygon);
                }
                clipper.Execute(ref polytree, offsets[i]);
                if (i + 1 == offsets.Count) {

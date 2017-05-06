@@ -21,6 +21,17 @@ namespace OpenMOBA.Geometry {
       public double SquaredNorm2D() => Dot(this);
       public double Norm2D() => Math.Sqrt(SquaredNorm2D());
 
+      public DoubleVector3 Cross(DoubleVector3 other) {
+         double u1 = X, u2 = Y, u3 = Z,
+                v1 = other.X, v2 = other.Y, v3 = other.Z;
+         return new DoubleVector3(
+            u2 * v3 - u3 * v2, 
+            u3 * v1 - u1 * v3, 
+            u1 * v2 - u2 * v1);
+      }
+
+      public DoubleVector3 To(DoubleVector3 other) => other - this;
+
       /// <summary>
       /// result * other ~= Proj(this onto other)
       /// </summary>
@@ -45,6 +56,7 @@ namespace OpenMOBA.Geometry {
       }
 
       public DoubleVector3 ToUnit() => this / Norm2D();
+      public DoubleVector3 ToUnitXY() => this / XY.Norm2D();
 
       public IntVector3 LossyToIntVector3() => new IntVector3((cInt)Math.Floor(X), (cInt)Math.Floor(Y), (cInt)Math.Floor(Z));
 
@@ -88,6 +100,8 @@ namespace OpenMOBA.Geometry {
       public cInt X;
       public cInt Y;
       public cInt Z;
+
+      public IntVector3(cInt x, cInt y) : this(x, y, 0) { }
 
       public IntVector3(cInt x, cInt y, cInt z) {
          X = x;

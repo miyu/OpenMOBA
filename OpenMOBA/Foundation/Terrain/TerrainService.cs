@@ -43,11 +43,12 @@ namespace OpenMOBA.Foundation.Terrain {
       public PolyTree ComputePunchedLand(double holeDilationRadius) {
          PolyTree punchedLand;
          if (!punchedLandCache.TryGetValue(holeDilationRadius, out punchedLand)) {
-            var landPoly = Polygon.CreateRect(
+            var landPoly = Polygon.CreateRectXY(
                (int)holeDilationRadius,
                (int)holeDilationRadius,
                (int)(MapConfiguration.Size.Width - 2 * holeDilationRadius),
-               (int)(MapConfiguration.Size.Height - 2 * holeDilationRadius));
+               (int)(MapConfiguration.Size.Height - 2 * holeDilationRadius),
+               0);
             var dilatedHolesUnion = ComputeDilatedHolesUnion(holeDilationRadius);
             punchedLand = PolygonOperations.Punch()
                                            .Include(landPoly)
@@ -80,13 +81,13 @@ namespace OpenMOBA.Foundation.Terrain {
    }
 
    public static class TerrainSnapshotQueryOperations {
-      public static bool IsInHole(this TerrainSnapshot terrainSnapshot, double holeDilationRadius, IntVector2 query) {
+      public static bool IsInHole(this TerrainSnapshot terrainSnapshot, double holeDilationRadius, IntVector3 query) {
          var punchedLandPolytree = terrainSnapshot.ComputePunchedLand(holeDilationRadius);
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
 
          PolyNode pickedNode;
          bool isHole;
-         punchedLandPolytree.PickDeepestPolynode(query.ToClipperPoint(), out pickedNode, out isHole);
+         punchedLandPolytree.PickDeepestPolynode(query.XY, out pickedNode, out isHole);
 
          return isHole;
       }
@@ -97,13 +98,13 @@ namespace OpenMOBA.Foundation.Terrain {
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static bool FindNearestLandPointAndIsInHole(this TerrainSnapshot terrainSnapshot, double holeDilationRadius, IntVector2 query, out IntVector2 nearestLandPoint) {
+      public static bool FindNearestLandPointAndIsInHole(this TerrainSnapshot terrainSnapshot, double holeDilationRadius, DoubleVector3 query, out DoubleVector3 nearestLandPoint) {
          var punchedLandPolytree = terrainSnapshot.ComputePunchedLand(holeDilationRadius);
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
 
          PolyNode pickedNode;
          bool isHole;
-         punchedLandPolytree.PickDeepestPolynode(query.ToClipperPoint(), out pickedNode, out isHole);
+         punchedLandPolytree.PickDeepestPolynode(query.XY.LossyToIntVector2(), out pickedNode, out isHole);
 
          // If query point not in a hole, nearest land point is query point
          if (!isHole) {
@@ -113,17 +114,17 @@ namespace OpenMOBA.Foundation.Terrain {
 
          // Else, two cases to consider: nearest point is on an island inside this hole, alternatively
          // and (only if the hole has a contour), nearest point is on the hole contour.
-         nearestLandPoint = IntVector2.Zero;
-         float bestDistance = float.PositiveInfinity;
+         nearestLandPoint = DoubleVector3.Zero;
+         double bestDistance = double.PositiveInfinity;
          if (pickedNode.Contour.Any()) {
             // the hole has a contour; that is, it's a hole inside of a landmass
-            var result = GeometryOperations.FindNearestPoint(pickedNode.Contour, query);
+            var result = GeometryOperations.FindNearestPointXYZ(pickedNode.Contour, query);
             bestDistance = result.Distance;
             nearestLandPoint = result.NearestPoint;
          }
 
          foreach (var childLandNode in pickedNode.Childs) {
-            var result = GeometryOperations.FindNearestPoint(childLandNode.Contour, query);
+            var result = GeometryOperations.FindNearestPointXYZ(childLandNode.Contour, query);
             if (result.Distance < bestDistance) {
                bestDistance = result.Distance;
                nearestLandPoint = result.NearestPoint;
@@ -175,7 +176,7 @@ namespace OpenMOBA.Foundation.Terrain {
    }
 
    public static class TerrainHoleHelpers {
-      public static bool ContainsPoint(this TerrainHole terrainHole, double holeDilationRadius, DoubleVector2 point) {
+      public static bool ContainsPoint(this TerrainHole terrainHole, double holeDilationRadius, DoubleVector3 point) {
          // Padding so that when flooring the point, we don't accidentally say a point isn't
          // in the hole when in reality, it is. 
          var paddedHoleShapeUnion = PolygonOperations.Offset()
@@ -185,7 +186,7 @@ namespace OpenMOBA.Foundation.Terrain {
 
          PolyNode node;
          bool isHole;
-         paddedHoleShapeUnion.PickDeepestPolynodeGivenHoleShapePolytree(point.LossyToIntVector2().ToClipperPoint(), out node, out isHole);
+         paddedHoleShapeUnion.PickDeepestPolynodeGivenHoleShapePolytree(point.XY.LossyToIntVector2(), out node, out isHole);
 
          // we want land inside the hole-shape-union because we want to know if we're in the hole, not a hole of the hole shape.
          return !isHole;

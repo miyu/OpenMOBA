@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenMOBA", "OpenMOBA\OpenMO
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benchmark.csproj", "{BA12F6F5-D6A5-4B30-BA8F-75C7B38FA4D2}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Poly2Tri", "..\Poly2Tri\Poly2Tri\Poly2Tri.csproj", "{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{BA12F6F5-D6A5-4B30-BA8F-75C7B38FA4D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA12F6F5-D6A5-4B30-BA8F-75C7B38FA4D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BA12F6F5-D6A5-4B30-BA8F-75C7B38FA4D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

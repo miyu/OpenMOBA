@@ -96,8 +96,8 @@ namespace OpenMOBA.Foundation {
 
    public class MovementComponent : EntityComponent {
       public MovementComponent() : base(EntityComponentType.Movement) { }
-      public DoubleVector2 Position { get; set; }
-      public DoubleVector2 LookAt { get; set; } = DoubleVector2.UnitX;
+      public DoubleVector3 Position { get; set; }
+      public DoubleVector3 LookAt { get; set; } = DoubleVector3.UnitX;
       public float BaseRadius { get; set; }
       public float BaseSpeed { get; set; }
       
@@ -110,9 +110,9 @@ namespace OpenMOBA.Foundation {
       /// The desired destination of the unit. Even if pathfinding fails, this is still set and,
       /// once terrain changes, pathing may attempt to resume.
       /// </summary>
-      public DoubleVector2 PathingDestination { get; set; }
+      public DoubleVector3 PathingDestination { get; set; }
       // poor datastructure use, but irrelevant for perf 
-      public List<DoubleVector2> PathingBreadcrumbs { get; set; } = new List<DoubleVector2>();
+      public List<DoubleVector3> PathingBreadcrumbs { get; set; } = new List<DoubleVector3>();
 
       public Swarm Swarm { get; set; }
       public TriangulationIsland SwarmingIsland { get; set; }
@@ -181,15 +181,15 @@ namespace OpenMOBA.Foundation {
          this.statsCalculator = statsCalculator;
       }
 
-      public bool TryFindPath(double holeDilationRadius, DoubleVector2 source, DoubleVector2 destination, out List<DoubleVector2> pathPoints) {
+      public bool TryFindPath(double holeDilationRadius, DoubleVector3 source, DoubleVector3 destination, out List<DoubleVector3> pathPoints) {
          var terrainSnapshot = terrainService.BuildSnapshot();
          var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
          Path path;
-         if (!visibilityGraph.TryFindPath(source.LossyToIntVector2(), destination.LossyToIntVector2(), out path)) {
+         if (!visibilityGraph.TryFindPath(source.LossyToIntVector3(), destination.LossyToIntVector3(), out path)) {
             pathPoints = null;
             return false;
          } else {
-            pathPoints = path.Points.Select(p => p.ToDoubleVector2()).ToList();
+            pathPoints = path.Points.Select(p => p.ToDoubleVector3()).ToList();
             pathPoints[0] = source;
             pathPoints[pathPoints.Count - 1] = destination;
             return true;
@@ -217,11 +217,11 @@ namespace OpenMOBA.Foundation {
          this.pathfinderCalculator = pathfinderCalculator;
       }
 
-      public void Pathfind(Entity entity, DoubleVector2 destination) {
+      public void Pathfind(Entity entity, DoubleVector3 destination) {
          var movementComponent = entity.MovementComponent;
 
          var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + TerrainConstants.AdditionalHoleDilationRadius;
-         List<DoubleVector2> pathPoints;
+         List<DoubleVector3> pathPoints;
          if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) {
             movementComponent.PathingBreadcrumbs.Clear();
          } else {
@@ -249,13 +249,13 @@ namespace OpenMOBA.Foundation {
          movementComponent.Position = PushToLand(movementComponent.Position, computedRadius);
       }
 
-      private DoubleVector2 PushToLand(DoubleVector2 vect, double computedRadius) {
+      private DoubleVector3 PushToLand(DoubleVector3 vect, double computedRadius) {
          var paddedHoleDilationRadius = computedRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
-         IntVector2 nearestLandPoint;
-         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, vect.LossyToIntVector2(), out nearestLandPoint)) {
+         DoubleVector3 nearestLandPoint;
+         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, vect, out nearestLandPoint)) {
             throw new InvalidOperationException("In new hole but not terrain snapshot hole.");
          }
-         return nearestLandPoint.ToDoubleVector2();
+         return nearestLandPoint;
       }
 
       /// <summary>
@@ -267,7 +267,7 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      public bool NN(TriangulationIsland island, DoubleVector2 destination, out Dictionary<int, int> d) {
+      public bool NN(TriangulationIsland island, DoubleVector3 destination, out Dictionary<int, int> d) {
          int rootTriangleIndex;
          if (!island.TryIntersect(destination.X, destination.Y, out rootTriangleIndex)) {
             d = null;
@@ -288,7 +288,7 @@ namespace OpenMOBA.Foundation {
             d[ti] = pi;
             for (var i = 0; i < 3; i++) {
                var nti = island.Triangles[ti].NeighborOppositePointIndices[i];
-               if (nti != Triangle.NO_NEIGHBOR_INDEX) {
+               if (nti != Triangle3.NO_NEIGHBOR_INDEX) {
                   var addDist = (island.Triangles[nti].Centroid - island.Triangles[ti].Centroid).Norm2D();
                   s.Enqueue(Tuple.Create(nti, ti, prevDist + addDist));
                }
@@ -299,42 +299,42 @@ namespace OpenMOBA.Foundation {
 
       public override void Execute() {
          goto the_new_code;
-         goto derp;
-         foreach (var swarm in AssociatedEntities.Where(e => e.MovementComponent.Swarm != null).Select(e => e.MovementComponent.Swarm).Distinct().ToArray()) {
-            var destination = swarm.Destination;
-            foreach (var swarmling in swarm.Entities) {
-               // seek to point
-               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
-               var vs = new List<Tuple<double, DoubleVector2>>();
-               vs.Add(Tuple.Create(100.0, seekUnit));
-
-               foreach (var other in swarm.Entities) {
-                  if (other == swarmling) continue;
-                  var selfToOther = other.MovementComponent.Position - swarmling.MovementComponent.Position;
-                  var selfToOtherMagnitude = selfToOther.Norm2D();
-                  var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
-                  var separateWeight = 0.0;
-                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
-                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
-                  separateWeight = 1280000 * mul * separateFactor;
-                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
-                  if (wtot > 0) {
-                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
-                  } else {
-                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
-                  }
-                  //                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
-                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
-                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
-               }
-
-               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
-               var wsumvsw = vs.Sum(it => it.Item1);
-               var wavs = wsumvs / wsumvsw;
-               swarmling.MovementComponent.WeightedSumNBodyForces = wavs;
-            }
-         }
-         goto derp;
+//         goto derp;
+//         foreach (var swarm in AssociatedEntities.Where(e => e.MovementComponent.Swarm != null).Select(e => e.MovementComponent.Swarm).Distinct().ToArray()) {
+//            var destination = swarm.Destination;
+//            foreach (var swarmling in swarm.Entities) {
+//               // seek to point
+//               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
+//               var vs = new List<Tuple<double, DoubleVector2>>();
+//               vs.Add(Tuple.Create(100.0, seekUnit));
+//
+//               foreach (var other in swarm.Entities) {
+//                  if (other == swarmling) continue;
+//                  var selfToOther = other.MovementComponent.Position - swarmling.MovementComponent.Position;
+//                  var selfToOtherMagnitude = selfToOther.Norm2D();
+//                  var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
+//                  var separateWeight = 0.0;
+//                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
+//                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
+//                  separateWeight = 1280000 * mul * separateFactor;
+//                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
+//                  if (wtot > 0) {
+//                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
+//                  } else {
+//                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
+//                  }
+//                  //                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
+//                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
+//                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
+//               }
+//
+//               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
+//               var wsumvsw = vs.Sum(it => it.Item1);
+//               var wavs = wsumvs / wsumvsw;
+//               swarmling.MovementComponent.WeightedSumNBodyForces = wavs;
+//            }
+//         }
+//         goto derp;
 
       the_new_code:
          var entities = AssociatedEntities.ToArray();
@@ -342,7 +342,7 @@ namespace OpenMOBA.Foundation {
          // Precompute computed entity stats
          for (var i = 0; i < entities.Length; i++) {
             var e = entities[i];
-            e.MovementComponent.DiscretizedPosition = e.MovementComponent.Position.LossyToIntVector2();
+            e.MovementComponent.DiscretizedPosition = e.MovementComponent.Position.XY.LossyToIntVector2();
             e.MovementComponent.ComputedRadius = (int)Math.Ceiling(statsCalculator.ComputeCharacterRadius(e));
             e.MovementComponent.ComputedSpeed = (int)Math.Ceiling(statsCalculator.ComputeMovementSpeed(e));
             e.MovementComponent.WeightedSumNBodyForces = DoubleVector2.Zero;
@@ -381,7 +381,7 @@ namespace OpenMOBA.Foundation {
          }
 
          // for each (int, triangleIndex, island, dest) tuple, compute optimal direction (or 0, 0)
-         var vectorField = new Dictionary<Tuple<int, int, TriangulationIsland, DoubleVector2>, DoubleVector2>();
+         var vectorField = new Dictionary<Tuple<int, int, TriangulationIsland, DoubleVector3>, DoubleVector3>();
          foreach (var swarm in swarms) {
             var dest = swarm.Destination;
             foreach (var entity in swarm.Entities) {
@@ -393,9 +393,9 @@ namespace OpenMOBA.Foundation {
 
                var triangleCentroid = mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid;
                var dilation = mc.ComputedRadius + TerrainConstants.AdditionalHoleDilationRadius;
-               List<DoubleVector2> path;
+               List<DoubleVector3> path;
                if (!pathfinderCalculator.TryFindPath(dilation, triangleCentroid, dest, out path) || path.Count < 2) {
-                  vectorField[k] = DoubleVector2.Zero;
+                  vectorField[k] = DoubleVector3.Zero;
                } else {
                   vectorField[k] = (path[1] - path[0]).ToUnit();
                }
@@ -403,7 +403,7 @@ namespace OpenMOBA.Foundation {
          }
 
          // for each (island, dest) compute spanning dijkstras of tree centroids to dest triangle
-         var ds = new Dictionary<Tuple<TriangulationIsland, DoubleVector2>, Dictionary<int, int>>();
+         var ds = new Dictionary<Tuple<TriangulationIsland, DoubleVector3>, Dictionary<int, int>>();
          foreach (var swarm in swarms) {
             for (var i = 0; i < swarm.Entities.Count; i++) {
                var entity = swarm.Entities[i];
@@ -497,8 +497,8 @@ namespace OpenMOBA.Foundation {
 
             var d = ds[Tuple.Create(a.SwarmingIsland, a.Swarm.Destination)];
             int nti;
-            if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle.NO_NEIGHBOR_INDEX) {
-               var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).ToUnit();
+            if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle3.NO_NEIGHBOR_INDEX) {
+               var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).XY.ToUnit();
                const double mul = 0.3;
                seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
                seekWeightAggregate += mul;
@@ -506,7 +506,7 @@ namespace OpenMOBA.Foundation {
                
             var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
             var triangleCentroidOptimalSeekUnit = vectorField[key];
-            seekAggregate += triangleCentroidOptimalSeekUnit;
+            seekAggregate += triangleCentroidOptimalSeekUnit.XY;
             seekWeightAggregate += 1.0;
 
             // var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
@@ -608,10 +608,10 @@ derp:
          movementComponent.Position = CPU(distanceRemaining, p, preferredDirectionUnit, island, triangleIndex);
       }
 
-      private DoubleVector2 CPU(double distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
+      private DoubleVector3 CPU(double distanceRemaining, DoubleVector3 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
          var allowPushIntoTriangle = true;
          while (distanceRemaining > GeometryOperations.kEpsilon) {
-            DoubleVector2 np;
+            DoubleVector3 np;
             int nti;
             var walkResult = WalkTriangle(p, preferredDirectionUnit, distanceRemaining, island, triangleIndex, allowPushIntoTriangle, true, out np, out nti);
             switch (walkResult) {
@@ -649,15 +649,61 @@ derp:
          Completion,
       }
 
+      // removes normal component of point relative to triangle.
+      // NOTE: This can change the point's XY!
+      private DoubleVector3 ProjectToTrianglePlane(DoubleVector3 p, ref Triangle3 triangle) {
+         return p - p.To(triangle.Points[0]).ProjectOnto(triangle.Normal);
+      }
+
+      // Computes Z of p on triangle plane.
+      private DoubleVector3 ZIfyPointOnTrianglePlane(DoubleVector2 p, ref Triangle3 triangle) {
+         // Let p = point we're finding with same x, z
+         //     q = another point on triangle
+         //     n = triangle normal
+         // dot(p-q, normal) = 0
+         // normal.X * (p.X - q.X) + normal.Y * (p.Y - q.Y) + normal.Z * (p.Z - q.Z) = 0
+         // normal.Z * (p.Z - q.Z) = normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y)
+         // normal.Z * p.Z - normal.Z * q.Z = normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y)
+         // normal.Z * p.Z = normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y) + normal.Z * q.Z
+         // p.Z = (normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y) + normal.Z * q.Z) / normal.Z
+         // p.Z = (normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y)) / normal.Z + q.Z
+         var q1 = triangle.Points[0];
+         var q2 = triangle.Points[1];
+         var q = (p - q1.XY).SquaredNorm2D() > (p - q2.XY).SquaredNorm2D() ? q1 : q2;
+         var n = triangle.Normal;
+         var z = (n.X * (q.X - p.X) + n.Y * (q.Y - p.Y)) / n.Z + q.Z;
+         return new DoubleVector3(p.X, p.Y, z);
+      }
+
+      // Computes Z of v formed by triangle plane basis.
+      private DoubleVector3 ZIfyVectorOnTriangleBasis(DoubleVector2 v, ref Triangle3 triangle) {
+         // This is equivalent to ZIfyPointOnTrianglePlane if triangle has 0,0,0 for a point.
+         // Let p = point we're finding with same x, z
+         //     q = 0,0,0
+         //     n = triangle normal
+         // dot(p-q, normal) = 0
+         // normal.X * (p.X - q.X) + normal.Y * (p.Y - q.Y) + normal.Z * (p.Z - q.Z) = 0
+         // normal.Z * (p.Z - q.Z) = normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y)
+         // normal.Z * p.Z - normal.Z * q.Z = normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y)
+         // normal.Z * p.Z = normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y) + normal.Z * q.Z
+         // p.Z = (normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y) + normal.Z * q.Z) / normal.Z
+         // p.Z = (normal.X * (q.X - p.X) + normal.Y * (q.Y - p.Y)) / normal.Z + q.Z
+         var p = v;
+         var q = DoubleVector3.Zero;
+         var n = triangle.Normal;
+         var z = (n.X * (q.X - p.X) + n.Y * (q.Y - p.Y)) / n.Z + q.Z;
+         return new DoubleVector3(p.X, p.Y, z);
+      }
+
       private WalkResult WalkTriangle(
-         DoubleVector2 position, 
+         DoubleVector3 position, 
          DoubleVector2 preferredDirectionUnit, 
          double distanceRemaining, 
          TriangulationIsland island, 
          int triangleIndex, 
          bool allowPushIntoTriangle,
          bool allowEdgeFollow,
-         out DoubleVector2 nextPosition,
+         out DoubleVector3 nextPosition,
          out int nextTriangleIndex
       ) {
          Debug.Assert(GeometryOperations.IsReal(position));
@@ -665,11 +711,19 @@ derp:
          Debug.Assert(GeometryOperations.IsReal(distanceRemaining));
 
          // Make this a ref in C# 7.0 for minor perf gains
-         var triangle = island.Triangles[triangleIndex];
+         var triangle = island.Triangles[triangleIndex]; ;
 
-         // Find the edge of the triangle that we're potentially moving into. 
+         // NOTE: Position is assumed to be on the triangle plane already.
+         // Either way, enforce: Holding p.XY constant, reset Z to whatever's on triangle plane.
+         var npos = ZIfyPointOnTrianglePlane(position.XY, ref triangle);
+         if ((position - npos).SquaredNorm2D() > 0.05) {
+            Console.WriteLine("!! clamp z to triangle " + (position - npos).Norm2D());
+         }
+         position = npos;
+
+         // Find the edge of our container triangle that we're walking towards 
          int opposingVertexIndex;
-         if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(position, preferredDirectionUnit, ref triangle, out opposingVertexIndex)) {
+         if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(position.XY, preferredDirectionUnit, ref triangle, out opposingVertexIndex)) {
             // Resolve if we're not inside the triangle.
             if (!allowPushIntoTriangle) {
                Console.WriteLine("Warning: Pushed into triangle, but immediately not in triangle?");
@@ -683,7 +737,7 @@ derp:
             // edge and floating point arithmetic error makes us confused. Simply push us slightly into the triangle
             // by pulling us towards its centroid
             // (A previous variant pulled based on perp of nearest edge, however the results are probably pretty similar)
-            var offsetToCentroid = triangle.Centroid - position;
+            var offsetToCentroid = position.To(triangle.Centroid);
             if (offsetToCentroid.Norm2D() < TerrainConstants.TriangleEdgeBufferRadius) {
                Console.WriteLine("Warning: Triangle width less than edge buffer radius!");
                nextPosition = triangle.Centroid;
@@ -696,10 +750,10 @@ derp:
             }
          }
 
-         // Let d = remaining "preferred" motion
-         var d = preferredDirectionUnit * distanceRemaining;
+         // Let d = remaining "preferred" motion.
+         var d = ZIfyVectorOnTriangleBasis(preferredDirectionUnit, ref triangle).ToUnit() * distanceRemaining;
 
-         // Project p-e0 onto perp(e0-e1) to find shortest vector to edge.
+         // Project p-e0 onto perp(e0-e1) to find shortest vector from position to edge.
          // Intuitively an edge direction and the direction's perp form a vector
          // space. A point within the triangle's offset from a vertex (which has two edges)
          // is the sum of vector to point on nearest edge and vector from that point to the 
@@ -707,11 +761,12 @@ derp:
          // we'll isolate the perp component.
          var e0 = triangle.Points[(opposingVertexIndex + 1) % 3];
          var e1 = triangle.Points[(opposingVertexIndex + 2) % 3];
-         var e01 = e1 - e0;
-         var e01Perp = new DoubleVector2(e01.Y, -e01.X); // points outside of current triangle.
+         var e01 = e0.To(e1);
+         var e01Perp = e01.Cross(triangle.Normal); // points outside of current triangle, perp to edge we're crossing, on triangle plane.
+         Trace.Assert(triangle.Centroid.To(e0).ProjectOntoComponentD(e01Perp) > 0);
 
-         var pe0 = e0 - position;
-         var pToEdge = pe0.ProjectOnto(e01Perp);
+         var pe0 = position.To(e0);
+         var pToEdge = pe0.ProjectOnto(e01Perp); // perp to plane normal.
 
          // If we're sitting right on the edge, push us into the triangle before doing any work
          // Otherwise, it can be ambiguous as to what edge we're passing through on exit.
@@ -741,7 +796,7 @@ derp:
          var dToEdge = d / pToEdgeComponentRemaining;
          Debug.Assert(GeometryOperations.IsReal(dToEdge));
 
-         if (neighborTriangleIndex != Triangle.NO_NEIGHBOR_INDEX) {
+         if (neighborTriangleIndex != Triangle3.NO_NEIGHBOR_INDEX) {
             // Move towards and past the edge between us and the other triangle.
             // There's a potential bug here where the other triangle is a sliver.
             // The edge buffer radius could potentially move us past TWO of its edges, out of it.
@@ -777,11 +832,11 @@ derp:
             var drem = dToNearEdge.Norm2D();
             bool allowPushInward = true;
             while (drem > GeometryOperations.kEpsilon) {
-               DoubleVector2 np;
+               DoubleVector3 np;
                int nti;
                var wres = WalkTriangle(
                   pNearEdge,
-                  directionToWalkAlongEdgeUnit,
+                  directionToWalkAlongEdgeUnit.XY,
                   distanceRemaining - dToNearEdge.Norm2D(),
                   island,
                   ti,

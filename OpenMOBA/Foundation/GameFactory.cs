@@ -17,7 +17,7 @@ namespace OpenMOBA.Foundation {
 
    public class Swarm {
       public List<Entity> Entities { get; set; } = new List<Entity>();
-      public DoubleVector2 Destination { get; set; }
+      public DoubleVector3 Destination { get; set; }
    }
 
    public class GameInstance : IGameEventFactory {
@@ -33,7 +33,7 @@ namespace OpenMOBA.Foundation {
       public void Run() {
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
-            var poly = Polygon.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
+            var poly = Polygon.CreateRectXY(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200), 0);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new TerrainHole { Polygons = new[] { poly } };
@@ -51,7 +51,7 @@ namespace OpenMOBA.Foundation {
 //         MovementSystemService.Pathfind(c, new DoubleVector2(950, 475));
 //         MovementSystemService.Pathfind(d, new DoubleVector2(80, 720));
 
-         var benchmarkDestination = new DoubleVector2(950, 50);
+         var benchmarkDestination = new DoubleVector3(950, 50, 0.0);
          var benchmarkUnitBaseSpeed = 100.0f;
          var swarm = new Swarm { Destination = benchmarkDestination };
          var swarmMeanRadius = 10.0f;
@@ -59,15 +59,15 @@ namespace OpenMOBA.Foundation {
             for (var x = 0; x < 10; x++) {
                // var swarmlingRadius = 10f;
                var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
-               var p = new DoubleVector2(50, 500);
-               var offset = new DoubleVector2(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2);
+               var p = new DoubleVector3(50, 500, 0);
+               var offset = new DoubleVector3(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2, 0);
                var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
                swarmling.MovementComponent.Swarm = swarm;
                swarm.Entities.Add(swarmling);
             }
          }
 
-         var optimal = CreateTestEntity(new DoubleVector2(50 + 9 * 10*2, 500), 10, 100f);
+         var optimal = CreateTestEntity(new DoubleVector3(50 + 9 * 10*2, 500, 0.0), 10, 100f);
          MovementSystemService.Pathfind(optimal, benchmarkDestination);
 
          var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(MapConfiguration.Size, new Point(100, 100));
@@ -94,7 +94,7 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      private Entity CreateTestEntity(DoubleVector2 initialPosition, float radius, float movementSpeed) {
+      private Entity CreateTestEntity(DoubleVector3 initialPosition, float radius, float movementSpeed) {
          var entity = EntityService.CreateEntity();
          EntityService.AddEntityComponent(entity, new MovementComponent {
             Position = initialPosition,
@@ -125,8 +125,8 @@ namespace OpenMOBA.Foundation {
                foreach (var entity in EntityService.EnumerateEntities()) {
                   var movementComponent = entity.MovementComponent;
                   if (movementComponent == null) continue;
-                  var pathPoints = entity.MovementComponent.PathingBreadcrumbs.Select(p => p.LossyToIntVector2()).ToList();
-                  pathPoints.Insert(0, movementComponent.Position.LossyToIntVector2());
+                  var pathPoints = entity.MovementComponent.PathingBreadcrumbs.Select(p => p.XY.LossyToIntVector2()).ToList();
+                  pathPoints.Insert(0, movementComponent.Position.XY.LossyToIntVector2());
                   debugCanvas.DrawLineStrip(pathPoints, pen);
                }
             }
@@ -171,14 +171,14 @@ namespace OpenMOBA.Foundation {
             foreach (var entity in EntityService.EnumerateEntities()) {
                var movementComponent = entity.MovementComponent;
                if (movementComponent != null) {
-                  debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
-                  debugCanvas.DrawPoint(movementComponent.Position.LossyToIntVector2(), Brushes.White, movementComponent.BaseRadius - 2);
+                  debugCanvas.DrawPoint(movementComponent.Position.XY.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
+                  debugCanvas.DrawPoint(movementComponent.Position.XY.LossyToIntVector2(), Brushes.White, movementComponent.BaseRadius - 2);
 
                   if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
                      debugCanvas.DrawLineList(
                         new[] {
-                           movementComponent.Position.LossyToIntVector2(),
-                           (movementComponent.Position + movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius).LossyToIntVector2()
+                           movementComponent.Position.XY.LossyToIntVector2(),
+                           (movementComponent.Position.XY + movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius).LossyToIntVector2()
                         }, Pens.Gray);
                   }
 
@@ -262,17 +262,17 @@ namespace OpenMOBA.Foundation {
 
       private static MapConfiguration CreateDefaultMapConfiguration() {
          var holes = new[] {
-            Polygon.CreateRect(100, 100, 300, 300),
-            Polygon.CreateRect(400, 200, 100, 100),
-            Polygon.CreateRect(200, -50, 100, 150),
-            Polygon.CreateRect(600, 600, 300, 300),
-            Polygon.CreateRect(700, 500, 100, 100),
-            Polygon.CreateRect(200, 700, 100, 100),
-            Polygon.CreateRect(600, 100, 300, 50),
-            Polygon.CreateRect(600, 150, 50, 200),
-            Polygon.CreateRect(850, 150, 50, 200),
-            Polygon.CreateRect(600, 350, 300, 50),
-            Polygon.CreateRect(700, 200, 100, 100)
+            Polygon.CreateRectXY(100, 100, 300, 300, 0),
+            Polygon.CreateRectXY(400, 200, 100, 100, 0),
+            Polygon.CreateRectXY(200, -50, 100, 150, 0),
+            Polygon.CreateRectXY(600, 600, 300, 300, 0),
+            Polygon.CreateRectXY(700, 500, 100, 100, 0),
+            Polygon.CreateRectXY(200, 700, 100, 100, 0),
+            Polygon.CreateRectXY(600, 100, 300, 50, 0),
+            Polygon.CreateRectXY(600, 150, 50, 200, 0),
+            Polygon.CreateRectXY(850, 150, 50, 200, 0),
+            Polygon.CreateRectXY(600, 350, 300, 50, 0),
+            Polygon.CreateRectXY(700, 200, 100, 100, 0)
          };
 
 //         var holeSquiggle = PolylineOperations.ExtrudePolygon(

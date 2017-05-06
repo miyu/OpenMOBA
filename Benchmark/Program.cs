@@ -22,17 +22,17 @@ namespace Benchmark {
       public GeometryBenchmark() {
          mapDimensions = new Size(1000, 1000);
          var simpleHoles = new[] {
-            Polygon.CreateRect(100, 100, 300, 300),
-            Polygon.CreateRect(400, 200, 100, 100),
-            Polygon.CreateRect(200, -50, 100, 150),
-            Polygon.CreateRect(600, 600, 300, 300),
-            Polygon.CreateRect(700, 500, 100, 100),
-            Polygon.CreateRect(200, 700, 100, 100),
-            Polygon.CreateRect(600, 100, 300, 50),
-            Polygon.CreateRect(600, 150, 50, 200),
-            Polygon.CreateRect(850, 150, 50, 200),
-            Polygon.CreateRect(600, 350, 300, 50),
-            Polygon.CreateRect(700, 200, 100, 100)
+            Polygon.CreateRectXY(100, 100, 300, 300),
+            Polygon.CreateRectXY(400, 200, 100, 100),
+            Polygon.CreateRectXY(200, -50, 100, 150),
+            Polygon.CreateRectXY(600, 600, 300, 300),
+            Polygon.CreateRectXY(700, 500, 100, 100),
+            Polygon.CreateRectXY(200, 700, 100, 100),
+            Polygon.CreateRectXY(600, 100, 300, 50),
+            Polygon.CreateRectXY(600, 150, 50, 200),
+            Polygon.CreateRectXY(850, 150, 50, 200),
+            Polygon.CreateRectXY(600, 350, 300, 50),
+            Polygon.CreateRectXY(700, 200, 100, 100)
          };
 
          var holeSquiggle = PolylineOperations.ExtrudePolygon(
