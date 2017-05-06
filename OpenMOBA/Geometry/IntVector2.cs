@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.Diagnostics.Contracts;
 using cInt = System.Int64;
 
 namespace OpenMOBA.Geometry {
@@ -16,6 +16,8 @@ namespace OpenMOBA.Geometry {
 
       public double SquaredNorm2D() => Dot(this);
       public double Norm2D() => Math.Sqrt(SquaredNorm2D());
+
+      [Pure] public DoubleVector2 To(DoubleVector2 other) => other - this;
 
       /// <summary>
       /// result * other ~= Proj(this onto other)
@@ -66,7 +68,7 @@ namespace OpenMOBA.Geometry {
       public override bool Equals(object other) => other is DoubleVector2 && Equals((DoubleVector2)other);
       public bool Equals(DoubleVector2 other) => X == other.X && Y == other.Y;
 
-      public static DoubleVector2 FromRadiusAngle(int radius, double radians) {
+      public static DoubleVector2 FromRadiusAngle(double radius, double radians) {
          var x = radius * Math.Cos(radians);
          var y = radius * Math.Sin(radians);
          return new DoubleVector2(x, y);
@@ -88,6 +90,8 @@ namespace OpenMOBA.Geometry {
 
       public cInt SquaredNorm2() => Dot(this);
       public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
+
+      public IntVector2 To(IntVector2 other) => other - this;
 
       /// <summary>
       /// result * other ~= Proj(this onto other)

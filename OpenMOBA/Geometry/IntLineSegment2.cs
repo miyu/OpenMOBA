@@ -41,6 +41,8 @@ namespace OpenMOBA.Geometry {
 
          return new Rectangle((int)minX, (int)minY, (int)width, (int)height);
       }
+
+      public override string ToString() => $"({First}, {Second})";
    }
 
    public struct IntLineSegment3 {
@@ -82,5 +84,7 @@ namespace OpenMOBA.Geometry {
 
          return new Rectangle((int)minX, (int)minY, (int)width, (int)height);
       }
+
+      public override string ToString() => $"({First}, {Second})";
    }
 }

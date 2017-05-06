@@ -61,9 +61,9 @@ namespace OpenMOBA.Foundation {
                var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
                var p = new DoubleVector3(50, 500, 0);
                var offset = new DoubleVector3(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2, 0);
-               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
-               swarmling.MovementComponent.Swarm = swarm;
-               swarm.Entities.Add(swarmling);
+//               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
+//               swarmling.MovementComponent.Swarm = swarm;
+//               swarm.Entities.Add(swarmling);
             }
          }
 
@@ -79,10 +79,15 @@ namespace OpenMOBA.Foundation {
          var sw = new Stopwatch();
          sw.Start();
          while (true) {
-            GameEventQueueService.ProcessPendingGameEvents();
+            int eventsProcessed;
+            GameEventQueueService.ProcessPendingGameEvents(out eventsProcessed);
             EntityService.ProcessSystems();
-            if (GameTimeService.Ticks % 1 == 0)
+
+            //// GameTimeService.Ticks % 1 == 0)
+            if (eventsProcessed != 0) {
                DebugHandleFrameEnd(debugMultiCanvasHost);
+               return;
+            }
 
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
@@ -187,6 +192,80 @@ namespace OpenMOBA.Foundation {
                         debugCanvas.DrawLineList(new [] { l.Item1.LossyToIntVector2(), l.Item2.LossyToIntVector2() }, Pens.Black);
                      }
                   }
+               }
+
+               var avss = new AngularVisibleSegmentStore(movementComponent.Position.XY);
+//               Console.WriteLine("!" + avss.Get().Count);
+//               avss.Insert(new IntLineSegment3(
+//                  (movementComponent.Position + new DoubleVector3(-20, 50, 0)).LossyToIntVector3(),
+//                  (movementComponent.Position + new DoubleVector3(20, 50, 0)).LossyToIntVector3()
+//               ));
+//               avss.Insert(new IntLineSegment3(
+//                  (movementComponent.Position + new DoubleVector3(-100, 100, 0)).LossyToIntVector3(),
+//                  (movementComponent.Position + new DoubleVector3(100, 100, 0)).LossyToIntVector3()
+//               ));
+//               Console.WriteLine("!" + avss.Get().Count);
+//               avss.Insert(new IntLineSegment3(
+//                  (movementComponent.Position + new DoubleVector3(100, -100, 0)).LossyToIntVector3(),
+//                  (movementComponent.Position + new DoubleVector3(100, 100, 0)).LossyToIntVector3()
+//               ));
+//               avss.Insert(new IntLineSegment3(
+//                  (movementComponent.Position + new DoubleVector3(50, -20, 0)).LossyToIntVector3(),
+//                  (movementComponent.Position + new DoubleVector3(50, 20, 0)).LossyToIntVector3()
+//               ));
+               var i = 1;
+               foreach (var barrier in terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius).Barriers) {
+                  avss.Insert(barrier);
+                  Console.WriteLine("@@ " + avss.Get().Count);
+                  if (i-- == 0) break;
+               }
+               Console.WriteLine("!! " + terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius).Barriers.Length);
+               Console.WriteLine("!" + avss.Get().Count);
+
+               foreach (var range in avss.Get()) {
+                  var oxy = movementComponent.Position.XY;
+                  var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
+                  var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
+
+                  if (!range.Segment.HasValue) {
+                     continue;
+                  }
+
+//                  Console.WriteLine($"{oxy}, {range.ThetaStart}, {range.ThetaEnd}");
+//                  Console.WriteLine(range.Segment.Value);
+
+                  var s = range.Segment.Value;
+                  var s1 = s.First.XY.ToDoubleVector2();
+                  var s2 = s.Second.XY.ToDoubleVector2();
+                  DoubleVector2 visibleStart, visibleEnd;
+                  if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart)) {
+                     // wtf?
+                     continue;
+                  }
+                  if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
+                     // wtf?
+                     continue;
+                  }
+
+//                  Console.WriteLine($"({visibleStart}, {visibleEnd})");
+
+                  try {
+                     debugCanvas.DrawLineStrip(
+                        new[] {
+                           oxy.LossyToIntVector2(),
+                           visibleStart.LossyToIntVector2()
+                        }, Pens.Orange);
+                     debugCanvas.DrawLineStrip(
+                        new[] {
+                           oxy.LossyToIntVector2(),
+                           visibleEnd.LossyToIntVector2()
+                        }, Pens.Orange);
+                     debugCanvas.DrawLineStrip(
+                        new[] {
+                           visibleStart.LossyToIntVector2(),
+                           visibleEnd.LossyToIntVector2()
+                        }, Pens.Orange);
+                  } catch { }
                }
             }
 

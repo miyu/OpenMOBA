@@ -93,7 +93,7 @@ namespace OpenMOBA.Geometry {
          return new DoubleVector3(x, y, 0);
       }
 
-      public override string ToString() => $"[{X}, {Y}]";
+      public override string ToString() => $"[{X}, {Y}, {Z}]";
    }
 
    public struct IntVector3 {
@@ -115,6 +115,8 @@ namespace OpenMOBA.Geometry {
 
       public cInt SquaredNorm2() => Dot(this);
       public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
+
+      public IntVector3 To(IntVector3 other) => other - this;
 
       /// <summary>
       /// result * other ~= Proj(this onto other)
@@ -169,6 +171,8 @@ namespace OpenMOBA.Geometry {
          var y = (cInt)(radius * Math.Sin(radians));
          return new IntVector3(x, y, 0);
       }
+
+      public override string ToString() => $"[{X}, {Y}, {Z}]";
    }
 }
 

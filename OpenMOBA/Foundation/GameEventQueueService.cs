@@ -24,11 +24,13 @@ namespace OpenMOBA.Foundation {
          gameEventQueue.Remove(gameEvent);
       }
 
-      public void ProcessPendingGameEvents() {
+      public void ProcessPendingGameEvents(out int eventsProcessed) {
+         eventsProcessed = 0;
          var now = gameTimeService.Now;
          while (!gameEventQueue.IsEmpty && now >= gameEventQueue.Peek().Time) {
             var gameEvent = gameEventQueue.Dequeue();
             gameEvent.Execute();
+            eventsProcessed++;
          }
       }
    }

@@ -29,24 +29,57 @@ namespace OpenMOBA.Geometry {
       public static Clockness Clockness(double ax, double ay, double bx, double by, double cx, double cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
       public static Clockness Clockness(double bax, double bay, double bcx, double bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static double Cross(double bax, double bay, double bcx, double bcy) => bax * bcy - bay * bcx;
+      public static double Cross(DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      public static double Cross(double ax, double ay, double bx, double by) => ax * by - ay * bx;
 
-      public static IntVector2 FindLineLineIntersection(IntLineSegment2 a, IntLineSegment2 b) {
+      // todo: this needs love
+      public static bool TryFindLineLineIntersection(IntLineSegment2 a, IntLineSegment2 b, out DoubleVector2 result) {
          var p1 = a.First;
          var p2 = a.Second;
          var p3 = b.First;
          var p4 = b.Second;
 
-         var p1xp2 = Cross(p1, p2); // x1y2 - y1x2
-         var p3xp4 = Cross(p3, p4); // x3y4 - y3x4
          var v21 = p1 - p2; // (x1 - x2, y1 - y2)
          var v43 = p3 - p4; // (x3 - x4, y3 - y4)
 
          var denominator = Cross(v21, v43);
+         if (denominator == 0) {
+            result = DoubleVector2.Zero;
+            return false;
+         }
+
+         var p1xp2 = Cross(p1, p2); // x1y2 - y1x2
+         var p3xp4 = Cross(p3, p4); // x3y4 - y3x4
          var numeratorX = p1xp2 * v43.X - v21.X * p3xp4;
          var numeratorY = p1xp2 * v43.Y - v21.Y * p3xp4;
 
-         return new IntVector2(numeratorX / denominator, numeratorY / denominator);
+         result = new DoubleVector2(numeratorX / (double)denominator, numeratorY / (double)denominator);
+         return true;
+      }
+
+      // todo: this needs love
+      public static bool TryFindLineLineIntersection(DoubleVector2 a1, DoubleVector2 a2, DoubleVector2 b1, DoubleVector2 b2, out DoubleVector2 result) {
+         var p1 = a1;
+         var p2 = a2;
+         var p3 = b1;
+         var p4 = b2;
+
+         var v21 = p1 - p2; // (x1 - x2, y1 - y2)
+         var v43 = p3 - p4; // (x3 - x4, y3 - y4)
+
+         var denominator = Cross(v21, v43);
+         if (denominator == 0.0) {
+            result = DoubleVector2.Zero;
+            return false;
+         }
+
+         var p1xp2 = Cross(p1, p2); // x1y2 - y1x2
+         var p3xp4 = Cross(p3, p4); // x3y4 - y3x4
+         var numeratorX = p1xp2 * v43.X - v21.X * p3xp4;
+         var numeratorY = p1xp2 * v43.Y - v21.Y * p3xp4;
+
+         result = new DoubleVector2(numeratorX / (double)denominator, numeratorY / (double)denominator);
+         return true;
       }
 
       public static bool TryIntersect(this Triangulation triangulation, double x, double y, out TriangulationIsland island, out int triangleIndex) {
