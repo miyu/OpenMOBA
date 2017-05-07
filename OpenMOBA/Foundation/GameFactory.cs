@@ -145,7 +145,6 @@ namespace OpenMOBA.Foundation {
                   break;
                }
             }
-//            avss.Cleanup();
             return avss;
          }
 

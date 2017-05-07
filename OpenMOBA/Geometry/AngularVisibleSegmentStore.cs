@@ -24,59 +24,7 @@ namespace OpenMOBA.Geometry {
             }
          };
       }
-
-      public void Cleanup() {
-         var n = new List<IntervalRange>();
-         IntervalRange lastRange = null;
-         foreach (var intervalRange in _intervalRanges) {
-            if (intervalRange.ThetaStart == intervalRange.ThetaEnd) {
-               continue;
-            }
-
-            if (lastRange == null || !SameSegment(lastRange, intervalRange)) {
-               n.Add(intervalRange);
-               lastRange = intervalRange;
-            } else {
-               lastRange.ThetaEnd = intervalRange.ThetaEnd;
-            }
-         }
-
-//         // this fixes wraparound at theta=2pi,0... however it breaks
-//         // the guarantee that angles are within [0, 2pi) and can be handled
-//         // by api consumer...
-//         if (n.Count >= 2) {
-//            var first = n[0];
-//            var last = n[n.Count - 1];
-//            if (SameSegment(first, last)) {
-//               first.ThetaStart = last.ThetaStart - TwoPi;
-//               n.RemoveAt(n.Count - 1);
-//            }
-//         }
-
-         _intervalRanges = n;
-
-         //         var lastRange = _intervalRanges[0];
-         //         n.Add(lastRange);
-         //         for (var i = 1; i < _intervalRanges.Count; i++) {
-         //            var range = _intervalRanges[i];
-         //            if (SameSegment(lastRange, range)) {
-         //               lastRange.ThetaEnd = range.ThetaEnd;
-         //            }
-         //         }
-         //
-         //         _intervalRanges = _intervalRanges.Where(r => r.ThetaStart != r.ThetaEnd)
-         //                                          .GroupAdjacentBy(SameSegment)
-         //                                          .Select(FlattenCluster).ToList();
-      }
-
-      private bool SameSegment(IntervalRange arg1, IntervalRange arg2) => arg1.Id == arg2.Id;
-
-      private IntervalRange FlattenCluster(IEnumerable<IntervalRange> ranges) {
-         var first = ranges.First();
-         var last = ranges.Last();
-         return new IntervalRange { ThetaStart = first.ThetaStart, ThetaEnd = last.ThetaEnd, Segment = first.Segment };
-      }
-
+      
       public void Insert(IntLineSegment3 s) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
