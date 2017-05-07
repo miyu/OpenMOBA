@@ -12,12 +12,12 @@ namespace OpenMOBA.Geometry {
       private const double TwoPi = 2.0 * Math.PI;
       private const double PiDiv2 = Math.PI / 2.0;
       private readonly DoubleVector2 _origin;
-      private List<IntervalRange> _intervalRanges;
+      private IntervalRange[] _intervalRanges;
       private int rangeIdCounter = RANGE_ID_NULL;
 
       public AngularVisibleSegmentStore(DoubleVector2 origin) {
          _origin = origin;
-         _intervalRanges = new List<IntervalRange> {
+         _intervalRanges = new [] {
             new IntervalRange {
                Id = rangeIdCounter++,
                ThetaStart = 0.0,
@@ -47,7 +47,13 @@ namespace OpenMOBA.Geometry {
          var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
          var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
-         var n = new List<IntervalRange>();
+         var splittableBeginIndexInclusive = FindOverlappingRangeIndex(insertionThetaLower);
+         var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper);
+
+         // a given segment can be split into 3 at max - technically this overallocates because it's impossible
+         // for two 3-splits to happen in a row.
+         var n = new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) * 3];
+         var nSize = 0;
          IntervalRange lastRange = null;
 
          void EmitRange(int rangeId, ref IntLineSegment3 segment, double thetaStart, double thetaEnd) {
@@ -58,7 +64,8 @@ namespace OpenMOBA.Geometry {
                lastRange.ThetaEnd = thetaEnd;
             } else {
                lastRange = new IntervalRange { Id = rangeId, Segment = segment, ThetaStart = thetaStart, ThetaEnd = thetaEnd };
-               n.Add(lastRange);
+               n[nSize] = lastRange;
+               nSize++;
             }
          }
 
@@ -165,16 +172,37 @@ namespace OpenMOBA.Geometry {
             HandleNearFarSplit(nearRange, farRange, range.ThetaStart, range.ThetaEnd);
          }
 
-         foreach (var splittee in _intervalRanges) {
+//         n.AddRange(_intervalRanges.Take(ibegin));
+         foreach (var splittee in _intervalRanges.Skip(splittableBeginIndexInclusive).Take(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1)) {
             HandleSplit(splittee);
          }
-         _intervalRanges = n;
+         //         n.AddRange(_intervalRanges.Skip(iend + 1));
+
+         var nhead = splittableBeginIndexInclusive;
+         var ntail = _intervalRanges.Length - splittableEndIndexInclusive - 1;
+         var result = new IntervalRange[nhead + nSize + ntail];
+         Array.Copy(_intervalRanges, 0, result, 0, nhead);
+         Array.Copy(n, 0, result, nhead, nSize);
+         Array.Copy(_intervalRanges, _intervalRanges.Length - ntail, result, nhead + nSize, ntail);
+         _intervalRanges = result;
       }
 
-//      private int FindFirstOverlappedIndex(double thetaStart, double thetaEnd) {
-//         foreach (var range in _intervalRanges) {
-//         }
-//      }
+      private int FindOverlappingRangeIndex(double theta) {
+         var lowerInclusive = 0;
+         var upperInclusive = _intervalRanges.Length;
+         while (lowerInclusive != upperInclusive) {
+            var mid = lowerInclusive + (upperInclusive - lowerInclusive) / 2;
+            var item = _intervalRanges[mid];
+            if (item.ThetaStart <= theta && theta <= item.ThetaEnd) {
+               return mid;
+            } else if (theta < item.ThetaStart) {
+               upperInclusive = mid;
+            } else {
+               lowerInclusive = mid + 1;
+            }
+         }
+         throw new Exception("Impossible state - bad theta? " + theta);
+      }
 
       private bool IsRangeOverlap(double aStart, double aEnd, double bStart, double bEnd) {
          return !(bEnd < aStart || aEnd < bStart);
