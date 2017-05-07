@@ -202,14 +202,14 @@ namespace OpenMOBA.Geometry {
          }
 
          var lowerInclusive = lowerInitInclusive;
-         var upperInclusive = _intervalRanges.Length;
-         while (lowerInclusive != upperInclusive) {
-            var mid = lowerInclusive + (upperInclusive - lowerInclusive) / 2;
+         var upperExclusive = _intervalRanges.Length;
+         while (lowerInclusive != upperExclusive) {
+            var mid = lowerInclusive + (upperExclusive - lowerInclusive) / 2;
             var item = _intervalRanges[mid];
             if (item.ThetaStart <= theta && theta < item.ThetaEnd) {
                return mid;
             } else if (theta < item.ThetaStart) {
-               upperInclusive = mid;
+               upperExclusive = mid;
             } else {
                lowerInclusive = mid + 1;
             }
