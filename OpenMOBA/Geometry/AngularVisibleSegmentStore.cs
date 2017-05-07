@@ -51,6 +51,9 @@ namespace OpenMOBA.Geometry {
          IntervalRange lastRange = null;
 
          void EmitRange(int rangeId, ref IntLineSegment3 segment, double thetaStart, double thetaEnd) {
+            if (thetaStart == thetaEnd) {
+               return;
+            }
             if (lastRange != null && lastRange.Id == rangeId) {
                lastRange.ThetaEnd = thetaEnd;
             } else {
@@ -166,6 +169,15 @@ namespace OpenMOBA.Geometry {
             HandleSplit(splittee);
          }
          _intervalRanges = n;
+      }
+
+//      private int FindFirstOverlappedIndex(double thetaStart, double thetaEnd) {
+//         foreach (var range in _intervalRanges) {
+//         }
+//      }
+
+      private bool IsRangeOverlap(double aStart, double aEnd, double bStart, double bEnd) {
+         return !(bEnd < aStart || aEnd < bStart);
       }
 
       private double FindXYRadiansRelativeToOrigin(double x, double y) {
