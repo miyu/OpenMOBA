@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -92,7 +93,7 @@ namespace OpenMOBA.Geometry {
             }
 
             // case: near covers left of range
-            if (nearRange.ThetaStart <= thetaLower && thetaLower <= nearRange.ThetaEnd) {
+            if (nearRange.ThetaStart <= thetaLower && thetaLower < nearRange.ThetaEnd) {
                EmitRange(nearRange.Id, ref nearRange.Segment, thetaLower, nearRange.ThetaEnd);
                EmitRange(farRange.Id, ref farRange.Segment, nearRange.ThetaEnd, thetaUpper);
                return;
@@ -103,7 +104,7 @@ namespace OpenMOBA.Geometry {
             }
 
             // case: near covers right of range
-            if (nearRange.ThetaStart <= thetaUpper && thetaUpper <= nearRange.ThetaEnd) {
+            if (nearRange.ThetaStart < thetaUpper && thetaUpper <= nearRange.ThetaEnd) {
                EmitRange(farRange.Id, ref farRange.Segment, thetaLower, nearRange.ThetaStart);
                EmitRange(nearRange.Id, ref nearRange.Segment, nearRange.ThetaStart, thetaUpper);
                return;
@@ -118,11 +119,7 @@ namespace OpenMOBA.Geometry {
          }
 
          void HandleSplit(IntervalRange range) {
-            // case: range and insertee don't overlap
-            if (insertionThetaUpper < range.ThetaStart || range.ThetaEnd < insertionThetaLower) {
-               EmitRange(range.Id, ref range.Segment, range.ThetaStart, range.ThetaEnd);
-               return;
-            }
+            Debug.Assert(IsRangeOverlap(insertionThetaLower, insertionThetaUpper, range.ThetaStart, range.ThetaEnd));
 
             if (range.Id == RANGE_ID_NULL) {
                HandleNearFarSplit(srange, range, range.ThetaStart, range.ThetaEnd);
@@ -178,6 +175,16 @@ namespace OpenMOBA.Geometry {
          }
          //         n.AddRange(_intervalRanges.Skip(iend + 1));
 
+         bool segmentInserted = false;
+         for (int i = 0; i < nSize && !segmentInserted; i++) {
+            if (n[i].Id == srange.Id) {
+               segmentInserted = true;
+            }
+         }
+         if (!segmentInserted) {
+            return;
+         }
+
          var nhead = splittableBeginIndexInclusive;
          var ntail = _intervalRanges.Length - splittableEndIndexInclusive - 1;
          var result = new IntervalRange[nhead + nSize + ntail];
@@ -188,12 +195,18 @@ namespace OpenMOBA.Geometry {
       }
 
       private int FindOverlappingRangeIndex(double theta, int lowerInitInclusive = 0) {
+         if (theta == 0.0) {
+            return 0;
+         } else if (theta == TwoPi) {
+            return _intervalRanges.Length - 1;
+         }
+
          var lowerInclusive = lowerInitInclusive;
          var upperInclusive = _intervalRanges.Length;
          while (lowerInclusive != upperInclusive) {
             var mid = lowerInclusive + (upperInclusive - lowerInclusive) / 2;
             var item = _intervalRanges[mid];
-            if (item.ThetaStart <= theta && theta <= item.ThetaEnd) {
+            if (item.ThetaStart <= theta && theta < item.ThetaEnd) {
                return mid;
             } else if (theta < item.ThetaStart) {
                upperInclusive = mid;
@@ -220,8 +233,8 @@ namespace OpenMOBA.Geometry {
       public class IntervalRange {
          public int Id;
          public IntLineSegment3 Segment;
-         public double ThetaStart;
-         public double ThetaEnd;
+         public double ThetaStart; // inclusive
+         public double ThetaEnd; // exclusive
       }
    }
 }
