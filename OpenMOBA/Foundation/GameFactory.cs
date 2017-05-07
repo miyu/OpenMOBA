@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
 using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation {
@@ -21,6 +22,7 @@ namespace OpenMOBA.Foundation {
    }
 
    public class GameInstance : IGameEventFactory {
+      public DebugProfiler DebugProfiler { get; } = new DebugProfiler();
       public GameTimeService GameTimeService { get; set; }
       public GameEventQueueService GameEventQueueService { get; set; }
       public MapConfiguration MapConfiguration { get; set; }
@@ -71,17 +73,21 @@ namespace OpenMOBA.Foundation {
          MovementSystemService.Pathfind(optimal, benchmarkDestination);
 
          var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(MapConfiguration.Size, new Point(100, 100));
-         DebugHandleFrameEnd(debugMultiCanvasHost);
-         GameTimeService.IncrementTicks();
+//         DebugHandleFrameEnd(debugMultiCanvasHost);
+//         GameTimeService.IncrementTicks();
 
          IntMath.Sqrt(0); // init static
 
          var sw = new Stopwatch();
          sw.Start();
          while (true) {
+            DebugProfiler.EnterTick(GameTimeService.Ticks);
+
             int eventsProcessed;
             GameEventQueueService.ProcessPendingGameEvents(out eventsProcessed);
             EntityService.ProcessSystems();
+
+            DebugProfiler.LeaveTick();
 
             //// GameTimeService.Ticks % 1 == 0)
             if (eventsProcessed != 0 || GameTimeService.Ticks % 1 == 0) {
@@ -94,9 +100,16 @@ namespace OpenMOBA.Foundation {
             //            if (GameTimeService.Ticks > 80) return;
             if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 20) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
-               return;
+               break;
             }
          }
+
+         var latch = new CountdownEvent(1);
+         new Thread(() => {
+            DebugProfiler.DumpToClipboard();
+            latch.Signal();
+         }) { ApartmentState = ApartmentState.STA }.Start();
+         latch.Wait();
       }
 
       private Entity CreateTestEntity(DoubleVector3 initialPosition, float radius, float movementSpeed) {
@@ -111,12 +124,102 @@ namespace OpenMOBA.Foundation {
 
       private void DebugHandleFrameEnd(DebugMultiCanvasHost debugMultiCanvasHost) {
          var terrainSnapshot = TerrainService.BuildSnapshot();
+         var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
+
+         AngularVisibleSegmentStore ComputeLineOfSight(DoubleVector2 position, double radius) {
+            var barriers = terrainSnapshot.ComputeVisibilityGraph(radius).Barriers;
+            var avss = new AngularVisibleSegmentStore(position);
+            var i = -1; // for debugging
+            foreach (var barrier in barriers) {
+               //                  Console.WriteLine("INSERT " + barrier);
+               avss.Insert(barrier);
+
+               if (i-- == 0) {
+                  using (var thick = new Pen(Color.LawnGreen, 20f)) {
+                     debugCanvas.DrawLineStrip(
+                        new[] {
+                           barrier.First.XY,
+                           barrier.Second.XY
+                        }, thick);
+                  }
+                  break;
+               }
+            }
+            return avss;
+         }
+
+         var sw = new Stopwatch();
+         sw.Start();
+         var testMc = EntityService.EnumerateEntities().First().MovementComponent;
+         for (var it = 0; it < 100; it++) {
+            ComputeLineOfSight(testMc.Position.XY, testMc.BaseRadius);
+         }
+         DebugProfiler.AddStatistic("shade.compgeom.lineofsight.compute100", sw.ElapsedMilliseconds);
+         return;
+
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;
          var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
-         var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
-
          debugCanvas.Draw(g => {
+            void DrawLineOfSight(DoubleVector2 position, double radius) {
+               var avss = ComputeLineOfSight(position, radius);
+
+               foreach (var range in avss.Get()) {
+                  var oxy = position;
+                  var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
+                  var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
+
+                  if (!range.Segment.HasValue) {
+                     continue;
+                  }
+
+                  //                  Console.WriteLine($"{oxy}, {range.ThetaStart}, {range.ThetaEnd}");
+                  //                  Console.WriteLine(range.Segment.Value);
+
+                  var s = range.Segment.Value;
+                  var s1 = s.First.XY.ToDoubleVector2();
+                  var s2 = s.Second.XY.ToDoubleVector2();
+                  DoubleVector2 visibleStart, visibleEnd;
+                  if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart)) {
+                     // wtf?
+                     continue;
+                  }
+                  if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
+                     // wtf?
+                     continue;
+                  }
+
+                  //                  Console.WriteLine($"({visibleStart}, {visibleEnd})");
+
+                  using (var b = new SolidBrush(Color.FromArgb(120, Color.Yellow)))
+                     debugCanvas.FillPolygon(
+                        new Polygon(new List<IntVector3> {
+                           new IntVector3((long)position.X, (long)position.Y, 0),
+                           new IntVector3((long)visibleStart.X, (long)visibleStart.Y, 0),
+                           new IntVector3((long)visibleEnd.X, (long)visibleEnd.Y, 0)
+                        }, false), b);
+                  using (var dash = new Pen(Color.FromArgb(30, Color.Black), 1f) { DashPattern = new[] { 10.0f, 10.0f } })
+                  using (var thick = new Pen(Color.Black, 5f))
+                     try {
+                        debugCanvas.DrawLineStrip(
+                           new[] {
+                              oxy.LossyToIntVector2(),
+                              visibleStart.LossyToIntVector2()
+                           }, dash);
+                        debugCanvas.DrawLineStrip(
+                           new[] {
+                              oxy.LossyToIntVector2(),
+                              visibleEnd.LossyToIntVector2()
+                           }, dash);
+                        debugCanvas.DrawLineStrip(
+                           new[] {
+                              visibleStart.LossyToIntVector2(),
+                              visibleEnd.LossyToIntVector2()
+                           }, thick);
+                     } catch { }
+               }
+            }
+
             debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
             debugCanvas.DrawVisibilityGraph(visibilityGraph);
             //         var testPathFindingQueries = new[] {
@@ -173,6 +276,11 @@ namespace OpenMOBA.Foundation {
                }
             }
 
+//            var losRadius = EntityService.EnumerateEntities().First().MovementComponent.BaseRadius;
+//            var waypoint = TerrainService.BuildSnapshot().ComputeVisibilityGraph(losRadius).Waypoints[5];
+//            debugCanvas.DrawPoint(waypoint.XY, Brushes.Black, 2f);
+//            DrawLineOfSight(waypoint.XY.ToDoubleVector2(), losRadius);
+
             foreach (var entity in EntityService.EnumerateEntities()) {
                var movementComponent = entity.MovementComponent;
                if (movementComponent != null) {
@@ -187,82 +295,7 @@ namespace OpenMOBA.Foundation {
                         }, Pens.Gray);
                   }
 
-                  var avss = new AngularVisibleSegmentStore(movementComponent.Position.XY);
-                  var i = 1000;
-                  foreach (var barrier in terrainSnapshot.ComputeVisibilityGraph(movementComponent.BaseRadius).Barriers) {
-                     //                  Console.WriteLine("INSERT " + barrier);
-                     avss.Insert(barrier);
-                     //                  Console.WriteLine("@@ " + avss.Get().Count);
-
-                     if (i-- == 0) {
-                        using (var thick = new Pen(Color.LawnGreen, 20f)) {
-                           debugCanvas.DrawLineStrip(
-                              new[] {
-                                 barrier.First.XY,
-                                 barrier.Second.XY
-                              }, thick);
-                        }
-                        break;
-                     }
-                  }
-                  //               Console.WriteLine("!! " + terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius).Barriers.Length);
-                  //               Console.WriteLine("!" + avss.Get().Count);
-
-                  foreach (var range in avss.Get()) {
-                     var oxy = movementComponent.Position.XY;
-                     var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
-                     var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
-
-                     if (!range.Segment.HasValue) {
-                        continue;
-                     }
-
-                     //                  Console.WriteLine($"{oxy}, {range.ThetaStart}, {range.ThetaEnd}");
-                     //                  Console.WriteLine(range.Segment.Value);
-
-                     var s = range.Segment.Value;
-                     var s1 = s.First.XY.ToDoubleVector2();
-                     var s2 = s.Second.XY.ToDoubleVector2();
-                     DoubleVector2 visibleStart, visibleEnd;
-                     if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart)) {
-                        // wtf?
-                        continue;
-                     }
-                     if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
-                        // wtf?
-                        continue;
-                     }
-
-                     //                  Console.WriteLine($"({visibleStart}, {visibleEnd})");
-
-                     using (var b = new SolidBrush(Color.FromArgb(120, Color.Yellow)))
-                        debugCanvas.FillPolygon(
-                           new Polygon(new List<IntVector3> {
-                              movementComponent.Position.LossyToIntVector3(),
-                              new IntVector3((long)visibleStart.X, (long)visibleStart.Y, 0),
-                              new IntVector3((long)visibleEnd.X, (long)visibleEnd.Y, 0)
-                           }, false), b);
-                     using (var dash = new Pen(Color.FromArgb(30, Color.Black), 1f) { DashPattern = new[] { 10.0f, 10.0f } })
-                     using (var thick = new Pen(Color.Black, 5f))
-                        try {
-                           debugCanvas.DrawLineStrip(
-                              new[] {
-                                 oxy.LossyToIntVector2(),
-                                 visibleStart.LossyToIntVector2()
-                              }, dash);
-                           debugCanvas.DrawLineStrip(
-                              new[] {
-                                 oxy.LossyToIntVector2(),
-                                 visibleEnd.LossyToIntVector2()
-                              }, dash);
-                           debugCanvas.DrawLineStrip(
-                              new[] {
-                                 visibleStart.LossyToIntVector2(),
-                                 visibleEnd.LossyToIntVector2()
-                              }, thick);
-                        } catch { }
-                  }
-
+                  DrawLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
 
                   if (movementComponent.DebugLines != null) {
                      foreach (var l in movementComponent.DebugLines) {
