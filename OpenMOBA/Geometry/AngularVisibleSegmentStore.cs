@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace OpenMOBA.Geometry {
    // Everything's in radians, all geometry is reasoned as if relative to _origin.
@@ -40,56 +41,82 @@ namespace OpenMOBA.Geometry {
             InsertInternal(ref s, thetaLower, thetaUpper);
          }
       }
-      
-      // near and far unioned must cover thetaUpper
-      IEnumerable<IntervalRange> HandleNearFarSplit(IntervalRange nearRange, IntervalRange farRange, double thetaLower, double thetaUpper) {
-         // case: near covers range
-         if (nearRange.ThetaStart <= thetaLower && thetaUpper <= nearRange.ThetaEnd) {
-            return new[] { new IntervalRange { Id = nearRange.Id, ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = nearRange.Segment } };
-         }
 
-         // case: near exclusively within range
-         if (thetaLower < nearRange.ThetaStart && nearRange.ThetaEnd < thetaUpper) {
-            return new[] {
-               new IntervalRange { Id = farRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment},
-               new IntervalRange { Id = nearRange.Id, ThetaStart = nearRange.ThetaStart, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
-               new IntervalRange { Id = farRange.Id, ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment}
-            };
-         }
-
-         // case: near covers left of range
-         if (nearRange.ThetaStart <= thetaLower && thetaLower <= nearRange.ThetaEnd) {
-            return new[] {
-               new IntervalRange { Id = nearRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
-               new IntervalRange { Id = farRange.Id, ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment }
-            };
-         }
-
-         // case: near covers right of range
-         if (nearRange.ThetaStart <= thetaUpper && thetaUpper <= nearRange.ThetaEnd) {
-            return new[] {
-               new IntervalRange { Id = farRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment },
-               new IntervalRange { Id = nearRange.Id, ThetaStart = nearRange.ThetaStart, ThetaEnd = thetaUpper, Segment = nearRange.Segment }
-            };
-         }
-
-         // impossible to reach here
-         throw new Exception($"Impossible state at null split of {nameof(HandleNearFarSplit)}.");
-      }
-
-      private void InsertInternal(ref IntLineSegment3 s, double thetaLower, double thetaUpper) {
+      private void InsertInternal(ref IntLineSegment3 s, double insertionThetaLower, double insertionThetaUpper) {
 //         Console.WriteLine($"InsertInternal: {s}, {thetaLower} {thetaUpper}");
          var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
-         var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = s };
+         var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
-         IEnumerable<IntervalRange> HandleSplit(IntervalRange range) {
+         var n = new List<IntervalRange>();
+         IntervalRange lastRange = null;
+
+         void EmitRange(int rangeId, ref IntLineSegment3 segment, double thetaStart, double thetaEnd) {
+            if (lastRange != null && lastRange.Id == rangeId) {
+               lastRange.ThetaEnd = thetaEnd;
+            } else {
+               lastRange = new IntervalRange { Id = rangeId, Segment = segment, ThetaStart = thetaStart, ThetaEnd = thetaEnd };
+               n.Add(lastRange);
+            }
+         }
+
+         // near and far unioned must cover thetaUpper
+         void HandleNearFarSplit(IntervalRange nearRange, IntervalRange farRange, double thetaLower, double thetaUpper) {
+            // case: near covers range
+            if (nearRange.ThetaStart <= thetaLower && thetaUpper <= nearRange.ThetaEnd) {
+               EmitRange(nearRange.Id, ref nearRange.Segment, thetaLower, thetaUpper);
+               return;
+               //               return new[] { new IntervalRange { Id = nearRange.Id, ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = nearRange.Segment } };
+            }
+
+            // case: near exclusively within range
+            if (thetaLower < nearRange.ThetaStart && nearRange.ThetaEnd < thetaUpper) {
+               EmitRange(farRange.Id, ref farRange.Segment, thetaLower, nearRange.ThetaStart);
+               EmitRange(nearRange.Id, ref nearRange.Segment, nearRange.ThetaStart, nearRange.ThetaEnd);
+               EmitRange(farRange.Id, ref farRange.Segment, nearRange.ThetaEnd, thetaUpper);
+               return;
+               //               return new[] {
+               //                  new IntervalRange { Id = farRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment},
+               //                  new IntervalRange { Id = nearRange.Id, ThetaStart = nearRange.ThetaStart, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
+               //                  new IntervalRange { Id = farRange.Id, ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment}
+               //               };
+            }
+
+            // case: near covers left of range
+            if (nearRange.ThetaStart <= thetaLower && thetaLower <= nearRange.ThetaEnd) {
+               EmitRange(nearRange.Id, ref nearRange.Segment, thetaLower, nearRange.ThetaEnd);
+               EmitRange(farRange.Id, ref farRange.Segment, nearRange.ThetaEnd, thetaUpper);
+               return;
+               //               return new[] {
+               //                  new IntervalRange { Id = nearRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
+               //                  new IntervalRange { Id = farRange.Id, ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment }
+               //               };
+            }
+
+            // case: near covers right of range
+            if (nearRange.ThetaStart <= thetaUpper && thetaUpper <= nearRange.ThetaEnd) {
+               EmitRange(farRange.Id, ref farRange.Segment, thetaLower, nearRange.ThetaStart);
+               EmitRange(nearRange.Id, ref nearRange.Segment, nearRange.ThetaStart, thetaUpper);
+               return;
+               //               return new[] {
+               //                  new IntervalRange { Id = farRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment },
+               //                  new IntervalRange { Id = nearRange.Id, ThetaStart = nearRange.ThetaStart, ThetaEnd = thetaUpper, Segment = nearRange.Segment }
+               //               };
+            }
+
+            // impossible to reach here
+            throw new Exception($"Impossible state at null split of {nameof(HandleNearFarSplit)}.");
+         }
+
+         void HandleSplit(IntervalRange range) {
             // case: range and insertee don't overlap
-            if (thetaUpper < range.ThetaStart || range.ThetaEnd < thetaLower) {
-               return new[] { range };
+            if (insertionThetaUpper < range.ThetaStart || range.ThetaEnd < insertionThetaLower) {
+               EmitRange(range.Id, ref range.Segment, range.ThetaStart, range.ThetaEnd);
+               return;
             }
 
             if (range.Id == RANGE_ID_NULL) {
-               return HandleNearFarSplit(srange, range, range.ThetaStart, range.ThetaEnd);
+               HandleNearFarSplit(srange, range, range.ThetaStart, range.ThetaEnd);
+               return;
             }
 
             var rsxy = new IntLineSegment2(range.Segment.First.XY, range.Segment.Second.XY);
@@ -132,22 +159,11 @@ namespace OpenMOBA.Geometry {
             bool inserteeNearer = distsxy < distrsxy;
             var nearRange = inserteeNearer ? srange : range;
             var farRange = inserteeNearer ? range : srange;
-            return HandleNearFarSplit(nearRange, farRange, range.ThetaStart, range.ThetaEnd);
+            HandleNearFarSplit(nearRange, farRange, range.ThetaStart, range.ThetaEnd);
          }
 
-         var n = new List<IntervalRange>();
-         var lastRangeId = RANGE_ID_NULL - 1;
-         IntervalRange lastRange = null;
          foreach (var splittee in _intervalRanges) {
-            foreach (var range in HandleSplit(splittee)) {
-               if (lastRangeId == range.Id) {
-                  lastRange.ThetaEnd = range.ThetaEnd;
-               } else {
-                  lastRange = range;
-                  lastRangeId = range.Id;
-                  n.Add(range);
-               }
-            }
+            HandleSplit(splittee);
          }
          _intervalRanges = n;
       }
@@ -162,10 +178,10 @@ namespace OpenMOBA.Geometry {
       public List<IntervalRange> Get() => _intervalRanges.ToList();
 
       public class IntervalRange {
-         public int Id { get; set; }
-         public IntLineSegment3 Segment { get; set; }
-         public double ThetaStart { get; set; }
-         public double ThetaEnd { get; set; }
+         public int Id;
+         public IntLineSegment3 Segment;
+         public double ThetaStart;
+         public double ThetaEnd;
       }
    }
 }
