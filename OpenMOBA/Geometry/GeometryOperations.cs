@@ -82,6 +82,40 @@ namespace OpenMOBA.Geometry {
          return true;
       }
 
+      // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, segments should not have more than 1 point of intersection.
+      // if segments DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindSegmentSegmentIntersection(ref IntLineSegment2 a, ref IntLineSegment2 b, out DoubleVector2 result) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var p = a.First;
+         var r = a.First.To(a.Second);
+         var q = b.First;
+         var s = b.First.To(b.Second);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = Cross(qmp, s) / (double)rxs;
+         if (t < 0.0 || t > 1.0) {
+            goto fail;
+         }
+
+         var u = Cross(qmp, r) / (double)rxs;
+         if (u < 0.0 || u > 1.0) {
+            goto fail;
+         }
+
+         result = new DoubleVector2(p.X + t * r.X, p.Y + t * r.Y);
+         return true;
+
+      fail:
+         result = DoubleVector2.Zero;
+         return false;
+      }
+
       public static bool TryIntersect(this Triangulation triangulation, double x, double y, out TriangulationIsland island, out int triangleIndex) {
          foreach (var candidateIsland in triangulation.Islands) {
             if (candidateIsland.TryIntersect(x, y, out triangleIndex)) {

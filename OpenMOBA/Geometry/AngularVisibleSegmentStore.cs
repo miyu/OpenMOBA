@@ -24,7 +24,7 @@ namespace OpenMOBA.Geometry {
             }
          };
       }
-      
+
       public void Insert(IntLineSegment3 s) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
@@ -94,32 +94,35 @@ namespace OpenMOBA.Geometry {
 
             var rsxy = new IntLineSegment2(range.Segment.First.XY, range.Segment.Second.XY);
 
-            DoubleVector2 intersection;
-            // HACK: No segment-segment intersect point implemented
-            if (sxy.Intersects(rsxy) && GeometryOperations.TryFindLineLineIntersection(sxy, rsxy, out intersection)) {
-               // conceptually a ray from _origin to intersection hits s and rs at the same time.
-               // If shifted perpendicular to angle of intersection, then the near segment emerges.
-               var thetaIntersect = FindXYRadiansRelativeToOrigin(intersection.X, intersection.Y);
-               if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
-                  var directionToLower = DoubleVector2.FromRadiusAngle(1.0, thetaIntersect - PiDiv2);
-                  var vsxy = sxy.First.To(sxy.Second).ToDoubleVector2().ToUnit();
-                  var vrsxy = rsxy.First.To(rsxy.Second).ToDoubleVector2().ToUnit();
-                  var lvsxy = vsxy.ProjectOntoComponentD(directionToLower) > 0 ? vsxy : -1.0 * vsxy;
-                  var lvrsxy = vrsxy.ProjectOntoComponentD(directionToLower) > 0 ? vrsxy : -1.0 * vrsxy;
-                  var originToIntersect = _origin.To(intersection);
-                  var clvsxy = lvsxy.ProjectOntoComponentD(originToIntersect);
-                  var clvrsxy = lvrsxy.ProjectOntoComponentD(originToIntersect);
-                  var isInserteeNearerAtLower = clvsxy < clvrsxy;
-//                  Console.WriteLine("IINAL: " + isInserteeNearerAtLower);
-                  if (isInserteeNearerAtLower) {
-                     return HandleNearFarSplit(srange, range, range.ThetaStart, thetaIntersect)
-                        .Concat(HandleNearFarSplit(range, srange, thetaIntersect, range.ThetaEnd));
-                  } else {
-                     return HandleNearFarSplit(range, srange, range.ThetaStart, thetaIntersect)
-                        .Concat(HandleNearFarSplit(srange, range, thetaIntersect, range.ThetaEnd));
-                  }
-               }
-            }
+//            // is this code necessary? Seems like not... though not sure why. We do have intersecting segments
+//            // but the intersect is quite minor (just at corners)...
+//            DoubleVector2 intersection;
+//            // HACK: No segment-segment intersect point implemented
+//            // sxy.Intersects(rsxy) && GeometryOperations.TryFindLineLineIntersection(sxy, rsxy, out intersection)
+//            if (GeometryOperations.TryFindSegmentSegmentIntersection(ref sxy, ref rsxy, out intersection)) {
+//               // conceptually a ray from _origin to intersection hits s and rs at the same time.
+//               // If shifted perpendicular to angle of intersection, then the near segment emerges.
+//               var thetaIntersect = FindXYRadiansRelativeToOrigin(intersection.X, intersection.Y);
+//               if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
+//                  var directionToLower = DoubleVector2.FromRadiusAngle(1.0, thetaIntersect - PiDiv2);
+//                  var vsxy = sxy.First.To(sxy.Second).ToDoubleVector2().ToUnit();
+//                  var vrsxy = rsxy.First.To(rsxy.Second).ToDoubleVector2().ToUnit();
+//                  var lvsxy = vsxy.ProjectOntoComponentD(directionToLower) > 0 ? vsxy : -1.0 * vsxy;
+//                  var lvrsxy = vrsxy.ProjectOntoComponentD(directionToLower) > 0 ? vrsxy : -1.0 * vrsxy;
+//                  var originToIntersect = _origin.To(intersection);
+//                  var clvsxy = lvsxy.ProjectOntoComponentD(originToIntersect);
+//                  var clvrsxy = lvrsxy.ProjectOntoComponentD(originToIntersect);
+//                  var isInserteeNearerAtLower = clvsxy < clvrsxy;
+////                  Console.WriteLine("IINAL: " + isInserteeNearerAtLower);
+//                  if (isInserteeNearerAtLower) {
+//                     return HandleNearFarSplit(srange, range, range.ThetaStart, thetaIntersect)
+//                        .Concat(HandleNearFarSplit(range, srange, thetaIntersect, range.ThetaEnd));
+//                  } else {
+//                     return HandleNearFarSplit(range, srange, range.ThetaStart, thetaIntersect)
+//                        .Concat(HandleNearFarSplit(srange, range, thetaIntersect, range.ThetaEnd));
+//                  }
+//               }
+//            }
 
             // At here, one segment completely overlaps the other for the theta range
             // Either that, or inserted segment in front of (but not totally covering) range

@@ -155,6 +155,7 @@ namespace OpenMOBA.Foundation {
             ComputeLineOfSight(testMc.Position.XY, testMc.BaseRadius);
          }
          DebugProfiler.AddStatistic("shade.compgeom.lineofsight.compute100", sw.ElapsedMilliseconds);
+         return;
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;

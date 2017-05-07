@@ -10,11 +10,11 @@ namespace OpenMOBA.Geometry {
          Second = second;
       }
 
-      public IntVector2 First { get; }
+      public IntVector2 First;
       public cInt X1 => First.X;
       public cInt Y1 => First.Y;
 
-      public IntVector2 Second { get; }
+      public IntVector2 Second;
       public cInt X2 => Second.X;
       public cInt Y2 => Second.Y;
 
