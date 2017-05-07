@@ -48,7 +48,7 @@ namespace OpenMOBA.Geometry {
          var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
          var splittableBeginIndexInclusive = FindOverlappingRangeIndex(insertionThetaLower);
-         var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper);
+         var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper, splittableBeginIndexInclusive);
 
          // a given segment can be split into 3 at max - technically this overallocates because it's impossible
          // for two 3-splits to happen in a row.
@@ -173,8 +173,8 @@ namespace OpenMOBA.Geometry {
          }
 
 //         n.AddRange(_intervalRanges.Take(ibegin));
-         foreach (var splittee in _intervalRanges.Skip(splittableBeginIndexInclusive).Take(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1)) {
-            HandleSplit(splittee);
+         for (int it = splittableBeginIndexInclusive; it <= splittableEndIndexInclusive; it++) {
+            HandleSplit(_intervalRanges[it]);
          }
          //         n.AddRange(_intervalRanges.Skip(iend + 1));
 
@@ -187,8 +187,8 @@ namespace OpenMOBA.Geometry {
          _intervalRanges = result;
       }
 
-      private int FindOverlappingRangeIndex(double theta) {
-         var lowerInclusive = 0;
+      private int FindOverlappingRangeIndex(double theta, int lowerInitInclusive = 0) {
+         var lowerInclusive = lowerInitInclusive;
          var upperInclusive = _intervalRanges.Length;
          while (lowerInclusive != upperInclusive) {
             var mid = lowerInclusive + (upperInclusive - lowerInclusive) / 2;
