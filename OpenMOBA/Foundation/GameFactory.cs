@@ -145,6 +145,7 @@ namespace OpenMOBA.Foundation {
                   break;
                }
             }
+//            avss.Cleanup();
             return avss;
          }
 
@@ -155,7 +156,6 @@ namespace OpenMOBA.Foundation {
             ComputeLineOfSight(testMc.Position.XY, testMc.BaseRadius);
          }
          DebugProfiler.AddStatistic("shade.compgeom.lineofsight.compute100", sw.ElapsedMilliseconds);
-         return;
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;
@@ -169,14 +169,14 @@ namespace OpenMOBA.Foundation {
                   var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
                   var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
 
-                  if (!range.Segment.HasValue) {
+                  if (range.Id == AngularVisibleSegmentStore.RANGE_ID_NULL) {
                      continue;
                   }
 
                   //                  Console.WriteLine($"{oxy}, {range.ThetaStart}, {range.ThetaEnd}");
                   //                  Console.WriteLine(range.Segment.Value);
 
-                  var s = range.Segment.Value;
+                  var s = range.Segment;
                   var s1 = s.First.XY.ToDoubleVector2();
                   var s2 = s.Second.XY.ToDoubleVector2();
                   DoubleVector2 visibleStart, visibleEnd;

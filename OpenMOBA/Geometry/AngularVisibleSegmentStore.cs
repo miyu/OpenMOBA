@@ -7,37 +7,69 @@ namespace OpenMOBA.Geometry {
    // This can be efficiently implemented with an interval tree = O(logN) runtime.
    // For now, just using a flat unordered list, so quite inefficient.
    public class AngularVisibleSegmentStore {
+      public const int RANGE_ID_NULL = 0;
       private const double TwoPi = 2.0 * Math.PI;
       private const double PiDiv2 = Math.PI / 2.0;
       private readonly DoubleVector2 _origin;
       private List<IntervalRange> _intervalRanges;
+      private int rangeIdCounter = RANGE_ID_NULL;
 
       public AngularVisibleSegmentStore(DoubleVector2 origin) {
          _origin = origin;
          _intervalRanges = new List<IntervalRange> {
             new IntervalRange {
-               Segment = null,
+               Id = rangeIdCounter++,
                ThetaStart = 0.0,
                ThetaEnd = TwoPi
             }
          };
       }
 
-      private void Cleanup() {
-         _intervalRanges = _intervalRanges.Where(r => r.ThetaStart != r.ThetaEnd)
-                                          .GroupAdjacentBy(SameSegment)
-                                          .Select(FlattenCluster).ToList();
+      public void Cleanup() {
+         var n = new List<IntervalRange>();
+         IntervalRange lastRange = null;
+         foreach (var intervalRange in _intervalRanges) {
+            if (intervalRange.ThetaStart == intervalRange.ThetaEnd) {
+               continue;
+            }
+
+            if (lastRange == null || !SameSegment(lastRange, intervalRange)) {
+               n.Add(intervalRange);
+               lastRange = intervalRange;
+            } else {
+               lastRange.ThetaEnd = intervalRange.ThetaEnd;
+            }
+         }
+
+//         // this fixes wraparound at theta=2pi,0... however it breaks
+//         // the guarantee that angles are within [0, 2pi) and can be handled
+//         // by api consumer...
+//         if (n.Count >= 2) {
+//            var first = n[0];
+//            var last = n[n.Count - 1];
+//            if (SameSegment(first, last)) {
+//               first.ThetaStart = last.ThetaStart - TwoPi;
+//               n.RemoveAt(n.Count - 1);
+//            }
+//         }
+
+         _intervalRanges = n;
+
+         //         var lastRange = _intervalRanges[0];
+         //         n.Add(lastRange);
+         //         for (var i = 1; i < _intervalRanges.Count; i++) {
+         //            var range = _intervalRanges[i];
+         //            if (SameSegment(lastRange, range)) {
+         //               lastRange.ThetaEnd = range.ThetaEnd;
+         //            }
+         //         }
+         //
+         //         _intervalRanges = _intervalRanges.Where(r => r.ThetaStart != r.ThetaEnd)
+         //                                          .GroupAdjacentBy(SameSegment)
+         //                                          .Select(FlattenCluster).ToList();
       }
 
-      private bool SameSegment(IntervalRange arg1, IntervalRange arg2) {
-         if (arg1.Segment.HasValue != arg2.Segment.HasValue) {
-            return false;
-         }
-         if (!arg1.Segment.HasValue) {
-            return true;
-         }
-         return arg1.Segment.Value.Equals(arg2.Segment.Value);
-      }
+      private bool SameSegment(IntervalRange arg1, IntervalRange arg2) => arg1.Id == arg2.Id;
 
       private IntervalRange FlattenCluster(IEnumerable<IntervalRange> ranges) {
          var first = ranges.First();
@@ -46,54 +78,50 @@ namespace OpenMOBA.Geometry {
       }
 
       public void Insert(IntLineSegment3 s) {
-         var p1 = s.First.XY.ToDoubleVector2();
-         var p2 = s.Second.XY.ToDoubleVector2();
-
-         var theta1 = FindRadiansRelativeToOrigin(p1);
-         var theta2 = FindRadiansRelativeToOrigin(p2);
+         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
 
          var thetaLower = theta1 < theta2 ? theta1 : theta2;
          var thetaUpper = theta1 < theta2 ? theta2 : theta1;
          
          if (Math.Abs(theta1 - theta2) > Math.PI) {
             // covered angle range wraps around through theta=0.
-            InsertInternal(s, 0.0, thetaLower);
-            InsertInternal(s, thetaUpper, TwoPi);
+            InsertInternal(ref s, 0.0, thetaLower);
+            InsertInternal(ref s, thetaUpper, TwoPi);
          } else {
-            InsertInternal(s, thetaLower, thetaUpper);
+            InsertInternal(ref s, thetaLower, thetaUpper);
          }
-         Cleanup();
       }
       
       // near and far unioned must cover thetaUpper
       IEnumerable<IntervalRange> HandleNearFarSplit(IntervalRange nearRange, IntervalRange farRange, double thetaLower, double thetaUpper) {
          // case: near covers range
          if (nearRange.ThetaStart <= thetaLower && thetaUpper <= nearRange.ThetaEnd) {
-            return new[] { new IntervalRange { ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = nearRange.Segment } };
+            return new[] { new IntervalRange { Id = nearRange.Id, ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = nearRange.Segment } };
          }
 
          // case: near exclusively within range
          if (thetaLower < nearRange.ThetaStart && nearRange.ThetaEnd < thetaUpper) {
             return new[] {
-               new IntervalRange { ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment},
-               new IntervalRange { ThetaStart = nearRange.ThetaStart, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
-               new IntervalRange { ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment}
+               new IntervalRange { Id = farRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment},
+               new IntervalRange { Id = nearRange.Id, ThetaStart = nearRange.ThetaStart, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
+               new IntervalRange { Id = farRange.Id, ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment}
             };
          }
 
          // case: near covers left of range
          if (nearRange.ThetaStart <= thetaLower && thetaLower <= nearRange.ThetaEnd) {
             return new[] {
-               new IntervalRange { ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
-               new IntervalRange { ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment }
+               new IntervalRange { Id = nearRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaEnd, Segment = nearRange.Segment },
+               new IntervalRange { Id = farRange.Id, ThetaStart = nearRange.ThetaEnd, ThetaEnd = thetaUpper, Segment = farRange.Segment }
             };
          }
 
          // case: near covers right of range
          if (nearRange.ThetaStart <= thetaUpper && thetaUpper <= nearRange.ThetaEnd) {
             return new[] {
-               new IntervalRange { ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment },
-               new IntervalRange { ThetaStart = nearRange.ThetaStart, ThetaEnd = thetaUpper, Segment = nearRange.Segment }
+               new IntervalRange { Id = farRange.Id, ThetaStart = thetaLower, ThetaEnd = nearRange.ThetaStart, Segment = farRange.Segment },
+               new IntervalRange { Id = nearRange.Id, ThetaStart = nearRange.ThetaStart, ThetaEnd = thetaUpper, Segment = nearRange.Segment }
             };
          }
 
@@ -101,10 +129,10 @@ namespace OpenMOBA.Geometry {
          throw new Exception($"Impossible state at null split of {nameof(HandleNearFarSplit)}.");
       }
 
-      private void InsertInternal(IntLineSegment3 s, double thetaLower, double thetaUpper) {
+      private void InsertInternal(ref IntLineSegment3 s, double thetaLower, double thetaUpper) {
 //         Console.WriteLine($"InsertInternal: {s}, {thetaLower} {thetaUpper}");
          var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
-         var srange = new IntervalRange { ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = s };
+         var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = s };
 
          IEnumerable<IntervalRange> HandleSplit(IntervalRange range) {
             // case: range and insertee don't overlap
@@ -112,18 +140,18 @@ namespace OpenMOBA.Geometry {
                return new[] { range };
             }
 
-            if (range.Segment == null) {
+            if (range.Id == RANGE_ID_NULL) {
                return HandleNearFarSplit(srange, range, range.ThetaStart, range.ThetaEnd);
             }
 
-            var rsxy = new IntLineSegment2(range.Segment.Value.First.XY, range.Segment.Value.Second.XY);
+            var rsxy = new IntLineSegment2(range.Segment.First.XY, range.Segment.Second.XY);
 
             DoubleVector2 intersection;
             // HACK: No segment-segment intersect point implemented
             if (sxy.Intersects(rsxy) && GeometryOperations.TryFindLineLineIntersection(sxy, rsxy, out intersection)) {
                // conceptually a ray from _origin to intersection hits s and rs at the same time.
                // If shifted perpendicular to angle of intersection, then the near segment emerges.
-               var thetaIntersect = FindRadiansRelativeToOrigin(intersection);
+               var thetaIntersect = FindXYRadiansRelativeToOrigin(intersection.X, intersection.Y);
                if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
                   var directionToLower = DoubleVector2.FromRadiusAngle(1.0, thetaIntersect - PiDiv2);
                   var vsxy = sxy.First.To(sxy.Second).ToDoubleVector2().ToUnit();
@@ -142,16 +170,9 @@ namespace OpenMOBA.Geometry {
                      return HandleNearFarSplit(range, srange, range.ThetaStart, thetaIntersect)
                         .Concat(HandleNearFarSplit(srange, range, thetaIntersect, range.ThetaEnd));
                   }
-//                  var lowerNearer = clvsxy < clvrsxy ? s : range.Segment;
-//                  var upperNearer = clvsxy < clvrsxy ? range.Segment : s;
-//                  return new[] {
-//                     new IntervalRange { ThetaStart = range.ThetaStart, ThetaEnd = thetaIntersect, Segment = lowerNearer },
-//                     new IntervalRange { ThetaStart = thetaIntersect, ThetaEnd = range.ThetaEnd, Segment = upperNearer }
-//                  };
                }
             }
 
-//            Console.WriteLine("!!Z");
             // At here, one segment completely overlaps the other for the theta range
             // Either that, or inserted segment in front of (but not totally covering) range
 
@@ -160,36 +181,38 @@ namespace OpenMOBA.Geometry {
             bool inserteeNearer = distsxy < distrsxy;
             var nearRange = inserteeNearer ? srange : range;
             var farRange = inserteeNearer ? range : srange;
-//            Console.WriteLine("InserteeNearer: " + inserteeNearer);
             return HandleNearFarSplit(nearRange, farRange, range.ThetaStart, range.ThetaEnd);
-
-            // case: insertee inside range of 
-//            if (range.ThetaStart < thetaLower && thetaUpper < range.ThetaEnd) {
-//               return new[] {
-//                  new IntervalRange { ThetaStart = range.ThetaStart, ThetaEnd = thetaLower },
-//                  new IntervalRange { ThetaStart = thetaLower, ThetaEnd = thetaUpper, Segment = s },
-//                  new IntervalRange { ThetaStart = thetaUpper, ThetaEnd = range.ThetaEnd }
-//               };
-//            }
-//            if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
-//               return new[] {
-//               new IntervalRange { ThetaStart = range.ThetaStart, ThetaEnd = range.ThetaEnd, Segment = nearer }
-//            };
          }
 
-         _intervalRanges = _intervalRanges.SelectMany(HandleSplit).ToList();
+         var n = new List<IntervalRange>();
+         var lastRangeId = RANGE_ID_NULL - 1;
+         IntervalRange lastRange = null;
+         foreach (var splittee in _intervalRanges) {
+            foreach (var range in HandleSplit(splittee)) {
+               if (lastRangeId == range.Id) {
+                  lastRange.ThetaEnd = range.ThetaEnd;
+               } else {
+                  lastRange = range;
+                  lastRangeId = range.Id;
+                  n.Add(range);
+               }
+            }
+         }
+         _intervalRanges = n;
       }
 
-      private double FindRadiansRelativeToOrigin(DoubleVector2 x) {
-         var delta = _origin.To(x);
-         var r = Math.Atan2(delta.Y, delta.X);
+      private double FindXYRadiansRelativeToOrigin(double x, double y) {
+         var dx = x - _origin.X;
+         var dy = y - _origin.Y;
+         var r = Math.Atan2(dy, dx);
          return r >= 0 ? r : r + TwoPi;
       }
 
       public List<IntervalRange> Get() => _intervalRanges.ToList();
 
       public class IntervalRange {
-         public IntLineSegment3? Segment { get; set; }
+         public int Id { get; set; }
+         public IntLineSegment3 Segment { get; set; }
          public double ThetaStart { get; set; }
          public double ThetaEnd { get; set; }
       }
