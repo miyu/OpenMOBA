@@ -249,8 +249,39 @@ namespace OpenMOBA.Geometry {
       private double FindXYRadiansRelativeToOrigin(double x, double y) {
          var dx = x - _origin.X;
          var dy = y - _origin.Y;
-         var r = Math.Atan2(dy, dx);
+//         var r = Math.Atan2(dy, dx);
+         var r = FastAtan2(dy, dx);
+
+//         Console.WriteLine(Math.Atan2(1.0, 0.0));
+//         Console.WriteLine(FastAtan2(1.0, 0.0));
+//         while (true) ;
          return r >= 0 ? r : r + TwoPi;
+      }
+
+      // https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
+      private static double FastAtan2(double y, double x) {
+         var ax = Math.Abs(x);
+         var ay = Math.Abs(y);
+
+         // a:= min(| x |, | y |) / max(| x |, | y |)
+         var a = ax < ay ? (ax / ay) : (ay / ax);
+
+         // s:= a * a
+         var s = a * a;
+
+         // r:= ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a
+         var r = ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;
+
+         // if | y | > | x | then r:= 1.57079637 - r
+         if (ay > ax) r = 1.57079637 - r;
+
+         // if x < 0 then r := 3.14159274 - r
+         if (x < 0) r = 3.14159274 - r;
+
+         // if y < 0 then r := -r
+         if (y < 0) r = -r;
+
+         return r;
       }
 
       public List<IntervalRange> Get() => _intervalRanges.ToList();
