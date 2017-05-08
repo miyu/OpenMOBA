@@ -48,8 +48,8 @@ namespace OpenMOBA.Geometry {
          var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
          var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
-         var splittableBeginIndexInclusive = FindOverlappingRangeIndex(insertionThetaLower);
-         var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper, splittableBeginIndexInclusive);
+         var splittableBeginIndexInclusive = FindOverlappingRangeIndex(insertionThetaLower, 0, true);
+         var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper, splittableBeginIndexInclusive, false);
 
          // a given segment can be split into 3 at max - technically this overallocates because it's impossible
          // for two 3-splits to happen in a row.
@@ -160,9 +160,13 @@ namespace OpenMOBA.Geometry {
 
             // At here, one segment completely overlaps the other for the theta range
             // Either that, or inserted segment in front of (but not totally covering) range
+            // Either way, it will always be the case that any point on the "near" segment is closer
+            // to _origin than any point on the "far" segment assuming within correct theta.
+            // I take center of segments as their endpoints are ambiguous between neighboring segments
+            // of a polygon.
 
-            var distsxy = _origin.To(GeometryOperations.FindNearestPoint(sxy, _origin)).SquaredNorm2D();
-            var distrsxy = _origin.To(GeometryOperations.FindNearestPoint(rsxy, _origin)).SquaredNorm2D();
+            var distsxy = _origin.To((sxy.First + sxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
+            var distrsxy = _origin.To((rsxy.First + rsxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
             bool inserteeNearer = distsxy < distrsxy;
             var nearRange = inserteeNearer ? srange : range;
             var farRange = inserteeNearer ? range : srange;
@@ -194,8 +198,11 @@ namespace OpenMOBA.Geometry {
          _intervalRanges = result;
       }
 
-      private int FindOverlappingRangeIndex(double theta, int lowerInitInclusive = 0) {
+      // inclusiveRangeStart: given insertion range r, its start is inclusive while its end is exclusive,
+      // so if insertee start/end == split candidate range start, varying behavior.
+      private int FindOverlappingRangeIndex(double theta, int lowerInitInclusive, bool inclusiveRangeStart) {
          if (theta == 0.0) {
+            Debug.Assert(inclusiveRangeStart);
             return 0;
          } else if (theta == TwoPi) {
             return _intervalRanges.Length - 1;
@@ -206,7 +213,13 @@ namespace OpenMOBA.Geometry {
          while (lowerInclusive != upperExclusive) {
             var mid = lowerInclusive + (upperExclusive - lowerInclusive) / 2;
             var item = _intervalRanges[mid];
-            if (item.ThetaStart <= theta && theta < item.ThetaEnd) {
+            if (item.ThetaStart == theta) {
+               if (inclusiveRangeStart) {
+                  return mid;
+               } else {
+                  return mid - 1;
+               }
+            } else if (item.ThetaStart < theta && theta < item.ThetaEnd) {
                return mid;
             } else if (theta < item.ThetaStart) {
                upperExclusive = mid;

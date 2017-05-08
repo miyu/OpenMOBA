@@ -136,9 +136,9 @@ namespace OpenMOBA {
                var cp0 = p0 - centroid;
                var cp1 = p1 - centroid;
                var cp2 = p2 - centroid;
-               var cl01 = GeometryOperations.Clockness(cp0, cp1);
-               var cl12 = GeometryOperations.Clockness(cp1, cp2);
-               var cl20 = GeometryOperations.Clockness(cp2, cp0);
+               var cl01 = GeometryOperations.Clockness(cp0.XY, cp1.XY);
+               var cl12 = GeometryOperations.Clockness(cp1.XY, cp2.XY);
+               var cl20 = GeometryOperations.Clockness(cp2.XY, cp0.XY);
                var cond = cl01 == cl12 && cl12 == cl20 && cl20 == Clockness.CounterClockwise;
                if (!cond) {
                   throw new ArgumentException("P2T Triangle Clockness wasn't expected");
