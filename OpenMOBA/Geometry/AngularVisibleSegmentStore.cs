@@ -48,6 +48,9 @@ namespace OpenMOBA.Geometry {
          var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
          var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
+         // See distrsxy for why this makes sense.
+         var distsxy = _origin.To((sxy.First + sxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
+
          var splittableBeginIndexInclusive = FindOverlappingRangeIndex(insertionThetaLower, 0, true);
          var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper, splittableBeginIndexInclusive, false);
 
@@ -166,7 +169,6 @@ namespace OpenMOBA.Geometry {
             // I take center of segments as their endpoints are ambiguous between neighboring segments
             // of a polygon.
 
-            var distsxy = _origin.To((sxy.First + sxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
             var distrsxy = _origin.To((rsxy.First + rsxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
             bool inserteeNearer = distsxy < distrsxy;
             var nearRange = inserteeNearer ? srange : range;

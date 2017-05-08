@@ -124,7 +124,8 @@ namespace OpenMOBA.Foundation {
 
       private void DebugHandleFrameEnd(DebugMultiCanvasHost debugMultiCanvasHost) {
          var terrainSnapshot = TerrainService.BuildSnapshot();
-         var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
+         var debugCanvas = (DebugCanvas)null;
+//         var debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
 
          AngularVisibleSegmentStore ComputeLineOfSight(DoubleVector2 position, double radius) {
             var barriers = terrainSnapshot.ComputeVisibilityGraph(radius).Barriers;
