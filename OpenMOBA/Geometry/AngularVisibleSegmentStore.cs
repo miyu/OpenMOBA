@@ -45,7 +45,16 @@ namespace OpenMOBA.Geometry {
 
       private void InsertInternal(ref IntLineSegment3 s, double insertionThetaLower, double insertionThetaUpper) {
 //         Console.WriteLine($"InsertInternal: {s}, {thetaLower} {thetaUpper}");
+
+         // cull if wall faces away from origin
+         var sperp = new DoubleVector2(s.Y2 - s.Y1, -(s.X2 - s.X1));
+         var os1 = _origin.To(s.First.XY.ToDoubleVector2());
+         if (sperp.Dot(os1) < 0) {
+            return;
+         }
+
          var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
+
          var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
          // See distrsxy for why this makes sense.
