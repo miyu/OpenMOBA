@@ -52,8 +52,9 @@ namespace OpenMOBA.Geometry {
          var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper, splittableBeginIndexInclusive, false);
 
          // a given segment can be split into 3 at max - technically this overallocates because it's impossible
-         // for two 3-splits to happen in a row.
-         var n = new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) * 3];
+         // for two 3-splits to happen in a row. Actually, assuming no overlaps one can only really produce
+         // # splittables + 2 total new segments (new segments on left/right side).
+         var n = new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) + 2];
          var nSize = 0;
          IntervalRange lastRange = null;
 
