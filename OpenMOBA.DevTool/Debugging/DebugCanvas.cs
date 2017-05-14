@@ -5,9 +5,8 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
-using OpenMOBA.Utilities;
 
-namespace OpenMOBA.Debugging {
+namespace OpenMOBA.DevTool.Debugging {
    public class DebugCanvasHost {
       private readonly Form form;
       private readonly PictureBox pb;

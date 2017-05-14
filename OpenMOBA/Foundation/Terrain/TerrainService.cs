@@ -69,6 +69,15 @@ namespace OpenMOBA.Foundation.Terrain {
          return visibilityGraph;
       }
 
+      public AngularVisibleSegmentStore ComputeLineOfSight(DoubleVector2 position, double holeDilationRadius) {
+         var barriers = ComputeVisibilityGraph(holeDilationRadius).Barriers;
+         var avss = new AngularVisibleSegmentStore(position);
+         foreach (var barrier in barriers) {
+            avss.Insert(barrier);
+         }
+         return avss;
+      }
+
       public Triangulation ComputeTriangulation(double holeDilationRadius) {
          Triangulation triangulation;
          if (!triangulationCache.TryGetValue(holeDilationRadius, out triangulation)) {

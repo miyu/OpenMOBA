@@ -1,12 +1,12 @@
-﻿using ClipperLib;
-using OpenMOBA.Debugging;
-using OpenMOBA.Utilities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using ClipperLib;
+using OpenMOBA.Geometry;
+using OpenMOBA.Utilities;
 
-namespace OpenMOBA.Geometry {
+namespace OpenMOBA.DevTool.Debugging {
    public static class GeometryDebugDisplay {
       public static void DrawPoint(this DebugCanvas canvas, IntVector2 point, Brush brush, float radius = 5.0f) {
          DrawPoints(canvas, new [] { point }, brush, radius);

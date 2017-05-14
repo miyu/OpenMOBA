@@ -10,7 +10,11 @@ using OpenMOBA.Utilities;
 namespace OpenMOBA {
    public class Program {
       public static void Main(string[] args) {
-         var gameInstance = new GameInstanceFactory().Create();
+         Main(new GameFactory());
+      }
+
+      public static void Main(GameFactory gameFactory) {
+         var gameInstance = gameFactory.Create();
          gameInstance.Run();
       }
 
@@ -84,15 +88,15 @@ namespace OpenMOBA {
                                                     .Exclude(holesUnionResult.FlattenToPolygons())
                                                     .Execute();
          var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(landHolePunchResult);
-         var debugCanvas = DebugCanvasHost.CreateAndShowCanvas();
-         debugCanvas.DrawPolygons(holes, Color.Red);
-         debugCanvas.DrawVisibilityGraph(visibilityGraph);
-         var testPathFindingQueries = new[] {
-            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
-            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
-            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
-            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
-         };
+//         var debugCanvas = DebugCanvasHost.CreateAndShowCanvas();
+//         debugCanvas.DrawPolygons(holes, Color.Red);
+//         debugCanvas.DrawVisibilityGraph(visibilityGraph);
+//         var testPathFindingQueries = new[] {
+//            Tuple.Create(new IntVector2(60, 40), new IntVector2(930, 300)),
+//            Tuple.Create(new IntVector2(675, 175), new IntVector2(825, 300)),
+//            Tuple.Create(new IntVector2(50, 900), new IntVector2(950, 475)),
+//            Tuple.Create(new IntVector2(50, 500), new IntVector2(80, 720))
+//         };
 
 //         using (var pen = new Pen(Color.Lime, 2)) {
 //            foreach (var query in testPathFindingQueries) {

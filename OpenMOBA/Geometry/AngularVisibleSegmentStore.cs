@@ -27,6 +27,8 @@ namespace OpenMOBA.Geometry {
          };
       }
 
+      public DoubleVector2 Origin => _origin;
+
       public void Insert(IntLineSegment3 s) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);

@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Poly2Tri", "..\Poly2Tri\Poly2Tri\Poly2Tri.csproj", "{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenMOBA.DevTool", "OpenMOBA.DevTool\OpenMOBA.DevTool.csproj", "{96606F53-3379-4E31-A5C7-4BF0095EDAD0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6AE26E4-3B12-41B8-A083-3932D3B84A5C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96606F53-3379-4E31-A5C7-4BF0095EDAD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96606F53-3379-4E31-A5C7-4BF0095EDAD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96606F53-3379-4E31-A5C7-4BF0095EDAD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96606F53-3379-4E31-A5C7-4BF0095EDAD0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

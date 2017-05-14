@@ -1,9 +1,9 @@
 ﻿using System.Drawing;
 using System.Linq;
-using OpenMOBA.Debugging;
+using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 
-namespace OpenMOBA.Foundation.Visibility {
+namespace OpenMOBA.DevTool.Debugging {
    public static class VisibilityGraphDebugDisplay {
       public static void DrawVisibilityGraph(this DebugCanvas canvas, VisibilityGraph visibilityGraph) {
          canvas.DrawLineList(
