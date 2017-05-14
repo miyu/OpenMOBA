@@ -183,7 +183,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {
          Color = color ?? Color.Black;
          Thickness = thickness;
-         DashPattern = dashPattern ?? new[] { 1.0f };
+         DashPattern = dashPattern;
       }
 
       public Color Color;
@@ -255,6 +255,11 @@ namespace OpenMOBA.DevTool.Debugging {
          return p.XY;
       }
 
+      private PointF ProjectPointF(DoubleVector3 p) {
+         var proj = Project(p);
+         return new PointF((float)proj.X, (float)proj.Y);
+      }
+
       private float ProjectThickness(DoubleVector3 p, double thickness) {
          return (float)thickness;
       }
@@ -292,19 +297,11 @@ namespace OpenMOBA.DevTool.Debugging {
       private void DepthDrawLineStrip(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
          BatchDraw(() => {
             var thicknesses = points.Select(p => ProjectThickness(p, strokeStyle.Thickness)).ToList();
-            var thicknessMin = thicknesses.Min();
-            var thicknessMax = thicknesses.Max();
             const int thicknessMultiplier = 10;
-            var pensByThickness = new Dictionary<int, Pen>();
+            var segmentsByThicknessKey = new Dictionary<int, List<PointF>>();
 
-            Pen GetPen(float thickness) {
-               var k = (int)(thickness * thicknessMultiplier);
-               Pen pen;
-               if (!pensByThickness.TryGetValue(k, out pen)) {
-                  pen = new Pen(strokeStyle.Color, thickness);
-                  pensByThickness[k] = pen;
-               }
-               return pen;
+            int ComputeThicknessKey(float thickness) {
+               return (int)(thickness * thicknessMultiplier);
             }
 
             for (var i = 0; i < points.Count - 1; i++) {
@@ -319,8 +316,23 @@ namespace OpenMOBA.DevTool.Debugging {
                   var pa = p1 + p1p2 * part / nsegs;
                   var pb = p1 + p1p2 * (part + 1) / nsegs;
                   var t = (t1 * (maxPart - part) + t2 * part) / maxPart;
-                  var pen = GetPen(t);
-                  g.DrawLine(pen, (float)pa.X, (float)pa.Y, (float)pb.X, (float)pb.Y);
+                  var tkey = ComputeThicknessKey(t);
+                  List<PointF> segments;
+                  if (!segmentsByThicknessKey.TryGetValue(tkey, out segments)) {
+                     segments = new List<PointF>();
+                     segmentsByThicknessKey[tkey] = segments;
+                  }
+                  segments.Add(ProjectPointF(pa));
+                  segments.Add(ProjectPointF(pb));
+               }
+            }
+
+            foreach (var kvp in segmentsByThicknessKey) {
+               using (var pen = new Pen(strokeStyle.Color, kvp.Key / (float)thicknessMultiplier)) {
+                  if (strokeStyle.DashPattern != null) {
+                     pen.DashPattern = strokeStyle.DashPattern;
+                  }
+                  g.DrawLines(pen, kvp.Value.ToArray());
                }
             }
          });
