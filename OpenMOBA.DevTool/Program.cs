@@ -41,7 +41,7 @@ namespace OpenMOBA.DevTool {
 
       public void HandleFrameEnd(FrameEndStatistics frameStatistics) {
          if (GameTimeService.Ticks == 0) {
-            AddSquiggleHole();
+//            AddSquiggleHole();
          }
          if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 1 == 0) {
             RenderDebugFrame();
@@ -76,16 +76,18 @@ namespace OpenMOBA.DevTool {
          var holeDilationRadius = 15.0;
          var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
          debugCanvas.BatchDraw(() => {
+//            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
+//            return;
             debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
-            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
-            debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
-            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
-            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
-            debugCanvas.DrawVisibilityGraph(visibilityGraph);
+//            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
+//            debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
+//            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+//            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
+//            debugCanvas.DrawVisibilityGraph(visibilityGraph);
             debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
 
-            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
-            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
+//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+//            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
             DrawEntities(debugCanvas, terrainSnapshot);
             DrawEntityPaths(debugCanvas);
          });
@@ -156,7 +158,16 @@ namespace OpenMOBA.DevTool {
       }
 
       public static void AttachTo(Game game) {
-         var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(game.MapConfiguration.Size, new Point(100, 100));
+         var projector = new PerspectiveProjector(
+            new DoubleVector3(500, 800, 700), 
+            new DoubleVector3(500, 500, 0), 
+            new DoubleVector3(0, 1, 1),
+            game.MapConfiguration.Size.Width,
+            game.MapConfiguration.Size.Height);
+         var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(
+            game.MapConfiguration.Size, 
+            new Point(100, 100),
+            projector);
          var debugger = new GameDebugger(game, debugMultiCanvasHost);
          game.Debuggers.Add(debugger);
       }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
 using OpenMOBA.Geometry;
@@ -47,7 +48,7 @@ namespace OpenMOBA.DevTool.Debugging {
          displaySize = displaySize == default(Size) ? new Size(1000, 1000) : displaySize;
          var drawPadding = new Point(100, 100);
 
-         var canvas = new DebugCanvas(displaySize, drawPadding);
+         var canvas = new DebugCanvas(displaySize, drawPadding, OrthographicXYProjector.Instance);
          DebugCanvasHost.CreateShow(canvas);
 
          return canvas;
@@ -60,13 +61,15 @@ namespace OpenMOBA.DevTool.Debugging {
       private const double scale = 1.0f;
       private readonly Size canvasSize;
       private readonly Point canvasPadding;
+      private readonly IProjector projector;
       private Form form;
       private PictureBox pb;
       private TrackBar slider;
 
-      public DebugMultiCanvasHost(Size canvasSize, Point canvasPadding) {
+      public DebugMultiCanvasHost(Size canvasSize, Point canvasPadding, IProjector projector = null) {
          this.canvasSize = canvasSize;
          this.canvasPadding = canvasPadding;
+         this.projector = projector ?? OrthographicXYProjector.Instance;
 
          var paddedSize = new Size(canvasSize.Width + 2 * canvasPadding.X, canvasSize.Height + 2 * canvasPadding.Y);
          var displaySize = new Size((int)(paddedSize.Width * scale), (int)(paddedSize.Height * scale));
@@ -113,7 +116,7 @@ namespace OpenMOBA.DevTool.Debugging {
       }
 
       public DebugCanvas CreateAndAddCanvas(int timestamp) {
-         var canvas = new DebugCanvas(canvasSize, canvasPadding);
+         var canvas = new DebugCanvas(canvasSize, canvasPadding, projector);
          lock (synchronization) {
             frames.Add(new CanvasAndTimeStamp {
                Canvas = canvas,
@@ -164,11 +167,11 @@ namespace OpenMOBA.DevTool.Debugging {
          public int Timestamp { get; set; }
       }
 
-      public static DebugMultiCanvasHost CreateAndShowCanvas(Size canvasSize, Point canvasPadding) {
+      public static DebugMultiCanvasHost CreateAndShowCanvas(Size canvasSize, Point canvasPadding, IProjector projector = null) {
          DebugMultiCanvasHost multiCanvasHost = null;
          var shownLatch = new ManualResetEvent(false);
          var thread = new Thread(() => {
-            multiCanvasHost = new DebugMultiCanvasHost(canvasSize, canvasPadding);
+            multiCanvasHost = new DebugMultiCanvasHost(canvasSize, canvasPadding, projector);
             multiCanvasHost.form.Shown += (s, e) => shownLatch.Set();
             Application.Run(multiCanvasHost.form);
          });
@@ -189,6 +192,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public Color Color;
       public double Thickness;
       public float[] DashPattern;
+      public bool DisableStrokePerspective;
    }
 
    public class FillStyle {
@@ -208,11 +212,65 @@ namespace OpenMOBA.DevTool.Debugging {
       void DrawPolygon(IReadOnlyList<DoubleVector3> polygonPoints, StrokeStyle strokeStyle);
    }
 
+   public interface IProjector {
+      DoubleVector2 Project(DoubleVector3 p);
+      double ComputeApparentThickness(DoubleVector3 p, double thickness);
+   }
+
+   public class OrthographicXYProjector : IProjector {
+      public static readonly OrthographicXYProjector Instance = new OrthographicXYProjector();
+
+      public DoubleVector2 Project(DoubleVector3 p) {
+         return p.XY;
+      }
+
+      public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
+         return thickness;
+      }
+   }
+
+   public class PerspectiveProjector : IProjector {
+      private readonly double width;
+      private readonly double height;
+      private readonly Matrix4x4 worldToCamera;
+      private readonly Matrix4x4 cameraToView;
+      private readonly Matrix4x4 transform;
+
+      public PerspectiveProjector(DoubleVector3 position, DoubleVector3 lookat, DoubleVector3 up, double width, double height) {
+         this.width = width;
+         this.height = height;
+         this.worldToCamera = Matrix4x4.CreateLookAt(ToNumerics3(position), ToNumerics3(lookat), ToNumerics3(up));
+         this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI / 2, (float)(width / height), 1f, 1000f);
+//          this.cameraToView = Matrix4x4.CreatePerspectiveOffCenter(0, (float)width, (float)height, 0, 1.0f, 1000.0f);
+         transform = cameraToView * worldToCamera;
+      }
+
+      public DoubleVector2 Project(DoubleVector3 input) {
+         var p = ToNumerics4(input);
+         var cameraSpace = Vector4.Transform(p, worldToCamera);
+         var viewSpace = Vector4.Transform(cameraSpace, cameraToView);
+         viewSpace /= viewSpace.W; // I'm doing something wrong.
+//         Console.WriteLine(p + " " + cameraSpace + " " + viewSpace + " " + (viewSpace / viewSpace.W));
+
+         return new DoubleVector2(width * (viewSpace.X + 1.0) / 2.0, height * (viewSpace.Y + 1.0) / 2.0);
+//         return new DoubleVector2(viewSpace.X, viewSpace.Y);
+      }
+
+      public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
+         var cameraSpace = Vector4.Transform(ToNumerics4(p), worldToCamera);
+         return thickness * (1000f + cameraSpace.Z) / 1000f;
+      }
+
+      private static Vector3 ToNumerics3(DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
+      private static Vector4 ToNumerics4(DoubleVector3 v) => new Vector4((float)v.X, (float)v.Y, (float)v.Z, 1.0f);
+   }
+
    public class DebugCanvas : IDebugCanvas {
       private readonly Bitmap bitmap;
 
       private readonly object synchronization = new object();
       private readonly Point drawPadding;
+      private readonly IProjector projector;
       private readonly PictureBox pb;
 
       public event EventHandler<DebugCanvasUpdateEventArgs> Update;
@@ -221,8 +279,9 @@ namespace OpenMOBA.DevTool.Debugging {
          public Bitmap Bitmap { get; set; }
       }
 
-      public DebugCanvas(Size displaySize, Point drawPadding) {
+      public DebugCanvas(Size displaySize, Point drawPadding, IProjector projector) {
          this.drawPadding = drawPadding;
+         this.projector = projector;
          PaddedSize = new Size(displaySize.Width + 2 * drawPadding.X, displaySize.Height + 2 * drawPadding.Y);
          bitmap = new Bitmap(PaddedSize.Width, PaddedSize.Height);
       }
@@ -251,18 +310,14 @@ namespace OpenMOBA.DevTool.Debugging {
          }
       }
 
-      private DoubleVector2 Project(DoubleVector3 p) {
-         return p.XY;
-      }
+      private DoubleVector2 Project(DoubleVector3 p) => projector.Project(p);
 
       private PointF ProjectPointF(DoubleVector3 p) {
          var proj = Project(p);
          return new PointF((float)proj.X, (float)proj.Y);
       }
 
-      private float ProjectThickness(DoubleVector3 p, double thickness) {
-         return (float)thickness;
-      }
+      private float ProjectThickness(DoubleVector3 p, double thickness) => (float)projector.ComputeApparentThickness(p, thickness);
 
       public void DrawPoint(DoubleVector3 point, StrokeStyle strokeStyle) {
          BatchDraw(() => {
@@ -296,8 +351,17 @@ namespace OpenMOBA.DevTool.Debugging {
 
       private void DepthDrawLineStrip(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
          BatchDraw(() => {
+            if (strokeStyle.DisableStrokePerspective) {
+               if (points.Count <= 1) return;
+
+               using (var pen = new Pen(strokeStyle.Color, ProjectThickness(points[0], strokeStyle.Thickness))) {
+                  g.DrawLines(pen, points.Select(ProjectPointF).ToArray());
+                  return;
+               }
+            }
+
             var thicknesses = points.Select(p => ProjectThickness(p, strokeStyle.Thickness)).ToList();
-            const int thicknessMultiplier = 10;
+            const int thicknessMultiplier = 100;
             var segmentsByThicknessKey = new Dictionary<int, List<PointF>>();
 
             int ComputeThicknessKey(float thickness) {
@@ -310,11 +374,11 @@ namespace OpenMOBA.DevTool.Debugging {
                var p1p2 = p1.To(p2);
                var t1 = thicknesses[i];
                var t2 = thicknesses[i + 1];
-               const int nsegs = 10;
+               const int nsegs = 5;
                for (var part = 0; part < nsegs; part++) {
                   const int maxPart = nsegs - 1;
-                  var pa = p1 + p1p2 * part / nsegs;
-                  var pb = p1 + p1p2 * (part + 1) / nsegs;
+                  var pa = p1 + p1p2 * (float)(part / (float)nsegs);
+                  var pb = p1 + p1p2 * ((float)(part + 1) / (float)nsegs);
                   var t = (t1 * (maxPart - part) + t2 * part) / maxPart;
                   var tkey = ComputeThicknessKey(t);
                   List<PointF> segments;
@@ -325,6 +389,7 @@ namespace OpenMOBA.DevTool.Debugging {
                   segments.Add(ProjectPointF(pa));
                   segments.Add(ProjectPointF(pb));
                }
+//               Console.WriteLine(ProjectPointF(p1) + " " + ProjectPointF(p2));
             }
 
             foreach (var kvp in segmentsByThicknessKey) {
@@ -332,7 +397,9 @@ namespace OpenMOBA.DevTool.Debugging {
                   if (strokeStyle.DashPattern != null) {
                      pen.DashPattern = strokeStyle.DashPattern;
                   }
-                  g.DrawLines(pen, kvp.Value.ToArray());
+                  for (var i = 0; i < kvp.Value.Count; i += 2) {
+                     g.DrawLine(pen, kvp.Value[i], kvp.Value[i + 1]);
+                  }
                }
             }
          });
