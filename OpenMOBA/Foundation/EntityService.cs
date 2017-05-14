@@ -118,7 +118,7 @@ namespace OpenMOBA.Foundation {
       public TriangulationIsland SwarmingIsland { get; set; }
       public int SwarmingTriangleIndex { get; set; }
 
-      public List<Tuple<DoubleVector2, DoubleVector2>> DebugLines { get; set; }
+      public List<Tuple<DoubleVector3, DoubleVector3>> DebugLines { get; set; }
 
       // Values precomputed at entry of movement service
       public IntVector2 DiscretizedPosition { get; set; }

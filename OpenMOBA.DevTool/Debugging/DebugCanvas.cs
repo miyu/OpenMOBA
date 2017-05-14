@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using OpenMOBA.Geometry;
 
 namespace OpenMOBA.DevTool.Debugging {
    public class DebugCanvasHost {
@@ -178,7 +179,36 @@ namespace OpenMOBA.DevTool.Debugging {
       }
    }
 
-   public class DebugCanvas {
+   public class StrokeStyle {
+      public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {
+         Color = color ?? Color.Black;
+         Thickness = thickness;
+         DashPattern = dashPattern ?? new[] { 1.0f };
+      }
+
+      public Color Color;
+      public double Thickness;
+      public float[] DashPattern;
+   }
+
+   public class FillStyle {
+      public FillStyle(Color? color = null) {
+         Color = color ?? Color.Black;
+      }
+
+      public Color Color;
+   }
+
+   public interface IDebugCanvas {
+      void BatchDraw(Action callback);
+
+      void DrawPoint(DoubleVector3 p, StrokeStyle strokeStyle);
+      void DrawLine(DoubleVector3 p1, DoubleVector3 p2, StrokeStyle strokeStyle);
+      void FillPolygon(IReadOnlyList<DoubleVector3> points, FillStyle fillStyle);
+      void DrawPolygon(IReadOnlyList<DoubleVector3> polygonPoints, StrokeStyle strokeStyle);
+   }
+
+   public class DebugCanvas : IDebugCanvas {
       private readonly Bitmap bitmap;
 
       private readonly object synchronization = new object();
@@ -204,25 +234,103 @@ namespace OpenMOBA.DevTool.Debugging {
       private bool isRecursion = false;
       private Graphics g;
 
-      public void Draw(Action<Graphics> callback) {
+      public void BatchDraw(Action callback) {
          lock (synchronization) {
             if (!isRecursion) {
                using (g = Graphics.FromImage(bitmap)) {
                   g.Transform = new Matrix(1, 0, 0, 1, drawPadding.X, drawPadding.Y);
                   isRecursion = true;
-                  callback(g);
+                  callback();
                   isRecursion = false;
                }
                g = null;
                UpdateDisplay();
             } else {
-               callback(g);
+               callback();
             }
          }
       }
 
-      public void DrawText(string text, double x, double y) {
-         Draw(g => { g.DrawString(text, Font, Brushes.Black, (float)x, (float)y); });
+      private DoubleVector2 Project(DoubleVector3 p) {
+         return p.XY;
+      }
+
+      private float ProjectThickness(DoubleVector3 p, double thickness) {
+         return (float)thickness;
+      }
+
+      public void DrawPoint(DoubleVector3 point, StrokeStyle strokeStyle) {
+         BatchDraw(() => {
+            var p = Project(point);
+            var x = (float)p.X;
+            var y = (float)p.Y;
+            var radius = ProjectThickness(point, strokeStyle.Thickness) / 2.0f;
+            var rect = new RectangleF(x - radius, y - radius, radius * 2, radius * 2);
+            using (var brush = new SolidBrush(strokeStyle.Color)) {
+               g.FillEllipse(brush, rect);
+            }
+         });
+      }
+
+      public void DrawLine(DoubleVector3 point1, DoubleVector3 point2, StrokeStyle strokeStyle) {
+         DepthDrawLineStrip(new [] { point1, point2 }, strokeStyle);
+      }
+
+      public void FillPolygon(IReadOnlyList<DoubleVector3> points, FillStyle fillStyle) {
+         BatchDraw(() => {
+            var ps = points.Select(Project).ToList();
+            using (var brush = new SolidBrush(fillStyle.Color)) {
+               g.FillPolygon(brush, ps.Select(p => new PointF((float)p.X, (float)p.Y)).ToArray());
+            }
+         });
+      }
+
+      public void DrawPolygon(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
+         DepthDrawLineStrip(points.Concat(new [] { points[0] }).ToList(), strokeStyle);
+      }
+
+      private void DepthDrawLineStrip(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
+         BatchDraw(() => {
+            var thicknesses = points.Select(p => ProjectThickness(p, strokeStyle.Thickness)).ToList();
+            var thicknessMin = thicknesses.Min();
+            var thicknessMax = thicknesses.Max();
+            const int thicknessMultiplier = 10;
+            var pensByThickness = new Dictionary<int, Pen>();
+
+            Pen GetPen(float thickness) {
+               var k = (int)(thickness * thicknessMultiplier);
+               Pen pen;
+               if (!pensByThickness.TryGetValue(k, out pen)) {
+                  pen = new Pen(strokeStyle.Color, thickness);
+                  pensByThickness[k] = pen;
+               }
+               return pen;
+            }
+
+            for (var i = 0; i < points.Count - 1; i++) {
+               var p1 = points[i];
+               var p2 = points[i + 1];
+               var p1p2 = p1.To(p2);
+               var t1 = thicknesses[i];
+               var t2 = thicknesses[i + 1];
+               const int nsegs = 10;
+               for (var part = 0; part < nsegs; part++) {
+                  const int maxPart = nsegs - 1;
+                  var pa = p1 + p1p2 * part / nsegs;
+                  var pb = p1 + p1p2 * (part + 1) / nsegs;
+                  var t = (t1 * (maxPart - part) + t2 * part) / maxPart;
+                  var pen = GetPen(t);
+                  g.DrawLine(pen, (float)pa.X, (float)pa.Y, (float)pb.X, (float)pb.Y);
+               }
+            }
+         });
+      }
+
+      public void DrawText(string text, DoubleVector3 point) {
+         BatchDraw(() => {
+            var p = Project(point);
+            g.DrawString(text, Font, Brushes.Black, (float)p.X, (float)p.Y);
+         });
       }
 
       private void UpdateDisplay() {

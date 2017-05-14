@@ -22,7 +22,8 @@ namespace OpenMOBA.DevTool {
    }
 
    public class GameDebugger : IGameDebugger {
-      private static readonly Pen PathPen = new Pen(Color.Lime, 2);
+      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 2.0);
+      private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
 
       public GameDebugger(Game game, DebugMultiCanvasHost debugMultiCanvasHost) {
          Game = game;
@@ -74,160 +75,82 @@ namespace OpenMOBA.DevTool {
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;
          var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
-         debugCanvas.Draw(g => {
+         debugCanvas.BatchDraw(() => {
             debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
-//            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
-//            debugCanvas.DrawPolygons(temporaryHolePolygons, Color.Red);
-            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), Pens.DarkGray);
-            DrawTriangulationQuadTree(debugCanvas, terrainSnapshot.ComputeTriangulation(holeDilationRadius));
-//            debugCanvas.DrawVisibilityGraph(visibilityGraph);
-//            DrawWallPushGrid(debugCanvas, terrainSnapshot, holeDilationRadius);
+            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
+            debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
+            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
+            debugCanvas.DrawVisibilityGraph(visibilityGraph);
+            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
 
-            var testPathFindingQueries = new[] {
-               Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
-               Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
-               Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
-               Tuple.Create(new DoubleVector3(50, 500, 0), new DoubleVector3(80, 720, 0))
-            };
-
-            foreach (var query in testPathFindingQueries) {
-               List<DoubleVector3> pathPoints3d;
-               if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out pathPoints3d)) {
-                  var pathPoints = pathPoints3d.Select(p => p.XY.LossyToIntVector2()).ToList();
-                  debugCanvas.DrawLineStrip(pathPoints, PathPen);
-               }
-            }
-
-            foreach (var entity in EntityService.EnumerateEntities()) {
-               var movementComponent = entity.MovementComponent;
-               if (movementComponent == null) continue;
-               var pathPoints = entity.MovementComponent.PathingBreadcrumbs.Select(p => p.XY.LossyToIntVector2()).ToList();
-               pathPoints.Insert(0, movementComponent.Position.XY.LossyToIntVector2());
-               debugCanvas.DrawLineStrip(pathPoints, PathPen);
-            }
-
-            using (var highlightPen = new Pen(Brushes.Red, 3.0f)) {
-               foreach (var entity in EntityService.EnumerateEntities()) {
-                  var movementComponent = entity.MovementComponent;
-                  if (movementComponent != null) {
-                     var triangulation = terrainSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
-                     TriangulationIsland island;
-                     int triangleIndex;
-                     if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
-                        debugCanvas.DrawTriangle(island.Triangles[triangleIndex], highlightPen);
-                     }
-                  }
-               }
-            }
-
-            //            var losRadius = EntityService.EnumerateEntities().First().MovementComponent.BaseRadius;
-            //            var waypoint = TerrainService.BuildSnapshot().ComputeVisibilityGraph(losRadius).Waypoints[5];
-            //            debugCanvas.DrawPoint(waypoint.XY, Brushes.Black, 2f);
-            //            DrawLineOfSight(waypoint.XY.ToDoubleVector2(), losRadius);
-
-            foreach (var entity in EntityService.EnumerateEntities()) {
-               var movementComponent = entity.MovementComponent;
-               if (movementComponent != null) {
-                  debugCanvas.DrawPoint(movementComponent.Position.XY.LossyToIntVector2(), Brushes.Black, movementComponent.BaseRadius);
-                  debugCanvas.DrawPoint(movementComponent.Position.XY.LossyToIntVector2(), Brushes.White, movementComponent.BaseRadius - 2);
-
-                  if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
-                     debugCanvas.DrawLineList(
-                        new[] {
-                           movementComponent.Position.XY.LossyToIntVector2(),
-                           (movementComponent.Position.XY + movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius).LossyToIntVector2()
-                        }, Pens.Gray);
-                  }
-
-                  var unitLineOfSight = terrainSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
-                  DrawLineOfSight(debugCanvas, unitLineOfSight);
-
-                  if (movementComponent.DebugLines != null) {
-                     foreach (var l in movementComponent.DebugLines) {
-                        debugCanvas.DrawLineList(new[] { l.Item1.LossyToIntVector2(), l.Item2.LossyToIntVector2() }, Pens.Black);
-                     }
-                  }
-               }
-            }
+            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
+            DrawEntities(debugCanvas, terrainSnapshot);
+            DrawEntityPaths(debugCanvas);
          });
-
       }
 
-      private static void DrawTriangulationQuadTree(DebugCanvas debugCanvas, Triangulation triangulation) {
-         foreach (var island in triangulation.Islands) {
-            var s = new Stack<Tuple<int, QuadTree<int>.Node>>();
-            s.Push(Tuple.Create(0, island.TriangleIndexQuadTree.Root));
-            while (s.Any()) {
-               var tuple = s.Pop();
-               var depth = tuple.Item1;
-               var node = tuple.Item2;
-               debugCanvas.DrawRectangle(node.Rect);
-               if (node.TopLeft != null) {
-                  s.Push(Tuple.Create(depth + 1, node.TopLeft));
-                  s.Push(Tuple.Create(depth + 1, node.TopRight));
-                  s.Push(Tuple.Create(depth + 1, node.BottomLeft));
-                  s.Push(Tuple.Create(depth + 1, node.BottomRight));
+      private void DrawEntityPaths(DebugCanvas debugCanvas) {
+         foreach (var entity in EntityService.EnumerateEntities()) {
+            var movementComponent = entity.MovementComponent;
+            if (movementComponent == null) continue;
+            var pathPoints = new[] { movementComponent.Position }.Concat(entity.MovementComponent.PathingBreadcrumbs).ToList();
+            debugCanvas.DrawLineStrip(pathPoints, PathStroke);
+         }
+      }
+
+      private void DrawEntities(DebugCanvas debugCanvas, TerrainSnapshot terrainSnapshot) {
+         foreach (var entity in EntityService.EnumerateEntities()) {
+            var movementComponent = entity.MovementComponent;
+            if (movementComponent != null) {
+               debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
+               debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
+
+               if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
+                  var direction = movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius;
+                  var to = movementComponent.Position + new DoubleVector3(direction.X, direction.Y, 0.0);
+                  debugCanvas.DrawLine(movementComponent.Position, to, new StrokeStyle(Color.Gray));
+               }
+
+               var unitLineOfSight = terrainSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
+               debugCanvas.DrawLineOfSight(unitLineOfSight);
+
+               if (movementComponent.DebugLines != null) {
+                  debugCanvas.DrawLineList(
+                     movementComponent.DebugLines.SelectMany(pair => new[] { pair.Item1, pair.Item2 }).ToList(),
+                     new StrokeStyle(Color.Black));
                }
             }
          }
       }
 
-      private static void DrawWallPushGrid(DebugCanvas debugCanvas, TerrainSnapshot terrainSnapshot, double holeDilationRadius) {
-         for (int x = -50; x < 1100; x += 100) {
-            for (int y = -50; y < 1100; y += 100) {
-               var query = new DoubleVector3(x, y, 0);
-               DoubleVector3 nearestLandPoint;
-               var isInHole = TerrainSnapshotQueryOperations.FindNearestLandPointAndIsInHole(terrainSnapshot, holeDilationRadius, query, out nearestLandPoint);
-               GeometryDebugDisplay.DrawPoint(debugCanvas, query.XY.LossyToIntVector2(), isInHole ? Brushes.Red : Brushes.Gray, 3.0f);
-               if (isInHole) {
-                  GeometryDebugDisplay.DrawLineStrip(debugCanvas, new[] { query.XY.LossyToIntVector2(), nearestLandPoint.XY.LossyToIntVector2() },
-                     Pens.Red);
+      private void DrawHighlightedEntityTriangles(TerrainSnapshot terrainSnapshot, DebugCanvas debugCanvas) {
+         foreach (var entity in EntityService.EnumerateEntities()) {
+            var movementComponent = entity.MovementComponent;
+            if (movementComponent != null) {
+               var triangulation = terrainSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
+               TriangulationIsland island;
+               int triangleIndex;
+               if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
+                  debugCanvas.DrawTriangle(island.Triangles[triangleIndex], HighlightStroke);
                }
             }
          }
       }
 
-      private static void DrawLineOfSight(DebugCanvas debugCanvas, AngularVisibleSegmentStore avss) {
-         var oxy = avss.Origin;
-         foreach (var range in avss.Get().Where(range => range.Id != AngularVisibleSegmentStore.RANGE_ID_NULL)) {
-            var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
-            var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
+      private void DrawTestPathfindingQueries(DebugCanvas debugCanvas, double holeDilationRadius) {
+         var testPathFindingQueries = new[] {
+            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
+            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
+            Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
+            Tuple.Create(new DoubleVector3(50, 500, 0), new DoubleVector3(80, 720, 0))
+         };
 
-            var s = range.Segment;
-            var s1 = s.First.XY.ToDoubleVector2();
-            var s2 = s.Second.XY.ToDoubleVector2();
-            DoubleVector2 visibleStart, visibleEnd;
-            if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart) ||
-                !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
-               // wtf?
-               continue;
-            }
-
-            using (var b = new SolidBrush(Color.FromArgb(120, Color.Yellow)))
-               debugCanvas.FillPolygon(
-                  new Polygon(new List<IntVector3> {
-                     new IntVector3((long)oxy.X, (long)oxy.Y, 0),
-                     new IntVector3((long)visibleStart.X, (long)visibleStart.Y, 0),
-                     new IntVector3((long)visibleEnd.X, (long)visibleEnd.Y, 0)
-                  }, false), b);
-
-            using (var dash = new Pen(Color.FromArgb(30, Color.Black), 1f) { DashPattern = new[] { 10.0f, 10.0f } })
-            using (var thick = new Pen(Color.Black, 5f)) {
-               debugCanvas.DrawLineStrip(
-                  new[] {
-                     oxy.LossyToIntVector2(),
-                     visibleStart.LossyToIntVector2()
-                  }, dash);
-               debugCanvas.DrawLineStrip(
-                  new[] {
-                     oxy.LossyToIntVector2(),
-                     visibleEnd.LossyToIntVector2()
-                  }, dash);
-               debugCanvas.DrawLineStrip(
-                  new[] {
-                     visibleStart.LossyToIntVector2(),
-                     visibleEnd.LossyToIntVector2()
-                  }, thick);
+         foreach (var query in testPathFindingQueries) {
+            List<DoubleVector3> pathPoints;
+            if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out pathPoints)) {
+               debugCanvas.DrawLineStrip(pathPoints, PathStroke);
             }
          }
       }
