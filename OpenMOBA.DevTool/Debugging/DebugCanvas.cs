@@ -230,6 +230,9 @@ namespace OpenMOBA.DevTool.Debugging {
    }
 
    public class PerspectiveProjector : IProjector {
+      private readonly DoubleVector3 position;
+      private readonly DoubleVector3 lookat;
+      private readonly DoubleVector3 up;
       private readonly double width;
       private readonly double height;
       private readonly Matrix4x4 worldToCamera;
@@ -237,10 +240,14 @@ namespace OpenMOBA.DevTool.Debugging {
       private readonly Matrix4x4 transform;
 
       public PerspectiveProjector(DoubleVector3 position, DoubleVector3 lookat, DoubleVector3 up, double width, double height) {
+         this.position = position;
+         this.lookat = lookat;
+         this.up = up;
          this.width = width;
          this.height = height;
-         this.worldToCamera = Matrix4x4.CreateLookAt(ToNumerics3(position), ToNumerics3(lookat), ToNumerics3(up));
-         this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI / 2, (float)(width / height), 1f, 1000f);
+         this.worldToCamera = Matrix4x4.CreateTranslation(ToNumerics3(-1.0 * position)) *
+            Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up));
+         this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI * 2 / 4, (float)(width / height), 1f, 10000f);
 //          this.cameraToView = Matrix4x4.CreatePerspectiveOffCenter(0, (float)width, (float)height, 0, 1.0f, 1000.0f);
          transform = cameraToView * worldToCamera;
       }
@@ -248,17 +255,22 @@ namespace OpenMOBA.DevTool.Debugging {
       public DoubleVector2 Project(DoubleVector3 input) {
          var p = ToNumerics4(input);
          var cameraSpace = Vector4.Transform(p, worldToCamera);
+//         return new DoubleVector2(width * (1.0 + cameraSpace.X / cameraSpace.Z) / 2.0, height * (1.0 + cameraSpace.Y / cameraSpace.Z) / 2.0);
          var viewSpace = Vector4.Transform(cameraSpace, cameraToView);
          viewSpace /= viewSpace.W; // I'm doing something wrong.
 //         Console.WriteLine(p + " " + cameraSpace + " " + viewSpace + " " + (viewSpace / viewSpace.W));
 
-         return new DoubleVector2(width * (viewSpace.X + 1.0) / 2.0, height * (viewSpace.Y + 1.0) / 2.0);
+         return new DoubleVector2(width * (-viewSpace.X + 1.0) / 2.0, height * (-viewSpace.Y + 1.0) / 2.0);
 //         return new DoubleVector2(viewSpace.X, viewSpace.Y);
       }
 
       public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
-         var cameraSpace = Vector4.Transform(ToNumerics4(p), worldToCamera);
-         return thickness * (1000f + cameraSpace.Z) / 1000f;
+         var ss1 = Project(p);
+         var ss2 = Project(p + position.To(p).Cross(position.To(lookat)).ToUnit() * thickness);
+
+         return (ss1 - ss2).Norm2D();
+         //         var cameraSpace = Vector4.Transform(ToNumerics4(p), worldToCamera);
+         //         return thickness * (1000f + cameraSpace.Z) / 1000f;
       }
 
       private static Vector3 ToNumerics3(DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
@@ -297,6 +309,9 @@ namespace OpenMOBA.DevTool.Debugging {
          lock (synchronization) {
             if (!isRecursion) {
                using (g = Graphics.FromImage(bitmap)) {
+                  g.CompositingQuality = CompositingQuality.HighQuality;
+                  g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                  g.SmoothingMode = SmoothingMode.AntiAlias;
                   g.Transform = new Matrix(1, 0, 0, 1, drawPadding.X, drawPadding.Y);
                   isRecursion = true;
                   callback();
@@ -374,7 +389,7 @@ namespace OpenMOBA.DevTool.Debugging {
                var p1p2 = p1.To(p2);
                var t1 = thicknesses[i];
                var t2 = thicknesses[i + 1];
-               const int nsegs = 5;
+               const int nsegs = 10;
                for (var part = 0; part < nsegs; part++) {
                   const int maxPart = nsegs - 1;
                   var pa = p1 + p1p2 * (float)(part / (float)nsegs);
@@ -392,8 +407,11 @@ namespace OpenMOBA.DevTool.Debugging {
 //               Console.WriteLine(ProjectPointF(p1) + " " + ProjectPointF(p2));
             }
 
-            foreach (var kvp in segmentsByThicknessKey) {
-               using (var pen = new Pen(strokeStyle.Color, kvp.Key / (float)thicknessMultiplier)) {
+            using (var pen = new Pen(strokeStyle.Color)) {
+               pen.StartCap = LineCap.Round;
+               pen.EndCap = LineCap.Round;
+               foreach (var kvp in segmentsByThicknessKey) {
+                  pen.Width = kvp.Key / (float)thicknessMultiplier;
                   if (strokeStyle.DashPattern != null) {
                      pen.DashPattern = strokeStyle.DashPattern;
                   }

@@ -80,11 +80,11 @@ namespace OpenMOBA.DevTool {
 //            return;
             debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
 //            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
-//            debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
-//            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+            debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
+            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
 //            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
 //            debugCanvas.DrawVisibilityGraph(visibilityGraph);
-            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
+//            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
 
 //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 //            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
@@ -106,6 +106,9 @@ namespace OpenMOBA.DevTool {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
+               var unitLineOfSight = terrainSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
+               debugCanvas.DrawLineOfSight(unitLineOfSight);
+
                debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
                debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
 
@@ -114,9 +117,6 @@ namespace OpenMOBA.DevTool {
                   var to = movementComponent.Position + new DoubleVector3(direction.X, direction.Y, 0.0);
                   debugCanvas.DrawLine(movementComponent.Position, to, new StrokeStyle(Color.Gray));
                }
-
-               var unitLineOfSight = terrainSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
-               debugCanvas.DrawLineOfSight(unitLineOfSight);
 
                if (movementComponent.DebugLines != null) {
                   debugCanvas.DrawLineList(
@@ -158,12 +158,14 @@ namespace OpenMOBA.DevTool {
       }
 
       public static void AttachTo(Game game) {
+         var rotation = 80 * Math.PI / 180.0;
          var projector = new PerspectiveProjector(
-            new DoubleVector3(500, 800, 700), 
+            new DoubleVector3(500, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation), 
             new DoubleVector3(500, 500, 0), 
-            new DoubleVector3(0, 1, 1),
+            DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation + Math.PI / 2),
             game.MapConfiguration.Size.Width,
             game.MapConfiguration.Size.Height);
+//         projector = null;
          var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(
             game.MapConfiguration.Size, 
             new Point(100, 100),

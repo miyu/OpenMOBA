@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.Diagnostics.Contracts;
 using cInt = System.Int64;
 
 namespace OpenMOBA.Geometry {
@@ -30,6 +30,7 @@ namespace OpenMOBA.Geometry {
             u1 * v2 - u2 * v1);
       }
 
+      [Pure]
       public DoubleVector3 To(DoubleVector3 other) => other - this;
 
       /// <summary>
@@ -91,6 +92,14 @@ namespace OpenMOBA.Geometry {
          var x = radius * Math.Cos(radians);
          var y = radius * Math.Sin(radians);
          return new DoubleVector3(x, y, 0);
+      }
+
+      // rule is rotation as if the axis of rotation is z... so start at x then y
+      // (y is x, z is y according to RHR... so at theta = 0, y=r, theta=pi/2, z = r)
+      public static DoubleVector3 FromRadiusAngleAroundXAxis(int radius, double radians) {
+         var y = radius * Math.Cos(radians);
+         var z = radius * Math.Sin(radians);
+         return new DoubleVector3(0, y, z);
       }
 
       public override string ToString() => $"[{X}, {Y}, {Z}]";
