@@ -144,16 +144,15 @@ namespace Shade {
                //               var view = Matrix.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
 
                var view = Matrix.LookAtLH(position, lookat, up);
-//               view.Transpose();
+               view.Transpose();
                var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
-//               proj.Transpose();
+               proj.Transpose();
 
                graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, contantBuffer);
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleList;
 
                var cubeWorld = Matrix.Identity;
-               var cubeProjViewWorld = view * proj; // * cubeWorld;
-               cubeProjViewWorld.Transpose();
+               var cubeProjViewWorld = proj * view; // * cubeWorld;
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
                   0, new VertexBufferBinding(cubeBuffer, Direct3DVertexPositionColor.Size, 0));
                graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, contantBuffer, 0);
