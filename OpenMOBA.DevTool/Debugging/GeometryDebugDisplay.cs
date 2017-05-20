@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using ClipperLib;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
-using OpenMOBA.Utilities;
 
 namespace OpenMOBA.DevTool.Debugging {
    public static class GeometryDebugDisplay {

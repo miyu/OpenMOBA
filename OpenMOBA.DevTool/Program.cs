@@ -8,11 +8,13 @@ using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Geometry;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Utilities;
+using Shade;
 
 namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
+         CanvasProgram.EntryPoint(args);
+         return;
          var gameFactory = new GameFactory();
          gameFactory.GameCreated += (s, game) => {
             GameDebugger.AttachTo(game);
@@ -25,13 +27,13 @@ namespace OpenMOBA.DevTool {
       private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 2.0);
       private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
 
-      public GameDebugger(Game game, DebugMultiCanvasHost debugMultiCanvasHost) {
+      public GameDebugger(Game game, IDebugMultiCanvasHost debugMultiCanvasHost) {
          Game = game;
          DebugMultiCanvasHost = debugMultiCanvasHost;
       }
 
       public Game Game { get; }
-      public DebugMultiCanvasHost DebugMultiCanvasHost { get; }
+      public IDebugMultiCanvasHost DebugMultiCanvasHost { get; }
 
       private DebugProfiler DebugProfiler => Game.DebugProfiler;
       private GameTimeService GameTimeService => Game.GameTimeService;
@@ -93,7 +95,7 @@ namespace OpenMOBA.DevTool {
          });
       }
 
-      private void DrawEntityPaths(DebugCanvas debugCanvas) {
+      private void DrawEntityPaths(IDebugCanvas debugCanvas) {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent == null) continue;
@@ -102,7 +104,7 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawEntities(DebugCanvas debugCanvas, TerrainSnapshot terrainSnapshot) {
+      private void DrawEntities(IDebugCanvas debugCanvas, TerrainSnapshot terrainSnapshot) {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
@@ -166,7 +168,8 @@ namespace OpenMOBA.DevTool {
             game.MapConfiguration.Size.Width,
             game.MapConfiguration.Size.Height);
 //         projector = null;
-         var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(
+//         var debugMultiCanvasHost = new MonoGameCanvasHost();
+         var debugMultiCanvasHost = Debugging.DebugMultiCanvasHost.CreateAndShowCanvas(
             game.MapConfiguration.Size, 
             new Point(100, 100),
             projector);

@@ -5,7 +5,6 @@ using System;
 using System.Drawing;
 using System.Linq;
 using OpenMOBA.Foundation;
-using OpenMOBA.Utilities;
 
 namespace OpenMOBA {
    public class Program {

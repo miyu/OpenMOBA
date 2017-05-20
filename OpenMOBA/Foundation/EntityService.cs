@@ -7,8 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using OpenMOBA.Utilities;
-
+using OpenMOBA.DataStructures;
 using cInt = System.Int64;
 
 namespace OpenMOBA.Foundation {

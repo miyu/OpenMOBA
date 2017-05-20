@@ -1,28 +1,27 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
-namespace OpenMOBA.Utilities
-{
+namespace OpenMOBA.DataStructures {
    /// <summary>
-   /// Minheap-based PQ supporting removal.
-   /// Items must be class instances, does not support null items. Equality
-   /// is reference-based, instances' hashcodes must not change after insertion.
-   /// 
-   /// log(N) deletion, does not support inserting an instance more than once.
+   ///    Because no other implementation that doesn't suck exists.
+   ///    Seriously, C#?
+   ///    Traditional minheap-based pq. Allows duplicate entry,
+   ///    supports resizing.
    /// </summary>
-   public class RemovablePriorityQueue<TItem> : IReadOnlyCollection<TItem> where TItem : class {
+   public class PriorityQueue<TItem> : IReadOnlyCollection<TItem> {
       // 1 + 4 + 16 + 64 = 5 + 16 + 64 = 21 + 64 = 85
       private const int kNodesPerLevel = 4;
       private const int kInitialCapacity = 1 + kNodesPerLevel;
+      private const bool kDisableValidation = true;
       private readonly Comparison<TItem> itemComparer;
 
       private TItem[] items = new TItem[kInitialCapacity];
-      private Dictionary<TItem, int> itemIndices = new Dictionary<TItem, int>(ReferenceEqualityComparer<TItem>.Instance);
 
-      public RemovablePriorityQueue() : this(Comparer<TItem>.Default.Compare) { }
+      public PriorityQueue() : this(Comparer<TItem>.Default.Compare) { }
 
-      public RemovablePriorityQueue(Comparison<TItem> itemComparer) {
+      public PriorityQueue(Comparison<TItem> itemComparer) {
          this.itemComparer = itemComparer;
       }
 
@@ -32,13 +31,12 @@ namespace OpenMOBA.Utilities
       public int Count { get; private set; }
 
       public IEnumerator<TItem> GetEnumerator() {
-         var clone = new RemovablePriorityQueue<TItem>(itemComparer);
+         var clone = new PriorityQueue<TItem>(itemComparer);
          clone.items = new TItem[items.Length];
-         for (int i = 0; i < Count; i++) {
+         clone.Count = Count;
+         for (var i = 0; i < Count; i++) {
             clone.items[i] = items[i];
          }
-         clone.itemIndices = new Dictionary<TItem, int>(itemIndices);
-         clone.Count = Count;
          while (!clone.IsEmpty) {
             yield return clone.Dequeue();
          }
@@ -58,7 +56,16 @@ namespace OpenMOBA.Utilities
             throw new InvalidOperationException("The queue is empty");
          }
 
-         return RemoveAtIndex(0);
+         var result = items[0];
+         items[0] = default(TItem);
+
+         Count--;
+         var tail = items[Count];
+         items[Count] = default(TItem);
+
+         PercolateDown(0, tail);
+         Validate();
+         return result;
       }
 
       private void PercolateDown(int currentIndex, TItem item) {
@@ -67,14 +74,13 @@ namespace OpenMOBA.Utilities
 
          // handle childless case
          if (childrenStartIndexInclusive == childrenEndIndexExclusive) {
-            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
             return;
          }
 
          // select least child for replacement
          var leastChildIndex = childrenStartIndexInclusive;
-         for (var i = leastChildIndex + 1; i < childrenEndIndexExclusive; i++) {
+         for (var i = childrenStartIndexInclusive + 1; i < childrenEndIndexExclusive; i++) {
             if (itemComparer(items[i], items[leastChildIndex]) < 0) {
                leastChildIndex = i;
             }
@@ -82,12 +88,10 @@ namespace OpenMOBA.Utilities
 
          if (itemComparer(items[leastChildIndex], item) < 0) {
             // Our least child is smaller than item, move it up the heap and percolate further.
-            itemIndices[items[leastChildIndex]] = currentIndex;
             items[currentIndex] = items[leastChildIndex];
             PercolateDown(leastChildIndex, item);
          } else {
             // Our item is greater than its descendents, store.
-            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
          }
       }
@@ -97,22 +101,21 @@ namespace OpenMOBA.Utilities
 
          PercolateUp(Count, item);
          Count++;
+
+         Validate();
       }
 
       private void PercolateUp(int currentIndex, TItem item) {
          if (currentIndex == 0) {
-            itemIndices[item] = 0;
             items[0] = item;
             return;
          }
 
          var parentIndex = (currentIndex - 1) / kNodesPerLevel;
          if (itemComparer(item, items[parentIndex]) < 0) {
-            itemIndices[items[parentIndex]] = currentIndex;
             items[currentIndex] = items[parentIndex];
             PercolateUp(parentIndex, item);
          } else {
-            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
          }
       }
@@ -132,45 +135,29 @@ namespace OpenMOBA.Utilities
          }
       }
 
-      public bool Remove(TItem item) {
-         int itemIndex;
-         if (!itemIndices.TryGetValue(item, out itemIndex)) {
-            return false;
+      private void Validate() {
+         if (IsEmpty || kDisableValidation) return;
+
+         var s = new Stack<int>();
+         s.Push(0);
+
+         while (s.Any()) {
+            var current = s.Pop();
+            int childrenStartIndexInclusive, childrenEndIndexExclusive;
+            ComputeChildrenIndices(current, out childrenStartIndexInclusive, out childrenEndIndexExclusive);
+
+            for (int childIndex = childrenStartIndexInclusive; childIndex < childrenEndIndexExclusive; childIndex++) {
+               s.Push(childIndex);
+               if (itemComparer(items[current], items[childIndex]) > 0) {
+                  throw new InvalidOperationException("Priority Queue - Heap breaks invariant!");
+               }
+            }
          }
-         RemoveAtIndex(itemIndex);
-         return true;
-      }
-
-      private TItem RemoveAtIndex(int i) {
-         var result = items[i];
-         itemIndices.Remove(result);
-
-         Count--;
-         var tail = items[Count];
-         items[Count] = default(TItem);
-
-         PercolateDown(i, tail);
-         return result;
       }
 
       private void ComputeChildrenIndices(int currentIndex, out int childrenStartIndexInclusive, out int childrenEndIndexExclusive) {
          childrenStartIndexInclusive = Math.Min(Count, currentIndex * kNodesPerLevel + 1);
          childrenEndIndexExclusive = Math.Min(Count, currentIndex * kNodesPerLevel + kNodesPerLevel + 1);
-      }
-
-      private class ReferenceEqualityComparer<T> : IEqualityComparer<T>
-      {
-         public static IEqualityComparer<T> Instance { get; } = new ReferenceEqualityComparer<T>();
-
-         public bool Equals(T x, T y)
-         {
-            return ReferenceEquals(x, y);
-         }
-
-         public int GetHashCode(T obj)
-         {
-            return obj.GetHashCode();
-         }
       }
    }
 }

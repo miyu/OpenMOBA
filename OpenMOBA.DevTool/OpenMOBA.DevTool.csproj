@@ -8,6 +8,10 @@
       <PackageId>OpenMOBA.DevTool</PackageId>
    </PropertyGroup>
 
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'" />
+
    <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
       <Reference Include="System.Drawing" />
       <Reference Include="System.Windows.Forms" />
@@ -17,6 +21,11 @@
 
    <ItemGroup>
       <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+      <PackageReference Include="SharpDX" Version="3.1.1" />
+      <PackageReference Include="SharpDX.D3DCompiler" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Desktop" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Direct3D11" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Mathematics" Version="3.1.1" />
    </ItemGroup>
 
    <ItemGroup>
@@ -26,6 +35,12 @@
 
    <ItemGroup>
      <Folder Include="Properties\" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <None Update="Debugging\Canvas3D\Assets\shaders\default.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
    </ItemGroup>
 
 </Project>

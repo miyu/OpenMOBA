@@ -1,6 +1,6 @@
 ﻿using System;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Utilities;
 
 namespace OpenMOBA.Foundation {
    public interface IGameEventQueueService {

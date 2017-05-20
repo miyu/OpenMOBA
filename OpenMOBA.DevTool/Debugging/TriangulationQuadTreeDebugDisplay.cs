@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using OpenMOBA.Utilities;
+using OpenMOBA.DataStructures;
 
 namespace OpenMOBA.DevTool.Debugging {
    public static class TriangulationQuadTreeDebugDisplay {

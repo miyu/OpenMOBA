@@ -1,11 +1,11 @@
 ﻿using ClipperLib;
 using OpenMOBA.Geometry;
-using OpenMOBA.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using OpenMOBA.DataStructures;
 using Poly2Tri;
 //using Polygon = Poly2Tri.Polygon;
 
