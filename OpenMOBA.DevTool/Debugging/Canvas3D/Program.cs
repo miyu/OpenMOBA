@@ -280,6 +280,7 @@ namespace Shade {
                   //                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref lightProjViewWorld, light0ProjViewWorldConstantBuffer, 0);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetShaderResource(0, lightShaderResourceView);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetConstantBuffer(0, constantBuffer);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
                }
                {
@@ -294,6 +295,7 @@ namespace Shade {
 //                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref lightProjViewWorld, light0ProjViewWorldConstantBuffer, 0);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetShaderResource(0, lightShaderResourceView);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetConstantBuffer(0, constantBuffer);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
                }
 

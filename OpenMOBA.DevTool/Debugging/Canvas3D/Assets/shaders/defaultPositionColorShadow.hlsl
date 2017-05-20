@@ -1,10 +1,10 @@
 ﻿struct PSInput {
-   float4 position : SV_POSITION;
-   float4 lightPosition : TEXCOORD0;
+   float4 objectPosition : TEXCOORD1;
+   float4 transformedPosition : SV_Position;
    float4 color : COLOR;
 };
 
-cbuffer obj {
+cbuffer obj : register(b0) {
    float4x4 oprojViewWorld;
    float4x4 lprojViewWorld;
 }
@@ -17,43 +17,45 @@ SamplerState DiffuseSampler {
 };
 
 PSInput VSMain(float4 position : POSITION, float4 color : COLOR) {
-   PSInput result;
+    PSInput result;
 
-   result.position = mul(oprojViewWorld, position);
-   result.lightPosition = mul(lprojViewWorld, position);
-   result.color = color;
+    result.objectPosition = position;
+    result.transformedPosition = mul(oprojViewWorld, position);
+    result.color = color;
 
-   return result;
+    return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    //float4 lightPosition = input.lightPosition;
+    float4 lightPosition = mul(lprojViewWorld, input.objectPosition);
    //return input.color;
 //   float2 uv;
 //   uv.x = 0.5f;
 //   uv.y = 0.5f;
 //   return input.color * light1ShadowMap.Sample(DiffuseSampler, uv);
-   input.lightPosition.xyz /= input.lightPosition.w;
-   if (input.lightPosition.x < -1.0f || input.lightPosition.x > 1.0f ||
-      input.lightPosition.y < -1.0f || input.lightPosition.y > 1.0f ||
-      input.lightPosition.z < 0.0f || input.lightPosition.z > 1.0f) {
+   lightPosition.xyz /= lightPosition.w;
+   if (lightPosition.x < -1.0f || lightPosition.x > 1.0f ||
+      lightPosition.y < -1.0f || lightPosition.y > 1.0f ||
+      lightPosition.z < 0.0f || lightPosition.z > 1.0f) {
       return input.color / 5.0f;
    }
 
    // now in clip space (-1:1), ensure within unit circle
-   float r = input.lightPosition.x * input.lightPosition.x + input.lightPosition.y * input.lightPosition.y;
+   float r = lightPosition.x * lightPosition.x + lightPosition.y * lightPosition.y;
    if (r > 1) return input.color / 5.0f;
 
    //transform clip space coords to texture space coords (-1:1 to 0:1)
-   input.lightPosition.x = input.lightPosition.x / 2 + 0.5;
-   input.lightPosition.y = input.lightPosition.y / -2 + 0.5;
+   lightPosition.x = lightPosition.x / 2 + 0.5;
+   lightPosition.y = lightPosition.y / -2 + 0.5;
 
    //sample shadow map - point sampler
-   float shadowMapDepth = light1ShadowMap.Sample(DiffuseSampler, input.lightPosition.xy).r;
+   float shadowMapDepth = light1ShadowMap.Sample(DiffuseSampler, lightPosition.xy).r;
    shadowMapDepth += 0.0001; // depth bias
 
    //if clip space z value greater than shadow map value then pixel is in shadow
-   if (shadowMapDepth < input.lightPosition.z) return input.color / 5.0f;
+   if (shadowMapDepth < lightPosition.z) return input.color / 5.0f;
    // return input.lightPosition.z;
    return input.color;
 
