@@ -117,19 +117,19 @@ namespace Shade {
          var cubeBuffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, cubeVertices);
 
          var planeXYBuffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, new[] {
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 0.0f), Color.White), // Faces Z-
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 0.0f), Color.White), // Back
             new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
 
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 0.0f), Color.White), // Faces Z+
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 0.0f), Color.White), // Front
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 0.0f), Color.White),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 0.0f), Color.White)
          });
          var contantBuffer = new Buffer(graphicsDevice.InternalD3DDevice, Utilities.SizeOf<Matrix>(), ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
 
@@ -151,37 +151,25 @@ namespace Shade {
                var lookat = 0 * new Vector3(1, 1, 1) / 2;
                var up = new Vector3(0, 1, 0);
                // var view = Matrix.LookAtRH(position, lookat, up);
-               var view = Matrix.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
-               view.Transpose();
-               var proj = Matrix.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
-               proj.Transpose();
+               var view = MatrixCM.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
+               var proj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
 
                graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, contantBuffer);
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleList;
 
                var cubeWorld = Matrix.Identity;
-               var cubeProjViewWorld = proj * view; // * cubeWorld;
+               var cubeProjViewWorld = proj * view * cubeWorld;
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
                   0, new VertexBufferBinding(cubeBuffer, Direct3DVertexPositionColor.Size, 0));
                graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, contantBuffer, 0);
                graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
 
-               var origin = new Vector3(0, 0, 0);
-               var x = new Vector4(origin, 1.0f);
-               var pvw = cubeProjViewWorld;
-//               pvw.Transpose();
-               var transformed = Vector4.Transform(x, pvw);
-               transformed /= transformed.W;
-//               Console.WriteLine(transformed);
-//               var y = * cubeProjViewWorld;
-//               cubeProjViewWorld
-
-//               var planeWorld = Matrix.Scaling(2) * Matrix.Translation(0, 0, -1);
-//               var planeWorldViewProj = proj * view * planeWorld;
-//               graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref planeWorldViewProj, contantBuffer, 0);
-//               graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
-//                  0, new VertexBufferBinding(planeXYBuffer, Direct3DVertexPositionColor.Size, 0));
-//               graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
+               var planeWorld = MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.Scaling(2) * MatrixCM.RotationX((float)Math.PI / 2);
+               var planeProjViewWorld = proj * view * planeWorld;
+               graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref planeProjViewWorld, contantBuffer, 0);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
+                  0, new VertexBufferBinding(planeXYBuffer, Direct3DVertexPositionColor.Size, 0));
+               graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
 
                context.Present();
             }
