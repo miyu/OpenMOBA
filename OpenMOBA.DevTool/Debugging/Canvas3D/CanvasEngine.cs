@@ -80,7 +80,7 @@ namespace Shade {
          _immediateContext.OutputMerger.DepthStencilState = new DepthStencilState(_device, depthStencilStateDescription);
 
          var rasterizerStateDescription = new RasterizerStateDescription {
-            CullMode = CullMode.None,
+            CullMode = CullMode.Back,
             FillMode = FillMode.Solid,
 //            FillMode = FillMode.Wireframe,
             IsDepthClipEnabled = false
