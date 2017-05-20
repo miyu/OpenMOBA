@@ -67,12 +67,12 @@ namespace Shade {
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Lime),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Lime),
 
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Orange), // Top
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Orange),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Orange),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Orange),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Orange),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Orange),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Blue), // Top
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Blue),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Blue),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Blue),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Blue),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Blue),
 
             new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Yellow), // Bottom
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Yellow),
@@ -81,12 +81,12 @@ namespace Shade {
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, -1.0f), Color.Yellow),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Yellow),
 
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Pink), // Left
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 1.0f), Color.Pink),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Pink),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Pink),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Pink),
-            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Pink),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Magenta), // Left
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 1.0f), Color.Magenta),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Magenta),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Magenta),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Magenta),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Magenta),
 
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, -1.0f), Color.Cyan), // Right
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Cyan),
@@ -95,14 +95,23 @@ namespace Shade {
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Cyan),
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Cyan),
          };
-         for (var i = 0; i < cubeVertices.Length; i += 3) {
-//            var temp = cubeVertices[i + 1];
-//            cubeVertices[i + 1] = cubeVertices[i + 2];
-//            cubeVertices[i + 2] = temp;
 
-//            cubeVertices[i].Color = Color.White;
-//            cubeVertices[i + 1].Color = Color.White;
-//            cubeVertices[i + 2].Color = Color.White;
+         // Switch cube from LHS to RHS coordinate system. Flip clockness of verts, 
+         for (var i = 0; i < cubeVertices.Length; i += 3) {
+            // // Flip vert clockness
+            // var temp = cubeVertices[i + 1];
+            // cubeVertices[i + 1] = cubeVertices[i + 2];
+            // cubeVertices[i + 2] = temp;
+
+            // Flip Zs, which effectively flips clockness. Important because we have
+            // colored left/right which will be flipped if we just flip clockness as above.
+            cubeVertices[i].Position.Z *= -1.0f;
+            cubeVertices[i + 1].Position.Z *= -1.0f;
+            cubeVertices[i + 2].Position.Z *= -1.0f;
+            
+            // cubeVertices[i].Color = Color.White;
+            // cubeVertices[i + 1].Color = Color.White;
+            // cubeVertices[i + 2].Color = Color.White;
          }
 
          var cubeBuffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, cubeVertices);
@@ -137,15 +146,14 @@ namespace Shade {
                //               graphicsDevice.InternalD3DDevice.
 
                var time = (float)(DateTime.Now - start).TotalSeconds;
-               var position = new Vector3(0, 3f, -5);
-               var lookat = 0 * new Vector3(1, 1, 1) / 2;
-               var up = new Vector3(0, 0, 1);
-//               Console.WriteLine(Vector3.Transform(position, Matrix3x3.RotationY(time)));
-               //               var view = Matrix.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
+               var position = new Vector3(0, 2, 5);
 
-               var view = Matrix.LookAtLH(position, lookat, up);
+               var lookat = 0 * new Vector3(1, 1, 1) / 2;
+               var up = new Vector3(0, 1, 0);
+               // var view = Matrix.LookAtRH(position, lookat, up);
+               var view = Matrix.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
                view.Transpose();
-               var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
+               var proj = Matrix.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
                proj.Transpose();
 
                graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, contantBuffer);
@@ -164,7 +172,7 @@ namespace Shade {
 //               pvw.Transpose();
                var transformed = Vector4.Transform(x, pvw);
                transformed /= transformed.W;
-               Console.WriteLine(transformed);
+//               Console.WriteLine(transformed);
 //               var y = * cubeProjViewWorld;
 //               cubeProjViewWorld
 

@@ -81,8 +81,8 @@ namespace Shade {
 
          var rasterizerStateDescription = new RasterizerStateDescription {
             CullMode = CullMode.None,
-//            FillMode = FillMode.Solid,
-            FillMode = FillMode.Wireframe,
+            FillMode = FillMode.Solid,
+//            FillMode = FillMode.Wireframe,
             IsDepthClipEnabled = false
          };
          _immediateContext.Rasterizer.State = new RasterizerState(_device, rasterizerStateDescription);
