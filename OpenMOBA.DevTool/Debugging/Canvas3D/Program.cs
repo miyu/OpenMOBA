@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using OpenMOBA.DevTool.Debugging.Canvas3D;
@@ -51,48 +52,75 @@ namespace Shade {
          var graphicsDevice = Direct3DGraphicsDevice.Create(renderForm);
          var techniqueCollection = (ITechniqueCollection)DefaultTechniqueCollectionImpl.Create(graphicsDevice.AssetManager);
 
-         var cubeBuffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, new[] {
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, -1.0f), Color.Red), // Front
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, -1.0f), Color.Red),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, -1.0f), Color.Red),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, -1.0f), Color.Red),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, -1.0f), Color.Red),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, -1.0f), Color.Red),
+         var cubeVertices = new[] {
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Red), // Front
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Red),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Red),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Red),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Red),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, -1.0f), Color.Red),
 
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, 1.0f), Color.Lime), // BACK
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, 1.0f), Color.Lime),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, 1.0f), Color.Lime),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, 1.0f), Color.Lime),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, 1.0f), Color.Lime),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, 1.0f), Color.Lime),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 1.0f), Color.Lime), // BACK
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Lime),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Lime),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 1.0f), Color.Lime),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Lime),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Lime),
 
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, -1.0f), Color.Blue), // Top
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, 1.0f), Color.Blue),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, 1.0f), Color.Blue),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, -1.0f), Color.Blue),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, 1.0f), Color.Blue),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, -1.0f), Color.Blue),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Orange), // Top
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Orange),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Orange),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Orange),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Orange),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Orange),
 
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, -1.0f), Color.Yellow), // Bottom
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, 1.0f), Color.Yellow),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, 1.0f), Color.Yellow),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, -1.0f), Color.Yellow),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, -1.0f), Color.Yellow),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, 1.0f), Color.Yellow),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Yellow), // Bottom
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Yellow),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 1.0f), Color.Yellow),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Yellow),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, -1.0f), Color.Yellow),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Yellow),
 
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, -1.0f), Color.Magenta), // Left
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, 1.0f), Color.Magenta),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, 1.0f), Color.Magenta),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, -1.0f, -1.0f), Color.Magenta),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, 1.0f), Color.Magenta),
-            new Direct3DVertexPositionColor(new Vector3(-1.0f, 1.0f, -1.0f), Color.Magenta),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Pink), // Left
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 1.0f), Color.Pink),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Pink),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), Color.Pink),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 1.0f), Color.Pink),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, -1.0f), Color.Pink),
 
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, -1.0f), Color.Cyan), // Right
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, 1.0f), Color.Cyan),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, 1.0f), Color.Cyan),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, -1.0f, -1.0f), Color.Cyan),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, -1.0f), Color.Cyan),
-            new Direct3DVertexPositionColor(new Vector3(1.0f, 1.0f, 1.0f), Color.Cyan),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, -1.0f), Color.Cyan), // Right
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Cyan),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 1.0f), Color.Cyan),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, -1.0f), Color.Cyan),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, -1.0f), Color.Cyan),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 1.0f), Color.Cyan),
+         };
+         for (var i = 0; i < cubeVertices.Length; i += 3) {
+//            var temp = cubeVertices[i + 1];
+//            cubeVertices[i + 1] = cubeVertices[i + 2];
+//            cubeVertices[i + 2] = temp;
+
+//            cubeVertices[i].Color = Color.White;
+//            cubeVertices[i + 1].Color = Color.White;
+//            cubeVertices[i + 2].Color = Color.White;
+         }
+
+         var cubeBuffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, cubeVertices);
+
+         var planeXYBuffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, new[] {
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 0.0f), Color.White), // Faces Z-
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
+
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, 1.0f, 0.0f), Color.White), // Faces Z+
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(-1.0f, -1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 0.0f), Color.White),
+            new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, 1.0f, 0.0f), Color.White),
          });
          var contantBuffer = new Buffer(graphicsDevice.InternalD3DDevice, Utilities.SizeOf<Matrix>(), ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
 
@@ -108,19 +136,45 @@ namespace Shade {
                techniqueCollection.DefaultPositionedColored.BeginPass(context, 0);
                //               graphicsDevice.InternalD3DDevice.
 
-               var view = Matrix.LookAtLH(new Vector3(0, 0, -5), new Vector3(0, 0, 0), Vector3.UnitY);
-               var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
-               var viewProj = Matrix.Multiply(view, proj);
                var time = (float)(DateTime.Now - start).TotalSeconds;
-               var worldViewProj = Matrix.RotationX(time) * Matrix.RotationY(time * 2) * Matrix.RotationZ(time * .7f) * viewProj;
-               worldViewProj.Transpose();
+               var position = new Vector3(0, 3f, -5);
+               var lookat = 0 * new Vector3(1, 1, 1) / 2;
+               var up = new Vector3(0, 0, 1);
+//               Console.WriteLine(Vector3.Transform(position, Matrix3x3.RotationY(time)));
+               //               var view = Matrix.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
+
+               var view = Matrix.LookAtLH(position, lookat, up);
+//               view.Transpose();
+               var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
+//               proj.Transpose();
+
+               graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, contantBuffer);
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleList;
+
+               var cubeWorld = Matrix.Identity;
+               var cubeProjViewWorld = view * proj; // * cubeWorld;
+               cubeProjViewWorld.Transpose();
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
                   0, new VertexBufferBinding(cubeBuffer, Direct3DVertexPositionColor.Size, 0));
-               graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, contantBuffer);
-               graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref worldViewProj, contantBuffer);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, contantBuffer, 0);
                graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
 
+               var origin = new Vector3(0, 0, 0);
+               var x = new Vector4(origin, 1.0f);
+               var pvw = cubeProjViewWorld;
+//               pvw.Transpose();
+               var transformed = Vector4.Transform(x, pvw);
+               transformed /= transformed.W;
+               Console.WriteLine(transformed);
+//               var y = * cubeProjViewWorld;
+//               cubeProjViewWorld
+
+//               var planeWorld = Matrix.Scaling(2) * Matrix.Translation(0, 0, -1);
+//               var planeWorldViewProj = proj * view * planeWorld;
+//               graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref planeWorldViewProj, contantBuffer, 0);
+//               graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
+//                  0, new VertexBufferBinding(planeXYBuffer, Direct3DVertexPositionColor.Size, 0));
+//               graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
 
                context.Present();
             }

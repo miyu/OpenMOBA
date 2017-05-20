@@ -8,6 +8,7 @@ using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
+using SharpDX.Mathematics.Interop;
 using SharpDX.Windows;
 using Size = System.Drawing.Size;
 using Buffer = SharpDX.Direct3D11.Buffer;
@@ -46,7 +47,7 @@ namespace Shade {
       private bool _isResizeTriggered;
 
       // Camera Projection State, subsystem-like stuff
-      private Matrix _proj;
+//      private Matrix _proj;
 
       private Direct3DGraphicsDevice(RenderForm form, Direct3DDevice device, SwapChain swapChain, DeviceContext immediateContext) {
          _form = form;
@@ -66,6 +67,25 @@ namespace Shade {
          // On first frame, must alloc backbuffers and renderview. Same after form resize.
          _isResizeTriggered = true;
          _form.UserResized += (s, e) => _isResizeTriggered = true;
+
+         // z-near is positive
+         var depthStencilStateDescription = new DepthStencilStateDescription {
+            IsDepthEnabled = true,
+            DepthComparison = Comparison.Less,
+            DepthWriteMask = DepthWriteMask.All,
+            IsStencilEnabled = false,
+            StencilReadMask = 0xff,
+            StencilWriteMask = 0xff
+         };
+         _immediateContext.OutputMerger.DepthStencilState = new DepthStencilState(_device, depthStencilStateDescription);
+
+         var rasterizerStateDescription = new RasterizerStateDescription {
+            CullMode = CullMode.None,
+//            FillMode = FillMode.Solid,
+            FillMode = FillMode.Wireframe,
+            IsDepthClipEnabled = false
+         };
+         _immediateContext.Rasterizer.State = new RasterizerState(_device, rasterizerStateDescription);
       }
 
       public void DoEvents() {
@@ -75,7 +95,7 @@ namespace Shade {
             _isResizeTriggered = false;
 
             // Setup new projection matrix with correct aspect ratio
-            _proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, _renderSize.Width / (float)_renderSize.Height, 0.1f, 100.0f);
+//            _proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, _renderSize.Width / (float)_renderSize.Height, 0.1f, 100.0f);
          }
       }
 
@@ -106,7 +126,7 @@ namespace Shade {
          _renderView = new RenderTargetView(_device, _backBuffer);
          _depthBuffer = new Texture2D(_device, CreateBackBufferDescription(renderSize));
          _depthView = new DepthStencilView(_device, _depthBuffer);
-         
+
          _immediateContext.Rasterizer.SetViewport(new Viewport(0, 0, renderSize.Width, renderSize.Height, 0.0f, 1.0f));
          _immediateContext.OutputMerger.SetTargets(_depthView, _renderView);
       }
@@ -198,13 +218,17 @@ namespace Shade {
             var inputLayout = new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[]
             {
                new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-               new InputElement("COLOR", 0, Format.B8G8R8A8_UNorm, 12, 0)
+               new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0)
             });
             return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
          }
 
          private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {
-            var compilationResult = ShaderBytecode.CompileFromFile(path, entryPoint, profile);
+            // D3D expects row-major matrices but defaults to sending column-major matrices to GPU, so it'll do
+            // a transpose. This tells it to keep the row-major-ness. This is because our code actually works
+            // in column-major, so the extra transpose is the opposite of what we want.
+            var shaderFlags = ShaderFlags.PackMatrixRowMajor;
+            var compilationResult = ShaderBytecode.CompileFromFile(path, entryPoint, profile, shaderFlags);
             if (compilationResult.Bytecode == null || compilationResult.HasErrors) {
                throw new ShaderCompilationException(compilationResult.ResultCode.Code, compilationResult.Message);
             }

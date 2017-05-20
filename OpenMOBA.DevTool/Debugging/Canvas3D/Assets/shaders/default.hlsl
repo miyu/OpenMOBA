@@ -3,13 +3,12 @@
    float4 color : COLOR;
 };
 
-float4x4 worldViewProj;
+float4x4 projViewWorld;
 
 PSInput VSMain(float4 position : POSITION, float4 color : COLOR) {
    PSInput result;
 
-   // result.position = position;
-   result.position = mul(position, worldViewProj);
+   result.position = mul(projViewWorld, position);
    result.color = color;
 
    return result;
