@@ -18,20 +18,30 @@ namespace Shade {
    }
 
    public interface ITechniqueCollection {
-      ITechnique DefaultPositionedColored { get; }
+      ITechnique DefaultPositionColor { get; }
+      ITechnique DefaultPositionColorTexture { get; }
+      ITechnique DefaultPositionColorShadow { get; }
    }
    public class DefaultTechniqueCollectionImpl : ITechniqueCollection {
-      public ITechnique DefaultPositionedColored { get; private set; }
+      public ITechnique DefaultPositionColor { get; private set; }
+      public ITechnique DefaultPositionColorTexture { get; private set; }
+      public ITechnique DefaultPositionColorShadow { get; private set; }
 
       public static DefaultTechniqueCollectionImpl Create(IAssetManager assetManager) {
-         var defaultPixelShader = assetManager.LoadPixelShaderFromFile("shaders/default", "PSMain");
-         var defaultVertexShader = assetManager.LoadVertexShaderFromFile("shaders/default", "VSMain");
-         return new DefaultTechniqueCollectionImpl {
-            DefaultPositionedColored = new Technique {
-               PixelShader = defaultPixelShader,
-               VertexShader = defaultVertexShader
-            }
+         var collection = new DefaultTechniqueCollectionImpl();
+         collection.DefaultPositionColor = new Technique {
+            PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColor", "PSMain"),
+            VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColor", InputLayoutType.PositionColor, "VSMain")
          };
+         collection.DefaultPositionColorShadow = new Technique {
+            PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorShadow", "PSMain"),
+            VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorShadow", InputLayoutType.PositionColor, "VSMain")
+         };
+         collection.DefaultPositionColorTexture = new Technique {
+            PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTexture", "PSMain"),
+            VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTexture", InputLayoutType.PositionColorTexture, "VSMain")
+         };
+         return collection;
       }
 
       private class Technique : ITechnique {
@@ -133,22 +143,62 @@ namespace Shade {
             new Direct3DVertexPositionColor(0.5f * new Vector3(1.0f, -1.0f, 0.0f), Color.White)
          });
 
-         var contantBuffer = new Buffer(graphicsDevice.InternalD3DDevice, Utilities.SizeOf<Matrix>(), ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
+         var quad1x1Buffer = Buffer.Create(graphicsDevice.InternalD3DDevice, BindFlags.VertexBuffer, new[] {
+            new Direct3DVertexPositionColorTexture(new Vector3(0, 1.0f, 0.0f), Color.White, new Vector2(0, 1)), // Back
+            new Direct3DVertexPositionColorTexture(new Vector3(0, 0, 0.0f), Color.White, new Vector2(0, 0)),
+            new Direct3DVertexPositionColorTexture(new Vector3(1.0f, 1.0f, 0.0f), Color.White, new Vector2(1, 1)),
+            new Direct3DVertexPositionColorTexture(new Vector3(0, 0, 0.0f), Color.White, new Vector2(0, 0)),
+            new Direct3DVertexPositionColorTexture(new Vector3(1.0f, 0, 0.0f), Color.White, new Vector2(1, 0)),
+            new Direct3DVertexPositionColorTexture(new Vector3(1.0f, 1.0f, 0.0f), Color.White, new Vector2(1, 1)),
+
+            new Direct3DVertexPositionColorTexture(new Vector3(0, 1.0f, 0.0f), Color.White, new Vector2(0, 1)), // Front
+            new Direct3DVertexPositionColorTexture(new Vector3(1.0f, 1.0f, 0.0f), Color.White, new Vector2(1, 1)),
+            new Direct3DVertexPositionColorTexture(new Vector3(0, 0, 0.0f), Color.White, new Vector2(0, 0)),
+            new Direct3DVertexPositionColorTexture(new Vector3(0, 0, 0.0f), Color.White, new Vector2(0, 0)),
+            new Direct3DVertexPositionColorTexture(new Vector3(1.0f, 1.0f, 0.0f), Color.White, new Vector2(1, 1)),
+            new Direct3DVertexPositionColorTexture(new Vector3(1.0f, 0, 0.0f), Color.White, new Vector2(1, 0))
+         });
+
+         var constantBuffer = new Buffer(
+            graphicsDevice.InternalD3DDevice, 
+            2 * Utilities.SizeOf<Matrix>(),
+            ResourceUsage.Default, 
+            BindFlags.ConstantBuffer, 
+            CpuAccessFlags.None, 
+            ResourceOptionFlags.None,
+            0);
+//         var light0ProjViewWorldConstantBuffer = new Buffer(graphicsDevice.InternalD3DDevice, Utilities.SizeOf<Matrix>(), ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
          var shadowMapResolution = new Size(1024, 1024);
          var lightDepthBuffer = new Texture2D(graphicsDevice.InternalD3DDevice,
             new Texture2DDescription {
-               Format = Format.D24_UNorm_S8_UInt,
+               Format = Format.R32_Typeless,
                ArraySize = 1,
                MipLevels = 1,
                Width = shadowMapResolution.Width,
                Height = shadowMapResolution.Height,
                SampleDescription = new SampleDescription(1, 0),
                Usage = ResourceUsage.Default,
-               BindFlags = BindFlags.DepthStencil,
+               BindFlags = BindFlags.DepthStencil | BindFlags.ShaderResource,
                CpuAccessFlags = CpuAccessFlags.None,
                OptionFlags = ResourceOptionFlags.None
             });
-         var lightDepthStencilView = new DepthStencilView(graphicsDevice.InternalD3DDevice, lightDepthBuffer);
+         var lightDepthStencilView = new DepthStencilView(graphicsDevice.InternalD3DDevice, lightDepthBuffer, 
+            new DepthStencilViewDescription {
+               Format = Format.D32_Float,
+               Dimension = DepthStencilViewDimension.Texture2D,
+               Texture2D = {
+                  MipSlice = 0
+               }
+            });
+         var lightShaderResourceView = new ShaderResourceView(graphicsDevice.InternalD3DDevice, lightDepthBuffer,
+            new ShaderResourceViewDescription{
+               Format = Format.R32_Float,
+               Dimension = ShaderResourceViewDimension.Texture2D,
+               Texture2D = {
+                  MipLevels = 1,
+                  MostDetailedMip = 0
+               }
+            });
          renderForm.Show();
          var start = DateTime.Now;
          using (var renderLoop = new RenderLoop(renderForm)) {
@@ -156,58 +206,113 @@ namespace Shade {
                graphicsDevice.DoEvents();
 
                var context = graphicsDevice.RenderContext;
+
+               //----------------------------------------------------------------------------------
+               // Render as Light
+               //----------------------------------------------------------------------------------
+               var lightPosition = new Vector3(3, 3, 3);
+               var lightLookat = new Vector3(0, 0, 0);
+               var lightUp = new Vector3(0, 0, 1);
+
+               var lightView = MatrixCM.LookAtRH(lightPosition, lightLookat, lightUp);
+               var lightProj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1.0f, 0.1f, 100.0f);
+               var lightProjView = lightProj * lightView;
+
+               DepthStencilView oldDsv;
+               var oldRtvs = graphicsDevice.InternalD3DDevice.ImmediateContext.OutputMerger.GetRenderTargets(2, out oldDsv);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.ClearDepthStencilView(lightDepthStencilView, DepthStencilClearFlags.Depth, 1.0f, 0);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.OutputMerger.SetTargets(lightDepthStencilView);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.Rasterizer.SetViewport(new Viewport(0, 0, shadowMapResolution.Width, shadowMapResolution.Height, 0.0f, 1.0f));
+               techniqueCollection.DefaultPositionColorTexture.BeginPass(graphicsDevice.RenderContext, 0);
+               {
+                  var cubeWorld = Matrix.Identity;
+                  var cubeProjViewWorld = lightProjView * cubeWorld;
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
+                     0, new VertexBufferBinding(cubeBuffer, Direct3DVertexPositionColor.Size, 0));
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, constantBuffer, 0);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
+                  //                  graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(1, null);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UnmapSubresource(constantBuffer, 1);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
+               }
+               {
+                  var planeWorld = MatrixCM.Translation(0, -1f, 0) * MatrixCM.Scaling(4) * MatrixCM.RotationX((float)Math.PI / 2);
+                  var planeProjViewWorld = lightProjView * planeWorld;
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
+                     0, new VertexBufferBinding(planeXYBuffer, Direct3DVertexPositionColor.Size, 0));
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref planeProjViewWorld, constantBuffer, 0);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
+                  //                  graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(1, null);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UnmapSubresource(constantBuffer, 1);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
+               }
+
+               graphicsDevice.InternalD3DDevice.ImmediateContext.OutputMerger.SetTargets(oldDsv, oldRtvs);
+
+               //----------------------------------------------------------------------------------
+               // Render as Camera
+               //----------------------------------------------------------------------------------
                context.ClearTargetAndDepthBuffers(Color.Black);
-
-               techniqueCollection.DefaultPositionedColored.BeginPass(context, 0);
-               //               graphicsDevice.InternalD3DDevice.
-
+               
                var time = (float)(DateTime.Now - start).TotalSeconds;
-               var position = new Vector3(0, 2, 5);
+               var position = new Vector3(0, 4, 8);
 
                var lookat = 0 * new Vector3(1, 1, 1) / 2;
                var up = new Vector3(0, 1, 0);
 
                var view = MatrixCM.LookAtRH(Vector3.Transform(position, Matrix3x3.RotationY(time)), lookat, up);
                var proj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
+               var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
 
-               graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, contantBuffer);
+//               graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(1, light0ProjViewWorldConstantBuffer);
                graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleList;
+               graphicsDevice.InternalD3DDevice.ImmediateContext.Rasterizer.SetViewport(new Viewport(0, 0, 1280, 720, 0.0f, 1.0f));
+               techniqueCollection.DefaultPositionColorShadow.BeginPass(context, 0);
                {
                   var cubeWorld = Matrix.Identity;
                   var cubeProjViewWorld = proj * view * cubeWorld;
+                  var lightProjViewWorld = lightProjView * cubeWorld;
                   graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
                      0, new VertexBufferBinding(cubeBuffer, Direct3DVertexPositionColor.Size, 0));
-                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, contantBuffer, 0);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(new[] { cubeProjViewWorld, lightProjViewWorld }, constantBuffer, 0);
+//                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, constantBuffer, 0);
+//                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref lightProjViewWorld, constantBuffer, 1);
+                  //                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref lightProjViewWorld, light0ProjViewWorldConstantBuffer, 0);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetShaderResource(0, lightShaderResourceView);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
                }
                {
                   var planeWorld = MatrixCM.Translation(0, -1f, 0) * MatrixCM.Scaling(4) * MatrixCM.RotationX((float)Math.PI / 2);
                   var planeProjViewWorld = proj * view * planeWorld;
-                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref planeProjViewWorld, contantBuffer, 0);
+                  var lightProjViewWorld = lightProjView * planeWorld;
                   graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
                      0, new VertexBufferBinding(planeXYBuffer, Direct3DVertexPositionColor.Size, 0));
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(new[] { planeProjViewWorld, lightProjViewWorld }, constantBuffer, 0);
+//                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref planeProjViewWorld, constantBuffer, 0);
+//                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref lightProjViewWorld, constantBuffer, 1);
+//                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref lightProjViewWorld, light0ProjViewWorldConstantBuffer, 0);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetShaderResource(0, lightShaderResourceView);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
                }
-               var lightPosition = new Vector3(0, 10, 0);
-               var lightLookat = new Vector3(0, 0, 0);
-               var lightUp = new Vector3(1, 0, 0);
 
-               var lightView = MatrixCM.LookAtRH(lightPosition, lightLookat, lightUp);
-               var lightProj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
-
-               DepthStencilView oldDsv;
-               var oldRtvs = graphicsDevice.InternalD3DDevice.ImmediateContext.OutputMerger.GetRenderTargets(2, out oldDsv);
-               graphicsDevice.InternalD3DDevice.ImmediateContext.OutputMerger.SetTargets(lightDepthStencilView);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(0, constantBuffer);
+//               graphicsDevice.InternalD3DDevice.ImmediateContext.VertexShader.SetConstantBuffer(1, light0ProjViewWorldConstantBuffer);
+               graphicsDevice.InternalD3DDevice.ImmediateContext.Rasterizer.SetViewport(new Viewport(0, 0, 1280, 720, 0.0f, 1.0f));
+               techniqueCollection.DefaultPositionColorTexture.BeginPass(context, 0);
                {
-                  var cubeWorld = Matrix.Identity;
-                  var cubeProjViewWorld = lightProj * lightView * cubeWorld;
+                  var quadWorld = MatrixCM.Scaling(256, 256, 0);
+                  var quadProjViewWorld = orthoProj * quadWorld;
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref quadProjViewWorld, constantBuffer, 0);
+//                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref quadProjViewWorld, light0ProjViewWorldConstantBuffer, 1);
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.PixelShader.SetShaderResource(0, lightShaderResourceView);
                   graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
-                     0, new VertexBufferBinding(cubeBuffer, Direct3DVertexPositionColor.Size, 0));
-                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref cubeProjViewWorld, contantBuffer, 0);
-                  graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
+                     0, new VertexBufferBinding(quad1x1Buffer, Direct3DVertexPositionColorTexture.Size, 0));
+                  graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(12, 0);
+                  //quad1x1Buffer
                }
 
-               graphicsDevice.InternalD3DDevice.ImmediateContext.OutputMerger.SetTargets(oldDsv, oldRtvs);
                context.Present();
             }
          }

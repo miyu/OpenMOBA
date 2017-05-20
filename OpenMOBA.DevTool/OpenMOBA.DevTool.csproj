@@ -38,7 +38,13 @@
    </ItemGroup>
 
    <ItemGroup>
-     <None Update="Debugging\Canvas3D\Assets\shaders\default.hlsl">
+     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorShadow.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorTexture.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColor.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
    </ItemGroup>

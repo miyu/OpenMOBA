@@ -211,16 +211,27 @@ namespace Shade {
             return new PixelShaderBox { Shader = shader };
          }
 
-         public IVertexShader LoadVertexShaderFromFile(string relativePath, string entryPoint = null) {
+         public IVertexShader LoadVertexShaderFromFile(string relativePath, InputLayoutType inputLayoutType, string entryPoint = null) {
             var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_4_0");
             var shader = new VertexShader(_graphicsDevice.InternalD3DDevice, bytecode);
             var signature = ShaderSignature.GetInputSignature(bytecode);
-            var inputLayout = new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[]
-            {
-               new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-               new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0)
-            });
+            var inputLayout = CreateInputLayout(inputLayoutType, signature);
             return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
+         }
+
+         private InputLayout CreateInputLayout(InputLayoutType inputLayoutType, ShaderSignature signature) {
+            if (inputLayoutType == InputLayoutType.PositionColor) {
+               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
+                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0)
+               });
+            } else {
+               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
+                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0),
+                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0)
+               });
+            }
          }
 
          private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {

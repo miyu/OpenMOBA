@@ -20,8 +20,26 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          return matrix;
       }
 
+      public static Matrix OrthoRH(float width, float height, float znear, float zfar) {
+         var matrix = Matrix.OrthoRH(width, height, znear, zfar);
+         matrix.Transpose();
+         return matrix;
+      }
+
+      public static Matrix OrthoOffCenterRH(float left, float right, float bottom, float top, float znear, float zfar) {
+         var matrix = Matrix.OrthoOffCenterRH(left, right, bottom, top, znear, zfar);
+         matrix.Transpose();
+         return matrix;
+      }
+
       public static Matrix Scaling(float scale) {
          var matrix = Matrix.Scaling(scale);
+         matrix.Transpose();
+         return matrix;
+      }
+
+      public static Matrix Scaling(float x, float y, float z) {
+         var matrix = Matrix.Scaling(x, y, z);
          matrix.Transpose();
          return matrix;
       }
