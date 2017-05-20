@@ -26,4 +26,24 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          Color = color;
       }
    }
+
+   [StructLayout(LayoutKind.Sequential)]
+   public struct Direct3DVertexPositionColorTexture {
+      [VertexElement("POSITION")]
+      public Vector3 Position;
+
+      [VertexElement("COLOR")]
+      public Color Color;
+
+      [VertexElement("UV")]
+      public Vector2 UV;
+
+      public const int Size = 24;
+
+      public Direct3DVertexPositionColorTexture(Vector3 position, Color color, Vector2 uv) {
+         Position = position;
+         Color = color;
+         UV = uv;
+      }
+   }
 }
