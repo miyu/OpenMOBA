@@ -25,6 +25,15 @@ PSInput VSMain(float4 position : POSITION, float4 color : COLOR, float2 uv : TEX
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-   float val = diffuseMap.Sample(DiffuseSampler, input.uv);
-   return val;
+    uint w, h;
+    diffuseMap.GetDimensions(w, h);
+    
+    float dx = float2(1.0f / w, 0.0f);
+    float dy = float2(0.0f, 1.0f / h);
+    float center = diffuseMap.Sample(DiffuseSampler, input.uv);
+    float left = diffuseMap.Sample(DiffuseSampler, input.uv + dx);
+    float right = diffuseMap.Sample(DiffuseSampler, input.uv - dx);
+    float top = diffuseMap.Sample(DiffuseSampler, input.uv - dy);
+    float bottom = diffuseMap.Sample(DiffuseSampler, input.uv + dy);
+    return abs(4 * center - left - right - top - bottom) > 1.0E-5f;
 }

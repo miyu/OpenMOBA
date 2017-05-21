@@ -201,6 +201,7 @@ namespace Shade {
             });
          renderForm.Show();
          var start = DateTime.Now;
+         var random = new Random();
          using (var renderLoop = new RenderLoop(renderForm)) {
             while (renderLoop.NextFrame() || true) {
                graphicsDevice.DoEvents();
@@ -210,9 +211,14 @@ namespace Shade {
                //----------------------------------------------------------------------------------
                // Render as Light
                //----------------------------------------------------------------------------------
-               var lightPosition = new Vector3(3, 3, 3);
+               var dt = (float)(DateTime.Now - start).TotalSeconds;
+               var lightPositionR = 2.0f + 1.0f * (float)Math.Sin(dt / 2);
+               var lightPositionTheta = dt / 7.0f;
+               var lightPositionY = 3.0f + (float)Math.Sin(dt / 3.0);
+               var lightPosition = new Vector3(lightPositionR, lightPositionY, 0);
+               lightPosition = Vector3.Transform(lightPosition, Matrix3x3.RotationY(lightPositionTheta));
                var lightLookat = new Vector3(0, 0, 0);
-               var lightUp = new Vector3(0, 0, 1);
+               var lightUp = new Vector3(0, 1, 0);
 
                var lightView = MatrixCM.LookAtRH(lightPosition, lightLookat, lightUp);
                var lightProj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1.0f, 0.1f, 100.0f);
@@ -254,7 +260,7 @@ namespace Shade {
                //----------------------------------------------------------------------------------
                context.ClearTargetAndDepthBuffers(Color.Black);
                
-               var time = (float)(DateTime.Now - start).TotalSeconds;
+               var time = (float)(DateTime.Now - start).TotalSeconds * 0;
                var position = new Vector3(0, 4, 8);
 
                var lookat = 0 * new Vector3(1, 1, 1) / 2;
@@ -284,7 +290,7 @@ namespace Shade {
                   graphicsDevice.InternalD3DDevice.ImmediateContext.Draw(36, 0);
                }
                {
-                  var planeWorld = MatrixCM.Translation(0, -1f, 0) * MatrixCM.Scaling(4) * MatrixCM.RotationX((float)Math.PI / 2);
+                  var planeWorld = MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.Scaling(4) * MatrixCM.RotationX((float)Math.PI / 2);
                   var planeProjViewWorld = proj * view * planeWorld;
                   var lightProjViewWorld = lightProjView * planeWorld;
                   graphicsDevice.InternalD3DDevice.ImmediateContext.InputAssembler.SetVertexBuffers(
@@ -304,7 +310,7 @@ namespace Shade {
                graphicsDevice.InternalD3DDevice.ImmediateContext.Rasterizer.SetViewport(new Viewport(0, 0, 1280, 720, 0.0f, 1.0f));
                techniqueCollection.DefaultPositionColorTexture.BeginPass(context, 0);
                {
-                  var quadWorld = MatrixCM.Scaling(256, 256, 0);
+                  var quadWorld = MatrixCM.Scaling(512, 512, 0);
                   var quadProjViewWorld = orthoProj * quadWorld;
                   graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref quadProjViewWorld, constantBuffer, 0);
 //                  graphicsDevice.InternalD3DDevice.ImmediateContext.UpdateSubresource(ref quadProjViewWorld, light0ProjViewWorldConstantBuffer, 1);
