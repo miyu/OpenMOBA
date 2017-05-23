@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Numerics;
 using System.Windows.Forms;
 using OpenMOBA.DevTool.Debugging.Canvas3D;
@@ -206,13 +208,13 @@ namespace Shade {
          public string BasePath => @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\Debugging\Canvas3D\Assets";
 
          public IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null) {
-            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_4_0");
+            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_0");
             var shader = new PixelShader(_graphicsDevice.InternalD3DDevice, bytecode);
             return new PixelShaderBox { Shader = shader };
          }
 
          public IVertexShader LoadVertexShaderFromFile(string relativePath, InputLayoutType inputLayoutType, string entryPoint = null) {
-            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_4_0");
+            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_0");
             var shader = new VertexShader(_graphicsDevice.InternalD3DDevice, bytecode);
             var signature = ShaderSignature.GetInputSignature(bytecode);
             var inputLayout = CreateInputLayout(inputLayoutType, signature);
@@ -239,11 +241,44 @@ namespace Shade {
             // a transpose. This tells it to keep the row-major-ness. This is because our code actually works
             // in column-major, so the extra transpose is the opposite of what we want.
             var shaderFlags = ShaderFlags.PackMatrixRowMajor;
-            var compilationResult = ShaderBytecode.CompileFromFile(path, entryPoint, profile, shaderFlags);
-            if (compilationResult.Bytecode == null || compilationResult.HasErrors) {
-               throw new ShaderCompilationException(compilationResult.ResultCode.Code, compilationResult.Message);
+            using (var include = new IncludeImpl(path)) {
+               var compilationResult = ShaderBytecode.CompileFromFile(path, entryPoint, profile, shaderFlags, include: include);
+               if (compilationResult.Bytecode == null || compilationResult.HasErrors) {
+                  throw new ShaderCompilationException(compilationResult.ResultCode.Code, compilationResult.Message);
+               }
+               return compilationResult.Bytecode;
             }
-            return compilationResult.Bytecode;
+         }
+
+         private class IncludeImpl : Include {
+            private readonly string _firstShaderPath;
+
+            public IncludeImpl(string firstShaderPath) {
+               _firstShaderPath = firstShaderPath;
+            }
+
+            public IDisposable Shadow { get; set; }
+
+            public void Dispose() {
+               Shadow?.Dispose();
+            }
+
+            public Stream Open(IncludeType type, string fileName, Stream parentStream) {
+               Trace.Assert(type == IncludeType.Local);
+               var sourcerPath = parentStream is FileStream ? ((FileStream)parentStream).Name : _firstShaderPath;
+               var resolvedPath = Path.Combine(new FileInfo(sourcerPath).DirectoryName, fileName);
+               if (!File.Exists(resolvedPath)) {
+                  Console.WriteLine("Shader resolution failed");
+                  Console.WriteLine($"FileName: {fileName}");
+                  Console.WriteLine($"Sourcer: {sourcerPath}");
+                  Console.WriteLine($"Resolved: {resolvedPath}");
+               }
+               return File.OpenRead(resolvedPath);
+            }
+
+            public void Close(Stream stream) {
+               stream.Dispose();
+            }
          }
       }
 

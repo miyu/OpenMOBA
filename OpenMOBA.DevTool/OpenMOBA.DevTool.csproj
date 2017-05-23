@@ -41,6 +41,9 @@
      <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorShadow.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
+     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorTextureDerivative.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
      <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorTexture.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
