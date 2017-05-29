@@ -1,29 +1,9 @@
-#define REG_SHADOW_MAPS t10
-#define REG_SHADOW_MAPS_ENTRIES t11
+#include "Registers.hlsl"
 
-struct AtlasLocation
-{
-    float3 position;
-    float2 size;
-};
-
-struct ShadowMapEntry
-{
-    AtlasLocation location;
-    float4x4 projView;
-    float4 color;
-};
-
-struct ShadowMapSampleResult
-{
-    bool isIlluminated;
-};
-
-SamplerState DiffuseSampler
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Wrap;
-    AddressV = Wrap;
+SamplerState DiffuseSampler {
+   Filter = MIN_MAG_MIP_LINEAR;
+   AddressU = Wrap;
+   AddressV = Wrap;
 };
 
 ShadowMapSampleResult TestShadowMap(float4 objectWorld, Texture2DArray shadowMap, ShadowMapEntry entry)
@@ -56,7 +36,7 @@ ShadowMapSampleResult TestShadowMap(float4 objectWorld, Texture2DArray shadowMap
     //transform from texture coords to where it is in atlas
     float3 sampleLocation = entry.location.position + float3(lightPosition.xy * entry.location.size, 0);
     float shadowMapDepth = shadowMap.Sample(DiffuseSampler, sampleLocation).r;
-    shadowMapDepth += 0.0001; // depth bias
+    shadowMapDepth += 0.00001; // depth bias
 
     //if clip space z value greater than shadow map value then pixel is in shadow
     if (shadowMapDepth < lightPosition.z)

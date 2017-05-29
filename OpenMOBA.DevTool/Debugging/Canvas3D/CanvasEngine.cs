@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Numerics;
+using System.Linq;
 using System.Windows.Forms;
 using OpenMOBA.DevTool.Debugging.Canvas3D;
 using OpenMOBA.Foundation;
@@ -19,132 +20,149 @@ using Resource = SharpDX.Direct3D11.Resource;
 
 namespace Shade {
    public interface IGraphicsDevice {
-      IRenderContext RenderContext { get; }
+      IImmediateRenderContext ImmediateContext { get; }
+      IAssetManager AssetManager { get; }
+      ITechniqueCollection TechniqueCollection { get; }
+      IMeshPresets MeshPresets { get; }
+
       void DoEvents();
+      IDeferredRenderContext CreateDeferredRenderContext();
    }
 
    public interface IRenderContext {
-      void ClearTargetAndDepthBuffers(Color color);
-      void Present();
+      void SetDepthConfiguration(DepthConfiguration config);
+      void SetRasterizerConfiguration(RasterizerConfiguration config);
+
+      void GetRenderTargets(out IDepthStencilView depthStencilView, out IRenderTargetView renderTargetView);
+      void SetRenderTargets(IDepthStencilView depthStencilView, IRenderTargetView renderTargetView);
+
+      void ClearRenderTarget(Color color);
+      void ClearDepthBuffer(float depth);
+
+      void SetViewportRect(RectangleF rectangle);
 
       void SetPixelShader(IPixelShader shader);
       void SetVertexShader(IVertexShader shader);
+
+      void SetPrimitiveTopology(PrimitiveTopology topology);
+      void SetVertexBuffer(IVertexBuffer vertexBuffer);
+      void Draw(int vertices, int offset);
    }
 
-   public class Direct3DGraphicsDevice : IGraphicsDevice, IRenderContext, IDisposable {
+   public interface IImmediateRenderContext : IRenderContext {
+      void Present();
+   }
+
+   public interface IDeferredRenderContext : IRenderContext {
+   }
+
+   public class Direct3DGraphicsDevice : IGraphicsDevice, IDisposable {
       private const int BackBufferCount = 2;
 
       // Lifetime Resources
       private readonly RenderForm _form; // don't dispose
       private readonly Direct3DDevice _device;
       private readonly SwapChain _swapChain;
-      private readonly DeviceContext _immediateContext;
 
       // Swap Chain + Resizing
       private Size _renderSize;
-      private Texture2D _backBuffer;
-      private RenderTargetView _renderView;
-      private Texture2D _depthBuffer;
-      private DepthStencilView _depthView;
+      private Texture2D _backBufferRenderTargetTexture;
+      private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox();
+      private Texture2D _backBufferDepthTexture;
+      private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox();
       private bool _isResizeTriggered;
 
-      // Camera Projection State, subsystem-like stuff
-//      private Matrix _proj;
+      // Subsystems
+      private readonly RenderStates _renderStates;
+      private readonly ImmediateRenderContext _immediateContext;
+      private readonly Direct3DAssetManager _assetManager;
+      private readonly Direct3DTechniqueCollection _techniqueCollection;
+      private readonly Direct3DMeshPresets _meshPresets;
 
-      private Direct3DGraphicsDevice(RenderForm form, Direct3DDevice device, SwapChain swapChain, DeviceContext immediateContext) {
+      private Direct3DGraphicsDevice(RenderForm form, Direct3DDevice device, SwapChain swapChain, DeviceContext deviceImmediateContext) {
          _form = form;
          _device = device;
          _swapChain = swapChain;
-         _immediateContext = immediateContext;
 
          // code smell: init subsystems
-         AssetManager = new Direct3DAssetManager(this);
+         _renderStates = new RenderStates(_device);
+         _immediateContext = new ImmediateRenderContext(_device.ImmediateContext, _renderStates, _swapChain);
+         _assetManager = new Direct3DAssetManager(this);
+         _techniqueCollection = Direct3DTechniqueCollection.Create(AssetManager);
+         _meshPresets = Direct3DMeshPresets.Create(this, TechniqueCollection);
       }
 
       internal Direct3DDevice InternalD3DDevice => _device;
-      public IRenderContext RenderContext => this;
-      public IAssetManager AssetManager { get; }
+      public IImmediateRenderContext ImmediateContext => _immediateContext;
+      public IAssetManager AssetManager => _assetManager;
+      public ITechniqueCollection TechniqueCollection => _techniqueCollection;
+      public IMeshPresets MeshPresets => _meshPresets;
 
       private void Initialize() {
          // On first frame, must alloc backbuffers and renderview. Same after form resize.
          _isResizeTriggered = true;
          _form.UserResized += (s, e) => _isResizeTriggered = true;
-
-         // z-near is positive
-         var depthStencilStateDescription = new DepthStencilStateDescription {
-            IsDepthEnabled = true,
-            DepthComparison = Comparison.Less,
-            DepthWriteMask = DepthWriteMask.All,
-            IsStencilEnabled = false,
-            StencilReadMask = 0xff,
-            StencilWriteMask = 0xff
-         };
-         _immediateContext.OutputMerger.DepthStencilState = new DepthStencilState(_device, depthStencilStateDescription);
-
-         var rasterizerStateDescription = new RasterizerStateDescription {
-            CullMode = CullMode.Back,
-            FillMode = FillMode.Solid,
-//            FillMode = FillMode.Wireframe,
-            IsDepthClipEnabled = false
-         };
-         _immediateContext.Rasterizer.State = new RasterizerState(_device, rasterizerStateDescription);
+         
+         _immediateContext.SetDepthConfiguration(DepthConfiguration.Enabled);
+         _immediateContext.SetRasterizerConfiguration(RasterizerConfiguration.Fill);
       }
 
       public void DoEvents() {
          if (_isResizeTriggered) {
             _renderSize = _form.ClientSize;
-            SetResizeBackBufferSize(_renderSize);
+            ResizeBackBuffer(_renderSize);
             _isResizeTriggered = false;
-
-            // Setup new projection matrix with correct aspect ratio
-//            _proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, _renderSize.Width / (float)_renderSize.Height, 0.1f, 100.0f);
          }
       }
 
-      void IRenderContext.ClearTargetAndDepthBuffers(Color color) {
-         _immediateContext.ClearDepthStencilView(_depthView, DepthStencilClearFlags.Depth, 1.0f, 0);
-         _immediateContext.ClearRenderTargetView(_renderView, color);
+      public IDeferredRenderContext CreateDeferredRenderContext() {
+         return new DeferredRenderContext(new DeviceContext(_device), _renderStates);
       }
 
-      void IRenderContext.Present() {
-         _swapChain.Present(1, PresentFlags.None);
+      public IVertexBuffer CreateVertexBuffer(VertexPositionColor[] vertices) {
+         foreach (var v in vertices) {
+            Console.WriteLine($"{v.Position} {v.Color}");
+         }
+         var buffer = Buffer.Create(_device, BindFlags.VertexBuffer, vertices);
+         return new VertexBufferBox { Buffer = buffer, Stride = VertexPositionColor.Size };
       }
 
-      void IRenderContext.SetPixelShader(IPixelShader shader) {
-         _immediateContext.PixelShader.Set(((PixelShaderBox)shader).Shader);
+      public IVertexBuffer CreateVertexBuffer(VertexPositionColorTexture[] vertices) {
+         var buffer = Buffer.Create(_device, BindFlags.VertexBuffer, vertices);
+         return new VertexBufferBox { Buffer = buffer, Stride = VertexPositionColorTexture.Size };
       }
 
-      void IRenderContext.SetVertexShader(IVertexShader shader) {
-         var box = (VertexShaderBox)shader;
-         _immediateContext.VertexShader.Set(box.Shader);
-         _immediateContext.InputAssembler.InputLayout = box.InputLayout;
-      }
+      private void ResizeBackBuffer(Size renderSize) {
+         DisposeBackBuffersAndViews();
 
-      private void SetResizeBackBufferSize(Size renderSize) {
-         DisposeSwapChainBuffersAndViews();
+         bool isFirstInitialize = _backBufferRenderTargetView.RenderTargetView == null;
 
          _swapChain.ResizeBuffers(BackBufferCount, renderSize.Width, renderSize.Height, Format.Unknown, SwapChainFlags.None);
-         _backBuffer = Resource.FromSwapChain<Texture2D>(_swapChain, 0);
-         _renderView = new RenderTargetView(_device, _backBuffer);
-         _depthBuffer = new Texture2D(_device, CreateBackBufferDescription(renderSize));
-         _depthView = new DepthStencilView(_device, _depthBuffer);
-
-         _immediateContext.Rasterizer.SetViewport(new Viewport(0, 0, renderSize.Width, renderSize.Height, 0.0f, 1.0f));
-         _immediateContext.OutputMerger.SetTargets(_depthView, _renderView);
+         _backBufferRenderTargetTexture = Resource.FromSwapChain<Texture2D>(_swapChain, 0);
+         _backBufferRenderTargetView.RenderTargetView = new RenderTargetView(_device, _backBufferRenderTargetTexture);
+         _backBufferDepthTexture = new Texture2D(_device, CreateBackBufferDescription(renderSize));
+         _backBufferDepthView.DepthStencilView = new DepthStencilView(_device, _backBufferDepthTexture);
+         
+         if (isFirstInitialize) {
+            _immediateContext.SetRenderTargets(_backBufferDepthView, _backBufferRenderTargetView);
+         } else {
+            _immediateContext.HandleBackBufferResized(_backBufferRenderTargetView, _backBufferDepthView);
+         }
       }
 
-      private void DisposeSwapChainBuffersAndViews() {
-         Utilities.Dispose(ref _backBuffer);
-         Utilities.Dispose(ref _renderView);
-         Utilities.Dispose(ref _depthBuffer);
-         Utilities.Dispose(ref _depthView);
+      private void DisposeBackBuffersAndViews() {
+         Utilities.Dispose(ref _backBufferRenderTargetTexture);
+         Utilities.Dispose(ref _backBufferRenderTargetView.RenderTargetView);
+         Utilities.Dispose(ref _backBufferDepthTexture);
+         Utilities.Dispose(ref _backBufferDepthView.DepthStencilView);
       }
 
       public void Dispose() {
-         DisposeSwapChainBuffersAndViews();
+         DisposeBackBuffersAndViews();
 
          _device?.Dispose();
          _swapChain?.Dispose();
+         _renderStates?.Dispose();
          _immediateContext?.Dispose();
       }
 
@@ -283,12 +301,331 @@ namespace Shade {
       }
 
       private class PixelShaderBox : IPixelShader {
-         public PixelShader Shader { get; set; }
+         public PixelShader Shader;
       }
 
       private class VertexShaderBox : IVertexShader {
-         public VertexShader Shader { get; set; }
-         public InputLayout InputLayout { get; set; }
+         public VertexShader Shader;
+         public InputLayout InputLayout;
+      }
+
+      internal class DepthStencilViewBox : IDepthStencilView {
+         public DepthStencilView DepthStencilView;
+      }
+
+      private class RenderTargetViewBox : IRenderTargetView {
+         public RenderTargetView RenderTargetView;
+      }
+
+      internal class VertexBufferBox : IVertexBuffer {
+         public Buffer Buffer;
+         public int Stride;
+      }
+
+      public class BaseRenderContext : IRenderContext, IDisposable {
+         protected DeviceContext _deviceContext;
+         protected RenderStates _renderStates;
+
+         protected DepthConfiguration _currentDepthConfiguration;
+         protected RasterizerConfiguration _currentRasterizerConfiguration;
+         protected IDepthStencilView _currentDepthStencilView;
+         protected IRenderTargetView _currentRenderTargetView;
+         protected RectangleF _currentViewportRect;
+         protected IVertexBuffer _currentVertexBuffer;
+
+         public BaseRenderContext(DeviceContext deviceContext, RenderStates renderStates) {
+            _deviceContext = deviceContext;
+            _renderStates = renderStates;
+         }
+
+         public void SetDepthConfiguration(DepthConfiguration config) {
+            if (config != _currentDepthConfiguration) {
+               _currentDepthConfiguration = config;
+
+               Console.WriteLine("Set Depth Configuration: " + config);
+
+               switch (config) {
+                  case DepthConfiguration.Enabled:
+                     _deviceContext.OutputMerger.DepthStencilState = _renderStates.DepthEnable;
+                     break;
+                  default:
+                     throw new ArgumentException($"Unknown Depth Configuration '{config}'");
+               }
+            }
+         }
+
+         public void SetRasterizerConfiguration(RasterizerConfiguration config) {
+            if (config != _currentRasterizerConfiguration) {
+               _currentRasterizerConfiguration = config;
+
+               Console.WriteLine("Set Rasterizer Configuration: " + config);
+
+               switch (config) {
+                  case RasterizerConfiguration.Fill:
+                     _deviceContext.Rasterizer.State = _renderStates.RasterizerFill;
+                     break;
+                  default:
+                     throw new ArgumentException($"Unknown Rasterizer Configuration '{config}'");
+               }
+            }
+         }
+
+         public void GetRenderTargets(out IDepthStencilView dsv, out IRenderTargetView rtv) {
+            dsv = _currentDepthStencilView;
+            rtv = _currentRenderTargetView;
+         }
+
+         public void SetRenderTargets(IDepthStencilView dsvBox, IRenderTargetView rtvBox) {
+            if (_currentDepthStencilView == dsvBox && _currentRenderTargetView == rtvBox) {
+               return;
+            }
+
+            _currentDepthStencilView = dsvBox;
+            _currentRenderTargetView = rtvBox;
+
+            UpdateRenderTargetsInternal();
+         }
+
+         protected void UpdateRenderTargetsInternal() {
+            var depthStencilView = ((DepthStencilViewBox)_currentDepthStencilView)?.DepthStencilView;
+            var renderTargetView = ((RenderTargetViewBox)_currentRenderTargetView)?.RenderTargetView;
+            _deviceContext.OutputMerger.SetRenderTargets(depthStencilView, renderTargetView);
+         }
+
+         public void ClearRenderTarget(Color color) {
+            var renderTargetView = ((RenderTargetViewBox)_currentRenderTargetView).RenderTargetView;
+            _deviceContext.ClearRenderTargetView(renderTargetView, color);
+         }
+
+         public void ClearDepthBuffer(float depth) {
+            var depthStencilView = ((DepthStencilViewBox)_currentDepthStencilView).DepthStencilView;
+            _deviceContext.ClearDepthStencilView(depthStencilView, DepthStencilClearFlags.Depth, depth, 0);
+         }
+
+         public void SetViewportRect(RectangleF rectangle) {
+            if (_currentViewportRect != rectangle) {
+               _currentViewportRect = rectangle;
+
+               _deviceContext.Rasterizer.SetViewport(new ViewportF(rectangle));
+            }
+         }
+
+         public void SetPixelShader(IPixelShader shader) {
+            _deviceContext.PixelShader.Set(((PixelShaderBox)shader).Shader);
+         }
+
+         public void SetVertexShader(IVertexShader shader) {
+            var box = (VertexShaderBox)shader;
+            _deviceContext.VertexShader.Set(box.Shader);
+            _deviceContext.InputAssembler.InputLayout = box.InputLayout;
+         }
+
+         public void SetPrimitiveTopology(PrimitiveTopology topology) {
+            _deviceContext.InputAssembler.PrimitiveTopology = topology;
+         }
+
+         public void SetVertexBuffer(IVertexBuffer vbBox) {
+            _currentVertexBuffer = vbBox;
+
+            var vertexBufferBox = (VertexBufferBox)vbBox;
+            _deviceContext.InputAssembler.SetVertexBuffers(
+               0,
+               new VertexBufferBinding(
+                  vertexBufferBox.Buffer,
+                  vertexBufferBox.Stride,
+                  0));
+         }
+
+         public void Draw(int vertices, int offset) {
+            _deviceContext.Draw(vertices, offset);
+         }
+
+         public void Dispose() {
+            Utilities.Dispose(ref _deviceContext);
+         }
+      }
+
+      private class ImmediateRenderContext : BaseRenderContext, IImmediateRenderContext {
+         private readonly SwapChain _swapChain;
+
+         public ImmediateRenderContext(DeviceContext deviceContext, RenderStates renderStates, SwapChain swapChain) : base(deviceContext, renderStates) {
+            _swapChain = swapChain;
+         }
+
+         public void HandleBackBufferResized(RenderTargetViewBox backBufferRenderTargetView, DepthStencilViewBox backBufferDepthView) {
+            if (_currentRenderTargetView == backBufferRenderTargetView || _currentDepthStencilView == backBufferDepthView) {
+               UpdateRenderTargetsInternal();
+            }
+         }
+
+         public void Present() {
+            _swapChain.Present(1, PresentFlags.None);
+         }
+      }
+
+      public class DeferredRenderContext : BaseRenderContext, IDeferredRenderContext {
+         public DeferredRenderContext(DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) { }
+      }
+
+      public class RenderStates : IDisposable {
+         private DepthStencilState _depthEnable;
+         private RasterizerState _rasterizerFill;
+
+         public RenderStates(Direct3DDevice device) {
+            _depthEnable = new DepthStencilState(device, DepthStencilDesc);
+            _rasterizerFill = new RasterizerState(device, RasterizerDesc);
+         }
+
+         public DepthStencilState DepthEnable => _depthEnable;
+         public RasterizerState RasterizerFill => _rasterizerFill;
+
+         public void Dispose() {
+            Utilities.Dispose(ref _depthEnable);
+            Utilities.Dispose(ref _rasterizerFill);
+         }
+
+         private static DepthStencilStateDescription DepthStencilDesc => new DepthStencilStateDescription {
+            IsDepthEnabled = true,
+            DepthComparison = Comparison.Less,
+            DepthWriteMask = DepthWriteMask.All,
+            IsStencilEnabled = false,
+            StencilReadMask = 0xff,
+            StencilWriteMask = 0xff
+         };
+
+         private static RasterizerStateDescription RasterizerDesc => new RasterizerStateDescription {
+            CullMode = CullMode.Back,
+            FillMode = FillMode.Solid,
+            IsDepthClipEnabled = false
+         };
+      }
+
+      public class Direct3DTechniqueCollection : ITechniqueCollection {
+         private Direct3DTechniqueCollection() { }
+
+         public ITechnique DefaultPositionColor { get; private set; }
+         public ITechnique DefaultPositionColorShadow { get; private set; }
+         public ITechnique DefaultPositionColorTexture { get; private set; }
+         public ITechnique DefaultPositionColorTextureShadow { get; private set; }
+         public ITechnique DefaultPositionColorTextureDerivative { get; private set; }
+
+         public static Direct3DTechniqueCollection Create(IAssetManager assetManager) {
+            var collection = new Direct3DTechniqueCollection();
+            collection.DefaultPositionColor = new Technique {
+               Passes = 1,
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColor", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColor", InputLayoutType.PositionColor, "VSMain")
+            };
+            collection.DefaultPositionColorShadow = new Technique {
+               Passes = 1,
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorShadow", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorShadow", InputLayoutType.PositionColor, "VSMain")
+            };
+            collection.DefaultPositionColorTexture = new Technique {
+               Passes = 1,
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTexture", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTexture", InputLayoutType.PositionColorTexture, "VSMain")
+            };
+            collection.DefaultPositionColorTextureShadow = new Technique {
+               Passes = 1,
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTextureShadow", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTextureShadow", InputLayoutType.PositionColorTexture, "VSMain")
+            };
+            collection.DefaultPositionColorTextureDerivative = new Technique {
+               Passes = 1,
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTextureDerivative", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTextureDerivative", InputLayoutType.PositionColorTexture, "VSMain")
+            };
+            return collection;
+         }
+
+         private class Technique : ITechnique {
+            public IPixelShader PixelShader { get; set; }
+            public IVertexShader VertexShader { get; set; }
+
+            public int Passes { get; set; }
+
+            public void BeginPass(IRenderContext renderContext, int pass) {
+               if (pass != 0) {
+                  throw new ArgumentOutOfRangeException();
+               }
+
+               renderContext.SetPixelShader(PixelShader);
+               renderContext.SetVertexShader(VertexShader);
+            }
+         }
+      }
+
+      internal class Direct3DMesh : IMesh {
+         public IVertexBuffer VertexBuffer;
+         public int Vertices;
+         public int VertexBufferOffset;
+
+         public ITechnique DefaultRenderTechnique { get; internal set; }
+         public ITechnique DefaultDepthOnlyRenderTechnique { get; internal set; }
+
+         public void Draw(IRenderContext renderContext) {
+            renderContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
+            renderContext.SetVertexBuffer(VertexBuffer);
+            renderContext.Draw(Vertices, VertexBufferOffset);
+         }
+      }
+
+      private class Direct3DMeshPresets : IMeshPresets {
+         private Direct3DMeshPresets() { }
+
+         public IMesh UnitCube { get; set; }
+         public IMesh UnitCubeColor { get; set; }
+         public IMesh UnitPlaneXY { get; set; }
+
+         public static Direct3DMeshPresets Create(Direct3DGraphicsDevice device, ITechniqueCollection techniqueCollection) {
+            var presets = new Direct3DMeshPresets();
+
+            presets.UnitCube = new Direct3DMesh {
+               VertexBuffer = device.CreateVertexBuffer(
+                  ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.ColoredCubeVertices)),
+               Vertices = HardcodedMeshPresets.ColoredCubeVertices.Length,
+               VertexBufferOffset = 0,
+               DefaultRenderTechnique = techniqueCollection.DefaultPositionColorTextureShadow,
+               DefaultDepthOnlyRenderTechnique = techniqueCollection.DefaultPositionColorTexture
+            };
+
+            presets.UnitCubeColor = new Direct3DMesh {
+               VertexBuffer = device.CreateVertexBuffer(
+                  ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.ColoredCubeVertices)
+                  .Select(v => new VertexPositionColor(v.Position, v.Color)).ToArray()
+               ),
+               Vertices = HardcodedMeshPresets.ColoredCubeVertices.Length,
+               VertexBufferOffset = 0,
+               DefaultRenderTechnique = techniqueCollection.DefaultPositionColorShadow,
+               DefaultDepthOnlyRenderTechnique = techniqueCollection.DefaultPositionColor
+            };
+
+            presets.UnitPlaneXY = new Direct3DMesh {
+               VertexBuffer = device.CreateVertexBuffer(
+                  ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.PlaneXYVertices)),
+               Vertices = HardcodedMeshPresets.PlaneXYVertices.Length,
+               VertexBufferOffset = 0,
+               DefaultRenderTechnique = techniqueCollection.DefaultPositionColorTextureShadow,
+               DefaultDepthOnlyRenderTechnique = techniqueCollection.DefaultPositionColorTexture
+            };
+
+            return presets;
+         }
+
+         private static VertexPositionColorTexture[] ConvertLeftHandToRightHandTriangleList(VertexPositionColorTexture[] vertices) {
+            var results = new VertexPositionColorTexture[vertices.Length];
+            for (var i = 0; i < vertices.Length; i++) {
+               results[i] = new VertexPositionColorTexture(
+                  new Vector3(
+                     vertices[i].Position.X,
+                     vertices[i].Position.Y,
+                     -vertices[i].Position.Z), 
+                  vertices[i].Color,
+                  vertices[i].UV);
+            }
+            return results;
+         }
       }
    }
 
