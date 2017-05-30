@@ -10,9 +10,10 @@ struct AtlasLocation {
 };
 
 struct ShadowMapEntry {
-   AtlasLocation location;
-   float4x4 projView;
-   float4 color;
+    AtlasLocation location;
+    float4x4 projView;
+    float4 color;
+    float power;
 };
 
 struct ShadowMapSampleResult {

@@ -48,8 +48,8 @@ namespace Shade {
                   );
                }
 
-               renderer.AddSpotlight(new Vector3(5, 4, 3), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.White);
-               renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.White);
+               renderer.AddSpotlight(new Vector3(5, 4, 3), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.White, 5.0f);
+               renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.Red, 5.0f);
                renderer.RenderScene();
             }
          }

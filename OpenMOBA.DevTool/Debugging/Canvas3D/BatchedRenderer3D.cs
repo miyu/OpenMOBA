@@ -182,12 +182,12 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          infos.Add(info);
       }
 
-      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color) {
+      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float power) {
          var proj = MatrixCM.PerspectiveFovRH(theta, 1.0f, 0.1f, 100.0f);
 
          var up = Vector3.Up; // todo: handle degenerate
          var view = MatrixCM.LookAtRH(position, lookat, up);
-         AddSpotlight(new SpotlightInfo { ProjViewCM = proj * view, Color = color });
+         AddSpotlight(new SpotlightInfo { ProjViewCM = proj * view, Color = color, Power = power });
       }
 
       public void AddSpotlight(SpotlightInfo info) {
@@ -328,8 +328,9 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
       public struct SpotlightInfo {
          public Matrix ProjViewCM;
          public Color4 Color;
+         public float Power;
 
-         public const int Size = 4 * 4 * 4 + 4 * 4;
+         public const int Size = 4 * 4 * 4 + 4 * 4 + 4;
       }
    }
 }
