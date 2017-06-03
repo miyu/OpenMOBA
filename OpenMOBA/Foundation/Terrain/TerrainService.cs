@@ -14,6 +14,7 @@ namespace OpenMOBA.Foundation.Terrain {
 
    public class TerrainSnapshot {
       public int Version { get; set; }
+      public IReadOnlyList<CrossoverSnapshot> CrossoverSnapshots { get; set; }
       public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
       public IReadOnlyList<TerrainHole> TemporaryHoles { get; set; }
    }
@@ -23,11 +24,24 @@ namespace OpenMOBA.Foundation.Terrain {
       public List<Polygon> StaticHolePolygons { get; set; }
    }
 
+   public class Crossover {
+      public Sector A { get; set; }
+      public Sector B { get; set; }
+      public IntLineSegment3 Segment { get; set; }
+   }
+
+   public class CrossoverSnapshot {
+      public SectorSnapshot A { get; set; }
+      public SectorSnapshot B { get; set; }
+      public IntLineSegment3 Segment { get; set; }
+   }
+
    public class SectorSnapshot {
       public Sector Sector { get; set; }
       public Rectangle AbsoluteBounds { get; set; }
       public List<Polygon> StaticHolePolygons { get; set; }
       public IReadOnlyList<TerrainHole> TemporaryHoles { get; set; }
+      public Dictionary<SectorSnapshot, List<CrossoverSnapshot>> Crossovers { get; set; } = new Dictionary<SectorSnapshot, List<CrossoverSnapshot>>();
 
       private readonly Dictionary<double, PolyTree> dilatedHolesUnionCache = new Dictionary<double, PolyTree>();
       private readonly Dictionary<double, PolyTree> punchedLandCache = new Dictionary<double, PolyTree>();
@@ -151,7 +165,8 @@ namespace OpenMOBA.Foundation.Terrain {
    }
 
    public class TerrainService {
-      private readonly HashSet<Sector> sectors = new HashSet<Sector>(); 
+      private readonly HashSet<Sector> sectors = new HashSet<Sector>();
+      private readonly HashSet<Crossover> hackComputedSectorCrossovers = new HashSet<Crossover>();
       private readonly HashSet<TerrainHole> temporaryHoles = new HashSet<TerrainHole>();
       private readonly GameTimeService gameTimeService;
       private int version;
@@ -190,25 +205,56 @@ namespace OpenMOBA.Foundation.Terrain {
             return cachedSnapshot;
          }
 
-         return cachedSnapshot = new TerrainSnapshot {
-            Version = version,
-            SectorSnapshots = BuildSectorSnapshots(),
-            TemporaryHoles = temporaryHoles.ToList(),
-         };
-      }
-
-      private IReadOnlyList<SectorSnapshot> BuildSectorSnapshots() {
-         var sectorSnapshots = new List<SectorSnapshot>();
+         var sectorToSnapshot = new Dictionary<Sector, SectorSnapshot>();
          var temporaryHolesSnapshot = temporaryHoles.ToList();
          foreach (var sector in sectors) {
-            sectorSnapshots.Add(new SectorSnapshot {
+            var snapshot = new SectorSnapshot {
                Sector = sector,
                AbsoluteBounds = sector.AbsoluteBounds,
                StaticHolePolygons = sector.StaticHolePolygons,
                TemporaryHoles = temporaryHolesSnapshot
-            });
+            };
+            sectorToSnapshot.Add(sector, snapshot);
          }
-         return sectorSnapshots;
+
+         var crossoverToSnapshot = new Dictionary<Crossover, CrossoverSnapshot>();
+         foreach (var crossover in hackComputedSectorCrossovers) {
+            var snapshot = new CrossoverSnapshot {
+               A = sectorToSnapshot[crossover.A],
+               B = sectorToSnapshot[crossover.B],
+               Segment = crossover.Segment
+            };
+
+            List<CrossoverSnapshot> aToBCrossovers;
+            if (!snapshot.A.Crossovers.TryGetValue(snapshot.B, out aToBCrossovers)) {
+               aToBCrossovers = new List<CrossoverSnapshot>();
+               snapshot.A.Crossovers[snapshot.B] = aToBCrossovers;
+            }
+            aToBCrossovers.Add(snapshot);
+
+            List<CrossoverSnapshot> bToACrossovers;
+            if (!snapshot.B.Crossovers.TryGetValue(snapshot.A, out bToACrossovers)) {
+               bToACrossovers = new List<CrossoverSnapshot>();
+               snapshot.B.Crossovers[snapshot.A] = bToACrossovers;
+            }
+            bToACrossovers.Add(snapshot);
+
+            crossoverToSnapshot[crossover] = snapshot;
+         }
+
+         return cachedSnapshot = new TerrainSnapshot {
+            Version = version,
+            CrossoverSnapshots = crossoverToSnapshot.Values.ToList(),
+            SectorSnapshots = sectorToSnapshot.Values.ToList(),
+            TemporaryHoles = temporaryHoles.ToList(),
+         };
+      }
+
+      // this should be computed automagically at sector snapshot build
+      public void HackAddSectorCrossover(Crossover crossover) {
+         if (hackComputedSectorCrossovers.Add(crossover)) {
+            version++;
+         }
       }
    }
 

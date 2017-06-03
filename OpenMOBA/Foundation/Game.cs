@@ -160,9 +160,44 @@ namespace OpenMOBA.Foundation {
          TerrainService.AddSector(connector12A);
          TerrainService.AddSector(connector12B);
 
+         TerrainService.HackAddSectorCrossover(new Crossover {
+            A = sector1,
+            B = connector12A,
+            Segment = new IntLineSegment3(new IntVector3(900, 180, 0), new IntVector3(900, 360, 0))
+         });
+
+         TerrainService.HackAddSectorCrossover(new Crossover {
+            A = sector1,
+            B = connector12A,
+            Segment = new IntLineSegment3(new IntVector3(900, 540, 0), new IntVector3(900, 720, 0))
+         });
+
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
             var poly = Polygon.CreateRectXY(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200), 0);
+            var startTicks = r.Next(0, 500);
+            var endTicks = r.Next(startTicks + 20, startTicks + 100);
+            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+         }
+         
+         r.NextBytes(new byte[1337]);
+         for (int i = 0; i < 20; i++) {
+            var w = r.Next(50, 100);
+            var h = r.Next(50, 100);
+            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w), r.Next(180 - 40, 360 + 40 - h), w, h, 0);
+            var startTicks = r.Next(0, 500);
+            var endTicks = r.Next(startTicks + 20, startTicks + 100);
+            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+         }
+         
+         for (int i = 0; i < 20; i++) {
+            var w = r.Next(50, 100);
+            var h = r.Next(50, 100);
+            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w), r.Next(520 - 40, 720 + 40 - h), w, h, 0);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new TerrainHole { Polygons = new[] { poly } };

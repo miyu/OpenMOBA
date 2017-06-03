@@ -25,7 +25,8 @@ namespace OpenMOBA.DevTool.Debugging {
          var paddedSize = new Size(canvasSize.Width + 2 * canvasPadding.X, canvasSize.Height + 2 * canvasPadding.Y);
          var displaySize = new Size((int)(paddedSize.Width * scale), (int)(paddedSize.Height * scale));
          form = new Form {
-            ClientSize = new Size(displaySize.Width, displaySize.Height + 40)
+            ClientSize = new Size(displaySize.Width, displaySize.Height + 40),
+            StartPosition = FormStartPosition.CenterScreen
          };
          pb = new PictureBox {
             Location = Point.Empty,

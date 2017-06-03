@@ -44,7 +44,7 @@ namespace OpenMOBA.DevTool {
          if (GameTimeService.Ticks == 0) {
 //            AddSquiggleHole();
          }
-         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 4 == 0) {
+         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 64 == 0) {
             RenderDebugFrame();
          }
       }
@@ -76,9 +76,9 @@ namespace OpenMOBA.DevTool {
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;
 
-         foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
-            var visibilityGraph = sectorSnapshot.ComputeVisibilityGraph(holeDilationRadius);
-            debugCanvas.BatchDraw(() => {
+         debugCanvas.BatchDraw(() => {
+            foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
+               var visibilityGraph = sectorSnapshot.ComputeVisibilityGraph(holeDilationRadius);
                //            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
                //            return;
                debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
@@ -91,10 +91,17 @@ namespace OpenMOBA.DevTool {
 
                //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
                //            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
-//               DrawEntities(debugCanvas, sectorSnapshot);
-//               DrawEntityPaths(debugCanvas);
-            });
-         }
+               //               DrawEntities(debugCanvas, sectorSnapshot);
+               //               DrawEntityPaths(debugCanvas);
+            }
+
+            foreach (var crossoverSnapshot in terrainSnapshot.CrossoverSnapshots) {
+               debugCanvas.DrawLine(
+                  crossoverSnapshot.Segment.First.ToDoubleVector3(),
+                  crossoverSnapshot.Segment.Second.ToDoubleVector3(),
+                  new StrokeStyle(Color.Gray, 3));
+            }
+         });
       }
 
       private void DrawEntityPaths(IDebugCanvas debugCanvas) {
@@ -163,7 +170,7 @@ namespace OpenMOBA.DevTool {
 
       public static void AttachToWithSoftwareRendering(Game game) {
          var rotation = 80 * Math.PI / 180.0;
-         var displaySize = new Size(1200, 700);
+         var displaySize = new Size(1200 * 3 / 2, 700 * 3 / 2);
          var projector = new PerspectiveProjector(
             new DoubleVector3(950, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation),
             new DoubleVector3(950, 500, 0),
