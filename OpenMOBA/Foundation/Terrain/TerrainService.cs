@@ -1,4 +1,5 @@
-﻿using OpenMOBA.Foundation.Visibility;
+﻿using System;
+using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using System.Collections.Generic;
 using System.Drawing;
@@ -70,9 +71,31 @@ namespace OpenMOBA.Foundation.Terrain {
                (int)(AbsoluteBounds.Width - 2 * holeDilationRadius),
                (int)(AbsoluteBounds.Height - 2 * holeDilationRadius),
                0);
+
+            var crossoverLandPolys = new List<Polygon>();
+            foreach (var kvp in Crossovers) {
+               var crossoverDilationFactor = (int)Math.Ceiling(holeDilationRadius + 1);
+               foreach (var crossover in kvp.Value) {
+                  var segment = crossover.Segment;
+                  var a = segment.First;
+                  var b = segment.Second;
+                  var aToB = a.To(b);
+                  var aToBMag = aToB.Norm2F();
+                  if (aToB.XY == IntVector2.Zero || aToBMag <= 2 * holeDilationRadius) continue;
+
+                  var shrink = 2 * ((aToB * crossoverDilationFactor).ToDoubleVector3() / aToB.Norm2F()).LossyToIntVector3();
+                  var crossoverPolyTree = PolylineOperations.ExtrudePolygon(new[] {
+                     crossover.Segment.First + shrink,
+                     crossover.Segment.Second - shrink
+                  }, (int)Math.Ceiling(holeDilationRadius + 1));
+                  crossoverLandPolys.AddRange(crossoverPolyTree.FlattenToPolygons());
+               }
+            }
+
             var dilatedHolesUnion = ComputeDilatedHolesUnion(holeDilationRadius);
             punchedLand = PolygonOperations.Punch()
                                            .Include(landPoly)
+                                           .Include(crossoverLandPolys)
                                            .Exclude(dilatedHolesUnion.FlattenToPolygons())
                                            .Execute();
             punchedLandCache[holeDilationRadius] = punchedLand;

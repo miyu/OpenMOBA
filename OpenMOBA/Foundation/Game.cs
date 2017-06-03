@@ -172,6 +172,18 @@ namespace OpenMOBA.Foundation {
             Segment = new IntLineSegment3(new IntVector3(900, 540, 0), new IntVector3(900, 720, 0))
          });
 
+         TerrainService.HackAddSectorCrossover(new Crossover {
+            A = sector2,
+            B = connector12A,
+            Segment = new IntLineSegment3(new IntVector3(1000, 180, 0), new IntVector3(1000, 360, 0))
+         });
+
+         TerrainService.HackAddSectorCrossover(new Crossover {
+            A = sector2,
+            B = connector12A,
+            Segment = new IntLineSegment3(new IntVector3(1000, 540, 0), new IntVector3(1000, 720, 0))
+         });
+
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
             var poly = Polygon.CreateRectXY(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200), 0);

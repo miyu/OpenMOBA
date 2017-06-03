@@ -77,7 +77,8 @@ namespace OpenMOBA.DevTool {
          var holeDilationRadius = 15.0;
 
          debugCanvas.BatchDraw(() => {
-            foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
+            for (var i = 0; i < terrainSnapshot.SectorSnapshots.Count; i++) {
+               var sectorSnapshot = terrainSnapshot.SectorSnapshots[i];
                var visibilityGraph = sectorSnapshot.ComputeVisibilityGraph(holeDilationRadius);
                //            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
                //            return;
