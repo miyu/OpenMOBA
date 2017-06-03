@@ -37,7 +37,6 @@ namespace OpenMOBA.DevTool {
 
       private DebugProfiler DebugProfiler => Game.DebugProfiler;
       private GameTimeService GameTimeService => Game.GameTimeService;
-      private MapConfiguration MapConfiguration => Game.MapConfiguration;
       private TerrainService TerrainService => Game.TerrainService;
       private EntityService EntityService => Game.EntityService;
 
@@ -76,23 +75,26 @@ namespace OpenMOBA.DevTool {
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;
-         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
-         debugCanvas.BatchDraw(() => {
-//            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
-//            return;
-            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(0));
-//            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
-            debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
-            debugCanvas.DrawTriangulation(terrainSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
-//            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
-//            debugCanvas.DrawVisibilityGraph(visibilityGraph);
-//            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
 
-//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
-//            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
-            DrawEntities(debugCanvas, terrainSnapshot);
-            DrawEntityPaths(debugCanvas);
-         });
+         foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
+            var visibilityGraph = sectorSnapshot.ComputeVisibilityGraph(holeDilationRadius);
+            debugCanvas.BatchDraw(() => {
+               //            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
+               //            return;
+               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
+               //            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
+               debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
+               debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+               //            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
+               //            debugCanvas.DrawVisibilityGraph(visibilityGraph);
+               //            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
+
+               //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+               //            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
+//               DrawEntities(debugCanvas, sectorSnapshot);
+//               DrawEntityPaths(debugCanvas);
+            });
+         }
       }
 
       private void DrawEntityPaths(IDebugCanvas debugCanvas) {
@@ -104,11 +106,11 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawEntities(IDebugCanvas debugCanvas, TerrainSnapshot terrainSnapshot) {
+      private void DrawEntities(IDebugCanvas debugCanvas, SectorSnapshot sectorSnapshot) {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
-               var unitLineOfSight = terrainSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
+               var unitLineOfSight = sectorSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
                debugCanvas.DrawLineOfSight(unitLineOfSight);
 
                debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
@@ -129,11 +131,11 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawHighlightedEntityTriangles(TerrainSnapshot terrainSnapshot, DebugCanvas debugCanvas) {
+      private void DrawHighlightedEntityTriangles(SectorSnapshot sectorSnapshot, DebugCanvas debugCanvas) {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
-               var triangulation = terrainSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
+               var triangulation = sectorSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
                TriangulationIsland island;
                int triangleIndex;
                if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
@@ -161,16 +163,17 @@ namespace OpenMOBA.DevTool {
 
       public static void AttachToWithSoftwareRendering(Game game) {
          var rotation = 80 * Math.PI / 180.0;
+         var displaySize = new Size(1200, 700);
          var projector = new PerspectiveProjector(
-            new DoubleVector3(500, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation),
-            new DoubleVector3(500, 500, 0),
+            new DoubleVector3(950, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation),
+            new DoubleVector3(950, 500, 0),
             DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation + Math.PI / 2),
-            game.MapConfiguration.Size.Width,
-            game.MapConfiguration.Size.Height);
+            displaySize.Width,
+            displaySize.Height);
          //         projector = null;
          //         var debugMultiCanvasHost = new MonoGameCanvasHost();
          var debugMultiCanvasHost = Debugging.DebugMultiCanvasHost.CreateAndShowCanvas(
-            game.MapConfiguration.Size,
+            displaySize,
             new Point(100, 100),
             projector);
          AttachTo(game, debugMultiCanvasHost);

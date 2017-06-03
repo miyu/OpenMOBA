@@ -6,11 +6,6 @@ using System.Linq;
 using ClipperLib;
 
 namespace OpenMOBA.Foundation.Terrain {
-   public class MapConfiguration {
-      public Size Size { get; set; }
-      public List<Polygon> StaticHolePolygons { get; set; }
-   }
-
    public enum ClipperPointInPolygonResult {
       OutsidePolygon = 0,
       OnPolygon = -1,
@@ -19,7 +14,19 @@ namespace OpenMOBA.Foundation.Terrain {
 
    public class TerrainSnapshot {
       public int Version { get; set; }
-      public MapConfiguration MapConfiguration { get; set; }
+      public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
+      public IReadOnlyList<TerrainHole> TemporaryHoles { get; set; }
+   }
+
+   public class Sector {
+      public Rectangle AbsoluteBounds { get; set; }
+      public List<Polygon> StaticHolePolygons { get; set; }
+   }
+
+   public class SectorSnapshot {
+      public Sector Sector { get; set; }
+      public Rectangle AbsoluteBounds { get; set; }
+      public List<Polygon> StaticHolePolygons { get; set; }
       public IReadOnlyList<TerrainHole> TemporaryHoles { get; set; }
 
       private readonly Dictionary<double, PolyTree> dilatedHolesUnionCache = new Dictionary<double, PolyTree>();
@@ -31,7 +38,7 @@ namespace OpenMOBA.Foundation.Terrain {
          PolyTree dilatedHolesUnion;
          if (!dilatedHolesUnionCache.TryGetValue(holeDilationRadius, out dilatedHolesUnion)) {
             dilatedHolesUnion = PolygonOperations.Offset()
-                                                 .Include(MapConfiguration.StaticHolePolygons)
+                                                 .Include(StaticHolePolygons)
                                                  .Include(TemporaryHoles.SelectMany(h => h.Polygons))
                                                  .Dilate(holeDilationRadius)
                                                  .Execute();
@@ -44,10 +51,10 @@ namespace OpenMOBA.Foundation.Terrain {
          PolyTree punchedLand;
          if (!punchedLandCache.TryGetValue(holeDilationRadius, out punchedLand)) {
             var landPoly = Polygon.CreateRectXY(
-               (int)holeDilationRadius,
-               (int)holeDilationRadius,
-               (int)(MapConfiguration.Size.Width - 2 * holeDilationRadius),
-               (int)(MapConfiguration.Size.Height - 2 * holeDilationRadius),
+               (int)holeDilationRadius + AbsoluteBounds.X,
+               (int)holeDilationRadius + AbsoluteBounds.Y,
+               (int)(AbsoluteBounds.Width - 2 * holeDilationRadius),
+               (int)(AbsoluteBounds.Height - 2 * holeDilationRadius),
                0);
             var dilatedHolesUnion = ComputeDilatedHolesUnion(holeDilationRadius);
             punchedLand = PolygonOperations.Punch()
@@ -89,9 +96,9 @@ namespace OpenMOBA.Foundation.Terrain {
       }
    }
 
-   public static class TerrainSnapshotQueryOperations {
-      public static bool IsInHole(this TerrainSnapshot terrainSnapshot, double holeDilationRadius, IntVector3 query) {
-         var punchedLandPolytree = terrainSnapshot.ComputePunchedLand(holeDilationRadius);
+   public static class TerrainQueryOperations {
+      public static bool IsInHole(this SectorSnapshot sectorSnapshot, double holeDilationRadius, IntVector3 query) {
+         var punchedLandPolytree = sectorSnapshot.ComputePunchedLand(holeDilationRadius);
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
 
          PolyNode pickedNode;
@@ -107,8 +114,8 @@ namespace OpenMOBA.Foundation.Terrain {
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static bool FindNearestLandPointAndIsInHole(this TerrainSnapshot terrainSnapshot, double holeDilationRadius, DoubleVector3 query, out DoubleVector3 nearestLandPoint) {
-         var punchedLandPolytree = terrainSnapshot.ComputePunchedLand(holeDilationRadius);
+      public static bool FindNearestLandPointAndIsInHole(this SectorSnapshot sectorSnapshot, double holeDilationRadius, DoubleVector3 query, out DoubleVector3 nearestLandPoint) {
+         var punchedLandPolytree = sectorSnapshot.ComputePunchedLand(holeDilationRadius);
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
 
          PolyNode pickedNode;
@@ -144,15 +151,26 @@ namespace OpenMOBA.Foundation.Terrain {
    }
 
    public class TerrainService {
+      private readonly HashSet<Sector> sectors = new HashSet<Sector>(); 
       private readonly HashSet<TerrainHole> temporaryHoles = new HashSet<TerrainHole>();
-      private readonly MapConfiguration mapConfiguration;
       private readonly GameTimeService gameTimeService;
       private int version;
       private TerrainSnapshot cachedSnapshot;
 
-      public TerrainService(MapConfiguration mapConfiguration, GameTimeService gameTimeService) {
-         this.mapConfiguration = mapConfiguration;
+      public TerrainService(GameTimeService gameTimeService) {
          this.gameTimeService = gameTimeService;
+      }
+
+      public void AddSector(Sector sector) {
+         if (sectors.Add(sector)) {
+            version++;
+         }
+      }
+
+      public void RemoveSector(Sector sector) {
+         if (sectors.Remove(sector)) {
+            version++;
+         }
       }
 
       public void AddTemporaryHole(TerrainHole hole) {
@@ -173,10 +191,24 @@ namespace OpenMOBA.Foundation.Terrain {
          }
 
          return cachedSnapshot = new TerrainSnapshot {
+            Version = version,
+            SectorSnapshots = BuildSectorSnapshots(),
             TemporaryHoles = temporaryHoles.ToList(),
-            MapConfiguration = mapConfiguration,
-            Version = version
          };
+      }
+
+      private IReadOnlyList<SectorSnapshot> BuildSectorSnapshots() {
+         var sectorSnapshots = new List<SectorSnapshot>();
+         var temporaryHolesSnapshot = temporaryHoles.ToList();
+         foreach (var sector in sectors) {
+            sectorSnapshots.Add(new SectorSnapshot {
+               Sector = sector,
+               AbsoluteBounds = sector.AbsoluteBounds,
+               StaticHolePolygons = sector.StaticHolePolygons,
+               TemporaryHoles = temporaryHolesSnapshot
+            });
+         }
+         return sectorSnapshots;
       }
    }
 
