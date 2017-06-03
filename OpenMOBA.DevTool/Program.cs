@@ -13,11 +13,11 @@ using Shade;
 namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
-         CanvasProgram.EntryPoint(args);
-         return;
+//         CanvasProgram.EntryPoint(args);
+//         return;
          var gameFactory = new GameFactory();
          gameFactory.GameCreated += (s, game) => {
-            GameDebugger.AttachTo(game);
+            GameDebugger.AttachToWithSoftwareRendering(game);
          };
          OpenMOBA.Program.Main(gameFactory);
       }
@@ -45,7 +45,7 @@ namespace OpenMOBA.DevTool {
          if (GameTimeService.Ticks == 0) {
 //            AddSquiggleHole();
          }
-         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 1 == 0) {
+         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 4 == 0) {
             RenderDebugFrame();
          }
       }
@@ -159,20 +159,24 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      public static void AttachTo(Game game) {
+      public static void AttachToWithSoftwareRendering(Game game) {
          var rotation = 80 * Math.PI / 180.0;
          var projector = new PerspectiveProjector(
-            new DoubleVector3(500, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation), 
-            new DoubleVector3(500, 500, 0), 
+            new DoubleVector3(500, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation),
+            new DoubleVector3(500, 500, 0),
             DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation + Math.PI / 2),
             game.MapConfiguration.Size.Width,
             game.MapConfiguration.Size.Height);
-//         projector = null;
-//         var debugMultiCanvasHost = new MonoGameCanvasHost();
+         //         projector = null;
+         //         var debugMultiCanvasHost = new MonoGameCanvasHost();
          var debugMultiCanvasHost = Debugging.DebugMultiCanvasHost.CreateAndShowCanvas(
-            game.MapConfiguration.Size, 
+            game.MapConfiguration.Size,
             new Point(100, 100),
             projector);
+         AttachTo(game, debugMultiCanvasHost);
+      }
+
+      public static void AttachTo(Game game, IDebugMultiCanvasHost debugMultiCanvasHost) {
          var debugger = new GameDebugger(game, debugMultiCanvasHost);
          game.Debuggers.Add(debugger);
       }

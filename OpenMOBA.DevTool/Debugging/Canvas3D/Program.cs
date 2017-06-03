@@ -43,7 +43,7 @@ namespace Shade {
                var dt = (float)(DateTime.Now - start).TotalSeconds;
                for (var i = 0; i < 10; i++) {
                   renderer.AddRenderable(
-                     MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * MatrixCM.Translation(1.0f, 0.4f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * MatrixCM.Scaling(0.2f) * MatrixCM.RotationY(i), 
+                     MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * MatrixCM.Translation(1.0f, 0.4f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * MatrixCM.Scaling(0.2f) * MatrixCM.RotationY(i),
                      meshPresets.UnitCube
                   );
                }
