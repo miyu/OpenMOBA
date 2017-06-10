@@ -74,7 +74,8 @@ namespace OpenMOBA.Foundation.Terrain {
 
             var crossoverLandPolys = new List<Polygon>();
             foreach (var kvp in Crossovers) {
-               var crossoverDilationFactor = (int)Math.Ceiling(holeDilationRadius + 1);
+               var crossoverErosionFactor = (int)Math.Ceiling(holeDilationRadius * 2);
+               var crossoverDilationFactor = crossoverErosionFactor / 2 + 2;
                foreach (var crossover in kvp.Value) {
                   var segment = crossover.Segment;
                   var a = segment.First;
@@ -83,11 +84,12 @@ namespace OpenMOBA.Foundation.Terrain {
                   var aToBMag = aToB.Norm2F();
                   if (aToB.XY == IntVector2.Zero || aToBMag <= 2 * holeDilationRadius) continue;
 
-                  var shrink = 2 * ((aToB * crossoverDilationFactor).ToDoubleVector3() / aToB.Norm2F()).LossyToIntVector3();
+                  var shrink = ((aToB.ToDoubleVector3() * crossoverErosionFactor) / aToB.Norm2F()).LossyToIntVector3();
+                     //2 * ((aToB * crossoverDilationFactor).ToDoubleVector3() / aToB.Norm2F()).LossyToIntVector3();
                   var crossoverPolyTree = PolylineOperations.ExtrudePolygon(new[] {
                      crossover.Segment.First + shrink,
                      crossover.Segment.Second - shrink
-                  }, (int)Math.Ceiling(holeDilationRadius + 1));
+                  }, crossoverDilationFactor);
                   crossoverLandPolys.AddRange(crossoverPolyTree.FlattenToPolygons());
                }
             }

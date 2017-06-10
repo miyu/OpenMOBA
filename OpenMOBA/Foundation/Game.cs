@@ -149,39 +149,39 @@ namespace OpenMOBA.Foundation {
       public GameLogicFacade GameLogicFacade { get; set; }
 
       public void Run() {
-         var sector1 = SectorPresets.Test2D().TransformToRect(new Rectangle(0, 0, 900, 900));
+         var sector1 = SectorPresets.Test2D().TransformToRect(new Rectangle(0, 0, 1000, 1000));
          TerrainService.AddSector(sector1);
 
-         var sector2 = SectorPresets.FourSquares2D().TransformToRect(new Rectangle(1000, 0, 900, 900));
+         var sector2 = SectorPresets.FourSquares2D().TransformToRect(new Rectangle(1100, 0, 1000, 1000));
          TerrainService.AddSector(sector2);
 
-         var connector12A = SectorPresets.Blank2D().TransformToRect(new Rectangle(900, 180, 100, 180));
-         var connector12B = SectorPresets.Blank2D().TransformToRect(new Rectangle(900, 540, 100, 180));
+         var connector12A = SectorPresets.Blank2D().TransformToRect(new Rectangle(1000, 200, 100, 200));
+         var connector12B = SectorPresets.Blank2D().TransformToRect(new Rectangle(1000, 600, 100, 200));
          TerrainService.AddSector(connector12A);
          TerrainService.AddSector(connector12B);
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
             B = connector12A,
-            Segment = new IntLineSegment3(new IntVector3(900, 180, 0), new IntVector3(900, 360, 0))
+            Segment = new IntLineSegment3(new IntVector3(1000, 200, 0), new IntVector3(1000, 400, 0))
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
-            B = connector12A,
-            Segment = new IntLineSegment3(new IntVector3(900, 540, 0), new IntVector3(900, 720, 0))
+            B = connector12B,
+            Segment = new IntLineSegment3(new IntVector3(1000, 600, 0), new IntVector3(1000, 800, 0))
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector2,
             B = connector12A,
-            Segment = new IntLineSegment3(new IntVector3(1000, 180, 0), new IntVector3(1000, 360, 0))
+            Segment = new IntLineSegment3(new IntVector3(1100, 200, 0), new IntVector3(1100, 400, 0))
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector2,
-            B = connector12A,
-            Segment = new IntLineSegment3(new IntVector3(1000, 540, 0), new IntVector3(1000, 720, 0))
+            B = connector12B,
+            Segment = new IntLineSegment3(new IntVector3(1100, 600, 0), new IntVector3(1100, 800, 0))
          });
 
          var r = new Random(1);
@@ -195,21 +195,11 @@ namespace OpenMOBA.Foundation {
          }
          
          r.NextBytes(new byte[1337]);
+
          for (int i = 0; i < 20; i++) {
             var w = r.Next(50, 100);
             var h = r.Next(50, 100);
-            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w), r.Next(180 - 40, 360 + 40 - h), w, h, 0);
-            var startTicks = r.Next(0, 500);
-            var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
-            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
-            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
-         }
-         
-         for (int i = 0; i < 20; i++) {
-            var w = r.Next(50, 100);
-            var h = r.Next(50, 100);
-            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w), r.Next(520 - 40, 720 + 40 - h), w, h, 0);
+            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(520 - 40, 720 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9, 0);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new TerrainHole { Polygons = new[] { poly } };
@@ -217,15 +207,26 @@ namespace OpenMOBA.Foundation {
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
 
-//         var a = CreateTestEntity(new DoubleVector3(60, 40, 0), 15, 80);
-//         var b = CreateTestEntity(new DoubleVector3(675, 175, 0), 15, 70);
-//         var c = CreateTestEntity(new DoubleVector3(50, 900, 0), 15, 60);
-//         var d = CreateTestEntity(new DoubleVector3(50, 500, 0), 15, 50);
-//
-//         MovementSystemService.Pathfind(a, new DoubleVector3(930, 300, 0));
-//         MovementSystemService.Pathfind(b, new DoubleVector3(825, 300, 0));
-//         MovementSystemService.Pathfind(c, new DoubleVector3(950, 475, 0));
-//         MovementSystemService.Pathfind(d, new DoubleVector3(80, 720, 0));
+         for (int i = 0; i < 20; i++) {
+            var w = r.Next(50, 100);
+            var h = r.Next(50, 100);
+            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(180 - 40, 360 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9, 0);
+            var startTicks = r.Next(0, 500);
+            var endTicks = r.Next(startTicks + 20, startTicks + 100);
+            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+         }
+
+         var a = CreateTestEntity(new DoubleVector3(60, 40, 0), 15, 80);
+         var b = CreateTestEntity(new DoubleVector3(675, 175, 0), 15, 70);
+         var c = CreateTestEntity(new DoubleVector3(50, 900, 0), 15, 60);
+         var d = CreateTestEntity(new DoubleVector3(50, 500, 0), 15, 50);
+
+         MovementSystemService.Pathfind(a, new DoubleVector3(930, 300, 0));
+         MovementSystemService.Pathfind(b, new DoubleVector3(825, 300, 0));
+         MovementSystemService.Pathfind(c, new DoubleVector3(950, 475, 0));
+         MovementSystemService.Pathfind(d, new DoubleVector3(80, 720, 0));
 
          var benchmarkDestination = new DoubleVector3(950, 50, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;

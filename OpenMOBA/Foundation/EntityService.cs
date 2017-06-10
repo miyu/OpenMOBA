@@ -181,6 +181,8 @@ namespace OpenMOBA.Foundation {
       }
 
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 source, DoubleVector3 destination, out List<DoubleVector3> pathPoints) {
+         pathPoints = new List<DoubleVector3> { source, destination };
+         return true;
          throw new NotImplementedException();
 //         var terrainSnapshot = terrainService.BuildSnapshot();
 //         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
@@ -250,6 +252,7 @@ namespace OpenMOBA.Foundation {
       }
 
       private DoubleVector3 PushToLand(DoubleVector3 vect, double computedRadius) {
+         return vect;
          throw new NotImplementedException();
          //         var paddedHoleDilationRadius = computedRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
          //         DoubleVector3 nearestLandPoint;

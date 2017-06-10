@@ -74,27 +74,29 @@ namespace OpenMOBA.DevTool {
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
-         var holeDilationRadius = 15.0;
+         var holeDilationRadius = 15.0 * 0.9;
 
          debugCanvas.BatchDraw(() => {
             for (var i = 0; i < terrainSnapshot.SectorSnapshots.Count; i++) {
+               //if (i != 3) continue;
                var sectorSnapshot = terrainSnapshot.SectorSnapshots[i];
                var visibilityGraph = sectorSnapshot.ComputeVisibilityGraph(holeDilationRadius);
                //            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
                //            return;
-               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
-               //            debugCanvas.DrawPolyTree(terrainSnapshot.ComputePunchedLand(holeDilationRadius));
-               debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
-               debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+//               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
+               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(holeDilationRadius));
+//               debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
+//               debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
                //            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
-               //            debugCanvas.DrawVisibilityGraph(visibilityGraph);
+               debugCanvas.DrawVisibilityGraph(visibilityGraph);
                //            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
 
                //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
                //            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
-               //               DrawEntities(debugCanvas, sectorSnapshot);
                //               DrawEntityPaths(debugCanvas);
             }
+            //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            DrawEntities(debugCanvas);
 
             foreach (var crossoverSnapshot in terrainSnapshot.CrossoverSnapshots) {
                debugCanvas.DrawLine(
@@ -114,13 +116,10 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawEntities(IDebugCanvas debugCanvas, SectorSnapshot sectorSnapshot) {
+      private void DrawEntities(IDebugCanvas debugCanvas) {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
-               var unitLineOfSight = sectorSnapshot.ComputeLineOfSight(movementComponent.Position.XY, movementComponent.BaseRadius);
-               debugCanvas.DrawLineOfSight(unitLineOfSight);
-
                debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
                debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
 
@@ -153,13 +152,27 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawTestPathfindingQueries(DebugCanvas debugCanvas, double holeDilationRadius) {
+      private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
          var testPathFindingQueries = new[] {
             Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
             Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
             Tuple.Create(new DoubleVector3(50, 500, 0), new DoubleVector3(80, 720, 0))
          };
+
+         // scale 90%, above points are for [0,0] to [1000, 1000] but demo is now [0,0] to [900,900].
+         for (var i = 0; i < testPathFindingQueries.Length; i++) {
+            testPathFindingQueries[i] = new Tuple<DoubleVector3, DoubleVector3>(
+               new DoubleVector3(
+                  testPathFindingQueries[i].Item1.X * 0.9,
+                  testPathFindingQueries[i].Item1.Y * 0.9,
+                  testPathFindingQueries[i].Item1.Z * 0.9),
+               new DoubleVector3(
+                  testPathFindingQueries[i].Item2.X * 0.9,
+                  testPathFindingQueries[i].Item2.Y * 0.9,
+                  testPathFindingQueries[i].Item2.Z * 0.9)
+            );
+         }
 
          foreach (var query in testPathFindingQueries) {
             List<DoubleVector3> pathPoints;
@@ -171,10 +184,11 @@ namespace OpenMOBA.DevTool {
 
       public static void AttachToWithSoftwareRendering(Game game) {
          var rotation = 80 * Math.PI / 180.0;
-         var displaySize = new Size(1200 * 3 / 2, 700 * 3 / 2);
+         float scale = 1.0f;
+         var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
          var projector = new PerspectiveProjector(
-            new DoubleVector3(950, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation),
-            new DoubleVector3(950, 500, 0),
+            new DoubleVector3(1050, 500, 0) + DoubleVector3.FromRadiusAngleAroundXAxis(600, rotation),
+            new DoubleVector3(1050, 500, 0),
             DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation + Math.PI / 2),
             displaySize.Width,
             displaySize.Height);
