@@ -29,7 +29,7 @@ namespace OpenMOBA.DevTool.Debugging {
       }
 
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector3> points, StrokeStyle strokeStyle) {
-         canvas.DrawPoints(ToDoublePoints(points), strokeStyle);
+         canvas.DrawLineList(ToDoublePoints(points), strokeStyle);
       }
 
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {

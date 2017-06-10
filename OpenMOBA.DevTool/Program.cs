@@ -84,7 +84,7 @@ namespace OpenMOBA.DevTool {
                //            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
                //            return;
 //               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
-               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(holeDilationRadius));
+               //debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(holeDilationRadius));
 //               debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
 //               debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
                //            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
@@ -102,7 +102,6 @@ namespace OpenMOBA.DevTool {
                foreach (var waypoint in sector.ComputeVisibilityGraph(holeDilationRadius).Waypoints) {
                   var los = sector.ComputeLineOfSight(waypoint.XY.ToDoubleVector2(), holeDilationRadius);
 //                  debugCanvas.DrawLineOfSight(los);
-//                  break;
                }
             }
 

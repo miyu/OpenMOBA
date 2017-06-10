@@ -47,6 +47,7 @@ namespace OpenMOBA.Foundation.Terrain {
       private readonly Dictionary<double, PolyTree> dilatedHolesUnionCache = new Dictionary<double, PolyTree>();
       private readonly Dictionary<double, PolyTree> punchedLandCache = new Dictionary<double, PolyTree>();
       private readonly Dictionary<double, VisibilityGraph> visibilityGraphCache = new Dictionary<double, VisibilityGraph>();
+      private readonly Dictionary<double, Dictionary<DoubleVector2, AngularVisibleSegmentStore>> lineOfSightCaches = new Dictionary<double, Dictionary<DoubleVector2, AngularVisibleSegmentStore>>();
       private readonly Dictionary<double, Triangulation> triangulationCache = new Dictionary<double, Triangulation>();
 
       public PolyTree ComputeDilatedHolesUnion(double holeDilationRadius) {
@@ -116,12 +117,23 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public AngularVisibleSegmentStore ComputeLineOfSight(DoubleVector2 position, double holeDilationRadius) {
-         var barriers = ComputeVisibilityGraph(holeDilationRadius).Barriers;
-         var avss = new AngularVisibleSegmentStore(position);
-         foreach (var barrier in barriers) {
-            avss.Insert(barrier);
+         Dictionary<DoubleVector2, AngularVisibleSegmentStore> lineOfSightCache;
+         if (!lineOfSightCaches.TryGetValue(holeDilationRadius, out lineOfSightCache)) {
+            lineOfSightCache = new Dictionary<DoubleVector2, AngularVisibleSegmentStore>();
+            lineOfSightCaches[holeDilationRadius] = lineOfSightCache;
          }
-         return avss;
+
+         AngularVisibleSegmentStore lineOfSight;
+         if (!lineOfSightCache.TryGetValue(position, out lineOfSight)) {
+            var barriers = ComputeVisibilityGraph(holeDilationRadius).Barriers;
+            lineOfSight = new AngularVisibleSegmentStore(position);
+            foreach (var barrier in barriers) {
+               lineOfSight.Insert(barrier);
+            }
+            lineOfSightCache[position] = lineOfSight;
+         }
+
+         return lineOfSight;
       }
 
       public Triangulation ComputeTriangulation(double holeDilationRadius) {

@@ -10,10 +10,6 @@ namespace OpenMOBA.DevTool.Debugging {
       private static readonly StrokeStyle WaypointStrokeStyle = new StrokeStyle(Color.Red, 5.0f);
 
       public static void DrawVisibilityGraph(this IDebugCanvas canvas, VisibilityGraph visibilityGraph) {
-         canvas.DrawLineList(
-            visibilityGraph.Barriers.SelectMany(barrier => barrier.Points).ToList(),
-            BarrierStrokeStyle);
-
          if (visibilityGraph.Waypoints.Any()) {
             canvas.DrawLineList(
                (from i in Enumerable.Range(0, visibilityGraph.Waypoints.Length - 1)
@@ -25,6 +21,10 @@ namespace OpenMOBA.DevTool.Debugging {
                visibilityGraph.Waypoints,
                WaypointStrokeStyle);
          }
+
+         canvas.DrawLineList(
+            visibilityGraph.Barriers.SelectMany(barrier => barrier.Points).ToList(),
+            BarrierStrokeStyle);
       }
    }
 }
