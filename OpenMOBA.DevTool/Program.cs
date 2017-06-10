@@ -74,7 +74,7 @@ namespace OpenMOBA.DevTool {
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
-         var holeDilationRadius = 15.0 * 0.9;
+         var holeDilationRadius = 15.0;
 
          debugCanvas.BatchDraw(() => {
             for (var i = 0; i < terrainSnapshot.SectorSnapshots.Count; i++) {
@@ -97,6 +97,14 @@ namespace OpenMOBA.DevTool {
             }
             //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
             DrawEntities(debugCanvas);
+
+            foreach (var sector in terrainSnapshot.SectorSnapshots) {
+               foreach (var waypoint in sector.ComputeVisibilityGraph(holeDilationRadius).Waypoints) {
+                  var los = sector.ComputeLineOfSight(waypoint.XY.ToDoubleVector2(), holeDilationRadius);
+//                  debugCanvas.DrawLineOfSight(los);
+//                  break;
+               }
+            }
 
             foreach (var crossoverSnapshot in terrainSnapshot.CrossoverSnapshots) {
                debugCanvas.DrawLine(

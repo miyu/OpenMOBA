@@ -46,6 +46,10 @@ namespace OpenMOBA.Geometry {
       }
 
       private void InsertInternal(ref IntLineSegment3 s, double insertionThetaLower, double insertionThetaUpper) {
+         if (insertionThetaLower == insertionThetaUpper) {
+            return;
+         }
+
 //         Console.WriteLine($"InsertInternal: {s}, {thetaLower} {thetaUpper}");
 
          // cull if wall faces away from origin
