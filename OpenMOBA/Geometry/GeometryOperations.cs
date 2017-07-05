@@ -1,6 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
 
@@ -21,7 +24,7 @@ namespace OpenMOBA.Geometry {
       public static Clockness Clockness(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
       public static Clockness Clockness(cInt bax, cInt bay, cInt bcx, cInt bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static cInt Cross(IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      public static cInt Cross(this IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
       public static cInt Cross(cInt ax, cInt ay, cInt bx, cInt by) => ax * by - ay * bx;
 
       public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
@@ -29,8 +32,20 @@ namespace OpenMOBA.Geometry {
       public static Clockness Clockness(double ax, double ay, double bx, double by, double cx, double cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
       public static Clockness Clockness(double bax, double bay, double bcx, double bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static double Cross(DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      public static double Cross(this DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
       public static double Cross(double ax, double ay, double bx, double by) => ax * by - ay * bx;
+
+      public static Vector3 ToDotNetVector(this DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
+      public static DoubleVector3 ToOpenMobaVector(this Vector3 v) => new DoubleVector3(v.X, v.Y, v.Z);
+
+      public static bool IsCollinearWith(this IntLineSegment2 a, IntLineSegment2 b) {
+         var a1a2 = a.First.To(a.Second);
+         var b1b2 = b.First.To(b.Second);
+         var a1b1 = a.First.To(b.First);
+         var isParallel = Cross(a1a2, b1b2) == 0;
+         var isA1A2CollinearB1 = Cross(a1a2, a1b1) == 0;
+         return isParallel && isA1A2CollinearB1;
+      }
 
       // todo: this needs love
       public static bool TryFindLineLineIntersection(IntLineSegment2 a, IntLineSegment2 b, out DoubleVector2 result) {
@@ -250,6 +265,89 @@ namespace OpenMOBA.Geometry {
          } else {
             return p1 + p1QueryProjP1P2Component * p1p2;
          }
+      }
+
+      /// <summary>
+      /// Will continue gracefully even if R3 basis can be formed. Beware!
+      /// </summary>
+      public static bool ComputePlaneBasis(IReadOnlyList<IntVector3> points, out IntVector3 b1, out IntVector3 b2) {
+         for (int i = 1; i < points.Count; i++) {
+            b1 = points[0].To(points[i]);
+            if (b1 != IntVector3.Zero) {
+               for (; i < points.Count; i++) {
+                  var next = i + 1 == points.Count ? points[0] : points[i + 1];
+                  b2 = points[i].To(next);
+                  if (b2 != IntVector3.Zero && b2.Cross(b1) != IntVector3.Zero) {
+                     return true;
+                  }
+               }
+            }
+         }
+
+         b1 = b2 = default(IntVector3);
+         return false;
+      }
+
+      private static Comparer<IntVector2> xThenYComparer = Comparer<IntVector2>.Create(
+         (a, b) => {
+            var r = a.X.CompareTo(b.X);
+            return r != 0 ? r : a.Y.CompareTo(b.Y);
+         });
+
+      /// <summary>
+      /// Implementation of Convex Hull using the Monotone Chain Convex Hull Algorithm.
+      /// The algorithm was chosen for implementation due to its simplicity. Chan's
+      /// Convex Hull algorithm is a tad more efficient when the output point set
+      /// is smaller than the input set.
+      /// 
+      /// based on http://en.wikibooks.org/wiki/Algorithm_Implementation/Geometry/Convex_hull/Monotone_chain
+      /// </summary>
+      /// <param name="input"></param>
+      /// <returns>
+      /// The convex hull of the points in counterclockwise order (starting from the
+      /// rightmost point)
+      /// </returns>
+      public static unsafe IntVector2[] ConvexHull(IntVector2[] input) {
+         // sort input by x, then y
+         Array.Sort(input, xThenYComparer);
+
+         // Compute one side of hull
+         var lower = stackalloc IntVector2[input.Length];
+         var lowerLength = 0;
+         for (var i = 0; i < input.Length; i++) {
+            while (lowerLength >= 2 && Clockness(lower[lowerLength - 2], lower[lowerLength - 1], input[i]) != Geometry.Clockness.CounterClockwise) {
+               lowerLength--;
+            }
+            lower[lowerLength] = input[i];
+            lowerLength++;
+         }
+         var x = sizeof(IntVector2);
+
+         // rm last point, which is first of other hull
+         lowerLength--;
+
+         // Compute other side of hull
+         var upper = stackalloc IntVector2[input.Length];
+         var upperLength = 0;
+         for (var i = input.Length - 1; i >= 0; i--) {
+            while (upperLength >= 2 && Clockness(upper[upperLength - 2], upper[upperLength - 1], input[i]) != Geometry.Clockness.CounterClockwise) {
+               upperLength--;
+            }
+            upper[upperLength] = input[i];
+            upperLength++;
+         }
+
+         // rm last point, which is first of other hull
+         upperLength--;
+
+         var res = new IntVector2[lowerLength + upperLength];
+         fixed (IntVector2* pRes = res) {
+            var lowerByteCount = lowerLength * IntVector2.Size;
+            var upperByteCount = upperLength * IntVector2.Size;
+            Buffer.MemoryCopy(lower, pRes, lowerByteCount + upperByteCount, lowerByteCount);
+            Buffer.MemoryCopy(upper, (byte*)pRes + lowerByteCount, upperByteCount, upperByteCount);
+         }
+         return res;
       }
    }
 }

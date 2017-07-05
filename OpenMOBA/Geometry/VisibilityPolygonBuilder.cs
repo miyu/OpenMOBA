@@ -8,7 +8,7 @@ namespace OpenMOBA.Geometry {
    // Everything's in radians, all geometry is reasoned as if relative to _origin.
    // This can be efficiently implemented with an interval tree = O(logN) runtime.
    // For now, just using a flat unordered list, so quite inefficient.
-   public class AngularVisibleSegmentStore {
+   public class VisibilityPolygonBuilder {
       public const int RANGE_ID_NULL = 0;
       private const double TwoPi = 2.0 * Math.PI;
       private const double PiDiv2 = Math.PI / 2.0;
@@ -16,7 +16,7 @@ namespace OpenMOBA.Geometry {
       private IntervalRange[] _intervalRanges;
       private int rangeIdCounter = RANGE_ID_NULL;
 
-      public AngularVisibleSegmentStore(DoubleVector2 origin) {
+      public VisibilityPolygonBuilder(DoubleVector2 origin) {
          _origin = origin;
          _intervalRanges = new [] {
             new IntervalRange {

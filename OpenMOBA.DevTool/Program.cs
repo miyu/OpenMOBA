@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using OpenMOBA.Debugging;
 using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Geometry;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.Snapshots;
 using Shade;
 
 namespace OpenMOBA.DevTool {
@@ -66,7 +68,7 @@ namespace OpenMOBA.DevTool {
                new IntVector3(220, 400, 0),
                new IntVector3(221, 400, 0)
             }.Select(iv => new IntVector3(iv.X + 160, iv.Y + 200, iv.Z)).ToArray(), 10).FlattenToPolygons();
-         TerrainService.AddTemporaryHole(new TerrainHole{ Polygons = holeSquiggle });
+         TerrainService.AddTemporaryHole(new DynamicTerrainHole{ Polygons = holeSquiggle });
       }
 
       private void RenderDebugFrame() {
@@ -78,15 +80,17 @@ namespace OpenMOBA.DevTool {
 
          debugCanvas.BatchDraw(() => {
             for (var i = 0; i < terrainSnapshot.SectorSnapshots.Count; i++) {
-               //if (i != 3) continue;
+//               if (i != 0) continue;
+               debugCanvas.Transform = terrainSnapshot.SectorSnapshots[i].WorldTransform;
+
                var sectorSnapshot = terrainSnapshot.SectorSnapshots[i];
                var visibilityGraph = sectorSnapshot.ComputeVisibilityGraph(holeDilationRadius);
                //            debugCanvas.DrawLine(new DoubleVector3(490, 490, 0), new DoubleVector3(510, 510, 0), new StrokeStyle(Color.Black) { DisableStrokePerspective = true });
                //            return;
-//               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
+               debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(0));
                //debugCanvas.DrawPolyTree(sectorSnapshot.ComputePunchedLand(holeDilationRadius));
 //               debugCanvas.DrawPolygons(temporaryHolePolygons, new StrokeStyle(Color.Red));
-//               debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+               // debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
                //            debugCanvas.DrawTriangulationQuadTree(terrainSnapshot.ComputeTriangulation(holeDilationRadius));
                debugCanvas.DrawVisibilityGraph(visibilityGraph);
                //            debugCanvas.DrawWallPushGrid(terrainSnapshot, holeDilationRadius);
@@ -95,16 +99,20 @@ namespace OpenMOBA.DevTool {
                //            DrawHighlightedEntityTriangles(terrainSnapshot, debugCanvas);
                //               DrawEntityPaths(debugCanvas);
             }
-            //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
             DrawEntities(debugCanvas);
 
             foreach (var sector in terrainSnapshot.SectorSnapshots) {
+               debugCanvas.Transform = sector.WorldTransform;
                foreach (var waypoint in sector.ComputeVisibilityGraph(holeDilationRadius).Waypoints) {
-                  var los = sector.ComputeLineOfSight(waypoint.XY.ToDoubleVector2(), holeDilationRadius);
+                  var los = sector.ComputeVisibilityPolygon(waypoint.XY.ToDoubleVector2(), holeDilationRadius);
 //                  debugCanvas.DrawLineOfSight(los);
                }
             }
 
+            debugCanvas.Transform = Matrix4x4.Identity;
             foreach (var crossoverSnapshot in terrainSnapshot.CrossoverSnapshots) {
                debugCanvas.DrawLine(
                   crossoverSnapshot.Segment.First.ToDoubleVector3(),

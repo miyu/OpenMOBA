@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
+using System.Runtime.InteropServices;
 using cInt = System.Int64;
 
 namespace OpenMOBA.Geometry {
@@ -77,9 +78,12 @@ namespace OpenMOBA.Geometry {
       public override string ToString() => $"[{X}, {Y}]";
    }
 
+   [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct IntVector2 {
       public cInt X;
       public cInt Y;
+
+      public const int Size = 2 * sizeof(cInt);
 
       public IntVector2(cInt x, cInt y) {
          X = x;

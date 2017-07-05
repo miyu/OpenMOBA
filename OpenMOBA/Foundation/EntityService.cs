@@ -1,13 +1,11 @@
-﻿using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Foundation.Visibility;
-using OpenMOBA.Geometry;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using OpenMOBA.DataStructures;
+using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Geometry;
 using cInt = System.Int64;
 
 namespace OpenMOBA.Foundation {
@@ -18,10 +16,12 @@ namespace OpenMOBA.Foundation {
    }
 
    public class EntityService {
-      private readonly List<EntitySystemService> systems = new List<EntitySystemService>();
       private readonly HashSet<Entity> entities = new HashSet<Entity>();
+      private readonly List<EntitySystemService> systems = new List<EntitySystemService>();
 
-      public IEnumerable<Entity> EnumerateEntities() => entities;
+      public IEnumerable<Entity> EnumerateEntities() {
+         return entities;
+      }
 
       public void AddEntitySystem(EntitySystemService system) {
          systems.Add(system);
@@ -34,22 +34,14 @@ namespace OpenMOBA.Foundation {
       }
 
       public void AddEntityComponent(Entity entity, EntityComponent component) {
-         if (entity.ComponentMask.Contains(ComponentMaskUtils.Build(component.Type))) {
-            throw new InvalidOperationException("Entity already has component of type " + component.Type);
-         }
+         if (entity.ComponentMask.Contains(ComponentMaskUtils.Build(component.Type))) throw new InvalidOperationException("Entity already has component of type " + component.Type);
          entity.ComponentMask = entity.ComponentMask.Or(component.Type);
          entity.ComponentsByType[(int)component.Type] = component;
-         foreach (var system in systems) {
-            if (entity.ComponentMask.Contains(system.RequiredComponentsMask)) {
-               system.AssociateEntity(entity);
-            }
-         }
+         foreach (var system in systems) if (entity.ComponentMask.Contains(system.RequiredComponentsMask)) system.AssociateEntity(entity);
       }
 
       public void ProcessSystems() {
-         foreach (var system in systems) {
-            system.Execute();
-         }
+         foreach (var system in systems) system.Execute();
       }
    }
 
@@ -64,16 +56,14 @@ namespace OpenMOBA.Foundation {
 
       public static EntityComponentsMask Build(params EntityComponentType[] componentTypes) {
          EntityComponentsMask result = 0;
-         foreach (var componentType in componentTypes) {
-            result = result.Or(componentType);
-         }
+         foreach (var componentType in componentTypes) result = result.Or(componentType);
          return result;
       }
    }
 
    /// <summary>
-   /// Note: A value in this enum is treated as an offset into an array.
-   /// Note: This takes advantage of the first enum member having value 0.
+   ///    Note: A value in this enum is treated as an offset into an array.
+   ///    Note: This takes advantage of the first enum member having value 0.
    /// </summary>
    public enum EntityComponentType {
       Movement,
@@ -84,7 +74,7 @@ namespace OpenMOBA.Foundation {
 
    [Flags]
    public enum EntityComponentsMask : uint { }
-   
+
    public abstract class EntityComponent {
       protected EntityComponent(EntityComponentType type) {
          Type = type;
@@ -99,17 +89,18 @@ namespace OpenMOBA.Foundation {
       public DoubleVector3 LookAt { get; set; } = DoubleVector3.UnitX;
       public float BaseRadius { get; set; }
       public float BaseSpeed { get; set; }
-      
-      /// <summary>
-      /// If true, movement will recompute path before updating position
-      /// </summary>
-      public bool PathingIsInvalidated { get; set; } = false;
 
       /// <summary>
-      /// The desired destination of the unit. Even if pathfinding fails, this is still set and,
-      /// once terrain changes, pathing may attempt to resume.
+      ///    If true, movement will recompute path before updating position
+      /// </summary>
+      public bool PathingIsInvalidated { get; set; }
+
+      /// <summary>
+      ///    The desired destination of the unit. Even if pathfinding fails, this is still set and,
+      ///    once terrain changes, pathing may attempt to resume.
       /// </summary>
       public DoubleVector3 PathingDestination { get; set; }
+
       // poor datastructure use, but irrelevant for perf 
       public List<DoubleVector3> PathingBreadcrumbs { get; set; } = new List<DoubleVector3>();
 
@@ -121,6 +112,7 @@ namespace OpenMOBA.Foundation {
 
       // Values precomputed at entry of movement service
       public IntVector2 DiscretizedPosition { get; set; }
+
       public int ComputedRadius { get; set; }
       public int ComputedSpeed { get; set; }
       public DoubleVector2 WeightedSumNBodyForces { get; set; }
@@ -151,29 +143,28 @@ namespace OpenMOBA.Foundation {
 
    public static class IntMath {
       private const int MaxLutIntExclusive = 1024 * 1024;
-      private static readonly cInt[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (cInt)Math.Sqrt(x)).ToArray();
+      private static readonly long[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (long)Math.Sqrt(x)).ToArray();
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static cInt Square(cInt x) => x * x;
+      public static long Square(long x) {
+         return x * x;
+      }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static cInt Quad(cInt x) => Square(Square(x));
+      public static long Quad(long x) {
+         return Square(Square(x));
+      }
 
-      public static cInt Sqrt(cInt x) {
-         if (x < 0) {
-            throw new ArgumentException($"sqrti({x})");
-         } else if (x < MaxLutIntExclusive) {
-            return SqrtLut[x];
-         } else {
-//            Console.WriteLine($"Sqrt Lut Miss: {x}");
-            return (cInt)Math.Sqrt(x);
-         }
+      public static long Sqrt(long x) {
+         if (x < 0) throw new ArgumentException($"sqrti({x})");
+         else if (x < MaxLutIntExclusive) return SqrtLut[x];
+         else return (long)Math.Sqrt(x);
       }
    }
 
    public class PathfinderCalculator {
-      private readonly TerrainService terrainService;
       private readonly StatsCalculator statsCalculator;
+      private readonly TerrainService terrainService;
 
       public PathfinderCalculator(TerrainService terrainService, StatsCalculator statsCalculator) {
          this.terrainService = terrainService;
@@ -183,33 +174,42 @@ namespace OpenMOBA.Foundation {
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 source, DoubleVector3 destination, out List<DoubleVector3> pathPoints) {
          pathPoints = new List<DoubleVector3> { source, destination };
          return true;
-         throw new NotImplementedException();
-//         var terrainSnapshot = terrainService.BuildSnapshot();
-//         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
-//         Path path;
-//         if (!visibilityGraph.TryFindPath(source.LossyToIntVector3(), destination.LossyToIntVector3(), out path)) {
-//            pathPoints = null;
-//            return false;
-//         } else {
-//            pathPoints = path.Points.Select(p => p.ToDoubleVector3()).ToList();
-//            pathPoints[0] = source;
-//            pathPoints[pathPoints.Count - 1] = destination;
-//            return true;
-//         }
+
+
+         //         var terrainSnapshot = terrainService.BuildSnapshot();
+         //         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
+         //         Path path;
+         //         if (!visibilityGraph.TryFindPath(source.LossyToIntVector3(), destination.LossyToIntVector3(), out path)) {
+         //            pathPoints = null;
+         //            return false;
+         //         } else {
+         //            pathPoints = path.Points.Select(p => p.ToDoubleVector3()).ToList();
+         //            pathPoints[0] = source;
+         //            pathPoints[pathPoints.Count - 1] = destination;
+         //            return true;
+         //         }
       }
    }
 
    public class MovementSystemService : EntitySystemService {
+      public enum WalkResult {
+         PushInward,
+         CanPushInward,
+         Progress,
+         CanEdgeFollow,
+         Completion
+      }
+
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
       private readonly GameTimeService gameTimeService;
+      private readonly PathfinderCalculator pathfinderCalculator;
       private readonly StatsCalculator statsCalculator;
       private readonly TerrainService terrainService;
-      private readonly PathfinderCalculator pathfinderCalculator;
 
       public MovementSystemService(
          EntityService entityService,
          GameTimeService gameTimeService,
-         StatsCalculator statsCalculator, 
+         StatsCalculator statsCalculator,
          TerrainService terrainService,
          PathfinderCalculator pathfinderCalculator
       ) : base(entityService, kComponentMask) {
@@ -224,30 +224,25 @@ namespace OpenMOBA.Foundation {
 
          var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + TerrainConstants.AdditionalHoleDilationRadius;
          List<DoubleVector3> pathPoints;
-         if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) {
-            movementComponent.PathingBreadcrumbs.Clear();
-         } else {
-            movementComponent.PathingBreadcrumbs = pathPoints;
-         }
+         if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) movementComponent.PathingBreadcrumbs.Clear();
+         else movementComponent.PathingBreadcrumbs = pathPoints;
          movementComponent.PathingIsInvalidated = false;
          movementComponent.PathingDestination = destination;
       }
 
-      public void HandleHoleAdded(TerrainHole hole) {
+      public void HandleHoleAdded(DynamicTerrainHole hole) {
          InvalidatePaths();
 
          foreach (var entity in AssociatedEntities) {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
-            if (hole.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) {
-               FixEntityInHole(entity);
-            }
+            if (hole.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) FixEntityInHole(entity);
          }
       }
 
       private void FixEntityInHole(Entity entity) {
          var computedRadius = statsCalculator.ComputeCharacterRadius(entity);
-         MovementComponent movementComponent = entity.MovementComponent;
+         var movementComponent = entity.MovementComponent;
          movementComponent.Position = PushToLand(movementComponent.Position, computedRadius);
       }
 
@@ -263,12 +258,10 @@ namespace OpenMOBA.Foundation {
       }
 
       /// <summary>
-      /// Invalidates all pathing entities' paths, flagging them for recomputation.
+      ///    Invalidates all pathing entities' paths, flagging them for recomputation.
       /// </summary>
       public void InvalidatePaths() {
-         foreach (var entity in AssociatedEntities) {
-            entity.MovementComponent.PathingIsInvalidated = true;
-         }
+         foreach (var entity in AssociatedEntities) entity.MovementComponent.PathingIsInvalidated = true;
       }
 
       public bool NN(TriangulationIsland island, DoubleVector3 destination, out Dictionary<int, int> d) {
@@ -284,9 +277,7 @@ namespace OpenMOBA.Foundation {
          while (s.Any()) {
             var t = s.Dequeue();
             var ti = t.Item1;
-            if (d.ContainsKey(ti)) {
-               continue;
-            }
+            if (d.ContainsKey(ti)) continue;
             var pi = t.Item2;
             var prevDist = t.Item3;
             d[ti] = pi;
@@ -303,261 +294,256 @@ namespace OpenMOBA.Foundation {
 
       public override void Execute() {
          return;
-//         goto the_new_code;
-//         goto derp;
-//         foreach (var swarm in AssociatedEntities.Where(e => e.MovementComponent.Swarm != null).Select(e => e.MovementComponent.Swarm).Distinct().ToArray()) {
-//            var destination = swarm.Destination;
-//            foreach (var swarmling in swarm.Entities) {
-//               // seek to point
-//               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
-//               var vs = new List<Tuple<double, DoubleVector2>>();
-//               vs.Add(Tuple.Create(100.0, seekUnit));
-//
-//               foreach (var other in swarm.Entities) {
-//                  if (other == swarmling) continue;
-//                  var selfToOther = other.MovementComponent.Position - swarmling.MovementComponent.Position;
-//                  var selfToOtherMagnitude = selfToOther.Norm2D();
-//                  var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
-//                  var separateWeight = 0.0;
-//                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
-//                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
-//                  separateWeight = 1280000 * mul * separateFactor;
-//                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
-//                  if (wtot > 0) {
-//                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
-//                  } else {
-//                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
-//                  }
-//                  //                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
-//                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
-//                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
-//               }
-//
-//               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
-//               var wsumvsw = vs.Sum(it => it.Item1);
-//               var wavs = wsumvs / wsumvsw;
-//               swarmling.MovementComponent.WeightedSumNBodyForces = wavs;
-//            }
-//         }
-//         goto derp;
+         //         goto the_new_code;
+         //         goto derp;
+         //         foreach (var swarm in AssociatedEntities.Where(e => e.MovementComponent.Swarm != null).Select(e => e.MovementComponent.Swarm).Distinct().ToArray()) {
+         //            var destination = swarm.Destination;
+         //            foreach (var swarmling in swarm.Entities) {
+         //               // seek to point
+         //               var seekUnit = (destination - swarmling.MovementComponent.Position).ToUnit();
+         //               var vs = new List<Tuple<double, DoubleVector2>>();
+         //               vs.Add(Tuple.Create(100.0, seekUnit));
+         //
+         //               foreach (var other in swarm.Entities) {
+         //                  if (other == swarmling) continue;
+         //                  var selfToOther = other.MovementComponent.Position - swarmling.MovementComponent.Position;
+         //                  var selfToOtherMagnitude = selfToOther.Norm2D();
+         //                  var regroupWeight = Math.Max(10000.0, selfToOtherMagnitude * selfToOtherMagnitude) / 10000.0;
+         //                  var separateWeight = 0.0;
+         //                  var mul = selfToOtherMagnitude < 20 ? 5 : 0.1;
+         //                  var separateFactor = 1.0 / (selfToOtherMagnitude * selfToOtherMagnitude * selfToOtherMagnitude + 1);
+         //                  separateWeight = 1280000 * mul * separateFactor;
+         //                  var wtot = (0.01 * regroupWeight - separateWeight) * 0.5;
+         //                  if (wtot > 0) {
+         //                     vs.Add(Tuple.Create(wtot, selfToOther.ToUnit()));
+         //                  } else {
+         //                     vs.Add(Tuple.Create(-wtot, -1.0 * selfToOther.ToUnit()));
+         //                  }
+         //                  //                  vs.Add(Tuple.Create(regroupWeight - separateWeight, selfToOther.ToUnit()));
+         //                  //                  vs.Add(Tuple.Create(regroupWeight, selfToOther.ToUnit()));
+         //                  //                  vs.Add(Tuple.Create(separateWeight, -1.0 * selfToOther.ToUnit()));
+         //               }
+         //
+         //               var wsumvs = vs.Aggregate(new DoubleVector2(), (cur, it) => cur + it.Item1 * it.Item2);
+         //               var wsumvsw = vs.Sum(it => it.Item1);
+         //               var wavs = wsumvs / wsumvsw;
+         //               swarmling.MovementComponent.WeightedSumNBodyForces = wavs;
+         //            }
+         //         }
+         //         goto derp;
 
-//      the_new_code:
-//         var entities = AssociatedEntities.ToArray();
-//
-//         // Precompute computed entity stats
-//         for (var i = 0; i < entities.Length; i++) {
-//            var e = entities[i];
-//            e.MovementComponent.DiscretizedPosition = e.MovementComponent.Position.XY.LossyToIntVector2();
-//            e.MovementComponent.ComputedRadius = (int)Math.Ceiling(statsCalculator.ComputeCharacterRadius(e));
-//            e.MovementComponent.ComputedSpeed = (int)Math.Ceiling(statsCalculator.ComputeMovementSpeed(e));
-//            e.MovementComponent.WeightedSumNBodyForces = DoubleVector2.Zero;
-//            e.MovementComponent.SumWeightsNBodyForces = 0;
-//         }
-//
-//         // Only operate on movement components and swarms onward.
-//         var movementComponents = entities.Select(e => e.MovementComponent).ToArray();
-//         var swarms = entities.Select(e => e.MovementComponent.Swarm)
-//                              .Where(s => s != null)
-//                              .Distinct()
-//                              .ToArray();
-//
-//         // for each entity, update triangle
-//         for (var i = 0; i < movementComponents.Length; i++) {
-//            var a = movementComponents[i];
-//            if (a.Swarm == null) continue;
-//
-//            var terrainSnapshot = terrainService.BuildSnapshot();
-//            var triangulation = terrainSnapshot.ComputeTriangulation(a.ComputedRadius);
-//
-//            TriangulationIsland island;
-//            int triangleIndex;
-//            if (!triangulation.TryIntersect(a.Position.X, a.Position.Y, out island, out triangleIndex)) {
-//               Console.WriteLine("Warning: Entity not on land.");
-//               a.Position = PushToLand(a.Position, a.ComputedRadius);
-//
-//               if (!triangulation.TryIntersect(a.Position.X, a.Position.Y, out island, out triangleIndex)) {
-//                  Console.WriteLine("Warning: fixing entity not on land failed?");
-//                  continue;
-//               }
-//            }
-//
-//            a.SwarmingIsland = island;
-//            a.SwarmingTriangleIndex = triangleIndex;
-//         }
-//
-//         // for each (int, triangleIndex, island, dest) tuple, compute optimal direction (or 0, 0)
-//         var vectorField = new Dictionary<Tuple<int, int, TriangulationIsland, DoubleVector3>, DoubleVector3>();
-//         foreach (var swarm in swarms) {
-//            var dest = swarm.Destination;
-//            foreach (var entity in swarm.Entities) {
-//               var mc = entity.MovementComponent;
-//               var k = Tuple.Create(mc.ComputedRadius, mc.SwarmingTriangleIndex, mc.SwarmingIsland, dest);
-//               if (vectorField.ContainsKey(k)) {
-//                  continue;
-//               }
-//
-//               var triangleCentroid = mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid;
-//               var dilation = mc.ComputedRadius + TerrainConstants.AdditionalHoleDilationRadius;
-//               List<DoubleVector3> path;
-//               if (!pathfinderCalculator.TryFindPath(dilation, triangleCentroid, dest, out path) || path.Count < 2) {
-//                  vectorField[k] = DoubleVector3.Zero;
-//               } else {
-//                  vectorField[k] = (path[1] - path[0]).ToUnit();
-//               }
-//            }
-//         }
-//
-//         // for each (island, dest) compute spanning dijkstras of tree centroids to dest triangle
-//         var ds = new Dictionary<Tuple<TriangulationIsland, DoubleVector3>, Dictionary<int, int>>();
-//         foreach (var swarm in swarms) {
-//            for (var i = 0; i < swarm.Entities.Count; i++) {
-//               var entity = swarm.Entities[i];
-//               Dictionary<int, int> d;
-//               var key = Tuple.Create(entity.MovementComponent.SwarmingIsland, swarm.Destination);
-//               if (ds.ContainsKey(key)) {
-//                  continue;
-//               }
-//
-//               NN(entity.MovementComponent.SwarmingIsland, swarm.Destination, out d);
-//               ds[key] = d;
-//            }
-//         }
-//
-//         // for each entity pairing, compute separation force vector which prevents overlap
-//         // and "regroup" force vector, which causes clustering within swarms.
-//         // Logic contained within should be scale invariant!
-//         for (var i = 0; i < movementComponents.Length - 1; i++) {
-//            var a = movementComponents[i];
-//            var aRadius = a.ComputedRadius;
-//            for (var j = i + 1; j < movementComponents.Length; j++) {
-//               var b = movementComponents[j];
-//               var aToB = b.DiscretizedPosition - a.DiscretizedPosition;
-//
-//               var radiusSum = aRadius + b.ComputedRadius;
-//               var radiusSumSquared = radiusSum * radiusSum;
-//               var centerDistanceSquared = aToB.SquaredNorm2();
-//
-//               // Must either be overlapping or in the same swarm for us to compute
-//               // (In the future rather than "in same swarm" probably want "allied".
-//               var isOverlapping = centerDistanceSquared < radiusSumSquared;
-//
-//               double w; // where 1 means equal in weight to isolated-unit pather
-//               IntVector2 aForce;
-//               if (isOverlapping) {
-//                  // Case: Overlapping, may or may not be in same swarm.
-//                  // Let D = radius sum
-//                  // Let d = center distance 
-//                  // Separate Force Weight: (k * (D - d) / D)^2
-//                  // Intuitively D-d represents overlapness.
-//                  // k impacts how quickly overlapping overwhelms seeking.
-//                  // k = 1: When fully overlapping
-//                  // k = 2: When half overlapped.
-//                  const int k = 16;
-//                  var centerDistance = IntMath.Sqrt(centerDistanceSquared);
-//                  w = IntMath.Square(k * (radiusSum - centerDistance)) / (double)radiusSumSquared;
-//                  Debug.Assert(GeometryOperations.IsReal(w));
-//
-//                  // And the force vector (outer code will tounit this)
-//                  aForce = aToB.SquaredNorm2() == 0
-//                     ? new IntVector2(2, 1)
-//                     : -1 * aToB;
-//               } else if (a.Swarm == b.Swarm && a.Swarm != null) {
-//                  // Case: Nonoverlapping, in same swarm. Push swarmlings near but nonoverlapping
-//                  // TODO: Alignment force.
-//                  const int groupingTolerance = 8;
-//                  var spacingBetweenBoundaries = IntMath.Sqrt(centerDistanceSquared) - radiusSum;
-//                  var maxAttractionDistance = radiusSum * groupingTolerance;
-//
-//                  if (spacingBetweenBoundaries > maxAttractionDistance)
-//                     continue;
-//
-//                  // regroup = ((D - d) / D)^4
-//                  w = 0.001 * (double)Math.Pow(spacingBetweenBoundaries - maxAttractionDistance, 4.0) / Math.Pow(maxAttractionDistance, 4.0);
-//                  Debug.Assert(GeometryOperations.IsReal(w));
-//
-//                  aForce = aToB;
-//               } else {
-//                  // todo: experiment with continue vs zero-weight for no failed branch prediction
-//                  // (this is pretty pipeliney code)
-//                  continue;
-//               }
-//
-//
-//               var wf = w * aForce.ToDoubleVector2().ToUnit();
-//               Debug.Assert(GeometryOperations.IsReal(wf));
-//               Debug.Assert(GeometryOperations.IsReal(w));
-//
-//               a.WeightedSumNBodyForces += wf;
-//               a.SumWeightsNBodyForces += w;
-//
-//               b.WeightedSumNBodyForces -= wf;
-//               b.SumWeightsNBodyForces += w;
-//            }
-//
-//            if (a.Swarm == null) continue;
-//
-//
-//            var seekAggregate = DoubleVector2.Zero;
-//            var seekWeightAggregate = 0.0;
-//
-//            var d = ds[Tuple.Create(a.SwarmingIsland, a.Swarm.Destination)];
-//            int nti;
-//            if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle3.NO_NEIGHBOR_INDEX) {
-//               var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).XY.ToUnit();
-//               const double mul = 0.3;
-//               seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
-//               seekWeightAggregate += mul;
-//            }
-//               
-//            var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
-//            var triangleCentroidOptimalSeekUnit = vectorField[key];
-//            seekAggregate += triangleCentroidOptimalSeekUnit.XY;
-//            seekWeightAggregate += 1.0;
-//
-//            // var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
-//            // seekAggregate += directionalSeekUnit;
-//            // seekWeightAggregate += 1.0;
-//
-//            var seekUnit = seekWeightAggregate < GeometryOperations.kEpsilon || seekAggregate.SquaredNorm2D() < GeometryOperations.kEpsilon ? DoubleVector2.Zero : seekAggregate.ToUnit();
-//
-//            const double seekWeight = 1.0;
-//            a.WeightedSumNBodyForces += seekWeight * seekUnit;
-//            a.SumWeightsNBodyForces += seekWeight;
-//            a.SwarmlingVelocity = (a.WeightedSumNBodyForces / a.SumWeightsNBodyForces) * a.ComputedSpeed;
-//            Debug.Assert(GeometryOperations.IsReal(a.SwarmlingVelocity));
-//         }
-//
-//
-//
-//         // foreach swarmling, compute vector to dest and vector recommended by triangulation
-////         foreach (var swarm in swarms) {
-////            var swarmDestination = swarm.Destination;
-////            foreach (var e in swarm.Entities) {
-////               var movementComponent = e.MovementComponent;
-////            }
-////         }
-//
-////         foreach (var entity in AssociatedEntities) {
-////            var movementComponent = entity.MovementComponent;
-////            if (movementComponent.Swarm != null) {
-////               if (movementComponent.PathingIsInvalidated) {
-////                  ExecutePathSwarmer(entity, movementComponent);
-////               }
-////            }
-////         }
-//
-//derp:
+         //      the_new_code:
+         //         var entities = AssociatedEntities.ToArray();
+         //
+         //         // Precompute computed entity stats
+         //         for (var i = 0; i < entities.Length; i++) {
+         //            var e = entities[i];
+         //            e.MovementComponent.DiscretizedPosition = e.MovementComponent.Position.XY.LossyToIntVector2();
+         //            e.MovementComponent.ComputedRadius = (int)Math.Ceiling(statsCalculator.ComputeCharacterRadius(e));
+         //            e.MovementComponent.ComputedSpeed = (int)Math.Ceiling(statsCalculator.ComputeMovementSpeed(e));
+         //            e.MovementComponent.WeightedSumNBodyForces = DoubleVector2.Zero;
+         //            e.MovementComponent.SumWeightsNBodyForces = 0;
+         //         }
+         //
+         //         // Only operate on movement components and swarms onward.
+         //         var movementComponents = entities.Select(e => e.MovementComponent).ToArray();
+         //         var swarms = entities.Select(e => e.MovementComponent.Swarm)
+         //                              .Where(s => s != null)
+         //                              .Distinct()
+         //                              .ToArray();
+         //
+         //         // for each entity, update triangle
+         //         for (var i = 0; i < movementComponents.Length; i++) {
+         //            var a = movementComponents[i];
+         //            if (a.Swarm == null) continue;
+         //
+         //            var terrainSnapshot = terrainService.BuildSnapshot();
+         //            var triangulation = terrainSnapshot.ComputeTriangulation(a.ComputedRadius);
+         //
+         //            TriangulationIsland island;
+         //            int triangleIndex;
+         //            if (!triangulation.TryIntersect(a.Position.X, a.Position.Y, out island, out triangleIndex)) {
+         //               Console.WriteLine("Warning: Entity not on land.");
+         //               a.Position = PushToLand(a.Position, a.ComputedRadius);
+         //
+         //               if (!triangulation.TryIntersect(a.Position.X, a.Position.Y, out island, out triangleIndex)) {
+         //                  Console.WriteLine("Warning: fixing entity not on land failed?");
+         //                  continue;
+         //               }
+         //            }
+         //
+         //            a.SwarmingIsland = island;
+         //            a.SwarmingTriangleIndex = triangleIndex;
+         //         }
+         //
+         //         // for each (int, triangleIndex, island, dest) tuple, compute optimal direction (or 0, 0)
+         //         var vectorField = new Dictionary<Tuple<int, int, TriangulationIsland, DoubleVector3>, DoubleVector3>();
+         //         foreach (var swarm in swarms) {
+         //            var dest = swarm.Destination;
+         //            foreach (var entity in swarm.Entities) {
+         //               var mc = entity.MovementComponent;
+         //               var k = Tuple.Create(mc.ComputedRadius, mc.SwarmingTriangleIndex, mc.SwarmingIsland, dest);
+         //               if (vectorField.ContainsKey(k)) {
+         //                  continue;
+         //               }
+         //
+         //               var triangleCentroid = mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid;
+         //               var dilation = mc.ComputedRadius + TerrainConstants.AdditionalHoleDilationRadius;
+         //               List<DoubleVector3> path;
+         //               if (!pathfinderCalculator.TryFindPath(dilation, triangleCentroid, dest, out path) || path.Count < 2) {
+         //                  vectorField[k] = DoubleVector3.Zero;
+         //               } else {
+         //                  vectorField[k] = (path[1] - path[0]).ToUnit();
+         //               }
+         //            }
+         //         }
+         //
+         //         // for each (island, dest) compute spanning dijkstras of tree centroids to dest triangle
+         //         var ds = new Dictionary<Tuple<TriangulationIsland, DoubleVector3>, Dictionary<int, int>>();
+         //         foreach (var swarm in swarms) {
+         //            for (var i = 0; i < swarm.Entities.Count; i++) {
+         //               var entity = swarm.Entities[i];
+         //               Dictionary<int, int> d;
+         //               var key = Tuple.Create(entity.MovementComponent.SwarmingIsland, swarm.Destination);
+         //               if (ds.ContainsKey(key)) {
+         //                  continue;
+         //               }
+         //
+         //               NN(entity.MovementComponent.SwarmingIsland, swarm.Destination, out d);
+         //               ds[key] = d;
+         //            }
+         //         }
+         //
+         //         // for each entity pairing, compute separation force vector which prevents overlap
+         //         // and "regroup" force vector, which causes clustering within swarms.
+         //         // Logic contained within should be scale invariant!
+         //         for (var i = 0; i < movementComponents.Length - 1; i++) {
+         //            var a = movementComponents[i];
+         //            var aRadius = a.ComputedRadius;
+         //            for (var j = i + 1; j < movementComponents.Length; j++) {
+         //               var b = movementComponents[j];
+         //               var aToB = b.DiscretizedPosition - a.DiscretizedPosition;
+         //
+         //               var radiusSum = aRadius + b.ComputedRadius;
+         //               var radiusSumSquared = radiusSum * radiusSum;
+         //               var centerDistanceSquared = aToB.SquaredNorm2();
+         //
+         //               // Must either be overlapping or in the same swarm for us to compute
+         //               // (In the future rather than "in same swarm" probably want "allied".
+         //               var isOverlapping = centerDistanceSquared < radiusSumSquared;
+         //
+         //               double w; // where 1 means equal in weight to isolated-unit pather
+         //               IntVector2 aForce;
+         //               if (isOverlapping) {
+         //                  // Case: Overlapping, may or may not be in same swarm.
+         //                  // Let D = radius sum
+         //                  // Let d = center distance 
+         //                  // Separate Force Weight: (k * (D - d) / D)^2
+         //                  // Intuitively D-d represents overlapness.
+         //                  // k impacts how quickly overlapping overwhelms seeking.
+         //                  // k = 1: When fully overlapping
+         //                  // k = 2: When half overlapped.
+         //                  const int k = 16;
+         //                  var centerDistance = IntMath.Sqrt(centerDistanceSquared);
+         //                  w = IntMath.Square(k * (radiusSum - centerDistance)) / (double)radiusSumSquared;
+         //                  Debug.Assert(GeometryOperations.IsReal(w));
+         //
+         //                  // And the force vector (outer code will tounit this)
+         //                  aForce = aToB.SquaredNorm2() == 0
+         //                     ? new IntVector2(2, 1)
+         //                     : -1 * aToB;
+         //               } else if (a.Swarm == b.Swarm && a.Swarm != null) {
+         //                  // Case: Nonoverlapping, in same swarm. Push swarmlings near but nonoverlapping
+         //                  // TODO: Alignment force.
+         //                  const int groupingTolerance = 8;
+         //                  var spacingBetweenBoundaries = IntMath.Sqrt(centerDistanceSquared) - radiusSum;
+         //                  var maxAttractionDistance = radiusSum * groupingTolerance;
+         //
+         //                  if (spacingBetweenBoundaries > maxAttractionDistance)
+         //                     continue;
+         //
+         //                  // regroup = ((D - d) / D)^4
+         //                  w = 0.001 * (double)Math.Pow(spacingBetweenBoundaries - maxAttractionDistance, 4.0) / Math.Pow(maxAttractionDistance, 4.0);
+         //                  Debug.Assert(GeometryOperations.IsReal(w));
+         //
+         //                  aForce = aToB;
+         //               } else {
+         //                  // todo: experiment with continue vs zero-weight for no failed branch prediction
+         //                  // (this is pretty pipeliney code)
+         //                  continue;
+         //               }
+         //
+         //
+         //               var wf = w * aForce.ToDoubleVector2().ToUnit();
+         //               Debug.Assert(GeometryOperations.IsReal(wf));
+         //               Debug.Assert(GeometryOperations.IsReal(w));
+         //
+         //               a.WeightedSumNBodyForces += wf;
+         //               a.SumWeightsNBodyForces += w;
+         //
+         //               b.WeightedSumNBodyForces -= wf;
+         //               b.SumWeightsNBodyForces += w;
+         //            }
+         //
+         //            if (a.Swarm == null) continue;
+         //
+         //
+         //            var seekAggregate = DoubleVector2.Zero;
+         //            var seekWeightAggregate = 0.0;
+         //
+         //            var d = ds[Tuple.Create(a.SwarmingIsland, a.Swarm.Destination)];
+         //            int nti;
+         //            if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle3.NO_NEIGHBOR_INDEX) {
+         //               var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).XY.ToUnit();
+         //               const double mul = 0.3;
+         //               seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
+         //               seekWeightAggregate += mul;
+         //            }
+         //               
+         //            var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
+         //            var triangleCentroidOptimalSeekUnit = vectorField[key];
+         //            seekAggregate += triangleCentroidOptimalSeekUnit.XY;
+         //            seekWeightAggregate += 1.0;
+         //
+         //            // var directionalSeekUnit = (a.Swarm.Destination - a.Position).ToUnit();
+         //            // seekAggregate += directionalSeekUnit;
+         //            // seekWeightAggregate += 1.0;
+         //
+         //            var seekUnit = seekWeightAggregate < GeometryOperations.kEpsilon || seekAggregate.SquaredNorm2D() < GeometryOperations.kEpsilon ? DoubleVector2.Zero : seekAggregate.ToUnit();
+         //
+         //            const double seekWeight = 1.0;
+         //            a.WeightedSumNBodyForces += seekWeight * seekUnit;
+         //            a.SumWeightsNBodyForces += seekWeight;
+         //            a.SwarmlingVelocity = (a.WeightedSumNBodyForces / a.SumWeightsNBodyForces) * a.ComputedSpeed;
+         //            Debug.Assert(GeometryOperations.IsReal(a.SwarmlingVelocity));
+         //         }
+         //
+         //
+         //
+         //         // foreach swarmling, compute vector to dest and vector recommended by triangulation
+         ////         foreach (var swarm in swarms) {
+         ////            var swarmDestination = swarm.Destination;
+         ////            foreach (var e in swarm.Entities) {
+         ////               var movementComponent = e.MovementComponent;
+         ////            }
+         ////         }
+         //
+         ////         foreach (var entity in AssociatedEntities) {
+         ////            var movementComponent = entity.MovementComponent;
+         ////            if (movementComponent.Swarm != null) {
+         ////               if (movementComponent.PathingIsInvalidated) {
+         ////                  ExecutePathSwarmer(entity, movementComponent);
+         ////               }
+         ////            }
+         ////         }
+         //
+         //derp:
          foreach (var entity in AssociatedEntities) {
             var movementComponent = entity.MovementComponent;
-            if (movementComponent.PathingIsInvalidated) {
-               Pathfind(entity, movementComponent.PathingDestination);
-            }
+            if (movementComponent.PathingIsInvalidated) Pathfind(entity, movementComponent.PathingDestination);
 
-            if (movementComponent.Swarm == null) {
-               ExecutePathNonswarmer(entity, movementComponent);
-            } else {
-               ExecutePathSwarmer(entity, movementComponent);
-            }
+            if (movementComponent.Swarm == null) ExecutePathNonswarmer(entity, movementComponent);
+            else ExecutePathSwarmer(entity, movementComponent);
          }
       }
 
@@ -579,7 +565,7 @@ namespace OpenMOBA.Foundation {
                movementComponent.PathingBreadcrumbs.RemoveAt(0);
                distanceRemaining -= d;
             } else {
-               movementComponent.Position += (pb * distanceRemaining) / d;
+               movementComponent.Position += pb * distanceRemaining / d;
                distanceRemaining = 0;
             }
          }
@@ -587,31 +573,31 @@ namespace OpenMOBA.Foundation {
 
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
          throw new NotImplementedException();
-//         var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
-//         var triangulation = terrainService.BuildSnapshot().ComputeTriangulation(characterRadius);
-//
-//         // p = position of entity to move (updated incrementally)
-//         var p = movementComponent.Position;
-//
-//         // Find triangle we're currently sitting on.
-//         TriangulationIsland island;
-//         int triangleIndex;
-//         if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangleIndex)) {
-//            Console.WriteLine("Warning: Entity not on land.");
-//            FixEntityInHole(entity);
-//
-//            p = movementComponent.Position;
-//            if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangleIndex)) {
-//               Console.WriteLine("Warning: fixing entity not on land failed?");
-//               return;
-//            }
-//         }
-//
-//         // Figure out how much further entity can move this tick
-//         var preferredDirectionUnit = movementComponent.SwarmlingVelocity.ToUnit();
-//         var distanceRemaining = movementComponent.SwarmlingVelocity.Norm2D() * gameTimeService.SecondsPerTick;
-//
-//         movementComponent.Position = CPU(distanceRemaining, p, preferredDirectionUnit, island, triangleIndex);
+         //         var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
+         //         var triangulation = terrainService.BuildSnapshot().ComputeTriangulation(characterRadius);
+         //
+         //         // p = position of entity to move (updated incrementally)
+         //         var p = movementComponent.Position;
+         //
+         //         // Find triangle we're currently sitting on.
+         //         TriangulationIsland island;
+         //         int triangleIndex;
+         //         if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangleIndex)) {
+         //            Console.WriteLine("Warning: Entity not on land.");
+         //            FixEntityInHole(entity);
+         //
+         //            p = movementComponent.Position;
+         //            if (!triangulation.TryIntersect(p.X, p.Y, out island, out triangleIndex)) {
+         //               Console.WriteLine("Warning: fixing entity not on land failed?");
+         //               return;
+         //            }
+         //         }
+         //
+         //         // Figure out how much further entity can move this tick
+         //         var preferredDirectionUnit = movementComponent.SwarmlingVelocity.ToUnit();
+         //         var distanceRemaining = movementComponent.SwarmlingVelocity.Norm2D() * gameTimeService.SecondsPerTick;
+         //
+         //         movementComponent.Position = CPU(distanceRemaining, p, preferredDirectionUnit, island, triangleIndex);
       }
 
       private DoubleVector3 CPU(double distanceRemaining, DoubleVector3 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
@@ -645,14 +631,6 @@ namespace OpenMOBA.Foundation {
             }
          }
          return p;
-      }
-
-      public enum WalkResult {
-         PushInward,
-         CanPushInward,
-         Progress,
-         CanEdgeFollow,
-         Completion,
       }
 
       // removes normal component of point relative to triangle.
@@ -702,11 +680,11 @@ namespace OpenMOBA.Foundation {
       }
 
       private WalkResult WalkTriangle(
-         DoubleVector3 position, 
-         DoubleVector2 preferredDirectionUnit, 
-         double distanceRemaining, 
-         TriangulationIsland island, 
-         int triangleIndex, 
+         DoubleVector3 position,
+         DoubleVector2 preferredDirectionUnit,
+         double distanceRemaining,
+         TriangulationIsland island,
+         int triangleIndex,
          bool allowPushIntoTriangle,
          bool allowEdgeFollow,
          out DoubleVector3 nextPosition,
@@ -717,14 +695,13 @@ namespace OpenMOBA.Foundation {
          Debug.Assert(GeometryOperations.IsReal(distanceRemaining));
 
          // Make this a ref in C# 7.0 for minor perf gains
-         var triangle = island.Triangles[triangleIndex]; ;
+         var triangle = island.Triangles[triangleIndex];
+         ;
 
          // NOTE: Position is assumed to be on the triangle plane already.
          // Either way, enforce: Holding p.XY constant, reset Z to whatever's on triangle plane.
          var npos = ZIfyPointOnTrianglePlane(position.XY, ref triangle);
-         if ((position - npos).SquaredNorm2D() > 0.05) {
-            Console.WriteLine("!! clamp z to triangle " + (position - npos).Norm2D());
-         }
+         if ((position - npos).SquaredNorm2D() > 0.05) Console.WriteLine("!! clamp z to triangle " + (position - npos).Norm2D());
          position = npos;
 
          // Find the edge of our container triangle that we're walking towards 
@@ -836,7 +813,7 @@ namespace OpenMOBA.Foundation {
             var p = pNearEdge;
             var ti = triangleIndex;
             var drem = dToNearEdge.Norm2D();
-            bool allowPushInward = true;
+            var allowPushInward = true;
             while (drem > GeometryOperations.kEpsilon) {
                DoubleVector3 np;
                int nti;
@@ -922,23 +899,19 @@ namespace OpenMOBA.Foundation {
    }
 
    public class StatusComponent : EntityComponent {
-      public StatusComponent() : base(EntityComponentType.Status) {}
+      public StatusComponent() : base(EntityComponentType.Status) { }
    }
 
    public class StatsCalculator {
       public double ComputeCharacterRadius(Entity entity) {
          var movementComponent = entity.MovementComponent;
-         if (movementComponent == null) {
-            return 0;
-         }
+         if (movementComponent == null) return 0;
          return movementComponent.BaseRadius;
       }
 
       public double ComputeMovementSpeed(Entity entity) {
          var movementComponent = entity.MovementComponent;
-         if (movementComponent == null) {
-            return 0;
-         }
+         if (movementComponent == null) return 0;
          return movementComponent.BaseSpeed;
       }
    }
@@ -946,10 +919,8 @@ namespace OpenMOBA.Foundation {
    public class StatusSystemService : EntitySystemService {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Status);
 
-      public StatusSystemService(EntityService entityService) : base(entityService, kComponentMask) {}
+      public StatusSystemService(EntityService entityService) : base(entityService, kComponentMask) { }
 
-      public override void Execute() {
-      }
+      public override void Execute() { }
    }
 }
-

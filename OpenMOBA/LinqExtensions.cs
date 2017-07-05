@@ -38,5 +38,26 @@ namespace OpenMOBA {
             }
          }
       }
+
+      public static bool Add<K, V>(this Dictionary<K, HashSet<V>> dict, K key, V value) {
+         HashSet<V> set;
+         if (!dict.TryGetValue(key, out set)) {
+            set = new HashSet<V>();
+            dict[key] = set;
+         }
+         return set.Add(value);
+      }
+
+      public static bool Remove<K, V>(this Dictionary<K, HashSet<V>> dict, K key, V value) {
+         HashSet<V> set;
+         if (!dict.TryGetValue(key, out set)) {
+            return false;
+         }
+         var res = set.Remove(value);
+         if (set.Count == 0) {
+            dict.Remove(key);
+         }
+         return res;
+      }
    }
 }

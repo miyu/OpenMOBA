@@ -24,19 +24,20 @@ namespace OpenMOBA.Geometry {
                         .Execute();
       }
 
-      public static List<Polygon> FlattenToPolygons(this PolyNode polytree) {
+      public static List<Polygon> FlattenToPolygons(this PolyNode polytree, bool includeOuterPolygon = true) {
          var results = new List<Polygon>();
-         FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results);
+         var depthFilter = includeOuterPolygon ? 0 : 2; // 2 for outer void level and outer land poly level
+         FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results, depthFilter);
          return results;
       }
 
-      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon> results) {
-         if (current.Contour.Count > 0) {
+      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon> results, int depthFilter) {
+         if (current.Contour.Count > 0 && depthFilter <= 0) {
             results.Add(new Polygon(current.Contour, isHole));
          }
          foreach (var child in current.Childs) {
             // We avoid node.isHole as that traverses upwards recursively and wastefully.
-            FlattenPolyTreeToPolygonsHelper(child, !isHole, results);
+            FlattenPolyTreeToPolygonsHelper(child, !isHole, results, depthFilter - 1);
          }
       }
 

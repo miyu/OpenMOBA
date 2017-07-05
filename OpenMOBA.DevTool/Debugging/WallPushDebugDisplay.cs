@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.DevTool.Debugging {
@@ -30,9 +31,9 @@ namespace OpenMOBA.DevTool.Debugging {
       private static readonly StrokeStyle AngleBoundaryStrokeStyle = new StrokeStyle(Color.FromArgb(30, Color.Black), 1.0, new [] { 10f, 10f });
       private static readonly StrokeStyle VisibleWallStrokeStyle = new StrokeStyle(Color.Black, 5.0);
 
-      public static void DrawLineOfSight(this IDebugCanvas debugCanvas, AngularVisibleSegmentStore avss, double z = 0.0) {
+      public static void DrawLineOfSight(this IDebugCanvas debugCanvas, VisibilityPolygonBuilder avss, double z = 0.0) {
          var oxy = avss.Origin;
-         foreach (var range in avss.Get().Where(range => range.Id != AngularVisibleSegmentStore.RANGE_ID_NULL)) {
+         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygonBuilder.RANGE_ID_NULL)) {
             var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
             var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
       

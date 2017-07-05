@@ -1,0 +1,20 @@
+Pathing between sectors:
+- [x] Crossovers as portals between two sectors
+- [x] Buffer sectors at crossover.
+- [ ] Find segments between crossovers within a sector
+- [ ] Find waypoints within sectors that can see crossovers
+
+
+Two preprocessing passes in pathfinding:
+For each sector:
+  For each crossover pair, find min optimal pathing distance and max optimal pathing distance:
+     (As in, lower/upper bound for optimal path cost between 2 points on crossovers).
+
+Dijkstras over sectors as nodes, using max distance as edge cost. This finds the upper-bound on
+path cost.
+
+BFS over sectors as nodes, using min distance as edge cost in PQ, take while under upper-bound.
+
+- [ ] Dijkstras starting at destination to upper-bound optimal path length
+  - [ ] Per sector at out-crossover, take maximum distance
+  - [ ] Start at next sector at crossover, zero distance of in-crossover

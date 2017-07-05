@@ -3,22 +3,24 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation {
-   public static class SectorPresets {
-      public static Sector Blank2D() {
-         return new Sector {
-            AbsoluteBounds = new Rectangle(0, 0, 1000, 1000),
-            StaticHolePolygons = new List<Polygon>()
-         };
-      }
+   public static class SectorMetadataPresets {
+      public static readonly TerrainStaticMetadata Blank2D = new TerrainStaticMetadata {
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] { Polygon.CreateRectXY(0, 0, 1000, 1000, 0) },
+         LocalExcludedContours = new List<Polygon>()
+      };
 
-      public static Sector Test2D() {
-         var holes = new[] {
+      public static readonly TerrainStaticMetadata Test2D = new TerrainStaticMetadata {
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] { Polygon.CreateRectXY(0, 0, 1000, 1000, 0) },
+         LocalExcludedContours = new[] {
             Polygon.CreateRectXY(100, 100, 300, 300, 0),
             Polygon.CreateRectXY(400, 200, 100, 100, 0),
             Polygon.CreateRectXY(200, -50, 100, 150, 0),
@@ -30,111 +32,24 @@ namespace OpenMOBA.Foundation {
             Polygon.CreateRectXY(850, 150, 50, 200, 0),
             Polygon.CreateRectXY(600, 350, 300, 50, 0),
             Polygon.CreateRectXY(700, 200, 100, 100, 0)
-         };
-         return new Sector {
-            AbsoluteBounds = new Rectangle(0, 0, 1000, 1000),
-            StaticHolePolygons = holes.ToList()
-         };
-      }
+         }
+      };
 
-      public static Sector FourSquares2D() {
-         var holes = new[] {
+      public static readonly TerrainStaticMetadata FourSquares2D = new TerrainStaticMetadata {
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] { Polygon.CreateRectXY(0, 0, 1000, 1000, 0) },
+         LocalExcludedContours = new[] {
             Polygon.CreateRectXY(200, 200, 200, 200, 0),
             Polygon.CreateRectXY(200, 600, 200, 200, 0),
             Polygon.CreateRectXY(600, 200, 200, 200, 0),
             Polygon.CreateRectXY(600, 600, 200, 200, 0)
-         };
-         return new Sector {
-            AbsoluteBounds = new Rectangle(0, 0, 1000, 1000),
-            StaticHolePolygons = holes.ToList()
-         };
-      }
-
-      public static Sector TransformToRect(this Sector sector, Rectangle rect) {
-         OffsetSector(sector, -sector.AbsoluteBounds.X, -sector.AbsoluteBounds.Y);
-         RescaleSectorXY(sector, rect.Size);
-         OffsetSector(sector, rect.X, rect.Y);
-         return sector;
-      }
-
-      public static Sector Rotate90(this Sector sector) {
-         var loc = sector.AbsoluteBounds.Location;
-         OffsetSector(sector, -loc.X, -loc.Y);
-         foreach (var poly in sector.StaticHolePolygons) {
-            for (var i = 0; i < poly.Points.Count; i++) {
-               poly.Points[i] = new IntVector3(
-                  sector.AbsoluteBounds.Height - poly.Points[i].Y,
-                  sector.AbsoluteBounds.Width - poly.Points[i].X,
-                  poly.Points[i].Z);
-            }
          }
-         sector.AbsoluteBounds = new Rectangle(0, 0, sector.AbsoluteBounds.Height, sector.AbsoluteBounds.Width);
-         OffsetSector(sector, loc.X, loc.Y);
-         return sector;
-      }
-
-      public static Sector FlipXY(this Sector sector) {
-         var loc = sector.AbsoluteBounds.Location;
-         OffsetSector(sector, -loc.X, -loc.Y);
-         foreach (var poly in sector.StaticHolePolygons) {
-            for (var i = 0; i < poly.Points.Count; i++) {
-               poly.Points[i] = new IntVector3(poly.Points[i].Y, poly.Points[i].X, poly.Points[i].Z);
-            }
-         }
-         sector.AbsoluteBounds = new Rectangle(0, 0, sector.AbsoluteBounds.Height, sector.AbsoluteBounds.Width);
-         OffsetSector(sector, loc.X, loc.Y);
-         return sector;
-      }
-
-      private static void OffsetSector(Sector sector, int dx, int dy) {
-         foreach (var poly in sector.StaticHolePolygons) {
-            for (var i = 0; i < poly.Points.Count; i++) {
-               poly.Points[i] += new IntVector3(dx, dy, 0);
-            }
-         }
-         sector.AbsoluteBounds = new Rectangle(
-            sector.AbsoluteBounds.X + dx,
-            sector.AbsoluteBounds.Y + dy,
-            sector.AbsoluteBounds.Width,
-            sector.AbsoluteBounds.Height);
-      }
-      private static void RescaleSectorXY(Sector sector, Size size) {
-         foreach (var poly in sector.StaticHolePolygons) {
-            for (var i = 0; i < poly.Points.Count; i++) {
-               poly.Points[i] = new IntVector3(
-                  poly.Points[i].X * size.Width / sector.AbsoluteBounds.Width,
-                  poly.Points[i].Y * size.Height / sector.AbsoluteBounds.Height,
-                  poly.Points[i].Z);
-            }
-         }
-         sector.AbsoluteBounds = new Rectangle(sector.AbsoluteBounds.Location, size);
-      }
-
-      private static List<Polygon> CreateHoleSquiggle2D() {
-         return PolylineOperations.ExtrudePolygon(
-            new[] {
-                  new IntVector2(100, 50),
-                  new IntVector2(100, 100),
-                  new IntVector2(200, 100),
-                  new IntVector2(200, 150),
-                  new IntVector2(200, 200),
-                  new IntVector2(400, 250),
-                  new IntVector2(200, 300),
-                  new IntVector2(400, 315),
-                  new IntVector2(200, 330),
-                  new IntVector2(210, 340),
-                  new IntVector2(220, 350),
-                  new IntVector2(220, 400),
-                  new IntVector2(221, 400)
-               }.Select(iv => new IntVector3(iv.X + 160, iv.Y + 200, 0))
-                .ToArray(),
-            10).FlattenToPolygons();
-      }
+      };
    }
 
    public interface IGameEventFactory {
-      GameEvent CreateAddTemporaryHoleEvent(GameTime time, TerrainHole temporaryHole);
-      GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, TerrainHole temporaryHole);
+      GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHole temporaryHole);
+      GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHole temporaryHole);
    }
 
    public class Game : IGameEventFactory {
@@ -149,15 +64,19 @@ namespace OpenMOBA.Foundation {
       public GameLogicFacade GameLogicFacade { get; set; }
 
       public void Run() {
-         var sector1 = SectorPresets.Test2D().TransformToRect(new Rectangle(0, 0, 1000, 1000));
+         var sector1 = TerrainService.CreateSector(SectorMetadataPresets.Test2D);
          TerrainService.AddSector(sector1);
 
-         var sector2 = SectorPresets.FourSquares2D().TransformToRect(new Rectangle(1100, 0, 1000, 1000));
+         var sector2 = TerrainService.CreateSector(SectorMetadataPresets.FourSquares2D);
+         sector2.WorldTransform = Matrix4x4.CreateTranslation(1100, 0, 0);
          TerrainService.AddSector(sector2);
 
-         var connector12A = SectorPresets.Blank2D().TransformToRect(new Rectangle(1000, 200, 100, 200));
-         var connector12B = SectorPresets.Blank2D().TransformToRect(new Rectangle(1000, 600, 100, 200));
+         var connector12A = TerrainService.CreateSector(SectorMetadataPresets.Blank2D);
+         connector12A.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(0.1f, 0.2f, 1.0f), Matrix4x4.CreateTranslation(1000f, 200f, 0f));
          TerrainService.AddSector(connector12A);
+
+         var connector12B = TerrainService.CreateSector(SectorMetadataPresets.Blank2D);
+         connector12B.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(0.1f, 0.2f, 1.0f), Matrix4x4.CreateTranslation(1000f, 600f, 0f));
          TerrainService.AddSector(connector12B);
 
          TerrainService.HackAddSectorCrossover(new Crossover {
@@ -189,7 +108,7 @@ namespace OpenMOBA.Foundation {
             var poly = Polygon.CreateRectXY(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200), 0);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
@@ -202,7 +121,7 @@ namespace OpenMOBA.Foundation {
             var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(520 - 40, 720 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9, 0);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
@@ -213,7 +132,7 @@ namespace OpenMOBA.Foundation {
             var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(180 - 40, 360 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9, 0);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new TerrainHole { Polygons = new[] { poly } };
+            var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
@@ -269,7 +188,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 20) {
+            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 1) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
                break;
             }
@@ -293,12 +212,12 @@ namespace OpenMOBA.Foundation {
          return entity;
       }
 
-      public GameEvent CreateAddTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {
-         return new AddTemporaryHoleGameEvent(time, GameLogicFacade, terrainHole);
+      public GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHole dynamicTerrainHole) {
+         return new AddTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHole);
       }
 
-      public GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, TerrainHole terrainHole) {
-         return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, terrainHole);
+      public GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHole dynamicTerrainHole) {
+         return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHole);
       }
    }
 
@@ -324,13 +243,13 @@ namespace OpenMOBA.Foundation {
          this.movementSystemService = movementSystemService;
       }
 
-      public void AddTemporaryHole(TerrainHole hole) {
+      public void AddTemporaryHole(DynamicTerrainHole hole) {
          terrainService.AddTemporaryHole(hole);
          // todo: can optimize to only invalidate paths intersecting hole.
          movementSystemService.HandleHoleAdded(hole);
       }
 
-      public void RemoveTemporaryHole(TerrainHole hole) {
+      public void RemoveTemporaryHole(DynamicTerrainHole hole) {
          terrainService.RemoveTemporaryHole(hole);
          movementSystemService.InvalidatePaths();
       }

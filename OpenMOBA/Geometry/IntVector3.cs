@@ -125,6 +125,16 @@ namespace OpenMOBA.Geometry {
       public cInt SquaredNorm2() => Dot(this);
       public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
 
+      public IntVector3 Cross(IntVector3 other) {
+         cInt u1 = X, u2 = Y, u3 = Z,
+            v1 = other.X, v2 = other.Y, v3 = other.Z;
+         return new IntVector3(
+            u2 * v3 - u3 * v2,
+            u3 * v1 - u1 * v3,
+            u1 * v2 - u2 * v1);
+      }
+
+
       public IntVector3 To(IntVector3 other) => other - this;
 
       /// <summary>

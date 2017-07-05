@@ -81,6 +81,7 @@ namespace OpenMOBA.DevTool.Debugging {
    }
 
    public interface IDebugCanvas {
+      Matrix4x4 Transform { get; set; }
       void BatchDraw(Action callback);
 
       void DrawPoint(DoubleVector3 p, StrokeStyle strokeStyle);
@@ -182,6 +183,8 @@ namespace OpenMOBA.DevTool.Debugging {
       private bool isRecursion = false;
       private Graphics g;
 
+      public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+
       public void BatchDraw(Action callback) {
          lock (synchronization) {
             if (!isRecursion) {
@@ -202,7 +205,10 @@ namespace OpenMOBA.DevTool.Debugging {
          }
       }
 
-      private DoubleVector2 Project(DoubleVector3 p) => projector.Project(p);
+      private DoubleVector2 Project(DoubleVector3 p) {
+         var transformed = Vector3.Transform(new Vector3((float)p.X, (float)p.Y, (float)p.Z), Transform);
+         return projector.Project(new DoubleVector3(transformed.X, transformed.Y, transformed.Z));
+      }
 
       private PointF ProjectPointF(DoubleVector3 p) {
          var proj = Project(p);

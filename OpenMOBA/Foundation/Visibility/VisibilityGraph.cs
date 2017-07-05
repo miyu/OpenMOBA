@@ -101,7 +101,7 @@ namespace OpenMOBA.Foundation.Visibility {
       public static VisibilityGraph CreateVisibilityGraph(PolyTree landPunchResult) {
          landPunchResult.AssertIsContourlessRootHolePunchResult();
          var barriersList = new List<IntLineSegment3>();
-         FindVisibilityObstructionSegments(landPunchResult, barriersList);
+         FindVisibilityObstructionSegments(landPunchResult, barriersList, false);
          var barriers = barriersList.ToArray();
          var tempWaypoints = new List<IntVector3>();
          FindWaypoints(landPunchResult, tempWaypoints, true);
@@ -134,7 +134,8 @@ namespace OpenMOBA.Foundation.Visibility {
          distances[firstWaypointIndex, secondWaypointIndex] = (a - b).Norm2F();
       }
 
-      private static void FindVisibilityObstructionSegments(PolyNode hole, List<IntLineSegment3> results) {
+      private static void FindVisibilityObstructionSegments(PolyNode hole, List<IntLineSegment3> results, bool isRootHole) {
+         // TODO: IsHole is O(depth), maybe hide this behind #if DEBUG in future
          if (!hole.IsHole) {
             throw new InvalidOperationException("Provided 'hole' was not a hole.");
          }
@@ -147,13 +148,14 @@ namespace OpenMOBA.Foundation.Visibility {
             // expansion to make corners hit
             const int kExpansionFactor = 2;
 
-            var childPolygons = child.FlattenToPolygons();
+            var childPolygons = child.FlattenToPolygons(true);
             var erodedChildPolytree = PolygonOperations.Offset()
-                                                       .Include(childPolygons)
-                                                       .Dilate(kDilationFactor)
-                                                       .Execute();
+                                                         .Include(childPolygons)
+                                                         .Dilate(kDilationFactor)
+                                                         .Execute();
 
-            foreach (var polygon in erodedChildPolytree.FlattenToPolygons()) {
+            bool includeOutermostPolygonContour = !isRootHole;
+            foreach (var polygon in erodedChildPolytree.FlattenToPolygons(includeOutermostPolygonContour)) {
                var pointCount = polygon.IsClosed ? polygon.Points.Count - 1 : polygon.Points.Count;
 
                // skip last point as it's a duplicate of the first.
@@ -177,7 +179,7 @@ namespace OpenMOBA.Foundation.Visibility {
             }
 
             foreach (var innerChild in child.Childs) {
-               FindVisibilityObstructionSegments(innerChild, results);
+               FindVisibilityObstructionSegments(innerChild, results, false);
             }
          }
       }
