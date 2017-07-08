@@ -8,6 +8,8 @@ namespace OpenMOBA.Geometry {
       public double Y;
       public double Z;
 
+      public DoubleVector3(DoubleVector2 v, double z = 0) : this(v.X, v.Y, z) { }
+
       public DoubleVector3(double x, double y, double z) {
          X = x;
          Y = y;
@@ -111,6 +113,8 @@ namespace OpenMOBA.Geometry {
       public cInt Z;
 
       public IntVector3(cInt x, cInt y) : this(x, y, 0) { }
+
+      public IntVector3(IntVector2 v, cInt z = 0) : this(v.X, v.Y, z) { }
 
       public IntVector3(cInt x, cInt y, cInt z) {
          X = x;

@@ -13,36 +13,36 @@ namespace OpenMOBA.Foundation {
    public static class SectorMetadataPresets {
       public static readonly TerrainStaticMetadata Blank2D = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
-         LocalIncludedContours = new[] { Polygon.CreateRectXY(0, 0, 1000, 1000, 0) },
-         LocalExcludedContours = new List<Polygon>()
+         LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
+         LocalExcludedContours = new List<Polygon2>()
       };
 
       public static readonly TerrainStaticMetadata Test2D = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
-         LocalIncludedContours = new[] { Polygon.CreateRectXY(0, 0, 1000, 1000, 0) },
+         LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new[] {
-            Polygon.CreateRectXY(100, 100, 300, 300, 0),
-            Polygon.CreateRectXY(400, 200, 100, 100, 0),
-            Polygon.CreateRectXY(200, -50, 100, 150, 0),
-            Polygon.CreateRectXY(600, 600, 300, 300, 0),
-            Polygon.CreateRectXY(700, 500, 100, 100, 0),
-            Polygon.CreateRectXY(200, 700, 100, 100, 0),
-            Polygon.CreateRectXY(600, 100, 300, 50, 0),
-            Polygon.CreateRectXY(600, 150, 50, 200, 0),
-            Polygon.CreateRectXY(850, 150, 50, 200, 0),
-            Polygon.CreateRectXY(600, 350, 300, 50, 0),
-            Polygon.CreateRectXY(700, 200, 100, 100, 0)
+            Polygon2.CreateRect(100, 100, 300, 300),
+            Polygon2.CreateRect(400, 200, 100, 100),
+            Polygon2.CreateRect(200, -50, 100, 150),
+            Polygon2.CreateRect(600, 600, 300, 300),
+            Polygon2.CreateRect(700, 500, 100, 100),
+            Polygon2.CreateRect(200, 700, 100, 100),
+            Polygon2.CreateRect(600, 100, 300, 50),
+            Polygon2.CreateRect(600, 150, 50, 200),
+            Polygon2.CreateRect(850, 150, 50, 200),
+            Polygon2.CreateRect(600, 350, 300, 50),
+            Polygon2.CreateRect(700, 200, 100, 100)
          }
       };
 
       public static readonly TerrainStaticMetadata FourSquares2D = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
-         LocalIncludedContours = new[] { Polygon.CreateRectXY(0, 0, 1000, 1000, 0) },
+         LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new[] {
-            Polygon.CreateRectXY(200, 200, 200, 200, 0),
-            Polygon.CreateRectXY(200, 600, 200, 200, 0),
-            Polygon.CreateRectXY(600, 200, 200, 200, 0),
-            Polygon.CreateRectXY(600, 600, 200, 200, 0)
+            Polygon2.CreateRect(200, 200, 200, 200),
+            Polygon2.CreateRect(200, 600, 200, 200),
+            Polygon2.CreateRect(600, 200, 200, 200),
+            Polygon2.CreateRect(600, 600, 200, 200)
          }
       };
    }
@@ -105,7 +105,7 @@ namespace OpenMOBA.Foundation {
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
-            var poly = Polygon.CreateRectXY(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200), 0);
+            var poly = Polygon2.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
@@ -118,7 +118,7 @@ namespace OpenMOBA.Foundation {
          for (int i = 0; i < 20; i++) {
             var w = r.Next(50, 100);
             var h = r.Next(50, 100);
-            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(520 - 40, 720 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9, 0);
+            var poly = Polygon2.CreateRect(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(520 - 40, 720 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
@@ -129,7 +129,7 @@ namespace OpenMOBA.Foundation {
          for (int i = 0; i < 20; i++) {
             var w = r.Next(50, 100);
             var h = r.Next(50, 100);
-            var poly = Polygon.CreateRectXY(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(180 - 40, 360 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9, 0);
+            var poly = Polygon2.CreateRect(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(180 - 40, 360 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };

@@ -7,10 +7,10 @@ using System.Drawing;
 using System.Linq;
 using OpenMOBA.DataStructures;
 using Poly2Tri;
+using Poly2Tri.Triangulation.Polygon;
 //using Polygon = Poly2Tri.Polygon;
 
 using cInt = System.Int64;
-using Polygon = OpenMOBA.Geometry.Polygon;
 
 namespace OpenMOBA {
    // Connected Components. We avoid that term because 'Component' is pretty overloaded in meaning.
@@ -30,12 +30,9 @@ namespace OpenMOBA {
       public int Index;
 
       // in counterclockwise order
-      public Array3<DoubleVector3> Points;
+      public Array3<DoubleVector2> Points;
 
-      public DoubleVector3 Centroid;
-
-      // Right hand rule, curl fingers in clockwise, thumb-outward is normal.
-      public DoubleVector3 Normal;
+      public DoubleVector2 Centroid;
 
       // also in counterclockwise order, NO_NEIGHBOR_INDEX indicates no neighbor
       public Array3<int> NeighborOppositePointIndices;
@@ -98,9 +95,9 @@ namespace OpenMOBA {
       private void TriangulateHelper(PolyNode node, List<TriangulationIsland> islands) {
          DebugPrint("Triangulate out");
 
-         var cps = new Poly2Tri.Polygon(ConvertToTriangulationPoints(node.Contour));
+         var cps = new Polygon(ConvertToTriangulationPoints(node.Contour));
          foreach (var hole in node.Childs) {
-            cps.AddHole(new Poly2Tri.Polygon(ConvertToTriangulationPoints(hole.Contour)));
+            cps.AddHole(new Polygon(ConvertToTriangulationPoints(hole.Contour)));
          }
          P2T.Triangulate(cps);
 
@@ -114,14 +111,13 @@ namespace OpenMOBA {
          for (var i = 0; i < cps.Triangles.Count; i++) {
             var p2tTriangle = cps.Triangles[i];
             ref Triangle3 t = ref triangles[i];
-            t.Points = new Array3<DoubleVector3>(
+            t.Points = new Array3<DoubleVector2>(
                p2tTriangle.Points[0].ToOpenMobaPointD(),
                p2tTriangle.Points[1].ToOpenMobaPointD(),
                p2tTriangle.Points[2].ToOpenMobaPointD()
             );
 //            Console.WriteLine(string.Join(", ", p2tTriangle.Points.Select(p => p.Z)));
             t.Centroid = (t.Points[0] + t.Points[1] + t.Points[2]) / 3.0;
-            t.Normal = t.Points[0].To(t.Points[1]).Cross(t.Points[0].To(t.Points[2])).ToUnit();
             t.IntPaddedBounds2D = CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref triangles[i].Points);
             for (int j = 0; j < 3; j++) {
                if (p2tTriangle.Neighbors[j] != null && p2tTriangle.Neighbors[j].IsInterior)
@@ -136,9 +132,9 @@ namespace OpenMOBA {
                var cp0 = p0 - centroid;
                var cp1 = p1 - centroid;
                var cp2 = p2 - centroid;
-               var cl01 = GeometryOperations.Clockness(cp0.XY, cp1.XY);
-               var cl12 = GeometryOperations.Clockness(cp1.XY, cp2.XY);
-               var cl20 = GeometryOperations.Clockness(cp2.XY, cp0.XY);
+               var cl01 = GeometryOperations.Clockness(cp0, cp1);
+               var cl12 = GeometryOperations.Clockness(cp1, cp2);
+               var cl20 = GeometryOperations.Clockness(cp2, cp0);
                var cond = cl01 == cl12 && cl12 == cl20 && cl20 == Clockness.CounterClockwise;
                if (!cond) {
                   throw new ArgumentException("P2T Triangle Clockness wasn't expected");
@@ -166,7 +162,7 @@ namespace OpenMOBA {
          }
       }
 
-      private IntRect2 CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref Array3<DoubleVector3> points) {
+      private IntRect2 CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref Array3<DoubleVector2> points) {
          cInt minX = cInt.MaxValue;
          cInt maxX = cInt.MinValue;
          cInt minY = cInt.MaxValue;
@@ -185,14 +181,14 @@ namespace OpenMOBA {
          };
       }
 
-      private List<Poly2Tri.PolygonPoint> ConvertToTriangulationPoints(List<IntVector3> points) {
+      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntVector2> points) {
          var isOpen = points[0] != points[points.Count - 1];
-         var results = new List<Poly2Tri.PolygonPoint>(points.Count);
+         var results = new List<PolygonPoint>(points.Count);
          var limit = isOpen ? points.Count : points.Count - 1;
          for (var i = 0; i < limit; i++) {
             var p = points[i];
             DebugPrint($"P: {p.X}, {p.Y}");
-            results.Add(new PolygonPoint(p.X, p.Y, p.Z));
+            results.Add(new PolygonPoint(p.X, p.Y));
          }
          DebugPrint($"Last: {points.Last().X}, {points.Last().Y}");
          return results;

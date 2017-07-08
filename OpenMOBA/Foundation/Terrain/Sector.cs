@@ -8,8 +8,8 @@ using OpenMOBA.Geometry;
 namespace OpenMOBA.Foundation.Terrain {
    public class TerrainStaticMetadata {
       public Rectangle LocalBoundary;
-      public IReadOnlyList<Polygon> LocalIncludedContours;
-      public IReadOnlyList<Polygon> LocalExcludedContours;
+      public IReadOnlyList<Polygon2> LocalIncludedContours;
+      public IReadOnlyList<Polygon2> LocalExcludedContours;
    }
 
    public class SectorInstanceMetadata {
@@ -57,6 +57,6 @@ namespace OpenMOBA.Foundation.Terrain {
    /// Considered internal to TerrainService
    /// </summary>
    public class DynamicTerrainHole {
-      public IReadOnlyList<Polygon> Polygons { get; set; }
+      public IReadOnlyList<Polygon2> Polygons { get; set; }
    }
 }

@@ -14,12 +14,12 @@ namespace OpenMOBA.DevTool.Debugging {
       public static void DrawWallPushGrid(this IDebugCanvas canvas, SectorSnapshot sectorSnapshot, double holeDilationRadius, double xlow = -50, double xhigh = 1100, double xstep = 100, double ylow = -50, double yhigh = 1100, double ystep = 100) {
          for (double x = xlow; x < xhigh; x += xstep) {
             for (double y = ylow; y < yhigh; y += ystep) {
-               var query = new DoubleVector3(x, y, 0);
-               DoubleVector3 nearestLandPoint;
+               var query = new DoubleVector2(x, y);
+               DoubleVector2 nearestLandPoint;
                var isInHole = sectorSnapshot.FindNearestLandPointAndIsInHole(holeDilationRadius, query, out nearestLandPoint);
-               canvas.DrawPoint(query, isInHole ? InHoleStrokeStyle : InLandStrokeStyle);
+               canvas.DrawPoint(new DoubleVector3(query), isInHole ? InHoleStrokeStyle : InLandStrokeStyle);
                if (isInHole) {
-                  canvas.DrawLine(query, nearestLandPoint, NearestLandStrokeStyle);
+                  canvas.DrawLine(new DoubleVector3(query), new DoubleVector3(nearestLandPoint), NearestLandStrokeStyle);
                }
             }
          }
@@ -38,8 +38,8 @@ namespace OpenMOBA.DevTool.Debugging {
             var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
       
             var s = range.Segment;
-            var s1 = s.First.XY.ToDoubleVector2();
-            var s2 = s.Second.XY.ToDoubleVector2();
+            var s1 = s.First.ToDoubleVector2();
+            var s2 = s.Second.ToDoubleVector2();
             DoubleVector2 visibleStart, visibleEnd;
             if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart) ||
                   !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {

@@ -7,8 +7,8 @@ using IntPoint = OpenMOBA.Geometry.IntVector3;
 
 namespace OpenMOBA.Geometry {
    public static class PolygonOperations {
-      public static DoubleVector3 ToOpenMobaPointD(this TriangulationPoint input) {
-         return new DoubleVector3(input.X, input.Y, input.Z);
+      public static DoubleVector2 ToOpenMobaPointD(this TriangulationPoint input) {
+         return new DoubleVector2(input.X, input.Y);
       }
 
       public static UnionOperation Union() => new UnionOperation();
@@ -17,23 +17,23 @@ namespace OpenMOBA.Geometry {
 
       public static OffsetOperation Offset() => new OffsetOperation();
 
-      public static PolyTree CleanPolygons(List<Polygon> polygons) {
+      public static PolyTree CleanPolygons(List<Polygon2> polygons) {
          return Offset().Include(polygons)
                         .Erode(0.05)
                         .Dilate(0.05)
                         .Execute();
       }
 
-      public static List<Polygon> FlattenToPolygons(this PolyNode polytree, bool includeOuterPolygon = true) {
-         var results = new List<Polygon>();
+      public static List<Polygon2> FlattenToPolygons(this PolyNode polytree, bool includeOuterPolygon = true) {
+         var results = new List<Polygon2>();
          var depthFilter = includeOuterPolygon ? 0 : 2; // 2 for outer void level and outer land poly level
          FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results, depthFilter);
          return results;
       }
 
-      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon> results, int depthFilter) {
+      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon2> results, int depthFilter) {
          if (current.Contour.Count > 0 && depthFilter <= 0) {
-            results.Add(new Polygon(current.Contour, isHole));
+            results.Add(new Polygon2(current.Contour, isHole));
          }
          foreach (var child in current.Childs) {
             // We avoid node.isHole as that traverses upwards recursively and wastefully.
@@ -44,9 +44,9 @@ namespace OpenMOBA.Geometry {
       public class UnionOperation {
          private readonly Clipper clipper = new Clipper { StrictlySimple = true };
 
-         public UnionOperation Include(params Polygon[] polygons) => Include((IReadOnlyList<Polygon>)polygons);
+         public UnionOperation Include(params Polygon2[] polygons) => Include((IReadOnlyList<Polygon2>)polygons);
 
-         public UnionOperation Include(IReadOnlyList<Polygon> polygons) {
+         public UnionOperation Include(IReadOnlyList<Polygon2> polygons) {
             foreach (var polygon in polygons) {
                clipper.AddPath(polygon.Points, PolyType.ptSubject, polygon.IsClosed);
             }
@@ -63,18 +63,18 @@ namespace OpenMOBA.Geometry {
       public class PunchOperation {
          private readonly Clipper clipper = new Clipper { StrictlySimple = true };
 
-         public PunchOperation Include(params Polygon[] polygons) => Include((IEnumerable<Polygon>)polygons);
+         public PunchOperation Include(params Polygon2[] polygons) => Include((IEnumerable<Polygon2>)polygons);
 
-         public PunchOperation Include(IEnumerable<Polygon> polygons) {
+         public PunchOperation Include(IEnumerable<Polygon2> polygons) {
             foreach (var polygon in polygons) {
                clipper.AddPath(polygon.Points, PolyType.ptSubject, polygon.IsClosed);
             }
             return this;
          }
 
-         public PunchOperation Exclude(params Polygon[] polygons) => Exclude((IEnumerable<Polygon>)polygons);
+         public PunchOperation Exclude(params Polygon2[] polygons) => Exclude((IEnumerable<Polygon2>)polygons);
 
-         public PunchOperation Exclude(IEnumerable<Polygon> polygons) {
+         public PunchOperation Exclude(IEnumerable<Polygon2> polygons) {
             foreach (var polygon in polygons) {
                clipper.AddPath(polygon.Points, PolyType.ptClip, polygon.IsClosed);
             }
@@ -96,7 +96,7 @@ namespace OpenMOBA.Geometry {
       }
 
       public class OffsetOperation {
-         private readonly List<Polygon> includedPolygons = new List<Polygon>();
+         private readonly List<Polygon2> includedPolygons = new List<Polygon2>();
          private readonly List<double> offsets = new List<double>();
 
          /// <param name="delta">Positive dilates, negative erodes</param>
@@ -123,9 +123,9 @@ namespace OpenMOBA.Geometry {
             return this;
          }
 
-         public OffsetOperation Include(params Polygon[] polygons) => Include((IReadOnlyList<Polygon>)polygons);
+         public OffsetOperation Include(params Polygon2[] polygons) => Include((IReadOnlyList<Polygon2>)polygons);
 
-         public OffsetOperation Include(IEnumerable<Polygon> polygons) {
+         public OffsetOperation Include(IEnumerable<Polygon2> polygons) {
             includedPolygons.AddRange(polygons);
             return this;
          }

@@ -29,7 +29,7 @@ namespace OpenMOBA.Geometry {
             PolyNode match;
 
             // if we fail to find the first child land node border-inclusively containing the query point
-            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector3(query.X, query.Y), child.Contour) != (int)ClipperPointInPolygonResult.OutsidePolygon, out match)) {
+            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) != (int)ClipperPointInPolygonResult.OutsidePolygon, out match)) {
                result = current;
                isHole = true;
                return;
@@ -39,7 +39,7 @@ namespace OpenMOBA.Geometry {
             current = match;
 
             // If we fail to find a child hole border-excludingly containing the query point
-            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector3(query.X, query.Y), child.Contour) == (int)ClipperPointInPolygonResult.InPolygon, out match)) {
+            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) == (int)ClipperPointInPolygonResult.InPolygon, out match)) {
                result = current;
                isHole = false;
                return;
@@ -65,7 +65,7 @@ namespace OpenMOBA.Geometry {
             PolyNode match;
 
             // if we fail to find the first child land node border-inclusively containing the query point
-            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector3(query.X, query.Y), child.Contour) == (int)ClipperPointInPolygonResult.InPolygon, out match)) {
+            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) == (int)ClipperPointInPolygonResult.InPolygon, out match)) {
                result = current;
                isHole = true;
                return;
@@ -75,7 +75,7 @@ namespace OpenMOBA.Geometry {
             current = match;
 
             // If we fail to find a child hole border-excludingly containing the query point
-            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector3(query.X, query.Y), child.Contour) != (int)ClipperPointInPolygonResult.OutsidePolygon, out match)) {
+            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) != (int)ClipperPointInPolygonResult.OutsidePolygon, out match)) {
                result = current;
                isHole = false;
                return;

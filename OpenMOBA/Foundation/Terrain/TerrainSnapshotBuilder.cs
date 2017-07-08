@@ -59,10 +59,6 @@ namespace OpenMOBA.Foundation.Terrain {
             crossoverToSnapshot[crossover] = snapshot;
          }
          
-         foreach (var sectorSnapshot in sectorToSnapshot.Values) {
-            sectorSnapshot.BuildCrossoverVisibilityStructures();
-         }
-         
          return cachedSnapshot = new TerrainSnapshot {
             Version = store.Version,
             CrossoverSnapshots = new CrossoverSnapshot[0],

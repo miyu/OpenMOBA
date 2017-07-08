@@ -40,8 +40,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       private readonly Dictionary<double, Triangulation> triangulationCache = new Dictionary<double, Triangulation>();
       private readonly Dictionary<double, VisibilityGraph> visibilityGraphCache = new Dictionary<double, VisibilityGraph>();
 
-      private DoubleVector3 WorldToLocal(IntVector3 p) => WorldToLocal(p.ToDoubleVector3());
-      private DoubleVector3 WorldToLocal(DoubleVector3 p) => Vector3.Transform(p.ToDotNetVector(), WorldTransformInv).ToOpenMobaVector();
+      private DoubleVector2 WorldToLocal(IntVector3 p) => WorldToLocal(p.ToDoubleVector3());
+      private DoubleVector2 WorldToLocal(DoubleVector3 p) => Vector3.Transform(p.ToDotNetVector(), WorldTransformInv).ToOpenMobaVector().XY;
 
       public PolyTree ComputeDilatedHolesUnion(double holeDilationRadius) {
          PolyTree dilatedHolesUnion;
@@ -64,7 +64,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                                             .Erode(holeDilationRadius)
                                             .Execute().FlattenToPolygons();
 
-            var crossoverLandPolys = new List<Polygon>();
+            var crossoverLandPolys = new List<Polygon2>();
             foreach (var kvp in Crossovers) {
                var crossoverErosionFactor = (int)Math.Ceiling(holeDilationRadius * 2);
                var crossoverDilationFactor = crossoverErosionFactor / 2 + 2;
@@ -79,11 +79,11 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                   var aToBMag = aToB.Norm2D();
                   if (aToBMag <= 2 * holeDilationRadius) continue;
 
-                  var shrink = (aToB * crossoverErosionFactor / aToBMag).LossyToIntVector3();
+                  var shrink = (aToB * crossoverErosionFactor / aToBMag).LossyToIntVector2();
                   //2 * ((aToB * crossoverDilationFactor).ToDoubleVector3() / aToB.Norm2F()).LossyToIntVector3();
                   var crossoverPolyTree = PolylineOperations.ExtrudePolygon(new[] {
-                     a.LossyToIntVector3() + shrink,
-                     b.LossyToIntVector3() - shrink
+                     a.LossyToIntVector2() + shrink,
+                     b.LossyToIntVector2() - shrink
                   }, crossoverDilationFactor);
                   crossoverLandPolys.AddRange(crossoverPolyTree.FlattenToPolygons());
                }
@@ -114,7 +114,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var visibilityGraph = ComputeVisibilityGraph(holeDilationRadius);
 
          var crossovers = Crossovers.Values.SelectMany(cs => cs).ToList();
-         var locations = crossovers.Select(c => new IntLineSegment2(WorldToLocal(c.Segment.First).XY.LossyToIntVector2(), WorldToLocal(c.Segment.Second).XY.LossyToIntVector2())).ToList();
+         var locations = crossovers.Select(c => new IntLineSegment2(WorldToLocal(c.Segment.First).LossyToIntVector2(), WorldToLocal(c.Segment.Second).LossyToIntVector2())).ToList();
          for (var i = 0; i < crossovers.Count; i++) {
             var ca = crossovers[i];
             var a = locations[i];
@@ -129,7 +129,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                   var contourPoints = holeContour.Points;
                   var interiorClockness = Clockness.Neither;
                   for (i = 0; i < contourPoints.Count - 1; i++) {
-                     var clockness = GeometryOperations.Clockness(contourPoints[i]
+//                     var clockness = GeometryOperations.Clockness(contourPoints[i]
                   }
                }
             }

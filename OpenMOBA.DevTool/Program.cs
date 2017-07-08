@@ -54,20 +54,20 @@ namespace OpenMOBA.DevTool {
       private void AddSquiggleHole() {
          var holeSquiggle = PolylineOperations.ExtrudePolygon(
             new[] {
-               new IntVector3(100, 50, 0),
-               new IntVector3(100, 100, 0),
-               new IntVector3(200, 100, 0),
-               new IntVector3(200, 150, 0),
-               new IntVector3(200, 200, 0),
-               new IntVector3(400, 250, 0),
-               new IntVector3(200, 300, 0),
-               new IntVector3(400, 315, 0),
-               new IntVector3(200, 330, 0),
-               new IntVector3(210, 340, 0),
-               new IntVector3(220, 350, 0),
-               new IntVector3(220, 400, 0),
-               new IntVector3(221, 400, 0)
-            }.Select(iv => new IntVector3(iv.X + 160, iv.Y + 200, iv.Z)).ToArray(), 10).FlattenToPolygons();
+               new IntVector2(100, 50),
+               new IntVector2(100, 100),
+               new IntVector2(200, 100),
+               new IntVector2(200, 150),
+               new IntVector2(200, 200),
+               new IntVector2(400, 250),
+               new IntVector2(200, 300),
+               new IntVector2(400, 315),
+               new IntVector2(200, 330),
+               new IntVector2(210, 340),
+               new IntVector2(220, 350),
+               new IntVector2(220, 400),
+               new IntVector2(221, 400)
+            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
          TerrainService.AddTemporaryHole(new DynamicTerrainHole{ Polygons = holeSquiggle });
       }
 
@@ -107,7 +107,7 @@ namespace OpenMOBA.DevTool {
             foreach (var sector in terrainSnapshot.SectorSnapshots) {
                debugCanvas.Transform = sector.WorldTransform;
                foreach (var waypoint in sector.ComputeVisibilityGraph(holeDilationRadius).Waypoints) {
-                  var los = sector.ComputeVisibilityPolygon(waypoint.XY.ToDoubleVector2(), holeDilationRadius);
+                  var los = sector.ComputeVisibilityPolygon(waypoint.ToDoubleVector2(), holeDilationRadius);
 //                  debugCanvas.DrawLineOfSight(los);
                }
             }

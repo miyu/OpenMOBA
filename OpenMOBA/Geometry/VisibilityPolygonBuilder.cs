@@ -29,7 +29,7 @@ namespace OpenMOBA.Geometry {
 
       public DoubleVector2 Origin => _origin;
 
-      public void Insert(IntLineSegment3 s) {
+      public void Insert(IntLineSegment2 s) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
 
@@ -45,7 +45,7 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      private void InsertInternal(ref IntLineSegment3 s, double insertionThetaLower, double insertionThetaUpper) {
+      private void InsertInternal(ref IntLineSegment2 s, double insertionThetaLower, double insertionThetaUpper) {
          if (insertionThetaLower == insertionThetaUpper) {
             return;
          }
@@ -54,12 +54,12 @@ namespace OpenMOBA.Geometry {
 
          // cull if wall faces away from origin
          var sperp = new DoubleVector2(s.Y2 - s.Y1, -(s.X2 - s.X1));
-         var os1 = _origin.To(s.First.XY.ToDoubleVector2());
+         var os1 = _origin.To(s.First.ToDoubleVector2());
          if (sperp.Dot(os1) < 0) {
             return;
          }
 
-         var sxy = new IntLineSegment2(s.First.XY, s.Second.XY);
+         var sxy = new IntLineSegment2(s.First, s.Second);
 
          var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
 
@@ -76,7 +76,7 @@ namespace OpenMOBA.Geometry {
          var nSize = 0;
          IntervalRange lastRange = null;
 
-         void EmitRange(int rangeId, ref IntLineSegment3 segment, double thetaStart, double thetaEnd) {
+         void EmitRange(int rangeId, ref IntLineSegment2 segment, double thetaStart, double thetaEnd) {
             if (thetaStart == thetaEnd) {
                return;
             }
@@ -145,7 +145,7 @@ namespace OpenMOBA.Geometry {
                return;
             }
 
-            var rsxy = new IntLineSegment2(range.Segment.First.XY, range.Segment.Second.XY);
+            var rsxy = range.Segment;
 
 //            // is this code necessary? Seems like not... though not sure why. We do have intersecting segments
 //            // but the intersect is quite minor (just at corners)...
@@ -294,7 +294,7 @@ namespace OpenMOBA.Geometry {
 
       public class IntervalRange {
          public int Id;
-         public IntLineSegment3 Segment;
+         public IntLineSegment2 Segment;
          public double ThetaStart; // inclusive
          public double ThetaEnd; // exclusive
       }

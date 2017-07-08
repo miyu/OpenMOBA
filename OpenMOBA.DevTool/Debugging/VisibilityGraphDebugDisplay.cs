@@ -15,15 +15,15 @@ namespace OpenMOBA.DevTool.Debugging {
                (from i in Enumerable.Range(0, visibilityGraph.Waypoints.Length - 1)
                   from j in Enumerable.Range(i + 1, visibilityGraph.Waypoints.Length - i - 1)
                   where !double.IsNaN(visibilityGraph.Distances[i, j])
-                  select new IntLineSegment3(visibilityGraph.Waypoints[i], visibilityGraph.Waypoints[j])).ToList(),
+                  select new IntLineSegment3(new IntVector3(visibilityGraph.Waypoints[i]), new IntVector3(visibilityGraph.Waypoints[j]))).ToList(),
                VisibilityEdgeStrokeStyle);
             canvas.DrawPoints(
-               visibilityGraph.Waypoints,
+               visibilityGraph.Waypoints.Select(p => new IntVector3(p)).ToList(),
                WaypointStrokeStyle);
          }
 
          canvas.DrawLineList(
-            visibilityGraph.Barriers.SelectMany(barrier => barrier.Points).ToList(),
+            visibilityGraph.Barriers.SelectMany(barrier => barrier.Points.Select(p => new IntVector3(p))).ToList(),
             BarrierStrokeStyle);
       }
    }

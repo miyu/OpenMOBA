@@ -195,8 +195,8 @@ namespace OpenMOBA.Geometry {
          // Results are undefined if ray origin is not in triangle (though you can probably math out what it means).
          // If a point is on the edge of the triangle, there will be neither-neither for clockness on the correct edge.
          for (int i = 0; i < 3; i++) {
-            var va = triangle.Points[i].XY - origin;
-            var vb = triangle.Points[(i + 1) % 3].XY - origin;
+            var va = triangle.Points[i] - origin;
+            var vb = triangle.Points[(i + 1) % 3] - origin;
             var cvad = Clockness(va, direction);
             var cdvb = Clockness(direction, vb);
 
@@ -219,8 +219,8 @@ namespace OpenMOBA.Geometry {
          //         throw new ArgumentException("Presumably origin wasn't in triangle (is this case reachable even with malformed input?)");
       }
 
-      public static ContourNearestPointResult FindNearestPointXYZOnContour(List<IntVector3> contour, DoubleVector3 query) {
-         var result = new ContourNearestPointResult {
+      public static ContourNearestPointResult3 FindNearestPointXYZOnContour(List<IntVector3> contour, DoubleVector3 query) {
+         var result = new ContourNearestPointResult3 {
             Distance = double.PositiveInfinity,
             Query = query
          };
@@ -252,9 +252,27 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      public static DoubleVector2 FindNearestPoint(IntLineSegment2 segment, DoubleVector2 query) {
-         var p1 = segment.First.ToDoubleVector2();
-         var p2 = segment.Second.ToDoubleVector2();
+      public static ContourNearestPointResult2 FindNearestPointOnContour(List<IntVector2> contour, DoubleVector2 query) {
+         var result = new ContourNearestPointResult2 {
+            Distance = double.PositiveInfinity,
+            Query = query
+         };
+         var pointCount = contour.First().Equals(contour.Last()) ? contour.Count - 1 : contour.Count;
+         for (int i = 0; i < pointCount; i++) {
+            var p1 = contour[i].ToDoubleVector2();
+            var p2 = contour[(i + 1) % pointCount].ToDoubleVector2();
+            var nearestPoint = FindNearestPoint(p1, p2, query);
+            var distance = (query - nearestPoint).Norm2D();
+            if (distance < result.Distance) {
+               result.Distance = distance;
+               result.SegmentFirstPointContourIndex = i;
+               result.NearestPoint = nearestPoint;
+            }
+         }
+         return result;
+      }
+
+      public static DoubleVector2 FindNearestPoint(DoubleVector2 p1, DoubleVector2 p2, DoubleVector2 query) {
          var p1p2 = p2 - p1;
          var p1Query = query - p1;
          var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
@@ -265,6 +283,12 @@ namespace OpenMOBA.Geometry {
          } else {
             return p1 + p1QueryProjP1P2Component * p1p2;
          }
+      }
+
+      public static DoubleVector2 FindNearestPoint(IntLineSegment2 segment, DoubleVector2 query) {
+         var p1 = segment.First.ToDoubleVector2();
+         var p2 = segment.Second.ToDoubleVector2();
+         return FindNearestPoint(p1, p2, query);
       }
 
       /// <summary>
