@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -73,6 +74,14 @@ namespace OpenMOBA.Geometry {
             new IntVector2(x + width, y),
             new IntVector2(x, y)
          };
+         return new Polygon2(points, true);
+      }
+
+      public static Polygon2 CreateCircle(int x, int y, int radius, int n = 16) {
+         var points = new List<IntVector2>();
+         for (var i = 0; i <= n; i++) {
+            points.Add(new DoubleVector2(x + radius * Math.Sin(i * Math.PI * 2 / n), y + radius * Math.Cos(i * Math.PI * 2 / n)).LossyToIntVector2());
+         }
          return new Polygon2(points, true);
       }
    }

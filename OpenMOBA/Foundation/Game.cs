@@ -45,6 +45,35 @@ namespace OpenMOBA.Foundation {
             Polygon2.CreateRect(600, 600, 200, 200)
          }
       };
+
+      private const int CrossCirclePathWidth = 200;
+      private const int CrossCircleInnerLandRadius = 400;
+      private const int CrossCircleInnerHoleRadius = 200;
+      public static readonly TerrainStaticMetadata CrossCircle = new TerrainStaticMetadata {
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] {
+            Polygon2.CreateRect((1000 - CrossCirclePathWidth) / 2, 0, CrossCirclePathWidth, 1000),
+            Polygon2.CreateRect(0, (1000 - CrossCirclePathWidth) / 2, 1000, CrossCirclePathWidth),
+            Polygon2.CreateCircle(500, 500, CrossCircleInnerLandRadius)
+         },
+         LocalExcludedContours = new[] {
+            Polygon2.CreateCircle(500, 500, CrossCircleInnerHoleRadius)
+         }
+      };
+
+      private const int HashCirclePathWidth = 200;
+      private const int HashCircleRadius = 200;
+      public static readonly TerrainStaticMetadata HashCircles = new TerrainStaticMetadata {
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] {
+            Polygon2.CreateRect(200, 0, 200, 1000),
+            Polygon2.CreateRect(600, 0, 200, 1000),
+            Polygon2.CreateRect(0, 200, 1000, 200),
+            Polygon2.CreateRect(0, 600, 1000, 200),
+            Polygon2.CreateCircle(500, 500, 140)
+         },
+         LocalExcludedContours = new Polygon2[] { }
+      };
    }
 
    public interface IGameEventFactory {
@@ -68,39 +97,29 @@ namespace OpenMOBA.Foundation {
          TerrainService.AddSector(sector1);
 
          var sector2 = TerrainService.CreateSector(SectorMetadataPresets.FourSquares2D);
-         sector2.WorldTransform = Matrix4x4.CreateTranslation(1100, 0, 0);
+         sector2.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
          TerrainService.AddSector(sector2);
 
-         var connector12A = TerrainService.CreateSector(SectorMetadataPresets.Blank2D);
-         connector12A.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(0.1f, 0.2f, 1.0f), Matrix4x4.CreateTranslation(1000f, 200f, 0f));
-         TerrainService.AddSector(connector12A);
-
-         var connector12B = TerrainService.CreateSector(SectorMetadataPresets.Blank2D);
-         connector12B.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(0.1f, 0.2f, 1.0f), Matrix4x4.CreateTranslation(1000f, 600f, 0f));
-         TerrainService.AddSector(connector12B);
+         var sector3 = TerrainService.CreateSector(SectorMetadataPresets.HashCircles);
+         sector3.WorldTransform = Matrix4x4.CreateTranslation(-1000, 0, 0);
+         TerrainService.AddSector(sector3);
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
-            B = connector12A,
+            B = sector2,
             Segment = new IntLineSegment3(new IntVector3(1000, 200, 0), new IntVector3(1000, 400, 0))
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
-            B = connector12B,
+            B = sector2,
             Segment = new IntLineSegment3(new IntVector3(1000, 600, 0), new IntVector3(1000, 800, 0))
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
-            A = sector2,
-            B = connector12A,
-            Segment = new IntLineSegment3(new IntVector3(1100, 200, 0), new IntVector3(1100, 400, 0))
-         });
-
-         TerrainService.HackAddSectorCrossover(new Crossover {
-            A = sector2,
-            B = connector12B,
-            Segment = new IntLineSegment3(new IntVector3(1100, 600, 0), new IntVector3(1100, 800, 0))
+            A = sector1,
+            B = sector3,
+            Segment = new IntLineSegment3(new IntVector3(0, 400, 0), new IntVector3(0, 600, 0))
          });
 
          var r = new Random(1);
