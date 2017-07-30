@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenMOBA {
    public static class LinqExtensions {
@@ -58,6 +59,45 @@ namespace OpenMOBA {
             dict.Remove(key);
          }
          return res;
+      }
+
+      public static IEnumerable<KeyValuePair<int, T>> Enumerate<T>(this IEnumerable<T> items) {
+         return items.Select((item, key) => new KeyValuePair<int, T>(key, item));
+      }
+
+      public static U[] Map<T, U>(this T[] arr, Func<T, U> map) {
+         var result = new U[arr.Length];
+         for (int i = 0; i < arr.Length; i++) {
+            result[i] = map(arr[i]);
+         }
+         return result;
+      }
+
+      public static U[] MapMany<T, U>(this T[] arr, Func<T, IReadOnlyList<U>> cheapMap) {
+         var result = new U[arr.Sum(x => cheapMap(x).Count)];
+         var nextIndex = 0;
+         for (var i = 0; i < arr.Length; i++) {
+            var x = cheapMap(arr[i]);
+            for (var j = 0; j < x.Count; j++) {
+               result[nextIndex] = x[j];
+               nextIndex++;
+            }
+         }
+         return result;
+      }
+
+      public static V Get<K, V>(this Dictionary<K, V> dict, K key) => dict[key];
+
+      public static T[] ToArray<T>(this IEnumerable<T> e, int len) {
+         var enumerator = e.GetEnumerator();
+         var result = new T[len];
+         for (var i = 0; i < len; i++) {
+            if (!enumerator.MoveNext()) {
+               throw new IndexOutOfRangeException($"Enumerator didn't yield enough items. Stopped at i={i} of len={len}.");
+            }
+            result[i] = enumerator.Current;
+         }
+         return result;
       }
    }
 }

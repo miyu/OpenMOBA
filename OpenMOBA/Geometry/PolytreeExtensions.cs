@@ -4,7 +4,7 @@ using OpenMOBA.Foundation.Terrain;
 
 namespace OpenMOBA.Geometry {
    public static class PolytreeExtensions {
-      public static void AssertIsContourlessRootHolePunchResult(this PolyTree polytree) {
+      public static void AssertIsContourlessRootHolePunchResult(this PolyNode polytree) {
          // Clipper's punch operation can potentially return two nonoverlapping polygons.
          // For that reason, its returned polytree's root is a hole which contains
          // non-hole polynodes. The child of this root hole node will be the borders of the
@@ -21,7 +21,7 @@ namespace OpenMOBA.Geometry {
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static void PickDeepestPolynode(this PolyTree polyTree, IntVector2 query, out PolyNode result, out bool isHole) {
+      public static void PickDeepestPolynode(this PolyNode polyTree, IntVector2 query, out PolyNode result, out bool isHole) {
          polyTree.AssertIsContourlessRootHolePunchResult();
          PolyNode current = polyTree;
          while (true) {

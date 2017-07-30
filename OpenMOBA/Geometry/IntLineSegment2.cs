@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.Drawing;
 
 using cInt = System.Int64;
@@ -41,6 +42,13 @@ namespace OpenMOBA.Geometry {
 
          return new Rectangle((int)minX, (int)minY, (int)width, (int)height);
       }
+
+      public override bool Equals(object obj) => obj is IntLineSegment2 && Equals((IntLineSegment2)obj);
+
+      // Equality by endpoints, not line geometry
+      public bool Equals(IntLineSegment2 other) => First == other.First && Second == other.Second;
+      public static bool operator ==(IntLineSegment2 self, IntLineSegment2 other) => self.First == other.First && self.Second == other.Second;
+      public static bool operator !=(IntLineSegment2 self, IntLineSegment2 other) => self.First != other.First || self.Second != other.Second;
 
       public override string ToString() => $"({First}, {Second})";
    }

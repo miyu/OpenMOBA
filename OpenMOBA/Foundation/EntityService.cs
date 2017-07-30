@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.Snapshots;
+using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using cInt = System.Int64;
 
@@ -169,6 +172,45 @@ namespace OpenMOBA.Foundation {
       public PathfinderCalculator(TerrainService terrainService, StatsCalculator statsCalculator) {
          this.terrainService = terrainService;
          this.statsCalculator = statsCalculator;
+      }
+
+      private bool IsDestinationReachable(double holeDilationRadius, PolyNode sourceLand, PolyNode destinationLand) {
+         var s = new Queue<PolyNode>();
+         s.Enqueue(sourceLand);
+
+         var addedCrossovers = new HashSet<Crossover>();
+         while (s.Any()) {
+            var currentLand = s.Dequeue();
+            Console.WriteLine("AT " + currentLand.GetHashCode());
+            if (currentLand == destinationLand) {
+               return true;
+            }
+            if (currentLand.visibilityGraphNodeData.CrossoverSnapshots == null) {
+               Console.WriteLine("No CS");
+               continue;
+            }
+
+            // This shit's terrifyingly inefficient. Fix by precomputing?
+            foreach (var crossoverSnapshot in currentLand.visibilityGraphNodeData.CrossoverSnapshots) {
+               var remotePolyTree = crossoverSnapshot.Remote.ComputePunchedLand(holeDilationRadius);
+               var remotePolyNode = remotePolyTree.visibilityGraphTreeData.CrossoverPolyNodes[crossoverSnapshot.Crossover];
+               if (addedCrossovers.Add(crossoverSnapshot.Crossover)) {
+                  s.Enqueue(remotePolyNode);
+               }
+            }
+         }
+         return false;
+      }
+
+      public bool TryFindPathCostUpperBound(double holeDilationRadius, IntVector2 sourceLocation, PolyNode sourceLand, IntVector2 destinationLocation, PolyNode destinationLand, out double upperBound) {
+         // First: Validate we can reach destination from source\
+         if (IsDestinationReachable(holeDilationRadius, sourceLand, destinationLand)) {
+            upperBound = 1.0;
+            return true;
+         } else {
+            upperBound = double.NaN;
+            return false;
+         }
       }
 
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 source, DoubleVector3 destination, out List<DoubleVector3> pathPoints) {

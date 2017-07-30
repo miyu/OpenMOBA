@@ -88,6 +88,19 @@ namespace OpenMOBA.DevTool.Debugging {
       void DrawLine(DoubleVector3 p1, DoubleVector3 p2, StrokeStyle strokeStyle);
       void FillPolygon(IReadOnlyList<DoubleVector3> points, FillStyle fillStyle);
       void DrawPolygon(IReadOnlyList<DoubleVector3> polygonPoints, StrokeStyle strokeStyle);
+      void DrawText(string text, DoubleVector3 point);
+   }
+
+   public static class DebugCanvas2DExtensions {
+      private static DoubleVector3 ToDV3(IntVector2 p) => new DoubleVector3(p.ToDoubleVector2());
+
+      public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
+      }
+
+      public static void DrawText(this IDebugCanvas canvas, string text, IntVector2 point) {
+         canvas.DrawText(text, ToDV3(point));
+      }
    }
 
    public interface IProjector {

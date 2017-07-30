@@ -43,7 +43,7 @@ namespace OpenMOBA.Geometry {
 
    public class Polygon2 {
       public Polygon2(List<IntVector2> points, bool isHole) {
-         // enforce closed poly
+         // enforce open poly
          if (points[0] != points.Last()) {
             //            Console.WriteLine("Warn: Polygon took open (non-closed) poly");
             points.Add(points[0]);
@@ -71,15 +71,14 @@ namespace OpenMOBA.Geometry {
             new IntVector2(x, y),
             new IntVector2(x, y + height),
             new IntVector2(x + width, y + height),
-            new IntVector2(x + width, y),
-            new IntVector2(x, y)
+            new IntVector2(x + width, y)
          };
          return new Polygon2(points, true);
       }
 
       public static Polygon2 CreateCircle(int x, int y, int radius, int n = 16) {
          var points = new List<IntVector2>();
-         for (var i = 0; i <= n; i++) {
+         for (var i = 0; i < n; i++) {
             points.Add(new DoubleVector2(x + radius * Math.Sin(i * Math.PI * 2 / n), y + radius * Math.Cos(i * Math.PI * 2 / n)).LossyToIntVector2());
          }
          return new Polygon2(points, true);

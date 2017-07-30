@@ -61,18 +61,40 @@ namespace OpenMOBA.Foundation {
          }
       };
 
-      private const int HashCirclePathWidth = 200;
-      private const int HashCircleRadius = 200;
-      public static readonly TerrainStaticMetadata HashCircles = new TerrainStaticMetadata {
+      public static readonly TerrainStaticMetadata HashCircle1 = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] {
             Polygon2.CreateRect(200, 0, 200, 1000),
             Polygon2.CreateRect(600, 0, 200, 1000),
             Polygon2.CreateRect(0, 200, 1000, 200),
             Polygon2.CreateRect(0, 600, 1000, 200),
-            Polygon2.CreateCircle(500, 500, 140)
+            Polygon2.CreateCircle(500, 500, 105, 64),
+            Polygon2.CreateRect(450, 300, 100, 400),
+            Polygon2.CreateRect(300, 450, 400, 100)
          },
          LocalExcludedContours = new Polygon2[] { }
+      };
+
+
+      public const int HashCircle2ScalingFactor = 1;
+      public static readonly TerrainStaticMetadata HashCircle2 = new TerrainStaticMetadata {
+         LocalBoundary = new Rectangle(0, 0, 1000 * HashCircle2ScalingFactor, 1000 * HashCircle2ScalingFactor),
+         LocalIncludedContours = new[] {
+            Polygon2.CreateRect(0 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor),
+            Polygon2.CreateRect(200 * HashCircle2ScalingFactor, 0 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor),
+            Polygon2.CreateRect(600 * HashCircle2ScalingFactor, 0 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor),
+            Polygon2.CreateRect(600 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor),
+
+            Polygon2.CreateRect(0 * HashCircle2ScalingFactor, 600 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor),
+            Polygon2.CreateRect(200 * HashCircle2ScalingFactor, 600 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor),
+            Polygon2.CreateRect(600 * HashCircle2ScalingFactor, 600 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor),
+            Polygon2.CreateRect(600 * HashCircle2ScalingFactor, 600 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor),
+
+            Polygon2.CreateCircle(500 * HashCircle2ScalingFactor, 500 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor)
+         },
+         LocalExcludedContours = new [] {
+            Polygon2.CreateCircle(500 * HashCircle2ScalingFactor, 500 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor)
+         }
       };
    }
 
@@ -94,14 +116,15 @@ namespace OpenMOBA.Foundation {
 
       public void Run() {
          var sector1 = TerrainService.CreateSector(SectorMetadataPresets.Test2D);
+         sector1.EnableDebugHighlight = true;
          TerrainService.AddSector(sector1);
 
          var sector2 = TerrainService.CreateSector(SectorMetadataPresets.FourSquares2D);
          sector2.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
          TerrainService.AddSector(sector2);
 
-         var sector3 = TerrainService.CreateSector(SectorMetadataPresets.HashCircles);
-         sector3.WorldTransform = Matrix4x4.CreateTranslation(-1000, 0, 0);
+         var sector3 = TerrainService.CreateSector(SectorMetadataPresets.HashCircle2);
+         sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
          TerrainService.AddSector(sector3);
 
          TerrainService.HackAddSectorCrossover(new Crossover {
@@ -119,7 +142,13 @@ namespace OpenMOBA.Foundation {
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
             B = sector3,
-            Segment = new IntLineSegment3(new IntVector3(0, 400, 0), new IntVector3(0, 600, 0))
+            Segment = new IntLineSegment3(new IntVector3(0, 200, 0), new IntVector3(0, 400, 0))
+         });
+
+         TerrainService.HackAddSectorCrossover(new Crossover {
+            A = sector1,
+            B = sector3,
+            Segment = new IntLineSegment3(new IntVector3(0, 600, 0), new IntVector3(0, 800, 0))
          });
 
          var r = new Random(1);

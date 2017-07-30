@@ -53,6 +53,7 @@
 
 using System;
 using System.Collections.Generic;
+using OpenMOBA.Foundation.Visibility;
 //using System.Text;          //for Int128.AsString() & StringBuilder
 //using System.IO;            //debugging with streamReader & StreamWriter
 //using System.Windows.Forms; //debugging to clipboard
@@ -75,6 +76,8 @@ namespace ClipperLib {
 
    using Path = List<IntPoint>;
    using Paths = List<List<IntPoint>>;
+   using ReadOnlyPath = IReadOnlyList<IntPoint>;
+   using ReadOnlyPaths = IReadOnlyList<IReadOnlyList<IntPoint>>;
 
    public struct DoublePoint {
       public double X;
@@ -98,6 +101,10 @@ namespace ClipperLib {
 
    public class PolyTree : PolyNode {
       internal List<PolyNode> m_AllPolys = new List<PolyNode>();
+
+      // Added by me for visgraph - miyu
+      public PolyNodeVisbilityGraphTreeData visibilityGraphTreeData;
+
 
       //The GC probably handles this cleanup more efficiently ...
       //~PolyTree(){Clear();}
@@ -136,6 +143,9 @@ namespace ClipperLib {
       internal JoinType m_jointype;
       internal EndType m_endtype;
       internal List<PolyNode> m_Childs = new List<PolyNode>();
+
+      // Added by me for visgraph - miyu
+      public PolyNodeVisbilityGraphNodeData visibilityGraphNodeData;
 
       private bool IsHoleNode() {
          bool result = true;
@@ -3885,7 +3895,7 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public void AddPath(Path path, JoinType joinType, EndType endType) {
+      public void AddPath(ReadOnlyPath path, JoinType joinType, EndType endType) {
          int highI = path.Count - 1;
          if (highI < 0) return;
          PolyNode newNode = new PolyNode();
@@ -3924,8 +3934,8 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public void AddPaths(Paths paths, JoinType joinType, EndType endType) {
-         foreach (Path p in paths)
+      public void AddPaths(ReadOnlyPaths paths, JoinType joinType, EndType endType) {
+         foreach (ReadOnlyPath p in paths)
             AddPath(p, joinType, endType);
       }
       //------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using ClipperLib;
 using Poly2Tri.Triangulation;
 
@@ -22,6 +23,23 @@ namespace OpenMOBA.Geometry {
                         .Erode(0.05)
                         .Dilate(0.05)
                         .Execute();
+      }
+
+      public static List<IReadOnlyList<IntVector2>> FlattenToContours(this PolyNode polytree, bool includeOuterPolygon = true) {
+         var results = new List<IReadOnlyList<IntVector2>>();
+         var depthFilter = includeOuterPolygon ? 0 : 2; // 2 for outer void level and outer land poly level
+         FlattenToContoursHelper(polytree, polytree.IsHole, results, depthFilter);
+         return results;
+      }
+
+      private static void FlattenToContoursHelper(PolyNode current, bool isHole, List<IReadOnlyList<IntVector2>> results, int depthFilter) {
+         if (current.Contour.Count > 0 && depthFilter <= 0) {
+            results.Add(current.Contour);
+         }
+         foreach (var child in current.Childs) {
+            // We avoid node.isHole as that traverses upwards recursively and wastefully.
+            FlattenToContoursHelper(child, !isHole, results, depthFilter - 1);
+         }
       }
 
       public static List<Polygon2> FlattenToPolygons(this PolyNode polytree, bool includeOuterPolygon = true) {
@@ -96,7 +114,7 @@ namespace OpenMOBA.Geometry {
       }
 
       public class OffsetOperation {
-         private readonly List<Polygon2> includedPolygons = new List<Polygon2>();
+         private readonly List<IReadOnlyList<IntVector2>> includedContours = new List<IReadOnlyList<IntVector2>>();
          private readonly List<double> offsets = new List<double>();
 
          /// <param name="delta">Positive dilates, negative erodes</param>
@@ -125,24 +143,32 @@ namespace OpenMOBA.Geometry {
 
          public OffsetOperation Include(params Polygon2[] polygons) => Include((IReadOnlyList<Polygon2>)polygons);
 
+         public OffsetOperation Include(params IReadOnlyList<IntVector2>[] contours) => Include(contours);
+
          public OffsetOperation Include(IEnumerable<Polygon2> polygons) {
-            includedPolygons.AddRange(polygons);
+            return Include(polygons.Select(p => p.Points));
+         }
+
+         public OffsetOperation Include(IEnumerable<IReadOnlyList<IntVector2>> contours) {
+            foreach (var contour in contours) {
+               includedContours.Add(contour);
+            }
             return this;
          }
 
          public PolyTree Execute() {
-            var currentPolygons = includedPolygons;
+            var currentContours = includedContours;
             for (var i = 0; i < offsets.Count; i++) {
                var polytree = new PolyTree();
                var clipper = new ClipperOffset();
-               foreach (var polygon in currentPolygons) {
-                  clipper.AddPath(polygon.Points, JoinType.jtMiter, EndType.etClosedPolygon);
+               foreach (var contour in currentContours) {
+                  clipper.AddPath(contour, JoinType.jtMiter, EndType.etClosedPolygon);
                }
                clipper.Execute(ref polytree, offsets[i]);
                if (i + 1 == offsets.Count) {
                   return polytree;
                } else {
-                  currentPolygons = FlattenToPolygons(polytree);
+                  currentContours = polytree.FlattenToContours();
                }
             }
             throw new ArgumentException("Must specify some polygons to include!");

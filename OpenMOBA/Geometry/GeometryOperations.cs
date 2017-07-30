@@ -97,6 +97,10 @@ namespace OpenMOBA.Geometry {
          return true;
       }
 
+      public static bool Intersects(this IntLineSegment2 a, IntLineSegment2 b) {
+         return TryFindSegmentSegmentIntersection(ref a, ref b, out DoubleVector2 _);
+      }
+
       // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, segments should not have more than 1 point of intersection.
       // if segments DO have more than 1 point of intersection, this returns no intersection found.

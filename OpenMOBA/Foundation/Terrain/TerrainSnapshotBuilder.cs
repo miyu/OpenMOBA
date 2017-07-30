@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain {
    public interface ITerrainSnapshotBuilder {
@@ -18,9 +16,7 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public TerrainSnapshot BuildSnapshot() {
-         if (cachedSnapshot?.Version == store.Version) {
-            return cachedSnapshot;
-         }
+         if (cachedSnapshot?.Version == store.Version) return cachedSnapshot;
 
          var sectorToSnapshot = new Dictionary<Sector, SectorSnapshot>();
          foreach (var sector in store.EnumerateSectors()) {
@@ -28,40 +24,43 @@ namespace OpenMOBA.Foundation.Terrain {
                Sector = sector,
                WorldTransform = sector.InstanceMetadata.WorldTransform,
                WorldTransformInv = sector.InstanceMetadata.WorldTransformInv,
-               TemporaryHoles = new DynamicTerrainHole[0],
-               Crossovers = new Dictionary<SectorSnapshot, List<CrossoverSnapshot>>()
+               TemporaryHoles = new List<DynamicTerrainHole>(),
+               CrossoverSnapshots = new List<CrossoverSnapshot>()
             };
             sectorToSnapshot.Add(sector, snapshot);
          }
-         
-         var crossoverToSnapshot = new Dictionary<Crossover, CrossoverSnapshot>();
+
+         var crossovers = new List<CrossoverSnapshot>();
          foreach (var crossover in store.EnumerateCrossovers()) {
-            var snapshot = new CrossoverSnapshot {
-               A = sectorToSnapshot[crossover.A],
-               B = sectorToSnapshot[crossover.B],
-               Segment = crossover.Segment
+            var sectorA = sectorToSnapshot[crossover.A];
+            var sectorB = sectorToSnapshot[crossover.B];
+            var segmentA = sectorA.WorldToLocal(crossover.Segment);
+            var segmentB = sectorB.WorldToLocal(crossover.Segment);
+
+            var crossoverAToB = new CrossoverSnapshot {
+               Crossover = crossover,
+               LocalSegment = segmentA,
+               RemoteSegment = segmentB,
+               Remote = sectorB
             };
-          
-            List<CrossoverSnapshot> aToBCrossovers;
-            if (!snapshot.A.Crossovers.TryGetValue(snapshot.B, out aToBCrossovers)) {
-               aToBCrossovers = new List<CrossoverSnapshot>();
-               snapshot.A.Crossovers[snapshot.B] = aToBCrossovers;
-            }
-            aToBCrossovers.Add(snapshot);
-         
-            List<CrossoverSnapshot> bToACrossovers;
-            if (!snapshot.B.Crossovers.TryGetValue(snapshot.A, out bToACrossovers)) {
-               bToACrossovers = new List<CrossoverSnapshot>();
-               snapshot.B.Crossovers[snapshot.A] = bToACrossovers;
-            }
-            bToACrossovers.Add(snapshot);
-         
-            crossoverToSnapshot[crossover] = snapshot;
+
+            var crossoverBToA = new CrossoverSnapshot {
+               Crossover = crossover,
+               LocalSegment = segmentA,
+               RemoteSegment = segmentB,
+               Remote = sectorA
+            };
+
+            sectorA.CrossoverSnapshots.Add(crossoverAToB);
+            sectorB.CrossoverSnapshots.Add(crossoverBToA);
+
+            crossovers.Add(crossoverAToB);
+            crossovers.Add(crossoverBToA);
          }
-         
+
          return cachedSnapshot = new TerrainSnapshot {
             Version = store.Version,
-            CrossoverSnapshots = new CrossoverSnapshot[0],
+            Crossovers = crossovers,
             SectorSnapshots = sectorToSnapshot.Values.ToList(),
             TemporaryHoles = new DynamicTerrainHole[0]
          };

@@ -86,7 +86,7 @@ namespace OpenMOBA {
                                                     .Include(landPoly)
                                                     .Exclude(holesUnionResult.FlattenToPolygons())
                                                     .Execute();
-         var visibilityGraph = VisibilityGraphOperations.CreateVisibilityGraph(landHolePunchResult);
+         var visibilityGraph = landHolePunchResult.ComputeVisibilityGraph();
 //         var debugCanvas = DebugCanvasHost.CreateAndShowCanvas();
 //         debugCanvas.DrawPolygons(holes, Color.Red);
 //         debugCanvas.DrawVisibilityGraph(visibilityGraph);

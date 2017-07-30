@@ -50,6 +50,8 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
+      public bool EnableDebugHighlight { get; set; }
+
 //      public IReadOnlyCollection<DynamicTerrainHole> Holes => InstanceMetadata.Holes;
    }
 

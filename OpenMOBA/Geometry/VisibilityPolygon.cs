@@ -8,7 +8,7 @@ namespace OpenMOBA.Geometry {
    // Everything's in radians, all geometry is reasoned as if relative to _origin.
    // This can be efficiently implemented with an interval tree = O(logN) runtime.
    // For now, just using a flat unordered list, so quite inefficient.
-   public class VisibilityPolygonBuilder {
+   public class VisibilityPolygon {
       public const int RANGE_ID_NULL = 0;
       private const double TwoPi = 2.0 * Math.PI;
       private const double PiDiv2 = Math.PI / 2.0;
@@ -16,7 +16,7 @@ namespace OpenMOBA.Geometry {
       private IntervalRange[] _intervalRanges;
       private int rangeIdCounter = RANGE_ID_NULL;
 
-      public VisibilityPolygonBuilder(DoubleVector2 origin) {
+      public VisibilityPolygon(DoubleVector2 origin) {
          _origin = origin;
          _intervalRanges = new [] {
             new IntervalRange {
@@ -59,12 +59,17 @@ namespace OpenMOBA.Geometry {
             return;
          }
 
-         var sxy = new IntLineSegment2(s.First, s.Second);
-
-         var srange = new IntervalRange { Id = rangeIdCounter++, ThetaStart = insertionThetaLower, ThetaEnd = insertionThetaUpper, Segment = s };
-
+         var sMidpoint = new DoubleVector2((s.First.X + s.Second.X) / 2.0, (s.First.Y + s.Second.Y) / 2.0);
          // See distrsxy for why this makes sense.
-         var distsxy = _origin.To((sxy.First + sxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
+         var sDist = _origin.To(sMidpoint).SquaredNorm2D();
+         var srange = new IntervalRange {
+            Id = rangeIdCounter++,
+            ThetaStart = insertionThetaLower,
+            ThetaEnd = insertionThetaUpper,
+            Segment = s,
+            MidpointDistanceToOriginSquared = sDist
+         };
+
 
          var splittableBeginIndexInclusive = FindOverlappingRangeIndex(insertionThetaLower, 0, true);
          var splittableEndIndexInclusive = FindOverlappingRangeIndex(insertionThetaUpper, splittableBeginIndexInclusive, false);
@@ -184,8 +189,8 @@ namespace OpenMOBA.Geometry {
             // I take center of segments as their endpoints are ambiguous between neighboring segments
             // of a polygon.
 
-            var distrsxy = _origin.To((rsxy.First + rsxy.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
-            bool inserteeNearer = distsxy < distrsxy;
+            var distrsxy = range.MidpointDistanceToOriginSquared;
+            bool inserteeNearer = sDist < distrsxy;
             var nearRange = inserteeNearer ? srange : range;
             var farRange = inserteeNearer ? range : srange;
             HandleNearFarSplit(nearRange, farRange, range.ThetaStart, range.ThetaEnd);
@@ -290,13 +295,47 @@ namespace OpenMOBA.Geometry {
          return r;
       }
 
-      public List<IntervalRange> Get() => _intervalRanges.ToList();
+      public IntervalRange[] Get() => _intervalRanges;
+
+      public IntervalRange Stab(double theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
+
+      public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(IntLineSegment2 s) {
+         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
+
+         var thetaLower = theta1 < theta2 ? theta1 : theta2;
+         var thetaUpper = theta1 < theta2 ? theta2 : theta1;
+
+         if (Math.Abs(theta1 - theta2) > Math.PI) {
+            // covered angle range wraps around through theta=0.
+            return new [] {
+               RangeStabInternal(0.0, thetaLower),
+               RangeStabInternal(thetaUpper, TwoPi)
+            };
+         } else {
+            return new[] {
+               RangeStabInternal(thetaLower, thetaUpper)
+            };
+         }
+      }
+
+      private (int, int) RangeStabInternal(double thetaLower, double thetaUpper) {
+         if (thetaLower == thetaUpper) {
+            var index = FindOverlappingRangeIndex(thetaLower, 0, true);
+            return (index, index);
+         }
+
+         var queryRangeBeginIndexInclusive = FindOverlappingRangeIndex(thetaLower, 0, true);
+         var queryRangeEndIndexInclusive = FindOverlappingRangeIndex(thetaUpper, queryRangeBeginIndexInclusive, false);
+         return (queryRangeBeginIndexInclusive, queryRangeEndIndexInclusive);
+      }
 
       public class IntervalRange {
          public int Id;
          public IntLineSegment2 Segment;
          public double ThetaStart; // inclusive
          public double ThetaEnd; // exclusive
+         public double MidpointDistanceToOriginSquared;
       }
    }
 }
