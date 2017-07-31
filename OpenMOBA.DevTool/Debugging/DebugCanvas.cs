@@ -93,6 +93,23 @@ namespace OpenMOBA.DevTool.Debugging {
 
    public static class DebugCanvas2DExtensions {
       private static DoubleVector3 ToDV3(IntVector2 p) => new DoubleVector3(p.ToDoubleVector2());
+      private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
+
+      public static void DrawPolygon(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
+         canvas.DrawPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
+      }
+
+      public static void DrawPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, StrokeStyle strokeStyle) {
+         canvas.DrawPolygon(polygonPoints.Select(ToDV3).ToList(), strokeStyle);
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, Polygon2 polygon, FillStyle fillStyle) {
+         canvas.FillPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), fillStyle);
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, FillStyle fillStyle) {
+         canvas.FillPolygon(polygonPoints.Select(ToDV3).ToList(), fillStyle);
+      }
 
       public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
          canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);

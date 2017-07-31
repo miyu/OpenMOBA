@@ -155,13 +155,15 @@ namespace OpenMOBA.Foundation.Visibility {
             if (erodedCrossoverSegment.First == waypoint || erodedCrossoverSegment.Second == waypoint) {
                continue; // TODO?
             }
+            var erodedCrossoverSegmentWaypointDistanceSquared = waypoint.ToDoubleVector2().To((erodedCrossoverSegment.First + erodedCrossoverSegment.Second).ToDoubleVector2() / 2.0).SquaredNorm2D();
 
             var segmentsIndices = waypointVisibilityPolygon.RangeStab(erodedCrossoverSegment);
             var crossoverSeen = false;
             for (var i = 0; i < segmentsIndices.Length && !crossoverSeen; i++) {
                var (rangeStartIndex, rangeEndIndex) = segmentsIndices[i];
                for (var j = rangeStartIndex; j <= rangeEndIndex; j++) {
-                  if (waypointVisibilityPolygonBarriers[j].Segment == erodedCrossoverSegment) {
+                  Console.WriteLine((rangeEndIndex - rangeStartIndex + 1) + " " + waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared + " " + erodedCrossoverSegmentWaypointDistanceSquared);
+                  if (waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared >= erodedCrossoverSegmentWaypointDistanceSquared) {
                      crossoverSeen = true;
                   }
                }

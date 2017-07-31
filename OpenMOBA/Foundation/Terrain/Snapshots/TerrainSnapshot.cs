@@ -15,6 +15,16 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public IReadOnlyList<CrossoverSnapshot> Crossovers { get; set; }
       public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
       public IReadOnlyList<DynamicTerrainHole> TemporaryHoles { get; set; }
+      public Dictionary<double, PathfindingContext> PathfindingContexts { get; set; }
+   }
+
+   public class PathfindingContext {
+      public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
+
+      public void FindNearestSector(IntVector3 query) {
+         foreach (var sector in SectorSnapshots) {
+         }
+      }
    }
 
    public class CrossoverSnapshot {
@@ -163,50 +173,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             PrunePolytree(child);
          }
       }
-
-      public void ComputeCrossoverVisibilities(double holeDilationRadius) {
-//         var visibilityGraph = ComputeVisibilityGraph(holeDilationRadius);
-//
-//         var crossovers = Crossovers.Values.SelectMany(cs => cs).ToList();
-//         var locations = crossovers.Select(c => new IntLineSegment2(WorldToLocal(c.Segment.First).LossyToIntVector2(), WorldToLocal(c.Segment.Second).LossyToIntVector2())).ToList();
-//         for (var i = 0; i < crossovers.Count; i++) {
-//            var ca = crossovers[i];
-//            var a = locations[i];
-//            for (var j = i + 1; j < crossovers.Count; j++) {
-//               var cb = crossovers[j];
-//               var b = locations[j];
-//
-//               var hull = GeometryOperations.ConvexHull(new[] { a.First, a.Second, b.First, b.Second });
-//               foreach (var holeContour in StaticMetadata.LocalExcludedContours) {
-//                  Trace.Assert(holeContour.IsClosed);
-//
-//                  var contourPoints = holeContour.Points;
-//                  var interiorClockness = Clockness.Neither;
-//                  for (i = 0; i < contourPoints.Count - 1; i++) {
-////                     var clockness = GeometryOperations.Clockness(contourPoints[i]
-//                  }
-//               }
-//            }
-//         }
-      }
-
-//      public VisibilityPolygonBuilder ComputeVisibilityPolygon(DoubleVector2 position, double holeDilationRadius) {
-//         Dictionary<DoubleVector2, VisibilityPolygonBuilder> lineOfSightCache;
-//         if (!lineOfSightCaches.TryGetValue(holeDilationRadius, out lineOfSightCache)) {
-//            lineOfSightCache = new Dictionary<DoubleVector2, VisibilityPolygonBuilder>();
-//            lineOfSightCaches[holeDilationRadius] = lineOfSightCache;
-//         }
-//
-//         VisibilityPolygonBuilder lineOfSight;
-//         if (!lineOfSightCache.TryGetValue(position, out lineOfSight)) {
-//            var barriers = ComputeVisibilityGraph(holeDilationRadius).Barriers;
-//            lineOfSight = new VisibilityPolygonBuilder(position);
-//            foreach (var barrier in barriers) lineOfSight.Insert(barrier);
-//            lineOfSightCache[position] = lineOfSight;
-//         }
-//
-//         return lineOfSight;
-//      }
 
       public Triangulation ComputeTriangulation(double holeDilationRadius) {
          Triangulation triangulation;

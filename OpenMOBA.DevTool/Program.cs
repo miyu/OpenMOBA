@@ -112,27 +112,33 @@ namespace OpenMOBA.DevTool {
                      debugCanvas.DrawLine(c.LocalSegment.First, c.LocalSegment.Second, new StrokeStyle(Color.Red, 5));
                   }
 
-                  var crossover = visibilityGraphNodeData.ErodedCrossoverSegments[0];
-                  var destinations = visibilityGraphNodeData.ErodedCrossoverSegments.Skip(1).SelectMany(p => p.Points)
-                                                            .Select(visibilityGraph.IndicesByWaypoint.Get)
-                                                            .ToArray();
-                  var dijkstras = visibilityGraph.Dijkstras(crossover.Points, destinations);
-                  for (var i = 0; i < visibilityGraph.Waypoints.Length; i++) {
-//                     if (double.IsNaN(dijkstras[i].TotalCost)) {
-//                        continue;
-//                     }
-                     debugCanvas.DrawText(((int)dijkstras[i].TotalCost).ToString(), visibilityGraph.Waypoints[i]);
-                     debugCanvas.DrawLine(visibilityGraph.Waypoints[i], visibilityGraph.Waypoints[dijkstras[i].PriorIndex], new StrokeStyle(Color.Magenta, 5));
-                  }
+                  var colors = new[] { Color.Lime, Color.Orange, Color.Cyan, Color.Magenta, Color.Yellow, Color.Pink };
+                  for (int crossoverIndex = 0; crossoverIndex < visibilityGraphNodeData.ErodedCrossoverSegments.Count; crossoverIndex++) {
+                     var crossover = visibilityGraphNodeData.ErodedCrossoverSegments[crossoverIndex];
+                     var destinations = visibilityGraphNodeData.ErodedCrossoverSegments.Select((seg, i) => (seg, i != crossoverIndex)).Where(t => t.Item2)
+                                                               .SelectMany(t => t.Item1.Points)
+                                                               .Select(visibilityGraph.IndicesByWaypoint.Get)
+                                                               .ToArray();
+                     var dijkstras = visibilityGraph.Dijkstras(crossover.Points, destinations);
+                     for (var i = 0; i < visibilityGraph.Waypoints.Length; i++) {
+                        //                     if (double.IsNaN(dijkstras[i].TotalCost)) {
+                        //                        continue;
+                        //                     }
+//                        debugCanvas.DrawText(((int)dijkstras[i].TotalCost).ToString(), visibilityGraph.Waypoints[i]);
+//                        debugCanvas.DrawLine(visibilityGraph.Waypoints[i], visibilityGraph.Waypoints[dijkstras[i].PriorIndex], new StrokeStyle(colors[crossoverIndex], 5));
+                     }
 
-                  foreach (var vg in landNode.ComputeWaypointVisibilityPolygons()) {
-//                     debugCanvas.DrawLineOfSight(vg);
-                  }
+                     foreach (var vg in landNode.ComputeWaypointVisibilityPolygons()) {
+                        //                     debugCanvas.DrawLineOfSight(vg);
+                     }
 
-                  var crossoverSeeingWaypoints = landNode.ComputeCrossoverSeeingWaypoints(visibilityGraphNodeData.CrossoverSnapshots[0]);
-                  Console.WriteLine(crossoverSeeingWaypoints.Length);
-                  foreach (var waypointIndex in crossoverSeeingWaypoints) {
-                     debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.First, new StrokeStyle(Color.Lime));
+                     var crossoverSeeingWaypoints = landNode.ComputeCrossoverSeeingWaypoints(visibilityGraphNodeData.CrossoverSnapshots[crossoverIndex]);
+                     Console.WriteLine(crossoverSeeingWaypoints.Length);
+                     foreach (var waypointIndex in crossoverSeeingWaypoints) {
+                        debugCanvas.FillPolygon(new[] { visibilityGraph.Waypoints[waypointIndex], crossover.First, crossover.Second }, new FillStyle(Color.FromArgb(150, colors[crossoverIndex])));
+                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.First, new StrokeStyle(colors[crossoverIndex], 5));
+                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.Second, new StrokeStyle(colors[crossoverIndex], 5));
+                     }
                   }
                }
             }
