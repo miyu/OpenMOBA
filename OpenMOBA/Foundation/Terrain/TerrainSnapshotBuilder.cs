@@ -24,7 +24,6 @@ namespace OpenMOBA.Foundation.Terrain {
                Sector = sector,
                WorldTransform = sector.InstanceMetadata.WorldTransform,
                WorldTransformInv = sector.InstanceMetadata.WorldTransformInv,
-               TemporaryHoles = new List<DynamicTerrainHole>(),
                CrossoverSnapshots = new List<CrossoverSnapshot>()
             };
             sectorToSnapshot.Add(sector, snapshot);

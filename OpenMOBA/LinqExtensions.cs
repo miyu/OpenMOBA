@@ -65,6 +65,14 @@ namespace OpenMOBA {
          return items.Select((item, key) => new KeyValuePair<int, T>(key, item));
       }
 
+      public static U[] Map<T, U>(this IReadOnlyList<T> arr, Func<T, U> map) {
+         var result = new U[arr.Count];
+         for (int i = 0; i < arr.Count; i++) {
+            result[i] = map(arr[i]);
+         }
+         return result;
+      }
+
       public static U[] Map<T, U>(this T[] arr, Func<T, U> map) {
          var result = new U[arr.Length];
          for (int i = 0; i < arr.Length; i++) {

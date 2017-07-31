@@ -295,6 +295,24 @@ namespace OpenMOBA.Geometry {
          return FindNearestPoint(p1, p2, query);
       }
 
+      public static bool TryErode(this IntLineSegment2 segment, int erosionRadius, out IntLineSegment2 result) {
+         var a = segment.First;
+         var b = segment.Second;
+         var aToB = a.To(b);
+         var aToBMagSquared = aToB.SquaredNorm2();
+
+         var erosionDiameter = 2 * erosionRadius;
+         if (aToBMagSquared <= erosionDiameter * erosionDiameter) {
+            result = default(IntLineSegment2);
+            return false;
+         }
+
+         var aToBMag = Math.Sqrt(aToBMagSquared);
+         var shrink = aToB.LossyScale(erosionRadius / aToBMag);
+         result = new IntLineSegment2(a + shrink, b - shrink);
+         return true;
+      }
+
       /// <summary>
       /// Will continue gracefully even if R3 basis can be formed. Beware!
       /// </summary>

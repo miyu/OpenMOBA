@@ -5,8 +5,8 @@ using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain {
    public static class TerrainQueryOperations {
-      public static bool IsInHole(this SectorSnapshot sectorSnapshot, double holeDilationRadius, IntVector3 query) {
-         var punchedLandPolytree = sectorSnapshot.ComputePunchedLand(holeDilationRadius);
+      public static bool IsInHole(this SectorSnapshotGeometryContext sectorSnapshotGeometryContext, IntVector3 query) {
+         var punchedLandPolytree = sectorSnapshotGeometryContext.PunchedLand;
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
 
          PolyNode pickedNode;
@@ -22,8 +22,8 @@ namespace OpenMOBA.Foundation.Terrain {
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static bool FindNearestLandPointAndIsInHole(this SectorSnapshot sectorSnapshot, double holeDilationRadius, DoubleVector2 query, out DoubleVector2 nearestLandPoint) {
-         var punchedLandPolytree = sectorSnapshot.ComputePunchedLand(holeDilationRadius);
+      public static bool FindNearestLandPointAndIsInHole(this SectorSnapshotGeometryContext sectorSnapshotGeometryContext, DoubleVector2 query, out DoubleVector2 nearestLandPoint) {
+         var punchedLandPolytree = sectorSnapshotGeometryContext.PunchedLand;
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
 
          PolyNode pickedNode;

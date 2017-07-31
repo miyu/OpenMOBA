@@ -192,7 +192,8 @@ namespace OpenMOBA.Foundation {
 
             // This shit's terrifyingly inefficient. Fix by precomputing?
             foreach (var crossoverSnapshot in currentLand.visibilityGraphNodeData.CrossoverSnapshots) {
-               var remotePolyTree = crossoverSnapshot.Remote.ComputePunchedLand(holeDilationRadius);
+               var remoteGeometryContext = crossoverSnapshot.Remote.GetGeometryContext(holeDilationRadius);
+               var remotePolyTree = remoteGeometryContext.PunchedLand;
                var remotePolyNode = remotePolyTree.visibilityGraphTreeData.CrossoverPolyNodes[crossoverSnapshot.Crossover];
                if (addedCrossovers.Add(crossoverSnapshot.Crossover)) {
                   s.Enqueue(remotePolyNode);

@@ -80,18 +80,19 @@ namespace OpenMOBA.DevTool {
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          var holeDilationRadius = 15.0;
-
          debugCanvas.BatchDraw(() => {
             foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
+               var sectorSnapshotGeometryContext = sectorSnapshot.GetGeometryContext(holeDilationRadius);
+
                debugCanvas.Transform = sectorSnapshot.WorldTransform;
-               debugCanvas.DrawTriangulation(sectorSnapshot.ComputeTriangulation(holeDilationRadius), new StrokeStyle(Color.DarkGray));
+               debugCanvas.DrawTriangulation(sectorSnapshotGeometryContext.Triangulation, new StrokeStyle(Color.DarkGray));
 
                if (!sectorSnapshot.Sector.EnableDebugHighlight) {
 //                  debugCanvas.DrawWallPushGrid(sectorSnapshot, holeDilationRadius);
                   continue;
                }
 
-               var punchedLand = sectorSnapshot.ComputePunchedLand(holeDilationRadius);
+               var punchedLand = sectorSnapshotGeometryContext.PunchedLand;
                var s = new Stack<PolyNode>();
                punchedLand.Childs.ForEach(s.Push);
                while (s.Any()) {
@@ -204,7 +205,7 @@ namespace OpenMOBA.DevTool {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
-               var triangulation = sectorSnapshot.ComputeTriangulation(movementComponent.BaseRadius);
+               var triangulation = sectorSnapshot.GetGeometryContext(movementComponent.BaseRadius).Triangulation;
                TriangulationIsland island;
                int triangleIndex;
                if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
@@ -239,13 +240,13 @@ namespace OpenMOBA.DevTool {
          var sector1 = Game.TerrainService.BuildSnapshot().SectorSnapshots[1];
          var p1 = new IntVector2(500, 300);
          var p1World = Vector3.Transform(new DoubleVector3(p1.ToDoubleVector2()).ToDotNetVector(), sector1.WorldTransform).ToOpenMobaVector();
-         sector1.ComputePunchedLand(holeDilationRadius).PickDeepestPolynode(p1, out PolyNode p1PolyNode, out bool p1IsInHole);
+         sector1.GetGeometryContext(holeDilationRadius).PunchedLand.PickDeepestPolynode(p1, out PolyNode p1PolyNode, out bool p1IsInHole);
          debugCanvas.DrawPoint(p1World, new StrokeStyle(p1IsInHole ? Color.Green : Color.Lime, 20));
 
          var sector2 = Game.TerrainService.BuildSnapshot().SectorSnapshots[2];
          var p2 = new IntVector2(350, 320);
          var p2World = Vector3.Transform(new DoubleVector3(p2.ToDoubleVector2()).ToDotNetVector(), sector2.WorldTransform).ToOpenMobaVector();
-         sector2.ComputePunchedLand(holeDilationRadius).PickDeepestPolynode(p2, out PolyNode p2PolyNode, out bool p2IsInHole);
+         sector2.GetGeometryContext(holeDilationRadius).PunchedLand.PickDeepestPolynode(p2, out PolyNode p2PolyNode, out bool p2IsInHole);
          debugCanvas.DrawPoint(p2World, new StrokeStyle(p2IsInHole ? Color.DarkRed : Color.Red, 20));
 
          double pathCostUpperBound;

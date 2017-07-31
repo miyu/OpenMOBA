@@ -119,6 +119,8 @@ namespace OpenMOBA.Geometry {
             (other.Y * numerator) / denominator);
       }
 
+      public IntVector2 LossyScale(double scale) => new IntVector2((cInt)(X * scale), (cInt)(Y * scale));
+
       public DoubleVector2 ToDoubleVector2() => new DoubleVector2(X, Y);
 
       public override int GetHashCode() {
