@@ -15,15 +15,30 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public IReadOnlyList<CrossoverSnapshot> Crossovers { get; set; }
       public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
       public IReadOnlyList<DynamicTerrainHole> TemporaryHoles { get; set; }
-      public Dictionary<double, PathfindingContext> PathfindingContexts { get; set; }
+      public Dictionary<double, PathfindingContext> PathfindingContexts { get; set; } = new Dictionary<double, PathfindingContext>();
+
+      public PathfindingContext GetPathfindingContext(double holeDilationRadius) {
+         if (PathfindingContexts.TryGetValue(holeDilationRadius, out PathfindingContext cachedContext)) {
+            return cachedContext;
+         }
+         return PathfindingContexts[holeDilationRadius] = new PathfindingContext { SectorSnapshots = SectorSnapshots };
+      }
    }
 
    public class PathfindingContext {
       public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
 
-      public void FindNearestSector(IntVector3 query) {
-         foreach (var sector in SectorSnapshots) {
-         }
+      public bool TryFindSector(IntVector3 queryWorld, out SectorSnapshot result) {
+         return TryFindSector(queryWorld.ToDoubleVector3(), out result);
+      }
+
+      public bool TryFindSector(DoubleVector3 queryWorld, out SectorSnapshot result) {
+         return SectorSnapshots.TryFindFirst(sectorSnapshot => {
+            var queryLocal = sectorSnapshot.WorldToLocal(queryWorld);
+            var localBoundary = sectorSnapshot.StaticMetadata.LocalBoundary;
+            return localBoundary.X <= queryLocal.X && queryLocal.X <= localBoundary.Right &&
+                   localBoundary.Y <= queryLocal.Y && queryLocal.Y <= localBoundary.Bottom;
+         }, out result);
       }
    }
 
@@ -48,6 +63,9 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public DoubleVector2 WorldToLocal(DoubleVector3 p) => Vector3.Transform(p.ToDotNetVector(), WorldTransformInv).ToOpenMobaVector().XY;
       public IntLineSegment2 WorldToLocal(IntLineSegment3 s) => new IntLineSegment2(WorldToLocal(s.First).LossyToIntVector2(), WorldToLocal(s.Second).LossyToIntVector2());
 
+      public DoubleVector3 LocalToWorld(IntVector2 p) => Vector3.Transform(new IntVector3(p).ToDotNetVector(), WorldTransform).ToOpenMobaVector();
+      public DoubleVector3 LocalToWorld(DoubleVector2 p) => Vector3.Transform(new DoubleVector3(p).ToDotNetVector(), WorldTransform).ToOpenMobaVector();
+      
       // Geometry context
       public Dictionary<double, SectorSnapshotGeometryContext> GeometryContextsByHoleDilationRadius { get; set; } = new Dictionary<double, SectorSnapshotGeometryContext>();
 
@@ -164,8 +182,15 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             }
          }
 
+         void TagSectorSnapshotAndGeometryContext(PolyNode node) {
+            node.visibilityGraphNodeData.SectorSnapshot = this._sectorSnapshot;
+            node.visibilityGraphNodeData.SectorSnapshotGeometryContext = this;
+            node.Childs.ForEach(TagSectorSnapshotAndGeometryContext);
+         }
+
          PrunePolytree(punchedLand);
          PopulatePolytreeCrossoverLabels();
+         TagSectorSnapshotAndGeometryContext(punchedLand);
          return punchedLand;
       }
 

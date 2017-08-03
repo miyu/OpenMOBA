@@ -45,7 +45,7 @@ namespace OpenMOBA.DevTool.Debugging {
             }
          });
       }
-
+      
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment3> segments, StrokeStyle strokeStyle) {
          canvas.DrawLineList(segments.SelectMany(s => s.Points).Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
       }

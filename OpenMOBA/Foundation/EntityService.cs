@@ -214,23 +214,204 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      public bool TryFindPath(double holeDilationRadius, DoubleVector3 source, DoubleVector3 destination, out List<DoubleVector3> pathPoints) {
-         pathPoints = new List<DoubleVector3> { source, destination };
-         return true;
+      public struct PathfinderWaypointState {
+         public double Cost;
+         public int PreviousWaypointIndex;
+         public PolyNode PreviousNode;
+         public bool Visited;
+      }
 
+      public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out List<DoubleVector3> path) {
+         path = null;
 
-         //         var terrainSnapshot = terrainService.BuildSnapshot();
-         //         var visibilityGraph = terrainSnapshot.ComputeVisibilityGraph(holeDilationRadius);
-         //         Path path;
-         //         if (!visibilityGraph.TryFindPath(source.LossyToIntVector3(), destination.LossyToIntVector3(), out path)) {
-         //            pathPoints = null;
-         //            return false;
-         //         } else {
-         //            pathPoints = path.Points.Select(p => p.ToDoubleVector3()).ToList();
-         //            pathPoints[0] = source;
-         //            pathPoints[pathPoints.Count - 1] = destination;
-         //            return true;
-         //         }
+         var terrainSnapshot = terrainService.BuildSnapshot();
+         var pathfindingContext = terrainSnapshot.GetPathfindingContext(holeDilationRadius);
+
+         if (!pathfindingContext.TryFindSector(sourceWorld, out SectorSnapshot sourceSector) ||
+             !pathfindingContext.TryFindSector(sourceWorld, out SectorSnapshot destinationSector)) {
+            return false;
+         }
+
+         var sourceGeometryContext = sourceSector.GetGeometryContext(holeDilationRadius);
+         var sourceLocal = sourceSector.WorldToLocal(sourceWorld);
+         sourceGeometryContext.PunchedLand.PickDeepestPolynode(sourceLocal.LossyToIntVector2(), out PolyNode sourceNode, out bool sourceNodeIsHole);
+
+         var destinationGeometryContext = destinationSector.GetGeometryContext(holeDilationRadius);
+         var destinationLocal = destinationSector.WorldToLocal(destinationWorld);
+         destinationGeometryContext.PunchedLand.PickDeepestPolynode(destinationLocal.LossyToIntVector2(), out PolyNode destinationNode, out bool destinationNodeIsHole);
+
+         var sourceVisibilityPolygon = VisibilityPolygon.Create(sourceLocal, sourceNode.FindContourAndChildHoleBarriers());
+         var sourceNodeWaypoints = sourceNode.FindAggregateContourCrossoverWaypoints();
+
+         const int StartWaypointIndex = int.MinValue;
+         const int EndWaypointIndex = int.MinValue + 1;
+         const int UndefinedWaypointIndex = -1;
+
+         var waypointStateOffsetByPolyNode = new Dictionary<PolyNode, int>();
+         var pathfinderWaypointStatesByPolyNode = new Dictionary<PolyNode, PathfinderWaypointState[]>();
+         var sourcePolyNodeWaypointStates = pathfinderWaypointStatesByPolyNode[sourceNode] = new PathfinderWaypointState[sourceNodeWaypoints.Length];
+         var destinationWaypointState = new PathfinderWaypointState();
+
+         if (sourceNode == destinationNode && sourceVisibilityPolygon.Contains(destinationLocal)) {
+            path = new List<DoubleVector3> { sourceWorld, destinationWorld };
+            return true;
+         }
+
+         var eventQueue = new PriorityQueue<PathfindingEvent>((a, b) => a.Cost.CompareTo(b.Cost));
+         eventQueue.Enqueue(new WaypointEvent {
+            Cost = 0,
+            LocalNode = sourceNode,
+            LocalSector = sourceSector,
+            LocationLocal = sourceLocal,
+            WaypointIndex = StartWaypointIndex,
+            LocalNodeWaypointStates = sourcePolyNodeWaypointStates
+         });
+
+         while (!eventQueue.IsEmpty) {
+            var e = eventQueue.Dequeue();
+            Console.WriteLine(e);
+            if (e is WaypointEvent we) {
+               if (we.WaypointIndex == EndWaypointIndex) {
+                  var s = new Stack<DoubleVector3>();
+                  s.Push(destinationWorld);
+                  var currentNode = destinationWaypointState.PreviousNode;
+                  var currentWaypointIndex = destinationWaypointState.PreviousWaypointIndex;
+                  while (currentWaypointIndex != StartWaypointIndex) {
+                     var sectorSnapshot = currentNode.visibilityGraphNodeData.SectorSnapshot;
+                     
+                     ref var currentWaypointState = ref pathfinderWaypointStatesByPolyNode[currentNode][currentWaypointIndex];
+                     s.Push(sectorSnapshot.LocalToWorld(currentNode.FindAggregateContourCrossoverWaypoints()[currentWaypointIndex]));
+                     currentNode = currentWaypointState.PreviousNode;
+                     currentWaypointIndex = currentWaypointState.PreviousWaypointIndex;
+                  }
+                  s.Push(sourceWorld);
+
+                  path = s.ToList();
+                  return true;
+               } else if (we.WaypointIndex == StartWaypointIndex) {
+                  // add waypoints
+                  for (var waypointIndex = 0; waypointIndex < sourceNodeWaypoints.Length; waypointIndex++) {
+                     var waypointLocal = sourceNodeWaypoints[waypointIndex];
+                     if (!sourceVisibilityPolygon.Contains(waypointLocal.ToDoubleVector2())) {
+                        continue;
+                     }
+
+                     var waypointWorld = sourceSector.LocalToWorld(waypointLocal);
+                     var totalCost = sourceWorld.To(waypointWorld).Norm2D();
+                     we.LocalNodeWaypointStates[waypointIndex].Cost = totalCost;
+                     we.LocalNodeWaypointStates[waypointIndex].PreviousWaypointIndex = StartWaypointIndex;
+                     we.LocalNodeWaypointStates[waypointIndex].PreviousNode = sourceNode;
+
+                     eventQueue.Enqueue(new WaypointEvent {
+                        Cost = totalCost,
+                        LocalNode = sourceNode,
+                        LocalSector = sourceSector,
+                        LocationLocal = waypointLocal.ToDoubleVector2(),
+                        WaypointIndex = waypointIndex,
+                        LocalNodeWaypointStates = sourcePolyNodeWaypointStates
+                     });
+                  }
+
+                  // add portals
+               } else {
+                  // No-op if this waypoint has already been visited.
+                  if (we.LocalNodeWaypointStates[we.WaypointIndex].Visited) {
+                     continue;
+                  }
+                  we.LocalNodeWaypointStates[we.WaypointIndex].Visited = true;
+
+                  // add waypoints
+                  var visibilityGraph = we.LocalNode.ComputeVisibilityGraph();
+                  var edgeIndexStartInclusive = visibilityGraph.Offsets[we.WaypointIndex];
+                  var edgeIndexEndExclusive = visibilityGraph.Offsets[we.WaypointIndex + 1];
+                  for (var edgeIndex = edgeIndexStartInclusive; edgeIndex < edgeIndexEndExclusive; edgeIndex++) {
+                     var edge = visibilityGraph.Edges[edgeIndex];
+                     var totalCost = we.Cost + edge.Cost;
+                     var nextWaypoint = visibilityGraph.Waypoints[edge.NextIndex];
+                     ref var nextWaypointState = ref we.LocalNodeWaypointStates[edge.NextIndex];
+
+                     // skip edge destination if already visited or will be visited for cheaper
+                     if (nextWaypointState.Visited ||
+                         (nextWaypointState.Cost != 0 && nextWaypointState.Cost <= totalCost)) {
+                        continue;
+                     }
+                     nextWaypointState.Cost = totalCost;
+                     nextWaypointState.PreviousNode = we.LocalNode;
+                     nextWaypointState.PreviousWaypointIndex = we.WaypointIndex;
+
+                     eventQueue.Enqueue(new WaypointEvent {
+                        Cost = totalCost,
+                        LocalNode = we.LocalNode,
+                        LocalSector = we.LocalSector,
+                        LocationLocal = nextWaypoint.ToDoubleVector2(),
+                        WaypointIndex = edge.NextIndex,
+                        LocalNodeWaypointStates = we.LocalNodeWaypointStates
+                     });
+                  }
+
+                  // Add path to end
+                  if (we.LocalNode == destinationNode) {
+                     var visibilityPolygon = we.LocalNode.ComputeWaypointVisibilityPolygons()[we.WaypointIndex];
+                     if (visibilityPolygon.Contains(destinationLocal)) {
+                        var totalCost = we.Cost + we.LocalSector.LocalToWorld(we.LocationLocal).To(destinationWorld).Norm2D();
+                        if (destinationWaypointState.Cost != 0 && destinationWaypointState.Cost <= totalCost) {
+                           continue;
+                        }
+                        destinationWaypointState.Cost = totalCost;
+                        destinationWaypointState.PreviousNode = we.LocalNode;
+                        destinationWaypointState.PreviousWaypointIndex = we.WaypointIndex;
+
+                        eventQueue.Enqueue(new WaypointEvent {
+                           Cost = totalCost,
+                           LocalNode = we.LocalNode,
+                           LocalSector = we.LocalSector,
+                           LocationLocal = destinationLocal,
+                           WaypointIndex = EndWaypointIndex,
+                           LocalNodeWaypointStates = we.LocalNodeWaypointStates
+                        });
+                     }
+                  }
+
+                  // Add path to portals
+                  var crossoversSeen = we.LocalNode.ComputeCrossoversSeenByWaypoints()[we.WaypointIndex];
+                  foreach (var crossover in crossoversSeen) {
+                     var locationLocal = we.LocationLocal;
+                     var nearestSegmentPoint = GeometryOperations.FindNearestPoint(crossover.LocalSegment, locationLocal);
+                     eventQueue.Enqueue(new CrossoverEvent {
+                        Cost = we.Cost + locationLocal.To(nearestSegmentPoint).Norm2D(),
+                        SourceNode = we.LocalNode,
+                        SourceSector = we.LocalSector,
+                        SourceLocationLocal = we.LocationLocal,
+                        SourceVisibilityPolygon = we.LocalNode.ComputeWaypointVisibilityPolygons()[we.WaypointIndex],
+                        Crossover = crossover,
+                     });
+                  }
+               }
+            }
+         }
+         return false;
+      }
+
+      private class PathfindingEvent {
+         public double Cost;
+      }
+
+      private class WaypointEvent : PathfindingEvent {
+         public PolyNode LocalNode;
+         public SectorSnapshot LocalSector;
+         public DoubleVector2 LocationLocal;
+         public int WaypointIndex;
+         public PathfinderWaypointState[] LocalNodeWaypointStates;
+
+         public override string ToString() => $"WE {Cost} {WaypointIndex}, {LocationLocal}";
+      }
+
+      private class CrossoverEvent : PathfindingEvent {
+         public CrossoverSnapshot Crossover;
+         public PolyNode SourceNode;
+         public SectorSnapshot SourceSector;
+         public DoubleVector2 SourceLocationLocal;
+         public VisibilityPolygon SourceVisibilityPolygon;
       }
    }
 
@@ -969,3 +1150,4 @@ namespace OpenMOBA.Foundation {
       public override void Execute() { }
    }
 }
+

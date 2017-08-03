@@ -16,14 +16,18 @@ namespace OpenMOBA.Foundation.Visibility {
    }
 
    public struct PolyNodeVisbilityGraphNodeData {
+      public SectorSnapshot SectorSnapshot;
+      public SectorSnapshotGeometryContext SectorSnapshotGeometryContext;
+
       public IntVector2[] ContourWaypoints;
       public IntVector2[] AggregateContourWaypoints;
-      public IntLineSegment2[] ContourBarriers;
+      public IntLineSegment2[] ContourAndChildHoleBarriers;
       public SectorVisibilityGraph VisibilityDistanceMatrix;
       public VisibilityPolygon[] AggregateContourWaypointVisibilityPolygons;
       public List<CrossoverSnapshot> CrossoverSnapshots;
       public List<IntLineSegment2> ErodedCrossoverSegments;
       public int[][] CrossoverSeeingWaypointIndices;
+      public HashSet<CrossoverSnapshot>[] CrossoversSeenByWaypointIndices;
    }
 
    public class Path {
@@ -56,8 +60,8 @@ namespace OpenMOBA.Foundation.Visibility {
          return node.visibilityGraphNodeData.ContourWaypoints = results.ToArray();
       }
 
-      private static IntLineSegment2[] FindContourAndChildHoleBarriers(this PolyNode node) {
-         if (node.visibilityGraphNodeData.ContourBarriers != null) return node.visibilityGraphNodeData.ContourBarriers;
+      public static IntLineSegment2[] FindContourAndChildHoleBarriers(this PolyNode node) {
+         if (node.visibilityGraphNodeData.ContourAndChildHoleBarriers != null) return node.visibilityGraphNodeData.ContourAndChildHoleBarriers;
 
          // dilation to move holes inward
          const int kDilationFactor = 5;
@@ -92,10 +96,10 @@ namespace OpenMOBA.Foundation.Visibility {
                results.Add(new IntLineSegment2(p1, p2));
             }
          }
-         return node.visibilityGraphNodeData.ContourBarriers = results.ToArray();
+         return node.visibilityGraphNodeData.ContourAndChildHoleBarriers = results.ToArray();
       }
 
-      private static IntVector2[] FindAggregateContourCrossoverWaypoints(this PolyNode node) {
+      public static IntVector2[] FindAggregateContourCrossoverWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.AggregateContourWaypoints != null) {
             return node.visibilityGraphNodeData.AggregateContourWaypoints;
          }
@@ -120,13 +124,7 @@ namespace OpenMOBA.Foundation.Visibility {
 
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
-         var visibilityPolygons = waypoints.Map(waypoint => new VisibilityPolygon(waypoint.ToDoubleVector2()));
-         foreach (var visibilityPolygon in visibilityPolygons) {
-            foreach (var barrier in barriers) {
-               visibilityPolygon.Insert(barrier);
-            }
-         }
-
+         var visibilityPolygons = waypoints.Map(waypoint => VisibilityPolygon.Create(waypoint.ToDoubleVector2(), barriers));
          return landNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons = visibilityPolygons;
       }
 
@@ -162,7 +160,6 @@ namespace OpenMOBA.Foundation.Visibility {
             for (var i = 0; i < segmentsIndices.Length && !crossoverSeen; i++) {
                var (rangeStartIndex, rangeEndIndex) = segmentsIndices[i];
                for (var j = rangeStartIndex; j <= rangeEndIndex; j++) {
-                  Console.WriteLine((rangeEndIndex - rangeStartIndex + 1) + " " + waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared + " " + erodedCrossoverSegmentWaypointDistanceSquared);
                   if (waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared >= erodedCrossoverSegmentWaypointDistanceSquared) {
                      crossoverSeen = true;
                   }
@@ -176,23 +173,41 @@ namespace OpenMOBA.Foundation.Visibility {
          return landNode.visibilityGraphNodeData.CrossoverSeeingWaypointIndices[crossoverIndex] = crossoverSeeingWaypoints.ToArray();
       }
 
-      //
-      //         tree.PickDeepestPolynode(to, out PolyNode toPolyNode, out bool isToHole);
-      //         tree.PickDeepestPolynode(from, out PolyNode fromPolyNode, out bool isFromHole);
+      public static HashSet<CrossoverSnapshot>[] ComputeCrossoversSeenByWaypoints(this PolyNode landNode) {
+         if (landNode.visibilityGraphNodeData.CrossoversSeenByWaypointIndices != null) {
+            return landNode.visibilityGraphNodeData.CrossoversSeenByWaypointIndices;
+         }
 
-      //      private static bool TryComputePath(double holeDilationRadius, IntVector2 from, IntVector2 to, PolyTree tree, out List<IntVector2> path) {
-      //         if (isFromHole || isToHole || fromPolyNode != toPolyNode) {
-      //            path = null;
-      //            return false;
-      //         }
-      //
-      //         var landNode = fromPolyNode;
-      //         var barriers = FindContourAndChildHoleBarriers(landNode);
-      //         ComputeVisibilityMatrix()
-      //      }
-   }
+         var waypoints = landNode.FindAggregateContourCrossoverWaypoints();
+         var crossoversSeenByWaypointIndex = waypoints.Map(x => new HashSet<CrossoverSnapshot>());
+         if (landNode.visibilityGraphNodeData.CrossoverSnapshots != null) {
+            foreach (var crossoverSnapshot in landNode.visibilityGraphNodeData.CrossoverSnapshots) {
+               var waypointIndices = landNode.ComputeCrossoverSeeingWaypoints(crossoverSnapshot);
+               foreach (var waypointIndex in waypointIndices) {
+                  crossoversSeenByWaypointIndex[waypointIndex].Add(crossoverSnapshot);
+               }
+            }
+         }
+         return landNode.visibilityGraphNodeData.CrossoversSeenByWaypointIndices = crossoversSeenByWaypointIndex;
+      }
 
-   public struct PathLink {
+      //
+         //         tree.PickDeepestPolynode(to, out PolyNode toPolyNode, out bool isToHole);
+         //         tree.PickDeepestPolynode(from, out PolyNode fromPolyNode, out bool isFromHole);
+
+         //      private static bool TryComputePath(double holeDilationRadius, IntVector2 from, IntVector2 to, PolyTree tree, out List<IntVector2> path) {
+         //         if (isFromHole || isToHole || fromPolyNode != toPolyNode) {
+         //            path = null;
+         //            return false;
+         //         }
+         //
+         //         var landNode = fromPolyNode;
+         //         var barriers = FindContourAndChildHoleBarriers(landNode);
+         //         ComputeVisibilityMatrix()
+         //      }
+      }
+
+      public struct PathLink {
       public int PriorIndex;
       public float TotalCost;
    }

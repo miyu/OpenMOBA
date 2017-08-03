@@ -93,7 +93,9 @@ namespace OpenMOBA.DevTool.Debugging {
 
    public static class DebugCanvas2DExtensions {
       private static DoubleVector3 ToDV3(IntVector2 p) => new DoubleVector3(p.ToDoubleVector2());
+      private static DoubleVector3 ToDV3(DoubleVector2 p) => new DoubleVector3(p);
       private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
+      private static IntLineSegment3 ToILS3(IntLineSegment2 p) => new IntLineSegment3(ToIV3(p.First), ToIV3(p.Second));
 
       public static void DrawPolygon(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
          canvas.DrawPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
@@ -113,6 +115,18 @@ namespace OpenMOBA.DevTool.Debugging {
 
       public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
          canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
+      }
+
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(points.Map(ToDV3), strokeStyle);
+      }
+
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(points.Map(ToDV3), strokeStyle);
+      }
+
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment2> segments, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(segments.Map(ToILS3), strokeStyle);
       }
 
       public static void DrawText(this IDebugCanvas canvas, string text, IntVector2 point) {

@@ -35,6 +35,7 @@ namespace OpenMOBA.Geometry {
       public static double Cross(this DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
       public static double Cross(double ax, double ay, double bx, double by) => ax * by - ay * bx;
 
+      public static Vector3 ToDotNetVector(this IntVector3 v) => new Vector3(v.X, v.Y, v.Z);
       public static Vector3 ToDotNetVector(this DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
       public static DoubleVector3 ToOpenMobaVector(this Vector3 v) => new DoubleVector3(v.X, v.Y, v.Z);
 

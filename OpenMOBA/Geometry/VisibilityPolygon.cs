@@ -332,12 +332,31 @@ namespace OpenMOBA.Geometry {
          return (queryRangeBeginIndexInclusive, queryRangeEndIndexInclusive);
       }
 
+      public bool Contains(DoubleVector2 p) {
+         var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
+         var pToOriginDistSquared = _origin.To(p).SquaredNorm2D();
+         var rangeAtTheta = Stab(theta);
+         if (rangeAtTheta.Id == RANGE_ID_NULL) {
+            return false;
+         }
+         var originPastPToPolyDistSquared = rangeAtTheta.MidpointDistanceToOriginSquared;
+         return pToOriginDistSquared < originPastPToPolyDistSquared;
+      }
+
       public class IntervalRange {
          public int Id;
          public IntLineSegment2 Segment;
          public double ThetaStart; // inclusive
          public double ThetaEnd; // exclusive
          public double MidpointDistanceToOriginSquared;
+      }
+
+      public static VisibilityPolygon Create(DoubleVector2 origin, IReadOnlyList<IntLineSegment2> barriers) {
+         var vp = new VisibilityPolygon(origin);
+         foreach (var barrier in barriers) {
+            vp.Insert(barrier);
+         }
+         return vp;
       }
    }
 }
