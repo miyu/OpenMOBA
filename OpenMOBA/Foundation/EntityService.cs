@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using ClipperLib;
 using OpenMOBA.DataStructures;
@@ -228,17 +229,19 @@ namespace OpenMOBA.Foundation {
          var pathfindingContext = terrainSnapshot.GetPathfindingContext(holeDilationRadius);
 
          if (!pathfindingContext.TryFindSector(sourceWorld, out SectorSnapshot sourceSector) ||
-             !pathfindingContext.TryFindSector(sourceWorld, out SectorSnapshot destinationSector)) {
+             !pathfindingContext.TryFindSector(destinationWorld, out SectorSnapshot destinationSector)) {
             return false;
          }
 
          var sourceGeometryContext = sourceSector.GetGeometryContext(holeDilationRadius);
          var sourceLocal = sourceSector.WorldToLocal(sourceWorld);
          sourceGeometryContext.PunchedLand.PickDeepestPolynode(sourceLocal.LossyToIntVector2(), out PolyNode sourceNode, out bool sourceNodeIsHole);
+         Trace.Assert(!sourceNodeIsHole);
 
          var destinationGeometryContext = destinationSector.GetGeometryContext(holeDilationRadius);
          var destinationLocal = destinationSector.WorldToLocal(destinationWorld);
          destinationGeometryContext.PunchedLand.PickDeepestPolynode(destinationLocal.LossyToIntVector2(), out PolyNode destinationNode, out bool destinationNodeIsHole);
+         Trace.Assert(!destinationNodeIsHole);
 
          var sourceVisibilityPolygon = VisibilityPolygon.Create(sourceLocal, sourceNode.FindContourAndChildHoleBarriers());
          var sourceNodeWaypoints = sourceNode.FindAggregateContourCrossoverWaypoints();
@@ -269,7 +272,7 @@ namespace OpenMOBA.Foundation {
 
          while (!eventQueue.IsEmpty) {
             var e = eventQueue.Dequeue();
-            Console.WriteLine(e);
+//            Console.WriteLine(e);
             if (e is WaypointEvent we) {
                if (we.WaypointIndex == EndWaypointIndex) {
                   var s = new Stack<DoubleVector3>();
@@ -351,6 +354,7 @@ namespace OpenMOBA.Foundation {
 
                   // Add path to end
                   if (we.LocalNode == destinationNode) {
+//                     Console.WriteLine("!!!!!!!!!!!!!!!!!!");
                      var visibilityPolygon = we.LocalNode.ComputeWaypointVisibilityPolygons()[we.WaypointIndex];
                      if (visibilityPolygon.Contains(destinationLocal)) {
                         var totalCost = we.Cost + we.LocalSector.LocalToWorld(we.LocationLocal).To(destinationWorld).Norm2D();
@@ -377,13 +381,70 @@ namespace OpenMOBA.Foundation {
                   foreach (var crossover in crossoversSeen) {
                      var locationLocal = we.LocationLocal;
                      var nearestSegmentPoint = GeometryOperations.FindNearestPoint(crossover.LocalSegment, locationLocal);
+
                      eventQueue.Enqueue(new CrossoverEvent {
                         Cost = we.Cost + locationLocal.To(nearestSegmentPoint).Norm2D(),
+                        SourceCost = we.Cost,
                         SourceNode = we.LocalNode,
                         SourceSector = we.LocalSector,
                         SourceLocationLocal = we.LocationLocal,
                         SourceVisibilityPolygon = we.LocalNode.ComputeWaypointVisibilityPolygons()[we.WaypointIndex],
+                        SourceWaypointIndex = we.WaypointIndex,
                         Crossover = crossover,
+                     });
+                  }
+               }
+            } else if (e is CrossoverEvent ce) {
+               var remote = ce.Crossover.Remote;
+               var remoteGeometryContext = remote.GetGeometryContext(holeDilationRadius);
+
+               var crossoverMidpoint = ce.Crossover.LocalSegment.ComputeMidpoint();
+               var crossoverDistance = ce.SourceLocationLocal.To(crossoverMidpoint.ToDoubleVector2()).SquaredNorm2D();
+
+               // todo: support holes on crossovers
+               remoteGeometryContext.PunchedLand.PickDeepestPolynode(ce.Crossover.RemoteSegment.ComputeMidpoint(), out PolyNode remotePolyNode, out bool isCrossoverEndpointInHole);
+               if (!pathfinderWaypointStatesByPolyNode.TryGetValue(remotePolyNode, out PathfinderWaypointState[] remoteWaypointStates)) {
+                  remoteWaypointStates = pathfinderWaypointStatesByPolyNode[remotePolyNode] = new PathfinderWaypointState[remotePolyNode.FindAggregateContourCrossoverWaypoints().Length];
+               }
+
+               var remoteBarriers = remotePolyNode.FindContourAndChildHoleBarriers();
+               foreach (var barrier in remoteBarriers) {
+                  var first = Vector2.Transform(barrier.First.ToDotNetVector(), ce.Crossover.RemoteToLocal).ToOpenMobaVector();
+                  var second = Vector2.Transform(barrier.Second.ToDotNetVector(), ce.Crossover.RemoteToLocal).ToOpenMobaVector();
+                  var midpoint = (first + second) / 2;
+                  var midpointDistance = ce.SourceLocationLocal.To(midpoint).SquaredNorm2D();
+                  if (midpointDistance < crossoverDistance) {
+                     continue;
+                  }
+                  ce.SourceVisibilityPolygon.Insert(new IntLineSegment2(first.LossyToIntVector2(), second.LossyToIntVector2()), true);
+               }
+
+               // waypoints
+               foreach (var waypointIndex in remotePolyNode.ComputeCrossoverSeeingWaypoints(ce.Crossover.RemoteCrossover)) {
+                  var nextWaypointRemote = remotePolyNode.FindAggregateContourCrossoverWaypoints()[waypointIndex];
+                  var nextWaypointLocal = Vector2.Transform(nextWaypointRemote.ToDotNetVector(), ce.Crossover.RemoteToLocal).ToOpenMobaVector();
+                  if (ce.SourceVisibilityPolygon.Contains(nextWaypointLocal)) {
+                     // todo: cost through crossover
+                     var totalCost = ce.SourceCost + ce.SourceSector.LocalToWorld(ce.SourceLocationLocal).To(remote.LocalToWorld(nextWaypointRemote)).Norm2D();
+
+                     ref var nextWaypointState = ref remoteWaypointStates[waypointIndex];
+
+                     // skip edge destination if already visited or will be visited for cheaper
+                     if (nextWaypointState.Visited ||
+                         (nextWaypointState.Cost != 0 && nextWaypointState.Cost <= totalCost)) {
+                        continue;
+                     }
+                     nextWaypointState.Cost = totalCost;
+                     nextWaypointState.PreviousNode = ce.SourceNode;
+                     nextWaypointState.PreviousWaypointIndex = ce.SourceWaypointIndex;
+
+                     eventQueue.Enqueue(new WaypointEvent {
+                        Cost = totalCost,
+                        LocalNode = remotePolyNode,
+                        LocalSector = remote,
+                        LocationLocal = nextWaypointRemote.ToDoubleVector2(),
+                        WaypointIndex = waypointIndex,
+                        LocalNodeWaypointStates = remoteWaypointStates
                      });
                   }
                }
@@ -407,11 +468,15 @@ namespace OpenMOBA.Foundation {
       }
 
       private class CrossoverEvent : PathfindingEvent {
-         public CrossoverSnapshot Crossover;
+         public double SourceCost;
          public PolyNode SourceNode;
          public SectorSnapshot SourceSector;
          public DoubleVector2 SourceLocationLocal;
          public VisibilityPolygon SourceVisibilityPolygon;
+         public int SourceWaypointIndex;
+         public CrossoverSnapshot Crossover;
+
+         public override string ToString() => $"CE {Cost} {SourceLocationLocal}, {Crossover.LocalSegment}";
       }
    }
 

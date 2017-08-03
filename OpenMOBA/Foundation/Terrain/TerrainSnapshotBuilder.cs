@@ -40,15 +40,22 @@ namespace OpenMOBA.Foundation.Terrain {
                Crossover = crossover,
                LocalSegment = segmentA,
                RemoteSegment = segmentB,
-               Remote = sectorB
+               Remote = sectorB,
+               LocalToRemote = crossover.AToBTransformation,
+               RemoteToLocal = crossover.BToATransformation
             };
 
             var crossoverBToA = new CrossoverSnapshot {
                Crossover = crossover,
-               LocalSegment = segmentA,
-               RemoteSegment = segmentB,
-               Remote = sectorA
+               LocalSegment = segmentB,
+               RemoteSegment = segmentA,
+               Remote = sectorA,
+               LocalToRemote = crossover.BToATransformation,
+               RemoteToLocal = crossover.AToBTransformation
             };
+
+            crossoverAToB.RemoteCrossover = crossoverBToA;
+            crossoverBToA.RemoteCrossover = crossoverAToB;
 
             sectorA.CrossoverSnapshots.Add(crossoverAToB);
             sectorB.CrossoverSnapshots.Add(crossoverBToA);

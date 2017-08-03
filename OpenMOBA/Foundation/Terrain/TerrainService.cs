@@ -12,6 +12,8 @@ namespace OpenMOBA.Foundation.Terrain {
       public Sector A { get; set; }
       public Sector B { get; set; }
       public IntLineSegment3 Segment { get; set; }
+      public Matrix3x2 AToBTransformation { get; set; }
+      public Matrix3x2 BToATransformation { get; set; }
    }
 
    public interface ITerrainServiceStore {

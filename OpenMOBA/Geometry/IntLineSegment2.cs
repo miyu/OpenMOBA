@@ -51,6 +51,8 @@ namespace OpenMOBA.Geometry {
       public static bool operator !=(IntLineSegment2 self, IntLineSegment2 other) => self.First != other.First || self.Second != other.Second;
 
       public override string ToString() => $"({First}, {Second})";
+
+      public IntVector2 ComputeMidpoint() => new IntVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
    }
 
    public struct IntLineSegment3 {

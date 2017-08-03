@@ -47,6 +47,9 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public SectorSnapshot Remote { get; set; }
       public IntLineSegment2 LocalSegment { get; set; }
       public IntLineSegment2 RemoteSegment { get; set; }
+      public Matrix3x2 LocalToRemote { get; set; }
+      public Matrix3x2 RemoteToLocal { get; set; }
+      public CrossoverSnapshot RemoteCrossover { get; set; }
    }
 
    public class SectorSnapshot {

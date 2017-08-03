@@ -29,28 +29,44 @@ namespace OpenMOBA.Geometry {
 
       public DoubleVector2 Origin => _origin;
 
-      public void Insert(IntLineSegment2 s) {
+      public void Insert(IntLineSegment2 s, bool supportOverlappingLines = false) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
 
          var thetaLower = theta1 < theta2 ? theta1 : theta2;
          var thetaUpper = theta1 < theta2 ? theta2 : theta1;
-         
+
          if (Math.Abs(theta1 - theta2) > Math.PI) {
             // covered angle range wraps around through theta=0.
-            InsertInternal(ref s, 0.0, thetaLower);
-            InsertInternal(ref s, thetaUpper, TwoPi);
+            InsertInternal(ref s, 0.0, thetaLower, supportOverlappingLines);
+            InsertInternal(ref s, thetaUpper, TwoPi, supportOverlappingLines);
          } else {
-            InsertInternal(ref s, thetaLower, thetaUpper);
+            InsertInternal(ref s, thetaLower, thetaUpper, supportOverlappingLines);
          }
       }
 
-      private void InsertInternal(ref IntLineSegment2 s, double insertionThetaLower, double insertionThetaUpper) {
+      public void ClearBeyond(IntLineSegment2 s, bool supportOverlappingLines = false) {
+         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
+
+         var thetaLower = theta1 < theta2 ? theta1 : theta2;
+         var thetaUpper = theta1 < theta2 ? theta2 : theta1;
+
+         if (Math.Abs(theta1 - theta2) > Math.PI) {
+            // covered angle range wraps around through theta=0.
+            InsertInternalInternal(s, RANGE_ID_NULL, 0.0, thetaLower, supportOverlappingLines);
+            InsertInternalInternal(s, RANGE_ID_NULL, thetaUpper, TwoPi, supportOverlappingLines);
+         } else {
+            InsertInternalInternal(s, RANGE_ID_NULL, thetaLower, thetaUpper, supportOverlappingLines);
+         }
+      }
+
+      private void InsertInternal(ref IntLineSegment2 s, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines) {
          if (insertionThetaLower == insertionThetaUpper) {
             return;
          }
 
-//         Console.WriteLine($"InsertInternal: {s}, {thetaLower} {thetaUpper}");
+         //         Console.WriteLine($"InsertInternal: {s}, {thetaLower} {thetaUpper}");
 
          // cull if wall faces away from origin
          var sperp = new DoubleVector2(s.Y2 - s.Y1, -(s.X2 - s.X1));
@@ -58,12 +74,16 @@ namespace OpenMOBA.Geometry {
          if (sperp.Dot(os1) < 0) {
             return;
          }
+         var rangeId = rangeIdCounter++;
+         InsertInternalInternal(s, rangeId, insertionThetaLower, insertionThetaUpper, supportOverlappingLines);
+      }
 
+      private void InsertInternalInternal(IntLineSegment2 s, int sRangeId, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines) {
          var sMidpoint = new DoubleVector2((s.First.X + s.Second.X) / 2.0, (s.First.Y + s.Second.Y) / 2.0);
          // See distrsxy for why this makes sense.
          var sDist = _origin.To(sMidpoint).SquaredNorm2D();
          var srange = new IntervalRange {
-            Id = rangeIdCounter++,
+            Id = sRangeId,
             ThetaStart = insertionThetaLower,
             ThetaEnd = insertionThetaUpper,
             Segment = s,
@@ -77,7 +97,8 @@ namespace OpenMOBA.Geometry {
          // a given segment can be split into 3 at max - technically this overallocates because it's impossible
          // for two 3-splits to happen in a row. Actually, assuming no overlaps one can only really produce
          // # splittables + 2 total new segments (new segments on left/right side).
-         var n = new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) + 2];
+         var n = new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) * 3];
+            //new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) + 2];
          var nSize = 0;
          IntervalRange lastRange = null;
 
@@ -154,33 +175,34 @@ namespace OpenMOBA.Geometry {
 
 //            // is this code necessary? Seems like not... though not sure why. We do have intersecting segments
 //            // but the intersect is quite minor (just at corners)...
-//            DoubleVector2 intersection;
-//            // HACK: No segment-segment intersect point implemented
-//            // sxy.Intersects(rsxy) && GeometryOperations.TryFindLineLineIntersection(sxy, rsxy, out intersection)
-//            if (GeometryOperations.TryFindSegmentSegmentIntersection(ref sxy, ref rsxy, out intersection)) {
-//               // conceptually a ray from _origin to intersection hits s and rs at the same time.
-//               // If shifted perpendicular to angle of intersection, then the near segment emerges.
-//               var thetaIntersect = FindXYRadiansRelativeToOrigin(intersection.X, intersection.Y);
-//               if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
-//                  var directionToLower = DoubleVector2.FromRadiusAngle(1.0, thetaIntersect - PiDiv2);
-//                  var vsxy = sxy.First.To(sxy.Second).ToDoubleVector2().ToUnit();
-//                  var vrsxy = rsxy.First.To(rsxy.Second).ToDoubleVector2().ToUnit();
-//                  var lvsxy = vsxy.ProjectOntoComponentD(directionToLower) > 0 ? vsxy : -1.0 * vsxy;
-//                  var lvrsxy = vrsxy.ProjectOntoComponentD(directionToLower) > 0 ? vrsxy : -1.0 * vrsxy;
-//                  var originToIntersect = _origin.To(intersection);
-//                  var clvsxy = lvsxy.ProjectOntoComponentD(originToIntersect);
-//                  var clvrsxy = lvrsxy.ProjectOntoComponentD(originToIntersect);
-//                  var isInserteeNearerAtLower = clvsxy < clvrsxy;
-////                  Console.WriteLine("IINAL: " + isInserteeNearerAtLower);
-//                  if (isInserteeNearerAtLower) {
-//                     return HandleNearFarSplit(srange, range, range.ThetaStart, thetaIntersect)
-//                        .Concat(HandleNearFarSplit(range, srange, thetaIntersect, range.ThetaEnd));
-//                  } else {
-//                     return HandleNearFarSplit(range, srange, range.ThetaStart, thetaIntersect)
-//                        .Concat(HandleNearFarSplit(srange, range, thetaIntersect, range.ThetaEnd));
-//                  }
-//               }
-//            }
+            DoubleVector2 intersection;
+            // HACK: No segment-segment intersect point implemented
+            // sxy.Intersects(rsxy) && GeometryOperations.TryFindLineLineIntersection(sxy, rsxy, out intersection)
+            if (GeometryOperations.TryFindSegmentSegmentIntersection(ref s, ref rsxy, out intersection)) {
+               // conceptually a ray from _origin to intersection hits s and rs at the same time.
+               // If shifted perpendicular to angle of intersection, then the near segment emerges.
+               var thetaIntersect = FindXYRadiansRelativeToOrigin(intersection.X, intersection.Y);
+               if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
+                  var directionToLower = DoubleVector2.FromRadiusAngle(1.0, thetaIntersect - PiDiv2);
+                  var vsxy = s.First.To(s.Second).ToDoubleVector2().ToUnit();
+                  var vrsxy = rsxy.First.To(rsxy.Second).ToDoubleVector2().ToUnit();
+                  var lvsxy = vsxy.ProjectOntoComponentD(directionToLower) > 0 ? vsxy : -1.0 * vsxy;
+                  var lvrsxy = vrsxy.ProjectOntoComponentD(directionToLower) > 0 ? vrsxy : -1.0 * vrsxy;
+                  var originToIntersect = _origin.To(intersection);
+                  var clvsxy = lvsxy.ProjectOntoComponentD(originToIntersect);
+                  var clvrsxy = lvrsxy.ProjectOntoComponentD(originToIntersect);
+                  var isInserteeNearerAtLower = clvsxy < clvrsxy;
+//                  Console.WriteLine("IINAL: " + isInserteeNearerAtLower);
+                  if (isInserteeNearerAtLower) {
+                     HandleNearFarSplit(range, range.MidpointDistanceToOriginSquared, srange, srange.MidpointDistanceToOriginSquared, range.ThetaStart, thetaIntersect);
+                     HandleNearFarSplit(srange, srange.MidpointDistanceToOriginSquared, range, range.MidpointDistanceToOriginSquared, thetaIntersect, range.ThetaEnd);
+                  } else {
+                     HandleNearFarSplit(srange, srange.MidpointDistanceToOriginSquared, range, range.MidpointDistanceToOriginSquared, range.ThetaStart, thetaIntersect);
+                     HandleNearFarSplit(range, range.MidpointDistanceToOriginSquared, srange, srange.MidpointDistanceToOriginSquared, thetaIntersect, range.ThetaEnd);
+                  }
+                  return;
+               }
+            }
 
             // At here, one segment completely overlaps the other for the theta range
             // Either that, or inserted segment in front of (but not totally covering) range

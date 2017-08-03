@@ -116,7 +116,6 @@ namespace OpenMOBA.Foundation {
 
       public void Run() {
          var sector1 = TerrainService.CreateSector(SectorMetadataPresets.Test2D);
-         sector1.EnableDebugHighlight = true;
          TerrainService.AddSector(sector1);
 
          var sector2 = TerrainService.CreateSector(SectorMetadataPresets.FourSquares2D);
@@ -125,30 +124,39 @@ namespace OpenMOBA.Foundation {
 
          var sector3 = TerrainService.CreateSector(SectorMetadataPresets.HashCircle2);
          sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
+         sector3.EnableDebugHighlight = true;
          TerrainService.AddSector(sector3);
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
             B = sector2,
-            Segment = new IntLineSegment3(new IntVector3(1000, 200, 0), new IntVector3(1000, 400, 0))
+            Segment = new IntLineSegment3(new IntVector3(1000, 200, 0), new IntVector3(1000, 400, 0)),
+            AToBTransformation = Matrix3x2.CreateTranslation(-1000, 0),
+            BToATransformation = Matrix3x2.CreateTranslation(1000, 0)
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
             B = sector2,
-            Segment = new IntLineSegment3(new IntVector3(1000, 600, 0), new IntVector3(1000, 800, 0))
+            Segment = new IntLineSegment3(new IntVector3(1000, 600, 0), new IntVector3(1000, 800, 0)),
+            AToBTransformation = Matrix3x2.CreateTranslation(-1000, 0),
+            BToATransformation = Matrix3x2.CreateTranslation(1000, 0)
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
             B = sector3,
-            Segment = new IntLineSegment3(new IntVector3(0, 200, 0), new IntVector3(0, 400, 0))
+            Segment = new IntLineSegment3(new IntVector3(0, 200, 0), new IntVector3(0, 400, 0)),
+            AToBTransformation = Matrix3x2.CreateTranslation(1000, 0),
+            BToATransformation = Matrix3x2.CreateTranslation(-1000, 0)
          });
 
          TerrainService.HackAddSectorCrossover(new Crossover {
             A = sector1,
             B = sector3,
-            Segment = new IntLineSegment3(new IntVector3(0, 600, 0), new IntVector3(0, 800, 0))
+            Segment = new IntLineSegment3(new IntVector3(0, 600, 0), new IntVector3(0, 800, 0)),
+            AToBTransformation = Matrix3x2.CreateTranslation(1000, 0),
+            BToATransformation = Matrix3x2.CreateTranslation(-1000, 0)
          });
 
          var r = new Random(1);
@@ -190,10 +198,10 @@ namespace OpenMOBA.Foundation {
          var c = CreateTestEntity(new DoubleVector3(50, 900, 0), 15, 60);
          var d = CreateTestEntity(new DoubleVector3(50, 500, 0), 15, 50);
 
-         MovementSystemService.Pathfind(a, new DoubleVector3(930, 300, 0));
-         MovementSystemService.Pathfind(b, new DoubleVector3(825, 300, 0));
-         MovementSystemService.Pathfind(c, new DoubleVector3(950, 475, 0));
-         MovementSystemService.Pathfind(d, new DoubleVector3(80, 720, 0));
+//         MovementSystemService.Pathfind(a, new DoubleVector3(930, 300, 0));
+//         MovementSystemService.Pathfind(b, new DoubleVector3(825, 300, 0));
+//         MovementSystemService.Pathfind(c, new DoubleVector3(950, 475, 0));
+//         MovementSystemService.Pathfind(d, new DoubleVector3(80, 720, 0));
 
          var benchmarkDestination = new DoubleVector3(950, 50, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;
@@ -236,7 +244,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks > GameTimeService.TicksPerSecond * 1) {
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 1) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
                break;
             }

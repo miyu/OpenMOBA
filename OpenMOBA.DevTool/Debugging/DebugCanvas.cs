@@ -117,6 +117,10 @@ namespace OpenMOBA.DevTool.Debugging {
          canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
       }
 
+      public static void DrawLine(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
+      }
+
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
          canvas.DrawLineList(points.Map(ToDV3), strokeStyle);
       }

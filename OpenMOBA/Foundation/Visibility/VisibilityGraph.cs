@@ -124,7 +124,20 @@ namespace OpenMOBA.Foundation.Visibility {
 
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
-         var visibilityPolygons = waypoints.Map(waypoint => VisibilityPolygon.Create(waypoint.ToDoubleVector2(), barriers));
+         var visibilityPolygons = waypoints.Map(waypoint => {
+            var visibilityPolygon = VisibilityPolygon.Create(waypoint.ToDoubleVector2(), barriers);
+            for (var crossoverIndex = 0; crossoverIndex < landNode.visibilityGraphNodeData.SectorSnapshot.CrossoverSnapshots.Count; crossoverIndex++) {
+               var erodedCrossoverSegmentBox = landNode.visibilityGraphNodeData.SectorSnapshotGeometryContext.ErodedCrossoverSegments[crossoverIndex];
+               if (!erodedCrossoverSegmentBox.HasValue) {
+                  continue;
+               }
+               if (waypoint == erodedCrossoverSegmentBox.Value.First || waypoint == erodedCrossoverSegmentBox.Value.Second) {
+                  continue;
+               }
+               visibilityPolygon.ClearBeyond(landNode.visibilityGraphNodeData.SectorSnapshot.CrossoverSnapshots[crossoverIndex].LocalSegment);
+            }
+            return visibilityPolygon;
+         });
          return landNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons = visibilityPolygons;
       }
 

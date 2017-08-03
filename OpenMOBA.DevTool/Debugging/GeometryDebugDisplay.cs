@@ -58,7 +58,7 @@ namespace OpenMOBA.DevTool.Debugging {
          canvas.BatchDraw(() => {
             for (var i = 0; i < points.Count - 1; i++) {
                var a = points[i];
-               var b = points[(i + 1) % points.Count];
+               var b = points[i + 1];
                canvas.DrawLine(a, b, strokeStyle);
             }
          });

@@ -28,8 +28,8 @@ namespace OpenMOBA.DevTool {
    }
 
    public class GameDebugger : IGameDebugger {
-      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 5.0);
-      private static readonly StrokeStyle NoPathStroke = new StrokeStyle(Color.Red, 5.0, new[] { 1.0f, 1.0f });
+      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 15.0);
+      private static readonly StrokeStyle NoPathStroke = new StrokeStyle(Color.Red, 15.0, new[] { 1.0f, 1.0f });
       private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
 
       public GameDebugger(Game game, IDebugMultiCanvasHost debugMultiCanvasHost) {
@@ -75,12 +75,24 @@ namespace OpenMOBA.DevTool {
       }
 
       private void RenderDebugFrame() {
+         var holeDilationRadius = 15.0;
+//         DrawTestPathfindingQueries(null, holeDilationRadius);
+//         return;
+
          var terrainSnapshot = TerrainService.BuildSnapshot();
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
-         var holeDilationRadius = 15.0;
          debugCanvas.BatchDraw(() => {
+            //            var vp = new VisibilityPolygon(new DoubleVector2(300, 300));
+            //            vp.Insert(new IntLineSegment2(new IntVector2(500, 100), new IntVector2(500, 500)));
+            //            vp.ClearBeyond(new IntLineSegment2(new IntVector2(490, 200), new IntVector2(490, 400)));
+            //            vp.Insert(new IntLineSegment2(new IntVector2(800, -700), new IntVector2(800, 1300)));
+            //            debugCanvas.DrawLineOfSight(vp);
+            //            return;
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
             foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
                var sectorSnapshotGeometryContext = sectorSnapshot.GetGeometryContext(holeDilationRadius);
 
@@ -113,14 +125,16 @@ namespace OpenMOBA.DevTool {
                      debugCanvas.DrawLine(c.LocalSegment.First, c.LocalSegment.Second, new StrokeStyle(Color.Red, 5));
                   }
 
+                  debugCanvas.DrawLineOfSight(landNode.ComputeWaypointVisibilityPolygons()[25]);
+
                   var colors = new[] { Color.Lime, Color.Orange, Color.Cyan, Color.Magenta, Color.Yellow, Color.Pink };
                   for (int crossoverIndex = 0; crossoverIndex < visibilityGraphNodeData.ErodedCrossoverSegments.Count; crossoverIndex++) {
-                     var crossover = visibilityGraphNodeData.ErodedCrossoverSegments[crossoverIndex];
+                     var erodedCrossoverSegment = visibilityGraphNodeData.ErodedCrossoverSegments[crossoverIndex];
                      var destinations = visibilityGraphNodeData.ErodedCrossoverSegments.Select((seg, i) => (seg, i != crossoverIndex)).Where(t => t.Item2)
                                                                .SelectMany(t => t.Item1.Points)
                                                                .Select(visibilityGraph.IndicesByWaypoint.Get)
                                                                .ToArray();
-                     var dijkstras = visibilityGraph.Dijkstras(crossover.Points, destinations);
+                     var dijkstras = visibilityGraph.Dijkstras(erodedCrossoverSegment.Points, destinations);
                      for (var i = 0; i < visibilityGraph.Waypoints.Length; i++) {
                         //                     if (double.IsNaN(dijkstras[i].TotalCost)) {
                         //                        continue;
@@ -135,10 +149,26 @@ namespace OpenMOBA.DevTool {
 
                      var crossoverSeeingWaypoints = landNode.ComputeCrossoverSeeingWaypoints(visibilityGraphNodeData.CrossoverSnapshots[crossoverIndex]);
                      Console.WriteLine(crossoverSeeingWaypoints.Length);
+//                     landNode.ComputeWaypointVisibilityPolygons()[19].Insert(new IntLineSegment2(new IntVector2(-3000, 3000), new IntVector2(-3000, -3000)));
                      foreach (var waypointIndex in crossoverSeeingWaypoints) {
-//                        debugCanvas.FillPolygon(new[] { visibilityGraph.Waypoints[waypointIndex], crossover.First, crossover.Second }, new FillStyle(Color.FromArgb(150, colors[crossoverIndex])));
-//                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.First, new StrokeStyle(colors[crossoverIndex], 5));
-//                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.Second, new StrokeStyle(colors[crossoverIndex], 5));
+//                        debugCanvas.DrawLineOfSight(landNode.ComputeWaypointVisibilityPolygons()[waypointIndex]);
+                        //                        debugCanvas.FillPolygon(new[] { visibilityGraph.Waypoints[waypointIndex], crossover.First, crossover.Second }, new FillStyle(Color.FromArgb(150, colors[crossoverIndex])));
+                        //                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.First, new StrokeStyle(colors[crossoverIndex], 5));
+                        //                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.Second, new StrokeStyle(colors[crossoverIndex], 5));
+                     }
+
+                     var crossover = visibilityGraphNodeData.SectorSnapshot.CrossoverSnapshots[crossoverIndex];
+                     var localToRemote = crossover.LocalToRemote;
+                     var remoteGeometryContext = crossover.Remote.GetGeometryContext(holeDilationRadius);
+                     remoteGeometryContext.PunchedLand.PickDeepestPolynode(crossover.RemoteSegment.ComputeMidpoint(), out PolyNode remotePolyNode, out bool isCrossoverEndpointInHole);
+                     Trace.Assert(!isCrossoverEndpointInHole);
+
+                     var remoteBarriers = remotePolyNode.FindContourAndChildHoleBarriers();
+                     foreach (var barrier in remoteBarriers) {
+                        var first = Vector2.Transform(barrier.First.ToDotNetVector(), crossover.RemoteToLocal).ToOpenMobaVector();
+                        var second = Vector2.Transform(barrier.Second.ToDotNetVector(), crossover.RemoteToLocal).ToOpenMobaVector();
+                        var midpoint = (first + second) / 2;
+                        debugCanvas.DrawLine(first, second, new StrokeStyle(Color.Black));
                      }
                   }
                }
@@ -163,9 +193,6 @@ namespace OpenMOBA.DevTool {
 //                  }
 //               }
 //            }
-
-            debugCanvas.Transform = Matrix4x4.Identity;
-            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 //            DrawEntities(debugCanvas);
          });
       }
@@ -217,10 +244,12 @@ namespace OpenMOBA.DevTool {
 
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
          var testPathFindingQueries = new[] {
-            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
-            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
-            Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
-            Tuple.Create(new DoubleVector3(50, 500, 0), new DoubleVector3(80, 720, 0))
+//            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
+            Tuple.Create(new DoubleVector3(-600, 700, 0), new DoubleVector3(1500, 500, 0)),
+//            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
+//            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
+//            Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
+//            Tuple.Create(new DoubleVector3(50, 500, 0), new DoubleVector3(80, 720, 0))
          };
 
 //         var sector1 = Game.TerrainService.BuildSnapshot().SectorSnapshots[1];
@@ -258,9 +287,11 @@ namespace OpenMOBA.DevTool {
          foreach (var query in testPathFindingQueries) {
             List<DoubleVector3> pathPoints;
             if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out pathPoints)) {
-               debugCanvas.DrawLineStrip(pathPoints, PathStroke);
+               Console.WriteLine("Yippee " + string.Join(", ", pathPoints));
+               debugCanvas?.DrawLineStrip(pathPoints, PathStroke);
             } else {
-               debugCanvas.DrawLine(query.Item1, query.Item2, NoPathStroke);
+               Console.WriteLine("Nope");
+               debugCanvas?.DrawLine(query.Item1, query.Item2, NoPathStroke);
             }
          }
       }
