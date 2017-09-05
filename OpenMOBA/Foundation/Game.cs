@@ -241,6 +241,9 @@ namespace OpenMOBA.Foundation {
                });
             }
 
+            List<DoubleVector3> path;
+            PathfinderCalculator.TryFindPath(15, new DoubleVector3(-600, 700, 0), new DoubleVector3(1500, 500, 0), out path);
+
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
@@ -27,6 +28,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
    public class PathfindingContext {
       public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
+      public IReadOnlyDictionary<SectorWaypointAndCrossovers, VisibilityPolygon> VisibilityPolygonsFromWaypointsToCrossovers = new Dictionary<SectorWaypointAndCrossovers, VisibilityPolygon>();
 
       public bool TryFindSector(IntVector3 queryWorld, out SectorSnapshot result) {
          return TryFindSector(queryWorld.ToDoubleVector3(), out result);
@@ -39,6 +41,48 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             return localBoundary.X <= queryLocal.X && queryLocal.X <= localBoundary.Right &&
                    localBoundary.Y <= queryLocal.Y && queryLocal.Y <= localBoundary.Bottom;
          }, out result);
+      }
+
+      public void FindVisibilityPolygon() {
+
+      }
+
+      public struct SectorWaypointAndCrossovers {
+         public SectorSnapshot SectorSnapshot;
+         public IntVector2 Waypoint;
+         public CrossoverSnapshot[] Crossovers;
+
+         private sealed class SectorWaypointAndCrossoversEqualityComparer : IEqualityComparer<SectorWaypointAndCrossovers> {
+            public bool Equals(SectorWaypointAndCrossovers x, SectorWaypointAndCrossovers y) {
+               if (x.SectorSnapshot != y.SectorSnapshot || x.Waypoint != y.Waypoint) {
+                  return false;
+               }
+               if (x.Crossovers.Length != y.Crossovers.Length) {
+                  return false;
+               }
+               for (var i = 0; i < x.Crossovers.Length; i++) {
+                  if (x.Crossovers[i] != y.Crossovers[i]) {
+                     return false;
+                  }
+               }
+               return true;
+            }
+
+            public int GetHashCode(SectorWaypointAndCrossovers obj) {
+               unchecked {
+                  var hashCode = (obj.SectorSnapshot != null ? obj.SectorSnapshot.GetHashCode() : 0);
+                  hashCode = (hashCode * 397) ^ obj.Waypoint.GetHashCode();
+                  hashCode = (hashCode * 397) ^ (obj.Crossovers != null ? obj.Crossovers.GetHashCode() : 0);
+                  hashCode = (hashCode * 397) ^ obj.Crossovers.Length;
+                  foreach (var crossover in obj.Crossovers) {
+                     hashCode = (hashCode * 397) ^ crossover.GetHashCode();
+                  }
+                  return hashCode;
+               }
+            }
+         }
+
+         public static readonly IEqualityComparer<SectorWaypointAndCrossovers> EqualityComparer = new SectorWaypointAndCrossoversEqualityComparer();
       }
    }
 
