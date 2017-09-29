@@ -4,30 +4,30 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using ClipperLib;
 using OpenMOBA.DataStructures;
-using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 using cInt = System.Int64;
 
-namespace OpenMOBA.Foundation.Visibility {
+namespace OpenMOBA.Foundation.Terrain.Visibility {
    public struct PolyNodeVisbilityGraphTreeData {
-      public Dictionary<Crossover, PolyNode> CrossoverPolyNodes;
-      public Dictionary<CrossoverSnapshot, PolyNode> CrossoverSnapshotPolyNodes;
+//      public Dictionary<Crossover, PolyNode> CrossoverPolyNodes;
+//      public Dictionary<CrossoverSnapshot, PolyNode> CrossoverSnapshotPolyNodes;
    }
 
    public struct PolyNodeVisbilityGraphNodeData {
+      public LocalGeometryView LocalGeometryView;
       public SectorSnapshot SectorSnapshot;
       public SectorSnapshotGeometryContext SectorSnapshotGeometryContext;
 
       public IntVector2[] ContourWaypoints;
       public IntVector2[] AggregateContourWaypoints;
       public IntLineSegment2[] ContourAndChildHoleBarriers;
-      public SectorVisibilityGraph VisibilityDistanceMatrix;
+      public PolyNodeVisibilityGraph VisibilityDistanceMatrix;
       public VisibilityPolygon[] AggregateContourWaypointVisibilityPolygons;
-      public List<CrossoverSnapshot> CrossoverSnapshots;
+      public List<ISourceSegmentEdgeDescription> EdgeDescriptions;
       public List<IntLineSegment2> ErodedCrossoverSegments;
       public int[][] CrossoverSeeingWaypointIndices;
-      public HashSet<CrossoverSnapshot>[] CrossoversSeenByWaypointIndices;
+      public HashSet<ISourceSegmentEdgeDescription>[] EdgesSeenByWaypointIndices;
    }
 
    public class Path {
@@ -106,17 +106,17 @@ namespace OpenMOBA.Foundation.Visibility {
          var sources = new List<IEnumerable<IntVector2>>();
          sources.Add(FindContourWaypoints(node));
          sources.Add(node.Childs.SelectMany(FindContourWaypoints));
-         if (node.visibilityGraphNodeData.CrossoverSnapshots != null) {
+         if (node.visibilityGraphNodeData.EdgeDescriptions != null) {
             sources.Add(node.visibilityGraphNodeData.ErodedCrossoverSegments.SelectMany(c => c.Points));
          }
          return node.visibilityGraphNodeData.AggregateContourWaypoints = sources.SelectMany(x => x).ToArray();
       }
 
-      public static SectorVisibilityGraph ComputeVisibilityGraph(this PolyNode landNode) {
+      public static PolyNodeVisibilityGraph ComputeVisibilityGraph(this PolyNode landNode) {
          if (landNode.visibilityGraphNodeData.VisibilityDistanceMatrix != null) return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix;
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
-         return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = SectorVisibilityGraph.Construct(waypoints, barriers);
+         return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(waypoints, barriers);
       }
 
       public static VisibilityPolygon[] ComputeWaypointVisibilityPolygons(this PolyNode landNode) {
@@ -126,29 +126,29 @@ namespace OpenMOBA.Foundation.Visibility {
          var barriers = FindContourAndChildHoleBarriers(landNode);
          var visibilityPolygons = waypoints.Map(waypoint => {
             var visibilityPolygon = VisibilityPolygon.Create(waypoint.ToDoubleVector2(), barriers);
-            for (var crossoverIndex = 0; crossoverIndex < landNode.visibilityGraphNodeData.SectorSnapshot.CrossoverSnapshots.Count; crossoverIndex++) {
-               var erodedCrossoverSegmentBox = landNode.visibilityGraphNodeData.SectorSnapshotGeometryContext.ErodedCrossoverSegments[crossoverIndex];
+            for (var edgeDescriptionIndex = 0; edgeDescriptionIndex < landNode.visibilityGraphNodeData.SectorSnapshot.SourceSegmentEdgeDescriptions.Count; edgeDescriptionIndex++) {
+               var erodedCrossoverSegmentBox = landNode.visibilityGraphNodeData.SectorSnapshotGeometryContext.ErodedBoundaryCrossoverSegments[edgeDescriptionIndex];
                if (!erodedCrossoverSegmentBox.HasValue) {
                   continue;
                }
                if (waypoint == erodedCrossoverSegmentBox.Value.First || waypoint == erodedCrossoverSegmentBox.Value.Second) {
                   continue;
                }
-               visibilityPolygon.ClearBeyond(landNode.visibilityGraphNodeData.SectorSnapshot.CrossoverSnapshots[crossoverIndex].LocalSegment);
+               visibilityPolygon.ClearBeyond(landNode.visibilityGraphNodeData.SectorSnapshot.SourceSegmentEdgeDescriptions[edgeDescriptionIndex].SourceSegment);
             }
             return visibilityPolygon;
          });
          return landNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons = visibilityPolygons;
       }
 
-      public static int[] ComputeCrossoverSeeingWaypoints(this PolyNode landNode, CrossoverSnapshot crossover) {
-         var crossoverIndex = landNode.visibilityGraphNodeData.CrossoverSnapshots.IndexOf(crossover);
+      public static int[] ComputeCrossoverSeeingWaypoints(this PolyNode landNode, ISourceSegmentEdgeDescription crossover) {
+         var crossoverIndex = landNode.visibilityGraphNodeData.EdgeDescriptions.IndexOf(crossover); // HACK: inheritance is poisonous
          if (crossoverIndex < 0) {
             throw new ArgumentException("Specified crossover not in land node");
          }
 
          if (landNode.visibilityGraphNodeData.CrossoverSeeingWaypointIndices == null) {
-            landNode.visibilityGraphNodeData.CrossoverSeeingWaypointIndices = new int[landNode.visibilityGraphNodeData.CrossoverSnapshots.Count][];
+            landNode.visibilityGraphNodeData.CrossoverSeeingWaypointIndices = new int[landNode.visibilityGraphNodeData.EdgeDescriptions.Count][];
          }
 
          if (landNode.visibilityGraphNodeData.CrossoverSeeingWaypointIndices[crossoverIndex] != null) {
@@ -186,41 +186,26 @@ namespace OpenMOBA.Foundation.Visibility {
          return landNode.visibilityGraphNodeData.CrossoverSeeingWaypointIndices[crossoverIndex] = crossoverSeeingWaypoints.ToArray();
       }
 
-      public static HashSet<CrossoverSnapshot>[] ComputeCrossoversSeenByWaypoints(this PolyNode landNode) {
-         if (landNode.visibilityGraphNodeData.CrossoversSeenByWaypointIndices != null) {
-            return landNode.visibilityGraphNodeData.CrossoversSeenByWaypointIndices;
+      public static HashSet<ISourceSegmentEdgeDescription>[] ComputeCrossoversSeenByWaypoints(this PolyNode landNode) {
+         if (landNode.visibilityGraphNodeData.EdgesSeenByWaypointIndices != null) {
+            return landNode.visibilityGraphNodeData.EdgesSeenByWaypointIndices;
          }
 
          var waypoints = landNode.FindAggregateContourCrossoverWaypoints();
-         var crossoversSeenByWaypointIndex = waypoints.Map(x => new HashSet<CrossoverSnapshot>());
-         if (landNode.visibilityGraphNodeData.CrossoverSnapshots != null) {
-            foreach (var crossoverSnapshot in landNode.visibilityGraphNodeData.CrossoverSnapshots) {
+         var crossoversSeenByWaypointIndex = waypoints.Map(x => new HashSet<ISourceSegmentEdgeDescription>());
+         if (landNode.visibilityGraphNodeData.EdgeDescriptions != null) {
+            foreach (var crossoverSnapshot in landNode.visibilityGraphNodeData.EdgeDescriptions) {
                var waypointIndices = landNode.ComputeCrossoverSeeingWaypoints(crossoverSnapshot);
                foreach (var waypointIndex in waypointIndices) {
                   crossoversSeenByWaypointIndex[waypointIndex].Add(crossoverSnapshot);
                }
             }
          }
-         return landNode.visibilityGraphNodeData.CrossoversSeenByWaypointIndices = crossoversSeenByWaypointIndex;
+         return landNode.visibilityGraphNodeData.EdgesSeenByWaypointIndices = crossoversSeenByWaypointIndex;
       }
+   }
 
-      //
-         //         tree.PickDeepestPolynode(to, out PolyNode toPolyNode, out bool isToHole);
-         //         tree.PickDeepestPolynode(from, out PolyNode fromPolyNode, out bool isFromHole);
-
-         //      private static bool TryComputePath(double holeDilationRadius, IntVector2 from, IntVector2 to, PolyTree tree, out List<IntVector2> path) {
-         //         if (isFromHole || isToHole || fromPolyNode != toPolyNode) {
-         //            path = null;
-         //            return false;
-         //         }
-         //
-         //         var landNode = fromPolyNode;
-         //         var barriers = FindContourAndChildHoleBarriers(landNode);
-         //         ComputeVisibilityMatrix()
-         //      }
-      }
-
-      public struct PathLink {
+   public struct PathLink {
       public int PriorIndex;
       public float TotalCost;
    }
@@ -247,14 +232,14 @@ namespace OpenMOBA.Foundation.Visibility {
       }
    }
 
-   public class SectorVisibilityGraph {
+   public class PolyNodeVisibilityGraph {
       public readonly IntLineSegment2[] Barriers;
       public readonly EdgeLink[] Edges;
       public readonly Dictionary<IntVector2, int> IndicesByWaypoint;
       public readonly int[] Offsets;
       public readonly IntVector2[] Waypoints;
 
-      private SectorVisibilityGraph(IntVector2[] waypoints, int[] offsets, EdgeLink[] edges, IntLineSegment2[] barriers) {
+      private PolyNodeVisibilityGraph(IntVector2[] waypoints, int[] offsets, EdgeLink[] edges, IntLineSegment2[] barriers) {
          Waypoints = waypoints;
          Offsets = offsets;
          Edges = edges;
@@ -301,7 +286,15 @@ namespace OpenMOBA.Foundation.Visibility {
          return results;
       }
 
-      public static SectorVisibilityGraph Construct(IntVector2[] waypoints, IntLineSegment2[] barriers) {
+      public PathLink[][] BuildWaypointToWaypointLut() {
+         var res = new PathLink[Waypoints.Length][];
+         for (var wi = 0; wi < Waypoints.Length; wi++) {
+            res[wi] = Dijkstras(new[] { Waypoints[wi] });
+         }
+         return res;
+      }
+
+      public static PolyNodeVisibilityGraph Construct(IntVector2[] waypoints, IntLineSegment2[] barriers) {
          var neighborsToCosts = new SortedDictionary<int, float>[waypoints.Length];
          for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new SortedDictionary<int, float>();
          for (var i = 0; i < waypoints.Length - 1; i++) {
@@ -327,7 +320,7 @@ namespace OpenMOBA.Foundation.Visibility {
             }
          }
          offsets[waypoints.Length] = edgeIndex;
-         return new SectorVisibilityGraph(waypoints, offsets, edges, barriers);
+         return new PolyNodeVisibilityGraph(waypoints, offsets, edges, barriers);
       }
    }
 

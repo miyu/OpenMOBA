@@ -11,11 +11,11 @@ namespace OpenMOBA.Geometry {
          Second = second;
       }
 
-      public IntVector2 First;
+      public readonly IntVector2 First;
       public cInt X1 => First.X;
       public cInt Y1 => First.Y;
 
-      public IntVector2 Second;
+      public readonly IntVector2 Second;
       public cInt X2 => Second.X;
       public cInt Y2 => Second.Y;
 
@@ -44,6 +44,7 @@ namespace OpenMOBA.Geometry {
       }
 
       public override bool Equals(object obj) => obj is IntLineSegment2 && Equals((IntLineSegment2)obj);
+      public override int GetHashCode() => First.GetHashCode() * 23 + Second.GetHashCode();
 
       // Equality by endpoints, not line geometry
       public bool Equals(IntLineSegment2 other) => First == other.First && Second == other.Second;
@@ -101,5 +102,55 @@ namespace OpenMOBA.Geometry {
       public bool Equals(IntLineSegment3 other) => First == other.First && Second == other.Second;
 
       public override string ToString() => $"({First}, {Second})";
+   }
+   public struct DoubleLineSegment2 {
+      public DoubleLineSegment2(DoubleVector2 first, DoubleVector2 second) {
+         First = first;
+         Second = second;
+      }
+
+      public readonly DoubleVector2 First;
+      public double X1 => First.X;
+      public double Y1 => First.Y;
+
+      public readonly DoubleVector2 Second;
+      public double X2 => Second.X;
+      public double Y2 => Second.Y;
+
+      public DoubleVector2[] Points => new[] { First, Second };
+
+      public bool Intersects(DoubleLineSegment2 other) {
+         double ax = X1, ay = Y1, bx = X2, by = Y2;
+         double cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+
+         // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
+         var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
+         var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
+         var bl = Math.Sign((cx - ax) * (dy - ay) - (cy - ay) * (dx - ax));
+         var br = Math.Sign((cx - bx) * (dy - by) - (cy - by) * (dx - bx));
+
+         return tl == -tr && bl == -br;
+      }
+
+      public RectangleF ToBoundingBox() {
+         var minX = Math.Min(X1, X2);
+         var minY = Math.Min(Y1, Y2);
+         var width = Math.Abs(X1 - X2) + 1;
+         var height = Math.Abs(Y1 - Y2) + 1;
+
+         return new RectangleF((float)minX, (float)minY, (float)width, (float)height);
+      }
+
+      public override bool Equals(object obj) => obj is DoubleLineSegment2 && Equals((DoubleLineSegment2)obj);
+      public override int GetHashCode() => First.GetHashCode() * 23 + Second.GetHashCode();
+
+      // Equality by endpoints, not line geometry
+      public bool Equals(DoubleLineSegment2 other) => First == other.First && Second == other.Second;
+      public static bool operator ==(DoubleLineSegment2 self, DoubleLineSegment2 other) => self.First == other.First && self.Second == other.Second;
+      public static bool operator !=(DoubleLineSegment2 self, DoubleLineSegment2 other) => self.First != other.First || self.Second != other.Second;
+
+      public override string ToString() => $"({First}, {Second})";
+
+      public DoubleVector2 ComputeMidpoint() => new DoubleVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
    }
 }

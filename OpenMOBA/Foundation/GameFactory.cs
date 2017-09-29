@@ -12,8 +12,8 @@ namespace OpenMOBA.Foundation {
       public Game Create() {
          var gameTimeService = new GameTimeService(30);
          var gameLoop = new GameEventQueueService(gameTimeService);
-         var terrainServiceStore = new TerrainServiceStore();
-         var terrainSnapshotBuilder = new TerrainSnapshotBuilder(terrainServiceStore);
+         var terrainServiceStore = new SectorGraphDescriptionStore();
+         var terrainSnapshotBuilder = new TerrainSnapshotCompiler(terrainServiceStore);
          var terrainService = new TerrainService(terrainServiceStore, terrainSnapshotBuilder);
          var entityService = new EntityService();
          var statsCalculator = new StatsCalculator();

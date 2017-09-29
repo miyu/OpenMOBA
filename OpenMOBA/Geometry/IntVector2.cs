@@ -90,19 +90,19 @@ namespace OpenMOBA.Geometry {
          Y = y;
       }
 
-      public cInt Dot(IntVector2 other) => X * other.X + Y * other.Y;
+      [Pure] public cInt Dot(IntVector2 other) => X * other.X + Y * other.Y;
 
-      public cInt SquaredNorm2() => Dot(this);
-      public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
+      [Pure] public cInt SquaredNorm2() => Dot(this);
+      [Pure] public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
 
-      public IntVector2 To(IntVector2 other) => other - this;
+      [Pure] public IntVector2 To(IntVector2 other) => other - this;
 
       /// <summary>
       /// result * other ~= Proj(this onto other)
       /// </summary>
       /// <param name="other"></param>
       /// <returns></returns>
-      public double ProjectOntoComponentD(IntVector2 other) {
+      [Pure] public double ProjectOntoComponentD(IntVector2 other) {
          return other.Dot(this) / (double)other.SquaredNorm2();
       }
 
@@ -111,7 +111,7 @@ namespace OpenMOBA.Geometry {
       /// </summary>
       /// <param name="other">The vector being projected onto</param>
       /// <returns></returns>
-      public IntVector2 LossyProjectOnto(IntVector2 other) {
+      [Pure] public IntVector2 LossyProjectOnto(IntVector2 other) {
          var numerator = other.Dot(this);
          var denominator = other.SquaredNorm2();
          return new IntVector2(
@@ -119,15 +119,11 @@ namespace OpenMOBA.Geometry {
             (other.Y * numerator) / denominator);
       }
 
-      public IntVector2 LossyScale(double scale) => new IntVector2((cInt)(X * scale), (cInt)(Y * scale));
+      [Pure] public IntVector2 LossyScale(double scale) => new IntVector2((cInt)(X * scale), (cInt)(Y * scale));
 
-      public DoubleVector2 ToDoubleVector2() => new DoubleVector2(X, Y);
+      [Pure] public DoubleVector2 ToDoubleVector2() => new DoubleVector2(X, Y);
 
-      public override int GetHashCode() {
-         unchecked {
-            return (int)((X * 397) ^ Y);
-         }
-      }
+      [Pure] public override int GetHashCode() => unchecked((int)((X * 397) ^ Y));
 
       public static IntVector2 Zero => new IntVector2(0, 0);
       public static IntVector2 UnitX => new IntVector2(1, 0);

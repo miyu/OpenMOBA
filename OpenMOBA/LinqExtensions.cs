@@ -1,6 +1,8 @@
-﻿using System;
+﻿   using System;
 using System.Collections.Generic;
-using System.Linq;
+   using System.Diagnostics;
+   using System.Linq;
+   using System.Runtime.CompilerServices;
 
 namespace OpenMOBA {
    public static class LinqExtensions {
@@ -73,10 +75,26 @@ namespace OpenMOBA {
          return result;
       }
 
+      public static U[] Map<T, U>(this IReadOnlyList<T> arr, Func<T, int, U> map) {
+         var result = new U[arr.Count];
+         for (int i = 0; i < arr.Count; i++) {
+            result[i] = map(arr[i], i);
+         }
+         return result;
+      }
+
       public static U[] Map<T, U>(this T[] arr, Func<T, U> map) {
          var result = new U[arr.Length];
          for (int i = 0; i < arr.Length; i++) {
             result[i] = map(arr[i]);
+         }
+         return result;
+      }
+
+      public static U[] Map<T, U>(this T[] arr, Func<T, int, U> map) {
+         var result = new U[arr.Length];
+         for (int i = 0; i < arr.Length; i++) {
+            result[i] = map(arr[i], i);
          }
          return result;
       }
@@ -106,6 +124,118 @@ namespace OpenMOBA {
             result[i] = enumerator.Current;
          }
          return result;
+      }
+
+      /// <summary>                                                                                              
+      /// Checks whether argument is <see langword="null"/> and throws <see cref="ArgumentNullException"/> if so.
+      /// </summary>                                                                                             
+      /// <param name="argument">Argument to check on <see langword="null"/>.</param>                            
+      /// <param name="argumentName">Argument name to pass to Exception constructor.</param>                     
+      /// <returns>Specified argument.</returns>                                                                 
+      /// <exception cref="ArgumentNullException"/>                                                              
+      [DebuggerStepThrough]
+      public static T ThrowIfNull<T>(this T argument, string argumentName)
+         where T : class {
+         if (argument == null) {
+            throw new ArgumentNullException(argumentName);
+         } else {
+            return argument;
+         }
+      }
+
+      public static TSource MinBy<TSource, TKey>(this IEnumerable<TSource> source,
+         Func<TSource, TKey> selector) {
+         return source.MinBy(selector, Comparer<TKey>.Default);
+      }
+
+      public static TSource MinBy<TSource, TKey>(this IEnumerable<TSource> source,
+         Func<TSource, TKey> selector, IComparer<TKey> comparer) {
+         source.ThrowIfNull("source");
+         selector.ThrowIfNull("selector");
+         comparer.ThrowIfNull("comparer");
+         using (IEnumerator<TSource> sourceIterator = source.GetEnumerator()) {
+            if (!sourceIterator.MoveNext()) {
+               throw new InvalidOperationException("Sequence was empty");
+            }
+            TSource min = sourceIterator.Current;
+            TKey minKey = selector(min);
+            while (sourceIterator.MoveNext()) {
+               TSource candidate = sourceIterator.Current;
+               TKey candidateProjected = selector(candidate);
+               if (comparer.Compare(candidateProjected, minKey) < 0) {
+                  min = candidate;
+                  minKey = candidateProjected;
+               }
+            }
+            return min;
+         }
+      }
+
+      public static TSource MaxBy<TSource, TKey>(this IEnumerable<TSource> source,
+         Func<TSource, TKey> selector) {
+         return source.MaxBy(selector, Comparer<TKey>.Default);
+      }
+
+      public static TSource MaxBy<TSource, TKey>(this IEnumerable<TSource> source,
+         Func<TSource, TKey> selector, IComparer<TKey> comparer) {
+         source.ThrowIfNull("source");
+         selector.ThrowIfNull("selector");
+         comparer.ThrowIfNull("comparer");
+         using (IEnumerator<TSource> sourceIterator = source.GetEnumerator()) {
+            if (!sourceIterator.MoveNext()) {
+               throw new InvalidOperationException("Sequence was empty");
+            }
+            TSource max = sourceIterator.Current;
+            TKey maxKey = selector(max);
+            while (sourceIterator.MoveNext()) {
+               TSource candidate = sourceIterator.Current;
+               TKey candidateProjected = selector(candidate);
+               if (comparer.Compare(candidateProjected, maxKey) > 0) {
+                  max = candidate;
+                  maxKey = candidateProjected;
+               }
+            }
+            return max;
+         }
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static V GetValueOrDefault<K, V>(this Dictionary<K, V> dict, K key) {
+         return ((IDictionary<K, V>)dict).GetValueOrDefault(key);
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static V GetValueOrDefault<K, V>(this IDictionary<K, V> dict, K key) {
+         V result;
+         dict.TryGetValue(key, out result);
+         return result;
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static V GetValueOrDefault<K, V>(this IReadOnlyDictionary<K, V> dict, K key) {
+         V result;
+         dict.TryGetValue(key, out result);
+         return result;
+      }
+
+      public static HashSet<T> ToHashSet<T>(this IEnumerable<T> e) => new HashSet<T>(e);
+
+      public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> source, out TKey Key, out TValue Value) {
+         Key = source.Key;
+         Value = source.Value;
+      }
+
+      public static void Deconstruct<TKey, TValue>(this IGrouping<TKey, TValue> source, out TKey Key, out IEnumerable<TValue> Value) {
+         Key = source.Key;
+         Value = source;
+      }
+
+      public static KeyValuePair<TKey, TValue> PairValue<TKey, TValue>(this TKey key, TValue value) {
+         return new KeyValuePair<TKey, TValue>(key, value);
+      }
+
+      public static KeyValuePair<TKey, TValue> PairKey<TKey, TValue>(this TValue value, TKey key) {
+         return key.PairValue(value);
       }
    }
 }

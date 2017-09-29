@@ -11,8 +11,7 @@ namespace OpenMOBA.DevTool.Debugging {
       private static readonly StrokeStyle InHoleStrokeStyle = new StrokeStyle(Color.Red, 3.0);
       private static readonly StrokeStyle NearestLandStrokeStyle = new StrokeStyle(Color.Red, 1.0);
 
-      public static void DrawWallPushGrid(this IDebugCanvas canvas, SectorSnapshot sectorSnapshot, double holeDilationRadius, double xlow = -50, double xhigh = 1100, double xstep = 100, double ylow = -50, double yhigh = 1100, double ystep = 100) {
-         var sectorSnapshotGeometryContext = sectorSnapshot.GetGeometryContext(holeDilationRadius);
+      public static void DrawWallPushGrid(this IDebugCanvas canvas, SectorSnapshotGeometryContext sectorSnapshotGeometryContext, double holeDilationRadius, double xlow = -50, double xhigh = 1100, double xstep = 100, double ylow = -50, double yhigh = 1100, double ystep = 100) {
          for (double x = xlow; x < xhigh; x += xstep) {
             for (double y = ylow; y < yhigh; y += ystep) {
                var query = new DoubleVector2(x, y);

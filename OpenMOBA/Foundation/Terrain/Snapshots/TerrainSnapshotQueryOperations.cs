@@ -5,6 +5,19 @@ using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain {
    public static class TerrainQueryOperations {
+      public static bool TryFindSector(this TerrainSnapshot terrainSnapshot, IntVector3 queryWorld, out SectorSnapshot result) {
+         return TryFindSector(terrainSnapshot, queryWorld.ToDoubleVector3(), out result);
+      }
+
+      public static bool TryFindSector(this TerrainSnapshot terrainSnapshot, DoubleVector3 queryWorld, out SectorSnapshot result) {
+         return terrainSnapshot.SectorSnapshots.TryFindFirst(sectorSnapshot => {
+            var queryLocal = sectorSnapshot.WorldToLocal(queryWorld);
+            var localBoundary = sectorSnapshot.StaticMetadata.LocalBoundary;
+            return localBoundary.X <= queryLocal.X && queryLocal.X <= localBoundary.Right &&
+                   localBoundary.Y <= queryLocal.Y && queryLocal.Y <= localBoundary.Bottom;
+         }, out result);
+      }
+
       public static bool IsInHole(this SectorSnapshotGeometryContext sectorSnapshotGeometryContext, IntVector3 query) {
          var punchedLandPolytree = sectorSnapshotGeometryContext.PunchedLand;
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();

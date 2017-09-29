@@ -99,8 +99,8 @@ namespace OpenMOBA.Foundation {
    }
 
    public interface IGameEventFactory {
-      GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHole temporaryHole);
-      GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHole temporaryHole);
+      GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription temporaryHoleDescription);
+      GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription temporaryHoleDescription);
    }
 
    public class Game : IGameEventFactory {
@@ -115,56 +115,39 @@ namespace OpenMOBA.Foundation {
       public GameLogicFacade GameLogicFacade { get; set; }
 
       public void Run() {
-         var sector1 = TerrainService.CreateSector(SectorMetadataPresets.Test2D);
-         TerrainService.AddSector(sector1);
+         var sector1 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
+         sector1.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
+         sector1.EnableDebugHighlight = true;
+         TerrainService.AddSectorNodeDescription(sector1);
 
-         var sector2 = TerrainService.CreateSector(SectorMetadataPresets.FourSquares2D);
-         sector2.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
-         TerrainService.AddSector(sector2);
+         var sector2 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Test2D);
+         TerrainService.AddSectorNodeDescription(sector2);
 
-         var sector3 = TerrainService.CreateSector(SectorMetadataPresets.HashCircle2);
-         sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
-         sector3.EnableDebugHighlight = true;
-         TerrainService.AddSector(sector3);
+         var sector3 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.FourSquares2D);
+         sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
+         TerrainService.AddSectorNodeDescription(sector3);
 
-         TerrainService.HackAddSectorCrossover(new Crossover {
-            A = sector1,
-            B = sector2,
-            Segment = new IntLineSegment3(new IntVector3(1000, 200, 0), new IntVector3(1000, 400, 0)),
-            AToBTransformation = Matrix3x2.CreateTranslation(-1000, 0),
-            BToATransformation = Matrix3x2.CreateTranslation(1000, 0)
-         });
+         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
+         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
+         var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
 
-         TerrainService.HackAddSectorCrossover(new Crossover {
-            A = sector1,
-            B = sector2,
-            Segment = new IntLineSegment3(new IntVector3(1000, 600, 0), new IntVector3(1000, 800, 0)),
-            AToBTransformation = Matrix3x2.CreateTranslation(-1000, 0),
-            BToATransformation = Matrix3x2.CreateTranslation(1000, 0)
-         });
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector1, sector2, right1, left1));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector1, sector2, right2, left2));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left1, right1));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left2, right2));
 
-         TerrainService.HackAddSectorCrossover(new Crossover {
-            A = sector1,
-            B = sector3,
-            Segment = new IntLineSegment3(new IntVector3(0, 200, 0), new IntVector3(0, 400, 0)),
-            AToBTransformation = Matrix3x2.CreateTranslation(1000, 0),
-            BToATransformation = Matrix3x2.CreateTranslation(-1000, 0)
-         });
-
-         TerrainService.HackAddSectorCrossover(new Crossover {
-            A = sector1,
-            B = sector3,
-            Segment = new IntLineSegment3(new IntVector3(0, 600, 0), new IntVector3(0, 800, 0)),
-            AToBTransformation = Matrix3x2.CreateTranslation(1000, 0),
-            BToATransformation = Matrix3x2.CreateTranslation(-1000, 0)
-         });
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right1, left1));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right2, left2));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left1, right1));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left2, right2));
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
             var poly = Polygon2.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
+            var terrainHole = new DynamicTerrainHoleDescription { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
@@ -177,7 +160,7 @@ namespace OpenMOBA.Foundation {
             var poly = Polygon2.CreateRect(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(520 - 40, 720 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
+            var terrainHole = new DynamicTerrainHoleDescription { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
@@ -188,7 +171,7 @@ namespace OpenMOBA.Foundation {
             var poly = Polygon2.CreateRect(r.Next(800 + 80, 1100 - 80 - w) * 10 / 9, r.Next(180 - 40, 360 + 40 - h) * 10 / 9, w * 10 / 9, h * 10 / 9);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
-            var terrainHole = new DynamicTerrainHole { Polygons = new[] { poly } };
+            var terrainHole = new DynamicTerrainHoleDescription { Polygons = new[] { poly } };
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
@@ -271,12 +254,12 @@ namespace OpenMOBA.Foundation {
          return entity;
       }
 
-      public GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHole dynamicTerrainHole) {
-         return new AddTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHole);
+      public GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription dynamicTerrainHoleDescription) {
+         return new AddTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHoleDescription);
       }
 
-      public GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHole dynamicTerrainHole) {
-         return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHole);
+      public GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription dynamicTerrainHoleDescription) {
+         return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHoleDescription);
       }
    }
 
@@ -302,14 +285,14 @@ namespace OpenMOBA.Foundation {
          this.movementSystemService = movementSystemService;
       }
 
-      public void AddTemporaryHole(DynamicTerrainHole hole) {
-         terrainService.AddTemporaryHole(hole);
+      public void AddTemporaryHole(DynamicTerrainHoleDescription holeDescription) {
+         terrainService.AddTemporaryHoleDescription(holeDescription);
          // todo: can optimize to only invalidate paths intersecting hole.
-         movementSystemService.HandleHoleAdded(hole);
+         movementSystemService.HandleHoleAdded(holeDescription);
       }
 
-      public void RemoveTemporaryHole(DynamicTerrainHole hole) {
-         terrainService.RemoveTemporaryHole(hole);
+      public void RemoveTemporaryHole(DynamicTerrainHoleDescription holeDescription) {
+         terrainService.RemoveTemporaryHoleDescription(holeDescription);
          movementSystemService.InvalidatePaths();
       }
    }

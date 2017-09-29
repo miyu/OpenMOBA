@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 using System.Linq;
-using OpenMOBA.Foundation.Visibility;
+using OpenMOBA.Foundation.Terrain.Visibility;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.DevTool.Debugging {
@@ -9,7 +9,7 @@ namespace OpenMOBA.DevTool.Debugging {
       private static readonly StrokeStyle VisibilityEdgeStrokeStyle = new StrokeStyle(Color.Cyan);
       private static readonly StrokeStyle WaypointStrokeStyle = new StrokeStyle(Color.Red, 5.0f);
 
-      public static void DrawVisibilityGraph(this IDebugCanvas canvas, SectorVisibilityGraph visibilityGraph) {
+      public static void DrawVisibilityGraph(this IDebugCanvas canvas, PolyNodeVisibilityGraph visibilityGraph) {
          canvas.DrawLineList(
             visibilityGraph.Barriers.SelectMany(barrier => barrier.Points.Select(p => new IntVector3(p))).ToList(),
             BarrierStrokeStyle);

@@ -1,10 +1,10 @@
 ﻿using OpenMOBA.Debugging;
-using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using System;
 using System.Drawing;
 using System.Linq;
 using OpenMOBA.Foundation;
+using OpenMOBA.Foundation.Terrain.Visibility;
 
 namespace OpenMOBA {
    public class Program {

@@ -11,7 +11,7 @@ using OpenMOBA.Geometry;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Foundation.Visibility;
+using OpenMOBA.Foundation.Terrain.Visibility;
 using Shade;
 
 namespace OpenMOBA.DevTool {
@@ -71,7 +71,7 @@ namespace OpenMOBA.DevTool {
                new IntVector2(220, 400),
                new IntVector2(221, 400)
             }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
-         TerrainService.AddTemporaryHole(new DynamicTerrainHole{ Polygons = holeSquiggle });
+         TerrainService.AddTemporaryHoleDescription(new DynamicTerrainHoleDescription{ Polygons = holeSquiggle });
       }
 
       private void RenderDebugFrame() {
@@ -79,7 +79,8 @@ namespace OpenMOBA.DevTool {
 //         DrawTestPathfindingQueries(null, holeDilationRadius);
 //         return;
 
-         var terrainSnapshot = TerrainService.BuildSnapshot();
+         var terrainSnapshot = TerrainService.CompileSnapshot();
+         var erodedView = terrainSnapshot.GetErodedView(holeDilationRadius);
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
 
          var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
@@ -94,12 +95,12 @@ namespace OpenMOBA.DevTool {
             debugCanvas.Transform = Matrix4x4.Identity;
             DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
             foreach (var sectorSnapshot in terrainSnapshot.SectorSnapshots) {
-               var sectorSnapshotGeometryContext = sectorSnapshot.GetGeometryContext(holeDilationRadius);
+               var sectorSnapshotGeometryContext = erodedView.GetGeometryContext(sectorSnapshot);
 
                debugCanvas.Transform = sectorSnapshot.WorldTransform;
                debugCanvas.DrawTriangulation(sectorSnapshotGeometryContext.Triangulation, new StrokeStyle(Color.DarkGray));
 
-               if (!sectorSnapshot.Sector.EnableDebugHighlight) {
+               if (!sectorSnapshot.SectorNodeDescription.EnableDebugHighlight) {
 //                  debugCanvas.DrawWallPushGrid(sectorSnapshot, holeDilationRadius);
                   continue;
                }
@@ -117,12 +118,12 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawVisibilityGraph(visibilityGraph);
 
                   var visibilityGraphNodeData = landNode.visibilityGraphNodeData;
-                  if (visibilityGraphNodeData.CrossoverSnapshots == null) {
+                  if (visibilityGraphNodeData.EdgeDescriptions == null) {
                      continue;
                   }
 
-                  foreach (var c in visibilityGraphNodeData.CrossoverSnapshots) {
-                     debugCanvas.DrawLine(c.LocalSegment.First, c.LocalSegment.Second, new StrokeStyle(Color.Red, 5));
+                  foreach (var c in visibilityGraphNodeData.EdgeDescriptions) {
+                     debugCanvas.DrawLine(c.SourceSegment.First, c.SourceSegment.Second, new StrokeStyle(Color.Red, 5));
                   }
 
                   debugCanvas.DrawLineOfSight(landNode.ComputeWaypointVisibilityPolygons()[25]);
@@ -147,7 +148,7 @@ namespace OpenMOBA.DevTool {
                         //                     debugCanvas.DrawLineOfSight(vg);
                      }
 
-                     var crossoverSeeingWaypoints = landNode.ComputeCrossoverSeeingWaypoints(visibilityGraphNodeData.CrossoverSnapshots[crossoverIndex]);
+                     var crossoverSeeingWaypoints = landNode.ComputeCrossoverSeeingWaypoints(visibilityGraphNodeData.EdgeDescriptions[crossoverIndex]);
                      Console.WriteLine(crossoverSeeingWaypoints.Length);
 //                     landNode.ComputeWaypointVisibilityPolygons()[19].Insert(new IntLineSegment2(new IntVector2(-3000, 3000), new IntVector2(-3000, -3000)));
                      foreach (var waypointIndex in crossoverSeeingWaypoints) {
@@ -157,19 +158,19 @@ namespace OpenMOBA.DevTool {
                         //                        debugCanvas.DrawLine(visibilityGraph.Waypoints[waypointIndex], crossover.Second, new StrokeStyle(colors[crossoverIndex], 5));
                      }
 
-                     var crossover = visibilityGraphNodeData.SectorSnapshot.CrossoverSnapshots[crossoverIndex];
-                     var localToRemote = crossover.LocalToRemote;
-                     var remoteGeometryContext = crossover.Remote.GetGeometryContext(holeDilationRadius);
-                     remoteGeometryContext.PunchedLand.PickDeepestPolynode(crossover.RemoteSegment.ComputeMidpoint(), out PolyNode remotePolyNode, out bool isCrossoverEndpointInHole);
-                     Trace.Assert(!isCrossoverEndpointInHole);
+                     var crossover = visibilityGraphNodeData.SectorSnapshot.SourceSegmentEdgeDescriptions[crossoverIndex];
+//                     var localToRemote = crossover.LocalToRemote;
+//                     var remoteGeometryContext = erodedView.GetGeometryContext(crossover.Remote);
+//                     remoteGeometryContext.PunchedLand.PickDeepestPolynode(crossover.RemoteSegment.ComputeMidpoint(), out PolyNode remotePolyNode, out bool isCrossoverEndpointInHole);
+//                     Trace.Assert(!isCrossoverEndpointInHole);
 
-                     var remoteBarriers = remotePolyNode.FindContourAndChildHoleBarriers();
-                     foreach (var barrier in remoteBarriers) {
-                        var first = Vector2.Transform(barrier.First.ToDotNetVector(), crossover.RemoteToLocal).ToOpenMobaVector();
-                        var second = Vector2.Transform(barrier.Second.ToDotNetVector(), crossover.RemoteToLocal).ToOpenMobaVector();
-                        var midpoint = (first + second) / 2;
-                        debugCanvas.DrawLine(first, second, new StrokeStyle(Color.Black));
-                     }
+//                     var remoteBarriers = remotePolyNode.FindContourAndChildHoleBarriers();
+//                     foreach (var barrier in remoteBarriers) {
+//                        var first = Vector2.Transform(barrier.First.ToDotNetVector(), crossover.RemoteToLocal).ToOpenMobaVector();
+//                        var second = Vector2.Transform(barrier.Second.ToDotNetVector(), crossover.RemoteToLocal).ToOpenMobaVector();
+//                        var midpoint = (first + second) / 2;
+//                        debugCanvas.DrawLine(first, second, new StrokeStyle(Color.Black));
+//                     }
                   }
                }
             }
@@ -232,12 +233,12 @@ namespace OpenMOBA.DevTool {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
-               var triangulation = sectorSnapshot.GetGeometryContext(movementComponent.BaseRadius).Triangulation;
-               TriangulationIsland island;
-               int triangleIndex;
-               if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
-                  debugCanvas.DrawTriangle(island.Triangles[triangleIndex], HighlightStroke);
-               }
+//               var triangulation = sectorSnapshot.GetGeometryContext(movementComponent.BaseRadius).Triangulation;
+//               TriangulationIsland island;
+//               int triangleIndex;
+//               if (triangulation.TryIntersect(movementComponent.Position.X, movementComponent.Position.Y, out island, out triangleIndex)) {
+//                  debugCanvas.DrawTriangle(island.Triangles[triangleIndex], HighlightStroke);
+//               }
             }
          }
       }

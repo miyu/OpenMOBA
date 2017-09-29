@@ -53,7 +53,8 @@
 
 using System;
 using System.Collections.Generic;
-using OpenMOBA.Foundation.Visibility;
+using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Geometry;
 //using System.Text;          //for Int128.AsString() & StringBuilder
 //using System.IO;            //debugging with streamReader & StreamWriter
 //using System.Windows.Forms; //debugging to clipboard
@@ -3279,7 +3280,7 @@ namespace ClipperLib {
       }
       //----------------------------------------------------------------------
 
-      public static int PointInPolygon(IntPoint pt, Path path) {
+      public static PolygonContainmentResult PointInPolygon(IntPoint pt, Path path) {
          //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
          //See "The Point in Polygon Problem for Arbitrary Polygons" by Hormann & Agathos
          //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
@@ -3290,7 +3291,7 @@ namespace ClipperLib {
             IntPoint ipNext = (i == cnt ? path[0] : path[i]);
             if (ipNext.Y == pt.Y) {
                if ((ipNext.X == pt.X) || (ip.Y == pt.Y &&
-                                          ((ipNext.X > pt.X) == (ip.X < pt.X)))) return -1;
+                                          ((ipNext.X > pt.X) == (ip.X < pt.X)))) return (PolygonContainmentResult)(-1);
             }
             if ((ip.Y < pt.Y) != (ipNext.Y < pt.Y)) {
                if (ip.X >= pt.X) {
@@ -3298,21 +3299,21 @@ namespace ClipperLib {
                   else {
                      double d = (double)(ip.X - pt.X) * (ipNext.Y - pt.Y) -
                                 (double)(ipNext.X - pt.X) * (ip.Y - pt.Y);
-                     if (d == 0) return -1;
+                     if (d == 0) return (PolygonContainmentResult)(-1);
                      else if ((d > 0) == (ipNext.Y > ip.Y)) result = 1 - result;
                   }
                } else {
                   if (ipNext.X > pt.X) {
                      double d = (double)(ip.X - pt.X) * (ipNext.Y - pt.Y) -
                                 (double)(ipNext.X - pt.X) * (ip.Y - pt.Y);
-                     if (d == 0) return -1;
+                     if (d == 0) return (PolygonContainmentResult)(-1);
                      else if ((d > 0) == (ipNext.Y > ip.Y)) result = 1 - result;
                   }
                }
             }
             ip = ipNext;
          }
-         return result;
+         return (PolygonContainmentResult)result;
       }
       //------------------------------------------------------------------------------
 

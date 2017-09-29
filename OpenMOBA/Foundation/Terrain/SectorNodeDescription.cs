@@ -21,10 +21,10 @@ namespace OpenMOBA.Foundation.Terrain {
       public SectorSnapshot CachedSnapshot;
    }
 
-   public class Sector {
+   public class SectorNodeDescription {
       private readonly TerrainService terrainService;
 
-      internal Sector(TerrainService terrainService, TerrainStaticMetadata staticMetadata) {
+      internal SectorNodeDescription(TerrainService terrainService, TerrainStaticMetadata staticMetadata) {
          this.terrainService = terrainService;
          this.StaticMetadata = staticMetadata;
       }
@@ -58,7 +58,7 @@ namespace OpenMOBA.Foundation.Terrain {
    /// <summary>
    /// Considered internal to TerrainService
    /// </summary>
-   public class DynamicTerrainHole {
+   public class DynamicTerrainHoleDescription {
       public IReadOnlyList<Polygon2> Polygons { get; set; }
    }
 }

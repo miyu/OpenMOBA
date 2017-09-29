@@ -8,7 +8,6 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Foundation.Visibility;
 using OpenMOBA.Geometry;
 using cInt = System.Int64;
 
@@ -176,31 +175,31 @@ namespace OpenMOBA.Foundation {
       }
 
       private bool IsDestinationReachable(double holeDilationRadius, PolyNode sourceLand, PolyNode destinationLand) {
-         var s = new Queue<PolyNode>();
-         s.Enqueue(sourceLand);
-
-         var addedCrossovers = new HashSet<Crossover>();
-         while (s.Any()) {
-            var currentLand = s.Dequeue();
-            Console.WriteLine("AT " + currentLand.GetHashCode());
-            if (currentLand == destinationLand) {
-               return true;
-            }
-            if (currentLand.visibilityGraphNodeData.CrossoverSnapshots == null) {
-               Console.WriteLine("No CS");
-               continue;
-            }
-
-            // This shit's terrifyingly inefficient. Fix by precomputing?
-            foreach (var crossoverSnapshot in currentLand.visibilityGraphNodeData.CrossoverSnapshots) {
-               var remoteGeometryContext = crossoverSnapshot.Remote.GetGeometryContext(holeDilationRadius);
-               var remotePolyTree = remoteGeometryContext.PunchedLand;
-               var remotePolyNode = remotePolyTree.visibilityGraphTreeData.CrossoverPolyNodes[crossoverSnapshot.Crossover];
-               if (addedCrossovers.Add(crossoverSnapshot.Crossover)) {
-                  s.Enqueue(remotePolyNode);
-               }
-            }
-         }
+//         var s = new Queue<PolyNode>();
+//         s.Enqueue(sourceLand);
+//
+//         var addedCrossovers = new HashSet<Crossover>();
+//         while (s.Any()) {
+//            var currentLand = s.Dequeue();
+//            Console.WriteLine("AT " + currentLand.GetHashCode());
+//            if (currentLand == destinationLand) {
+//               return true;
+//            }
+//            if (currentLand.visibilityGraphNodeData.EdgeDescriptions == null) {
+//               Console.WriteLine("No CS");
+//               continue;
+//            }
+//
+//            // This shit's terrifyingly inefficient. Fix by precomputing?
+//            foreach (var crossoverSnapshot in currentLand.visibilityGraphNodeData.EdgeDescriptions) {
+//               var remoteGeometryContext = terrainService.BuildSnapshot().GetErodedView(holeDilationRadius).GetGeometryContext(crossoverSnapshot.Remote);
+//               var remotePolyTree = remoteGeometryContext.PunchedLand;
+//               var remotePolyNode = remotePolyTree.visibilityGraphTreeData.CrossoverPolyNodes[crossoverSnapshot.Crossover];
+//               if (addedCrossovers.Add(crossoverSnapshot.Crossover)) {
+//                  s.Enqueue(remotePolyNode);
+//               }
+//            }
+//         }
          return false;
       }
 
@@ -215,268 +214,9 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      public struct PathfinderWaypointState {
-         public double Cost;
-         public int PreviousWaypointIndex;
-         public PolyNode PreviousNode;
-         public bool Visited;
-      }
-
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out List<DoubleVector3> path) {
          path = null;
-
-         var terrainSnapshot = terrainService.BuildSnapshot();
-         var pathfindingContext = terrainSnapshot.GetPathfindingContext(holeDilationRadius);
-
-         if (!pathfindingContext.TryFindSector(sourceWorld, out SectorSnapshot sourceSector) ||
-             !pathfindingContext.TryFindSector(destinationWorld, out SectorSnapshot destinationSector)) {
-            return false;
-         }
-
-         var sourceGeometryContext = sourceSector.GetGeometryContext(holeDilationRadius);
-         var sourceLocal = sourceSector.WorldToLocal(sourceWorld);
-         sourceGeometryContext.PunchedLand.PickDeepestPolynode(sourceLocal.LossyToIntVector2(), out PolyNode sourceNode, out bool sourceNodeIsHole);
-         Trace.Assert(!sourceNodeIsHole);
-
-         var destinationGeometryContext = destinationSector.GetGeometryContext(holeDilationRadius);
-         var destinationLocal = destinationSector.WorldToLocal(destinationWorld);
-         destinationGeometryContext.PunchedLand.PickDeepestPolynode(destinationLocal.LossyToIntVector2(), out PolyNode destinationNode, out bool destinationNodeIsHole);
-         Trace.Assert(!destinationNodeIsHole);
-
-         var sourceVisibilityPolygon = VisibilityPolygon.Create(sourceLocal, sourceNode.FindContourAndChildHoleBarriers());
-         var sourceNodeWaypoints = sourceNode.FindAggregateContourCrossoverWaypoints();
-
-         const int StartWaypointIndex = int.MinValue;
-         const int EndWaypointIndex = int.MinValue + 1;
-         const int UndefinedWaypointIndex = -1;
-
-         var waypointStateOffsetByPolyNode = new Dictionary<PolyNode, int>();
-         var pathfinderWaypointStatesByPolyNode = new Dictionary<PolyNode, PathfinderWaypointState[]>();
-         var sourcePolyNodeWaypointStates = pathfinderWaypointStatesByPolyNode[sourceNode] = new PathfinderWaypointState[sourceNodeWaypoints.Length];
-         var destinationWaypointState = new PathfinderWaypointState();
-
-         if (sourceNode == destinationNode && sourceVisibilityPolygon.Contains(destinationLocal)) {
-            path = new List<DoubleVector3> { sourceWorld, destinationWorld };
-            return true;
-         }
-
-         var eventQueue = new PriorityQueue<PathfindingEvent>((a, b) => a.Cost.CompareTo(b.Cost));
-         eventQueue.Enqueue(new WaypointEvent {
-            Cost = 0,
-            LocalNode = sourceNode,
-            LocalSector = sourceSector,
-            LocationLocal = sourceLocal,
-            WaypointIndex = StartWaypointIndex,
-            LocalNodeWaypointStates = sourcePolyNodeWaypointStates
-         });
-
-         while (!eventQueue.IsEmpty) {
-            var e = eventQueue.Dequeue();
-//            Console.WriteLine(e);
-            if (e is WaypointEvent we) {
-               if (we.WaypointIndex == EndWaypointIndex) {
-                  var s = new Stack<DoubleVector3>();
-                  s.Push(destinationWorld);
-                  var currentNode = destinationWaypointState.PreviousNode;
-                  var currentWaypointIndex = destinationWaypointState.PreviousWaypointIndex;
-                  while (currentWaypointIndex != StartWaypointIndex) {
-                     var sectorSnapshot = currentNode.visibilityGraphNodeData.SectorSnapshot;
-                     
-                     ref var currentWaypointState = ref pathfinderWaypointStatesByPolyNode[currentNode][currentWaypointIndex];
-                     s.Push(sectorSnapshot.LocalToWorld(currentNode.FindAggregateContourCrossoverWaypoints()[currentWaypointIndex]));
-                     currentNode = currentWaypointState.PreviousNode;
-                     currentWaypointIndex = currentWaypointState.PreviousWaypointIndex;
-                  }
-                  s.Push(sourceWorld);
-
-                  path = s.ToList();
-                  return true;
-               } else if (we.WaypointIndex == StartWaypointIndex) {
-                  // add waypoints
-                  for (var waypointIndex = 0; waypointIndex < sourceNodeWaypoints.Length; waypointIndex++) {
-                     var waypointLocal = sourceNodeWaypoints[waypointIndex];
-                     if (!sourceVisibilityPolygon.Contains(waypointLocal.ToDoubleVector2())) {
-                        continue;
-                     }
-
-                     var waypointWorld = sourceSector.LocalToWorld(waypointLocal);
-                     var totalCost = sourceWorld.To(waypointWorld).Norm2D();
-                     we.LocalNodeWaypointStates[waypointIndex].Cost = totalCost;
-                     we.LocalNodeWaypointStates[waypointIndex].PreviousWaypointIndex = StartWaypointIndex;
-                     we.LocalNodeWaypointStates[waypointIndex].PreviousNode = sourceNode;
-
-                     eventQueue.Enqueue(new WaypointEvent {
-                        Cost = totalCost,
-                        LocalNode = sourceNode,
-                        LocalSector = sourceSector,
-                        LocationLocal = waypointLocal.ToDoubleVector2(),
-                        WaypointIndex = waypointIndex,
-                        LocalNodeWaypointStates = sourcePolyNodeWaypointStates
-                     });
-                  }
-
-                  // add portals
-               } else {
-                  // No-op if this waypoint has already been visited.
-                  if (we.LocalNodeWaypointStates[we.WaypointIndex].Visited) {
-                     continue;
-                  }
-                  we.LocalNodeWaypointStates[we.WaypointIndex].Visited = true;
-
-                  // add waypoints
-                  var visibilityGraph = we.LocalNode.ComputeVisibilityGraph();
-                  var edgeIndexStartInclusive = visibilityGraph.Offsets[we.WaypointIndex];
-                  var edgeIndexEndExclusive = visibilityGraph.Offsets[we.WaypointIndex + 1];
-                  for (var edgeIndex = edgeIndexStartInclusive; edgeIndex < edgeIndexEndExclusive; edgeIndex++) {
-                     var edge = visibilityGraph.Edges[edgeIndex];
-                     var totalCost = we.Cost + edge.Cost;
-                     var nextWaypoint = visibilityGraph.Waypoints[edge.NextIndex];
-                     ref var nextWaypointState = ref we.LocalNodeWaypointStates[edge.NextIndex];
-
-                     // skip edge destination if already visited or will be visited for cheaper
-                     if (nextWaypointState.Visited ||
-                         (nextWaypointState.Cost != 0 && nextWaypointState.Cost <= totalCost)) {
-                        continue;
-                     }
-                     nextWaypointState.Cost = totalCost;
-                     nextWaypointState.PreviousNode = we.LocalNode;
-                     nextWaypointState.PreviousWaypointIndex = we.WaypointIndex;
-
-                     eventQueue.Enqueue(new WaypointEvent {
-                        Cost = totalCost,
-                        LocalNode = we.LocalNode,
-                        LocalSector = we.LocalSector,
-                        LocationLocal = nextWaypoint.ToDoubleVector2(),
-                        WaypointIndex = edge.NextIndex,
-                        LocalNodeWaypointStates = we.LocalNodeWaypointStates
-                     });
-                  }
-
-                  // Add path to end
-                  if (we.LocalNode == destinationNode) {
-//                     Console.WriteLine("!!!!!!!!!!!!!!!!!!");
-                     var visibilityPolygon = we.LocalNode.ComputeWaypointVisibilityPolygons()[we.WaypointIndex];
-                     if (visibilityPolygon.Contains(destinationLocal)) {
-                        var totalCost = we.Cost + we.LocalSector.LocalToWorld(we.LocationLocal).To(destinationWorld).Norm2D();
-                        if (destinationWaypointState.Cost != 0 && destinationWaypointState.Cost <= totalCost) {
-                           continue;
-                        }
-                        destinationWaypointState.Cost = totalCost;
-                        destinationWaypointState.PreviousNode = we.LocalNode;
-                        destinationWaypointState.PreviousWaypointIndex = we.WaypointIndex;
-
-                        eventQueue.Enqueue(new WaypointEvent {
-                           Cost = totalCost,
-                           LocalNode = we.LocalNode,
-                           LocalSector = we.LocalSector,
-                           LocationLocal = destinationLocal,
-                           WaypointIndex = EndWaypointIndex,
-                           LocalNodeWaypointStates = we.LocalNodeWaypointStates
-                        });
-                     }
-                  }
-
-                  // Add path to portals
-                  var crossoversSeen = we.LocalNode.ComputeCrossoversSeenByWaypoints()[we.WaypointIndex];
-                  foreach (var crossover in crossoversSeen) {
-                     var locationLocal = we.LocationLocal;
-                     var nearestSegmentPoint = GeometryOperations.FindNearestPoint(crossover.LocalSegment, locationLocal);
-
-                     eventQueue.Enqueue(new CrossoverEvent {
-                        Cost = we.Cost + locationLocal.To(nearestSegmentPoint).Norm2D(),
-                        SourceCost = we.Cost,
-                        SourceNode = we.LocalNode,
-                        SourceSector = we.LocalSector,
-                        SourceLocationLocal = we.LocationLocal,
-                        SourceVisibilityPolygon = we.LocalNode.ComputeWaypointVisibilityPolygons()[we.WaypointIndex],
-                        SourceWaypointIndex = we.WaypointIndex,
-                        Crossover = crossover,
-                     });
-                  }
-               }
-            } else if (e is CrossoverEvent ce) {
-               var remote = ce.Crossover.Remote;
-               var remoteGeometryContext = remote.GetGeometryContext(holeDilationRadius);
-
-               var crossoverMidpoint = ce.Crossover.LocalSegment.ComputeMidpoint();
-               var crossoverDistance = ce.SourceLocationLocal.To(crossoverMidpoint.ToDoubleVector2()).SquaredNorm2D();
-
-               // todo: support holes on crossovers
-               remoteGeometryContext.PunchedLand.PickDeepestPolynode(ce.Crossover.RemoteSegment.ComputeMidpoint(), out PolyNode remotePolyNode, out bool isCrossoverEndpointInHole);
-               if (!pathfinderWaypointStatesByPolyNode.TryGetValue(remotePolyNode, out PathfinderWaypointState[] remoteWaypointStates)) {
-                  remoteWaypointStates = pathfinderWaypointStatesByPolyNode[remotePolyNode] = new PathfinderWaypointState[remotePolyNode.FindAggregateContourCrossoverWaypoints().Length];
-               }
-
-               var remoteBarriers = remotePolyNode.FindContourAndChildHoleBarriers();
-               foreach (var barrier in remoteBarriers) {
-                  var first = Vector2.Transform(barrier.First.ToDotNetVector(), ce.Crossover.RemoteToLocal).ToOpenMobaVector();
-                  var second = Vector2.Transform(barrier.Second.ToDotNetVector(), ce.Crossover.RemoteToLocal).ToOpenMobaVector();
-                  var midpoint = (first + second) / 2;
-                  var midpointDistance = ce.SourceLocationLocal.To(midpoint).SquaredNorm2D();
-                  if (midpointDistance < crossoverDistance) {
-                     continue;
-                  }
-                  ce.SourceVisibilityPolygon.Insert(new IntLineSegment2(first.LossyToIntVector2(), second.LossyToIntVector2()), true);
-               }
-
-               // waypoints
-               foreach (var waypointIndex in remotePolyNode.ComputeCrossoverSeeingWaypoints(ce.Crossover.RemoteCrossover)) {
-                  var nextWaypointRemote = remotePolyNode.FindAggregateContourCrossoverWaypoints()[waypointIndex];
-                  var nextWaypointLocal = Vector2.Transform(nextWaypointRemote.ToDotNetVector(), ce.Crossover.RemoteToLocal).ToOpenMobaVector();
-                  if (ce.SourceVisibilityPolygon.Contains(nextWaypointLocal)) {
-                     // todo: cost through crossover
-                     var totalCost = ce.SourceCost + ce.SourceSector.LocalToWorld(ce.SourceLocationLocal).To(remote.LocalToWorld(nextWaypointRemote)).Norm2D();
-
-                     ref var nextWaypointState = ref remoteWaypointStates[waypointIndex];
-
-                     // skip edge destination if already visited or will be visited for cheaper
-                     if (nextWaypointState.Visited ||
-                         (nextWaypointState.Cost != 0 && nextWaypointState.Cost <= totalCost)) {
-                        continue;
-                     }
-                     nextWaypointState.Cost = totalCost;
-                     nextWaypointState.PreviousNode = ce.SourceNode;
-                     nextWaypointState.PreviousWaypointIndex = ce.SourceWaypointIndex;
-
-                     eventQueue.Enqueue(new WaypointEvent {
-                        Cost = totalCost,
-                        LocalNode = remotePolyNode,
-                        LocalSector = remote,
-                        LocationLocal = nextWaypointRemote.ToDoubleVector2(),
-                        WaypointIndex = waypointIndex,
-                        LocalNodeWaypointStates = remoteWaypointStates
-                     });
-                  }
-               }
-            }
-         }
          return false;
-      }
-
-      private class PathfindingEvent {
-         public double Cost;
-      }
-
-      private class WaypointEvent : PathfindingEvent {
-         public PolyNode LocalNode;
-         public SectorSnapshot LocalSector;
-         public DoubleVector2 LocationLocal;
-         public int WaypointIndex;
-         public PathfinderWaypointState[] LocalNodeWaypointStates;
-
-         public override string ToString() => $"WE {Cost} {WaypointIndex}, {LocationLocal}";
-      }
-
-      private class CrossoverEvent : PathfindingEvent {
-         public double SourceCost;
-         public PolyNode SourceNode;
-         public SectorSnapshot SourceSector;
-         public DoubleVector2 SourceLocationLocal;
-         public VisibilityPolygon SourceVisibilityPolygon;
-         public int SourceWaypointIndex;
-         public CrossoverSnapshot Crossover;
-
-         public override string ToString() => $"CE {Cost} {SourceLocationLocal}, {Crossover.LocalSegment}";
       }
    }
 
@@ -519,13 +259,13 @@ namespace OpenMOBA.Foundation {
          movementComponent.PathingDestination = destination;
       }
 
-      public void HandleHoleAdded(DynamicTerrainHole hole) {
+      public void HandleHoleAdded(DynamicTerrainHoleDescription holeDescription) {
          InvalidatePaths();
 
          foreach (var entity in AssociatedEntities) {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
-            if (hole.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) FixEntityInHole(entity);
+            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) FixEntityInHole(entity);
          }
       }
 

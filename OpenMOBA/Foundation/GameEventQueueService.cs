@@ -52,31 +52,31 @@ namespace OpenMOBA.Foundation {
 
    public class AddTemporaryHoleGameEvent : GameEvent {
       private readonly GameLogicFacade gameLogicFacade;
-      private readonly DynamicTerrainHole dynamicTerrainHole;
+      private readonly DynamicTerrainHoleDescription dynamicTerrainHoleDescription;
 
-      public AddTemporaryHoleGameEvent(GameTime time, GameLogicFacade gameLogicFacade, DynamicTerrainHole dynamicTerrainHole) : base(time) {
+      public AddTemporaryHoleGameEvent(GameTime time, GameLogicFacade gameLogicFacade, DynamicTerrainHoleDescription dynamicTerrainHoleDescription) : base(time) {
          this.gameLogicFacade = gameLogicFacade;
-         this.dynamicTerrainHole = dynamicTerrainHole;
+         this.dynamicTerrainHoleDescription = dynamicTerrainHoleDescription;
       }
 
       public override void Execute() {
-         Console.WriteLine("Add " + dynamicTerrainHole.GetHashCode() + " at " + Time.Ticks);
-         gameLogicFacade.AddTemporaryHole(dynamicTerrainHole);
+         Console.WriteLine("Add " + dynamicTerrainHoleDescription.GetHashCode() + " at " + Time.Ticks);
+         gameLogicFacade.AddTemporaryHole(dynamicTerrainHoleDescription);
       }
    }
 
    public class RemoveTemporaryHoleGameEvent : GameEvent {
       private readonly GameLogicFacade gameLogicFacade;
-      private readonly DynamicTerrainHole dynamicTerrainHole;
+      private readonly DynamicTerrainHoleDescription dynamicTerrainHoleDescription;
 
-      public RemoveTemporaryHoleGameEvent(GameTime time, GameLogicFacade gameLogicFacade, DynamicTerrainHole dynamicTerrainHole) : base(time) {
+      public RemoveTemporaryHoleGameEvent(GameTime time, GameLogicFacade gameLogicFacade, DynamicTerrainHoleDescription dynamicTerrainHoleDescription) : base(time) {
          this.gameLogicFacade = gameLogicFacade;
-         this.dynamicTerrainHole = dynamicTerrainHole;
+         this.dynamicTerrainHoleDescription = dynamicTerrainHoleDescription;
       }
 
       public override void Execute() {
-         Console.WriteLine("Remove " + dynamicTerrainHole.GetHashCode() + " at " + Time.Ticks);
-         gameLogicFacade.RemoveTemporaryHole(dynamicTerrainHole);
+         Console.WriteLine("Remove " + dynamicTerrainHoleDescription.GetHashCode() + " at " + Time.Ticks);
+         gameLogicFacade.RemoveTemporaryHole(dynamicTerrainHoleDescription);
       }
    }
 }

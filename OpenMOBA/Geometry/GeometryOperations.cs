@@ -109,7 +109,7 @@ namespace OpenMOBA.Geometry {
       // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, segments should not have more than 1 point of intersection.
       // if segments DO have more than 1 point of intersection, this returns no intersection found.
-      public static bool TryFindSegmentSegmentIntersection(ref IntLineSegment2 a, ref IntLineSegment2 b, out DoubleVector2 result) {
+      public static bool TryFindSegmentSegmentIntersectionT(ref IntLineSegment2 a, ref IntLineSegment2 b, out double tForA) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var p = a.First;
          var r = a.First.To(a.Second);
@@ -132,10 +132,25 @@ namespace OpenMOBA.Geometry {
             goto fail;
          }
 
-         result = new DoubleVector2(p.X + t * r.X, p.Y + t * r.Y);
+         tForA = t;
          return true;
 
-      fail:
+         fail:
+         tForA = Double.NaN;
+         return false;
+      }
+
+      // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, segments should not have more than 1 point of intersection.
+      // if segments DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindSegmentSegmentIntersection(ref IntLineSegment2 a, ref IntLineSegment2 b, out DoubleVector2 result) {
+         if (TryFindSegmentSegmentIntersectionT(ref a, ref b, out double t)) {
+            var p = a.First;
+            var r = a.First.To(a.Second);
+
+            result = new DoubleVector2(p.X + t * r.X, p.Y + t * r.Y);
+            return true;
+         }
          result = DoubleVector2.Zero;
          return false;
       }
