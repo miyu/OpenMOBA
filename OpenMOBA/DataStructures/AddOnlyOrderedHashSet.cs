@@ -8,13 +8,14 @@ using System.Threading.Tasks;
 namespace OpenMOBA.DataStructures {
    public class AddOnlyOrderedHashSet<T> : IEnumerable<T> {
       private readonly List<T> list = new List<T>();
-      private readonly HashSet<T> set = new HashSet<T>();
+      private readonly Dictionary<T, int> set = new Dictionary<T, int>();
 
       public int Count => list.Count;
       public T this[int idx] => list[idx];
 
-      public bool Add(T val) {
-         if (!set.Add(val)) return false;
+      public bool TryAdd(T val, out int index) {
+         if (set.TryGetValue(val, out index)) return false;
+         set[val] = list.Count;
          list.Add(val);
          return true;
       }

@@ -324,6 +324,10 @@ namespace OpenMOBA.Geometry {
       public IntervalRange Stab(double theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
 
       public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(IntLineSegment2 s) {
+         return RangeStab(new DoubleLineSegment2(s.First.ToDoubleVector2(), s.Second.ToDoubleVector2()));
+      }
+
+      public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(DoubleLineSegment2 s) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
 

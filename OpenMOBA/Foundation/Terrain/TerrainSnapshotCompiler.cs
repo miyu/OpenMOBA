@@ -13,9 +13,9 @@ namespace OpenMOBA.Foundation.Terrain {
       public readonly TerrainStaticMetadata TerrainStaticMetadata;
       public readonly HashSet<IntLineSegment2> CrossoverSegments;
 
-      public LocalGeometryJob(TerrainStaticMetadata terrainStaticMetadata) {
+      public LocalGeometryJob(TerrainStaticMetadata terrainStaticMetadata, HashSet<IntLineSegment2> crossoverSegments = null) {
          TerrainStaticMetadata = terrainStaticMetadata;
-         CrossoverSegments = new HashSet<IntLineSegment2>();
+         CrossoverSegments = crossoverSegments ?? new HashSet<IntLineSegment2>();
       }
 
       public override bool Equals(object obj) {
@@ -44,9 +44,10 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public TerrainSnapshot CompileSnapshot() {
          if (cachedSnapshot?.Version == descriptionStore.Version) return cachedSnapshot;
+         Console.WriteLine("Terrain Snapshot Compile Triggered");
 
-         var nodeDescriptions = descriptionStore.EnumerateSectorNodeDescriptions().ToHashSet();
-         var edgeDescriptions = descriptionStore.EnumerateSectorEdgeDescriptions().ToHashSet();
+         var nodeDescriptions = descriptionStore.EnumerateSectorNodeDescriptions().ToList();
+         var edgeDescriptions = descriptionStore.EnumerateSectorEdgeDescriptions().ToList();
 
          //----------------------------------------------------------------------------------------
          // Plan Local Geometry Jobs
@@ -64,7 +65,7 @@ namespace OpenMOBA.Foundation.Terrain {
 
          var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.ToDictionary(
             localGeometryJob => localGeometryJob,
-            localGeometryJob => new LocalGeometryJob(localGeometryJob.TerrainStaticMetadata));
+            localGeometryJob => new LocalGeometryJob(localGeometryJob.TerrainStaticMetadata, localGeometryJob.CrossoverSegments));
 
 
          // TODO: Optimization: Pathfind on 'known' hole-less geometry.
@@ -102,39 +103,12 @@ namespace OpenMOBA.Foundation.Terrain {
             nodeDescription => localGeometryRenderJobViewManagers[localGeometryRenderJobByNodeDescription[nodeDescription]]);
          var terrainOverlayNetworkManager = new TerrainOverlayNetworkManager(localGeometryViewManagerBySectorNodeDescription, edgeDescriptions);
 
-         //----------------------------------------------------------------------------------------
-         // Build Preview Terrain Overlay Network
-         // Which has the concept of 'crossovers' and nodes
-         //----------------------------------------------------------------------------------------
-         // var nodes = descriptionStore
-         //    .EnumerateSectorNodeDescriptions()
-         //    .Select(nodeDescription => new TerrainNode(
-         //       nodeDescription,
-         //       localGeometryRenderJobViewManagers[localGeometryRenderJobByNodeDescription[nodeDescription]]
-         //          .PreviewViewManager
-         //    ));
-
-
-         //         var sectorToSnapshot = new Dictionary<SectorNodeDescription, SectorSnapshot>();
-         //         foreach (var sector in descriptionStore.EnumerateSectorNodeDescriptions()) {
-         //            var snapshot = new SectorSnapshot {
-         //               SectorNodeDescription = sector,
-         //               WorldTransform = sector.InstanceMetadata.WorldTransform,
-         //               WorldTransformInv = sector.InstanceMetadata.WorldTransformInv,
-         //            };
-         //            sectorToSnapshot.Add(sector, snapshot);
-         //         }
-         //
-         //         foreach (var edgeDescription in descriptionStore.EnumerateSectorEdgeDescriptions()) {
-         //            edgeDescription.
-         ////            sectorToSnapshot[edge.Source]..Add(edge);
-         //         }
-         //
-         //         return cachedSnapshot = new TerrainSnapshot {
-         //            Version = descriptionStore.Version,
-         //            SectorSnapshots = sectorToSnapshot.Values.ToList(),
-         //            TemporaryHoles = new DynamicTerrainHoleDescription[0]
-         //         };
+         return cachedSnapshot = new TerrainSnapshot {
+            Version = descriptionStore.Version,
+            NodeDescriptions = nodeDescriptions,
+            EdgeDescriptions = edgeDescriptions,
+            OverlayNetworkManager = terrainOverlayNetworkManager
+         };
       }
    }
 }

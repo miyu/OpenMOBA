@@ -25,14 +25,13 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
    }
 
    public class LocalGeometryView {
-      private const int kCrossoverAdditionalPathingDilation = 2;
+      private const int kCrossoverAdditionalPathingDilation = 4;
 
       public readonly LocalGeometryViewManager LocalGeometryViewManager;
       public readonly double ActorRadius;
       public readonly LocalGeometryView Preview;
 
       public readonly int CrossoverErosionRadius;
-      public readonly int CrossoverErosionDiameterSquared;
       public readonly int CrossoverDilationFactor;
 
       public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, double actorRadius, LocalGeometryView preview) {
@@ -40,9 +39,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          ActorRadius = actorRadius;
          Preview = preview ?? this;
 
-         CrossoverErosionRadius = (int)Math.Ceiling((double)(ActorRadius * 2));
-         CrossoverErosionDiameterSquared = 4 * CrossoverErosionRadius * CrossoverErosionRadius;
-         CrossoverDilationFactor = CrossoverErosionRadius / 2 + kCrossoverAdditionalPathingDilation;
+         CrossoverErosionRadius = (int)Math.Ceiling(ActorRadius * 2);
+         CrossoverDilationFactor = (CrossoverErosionRadius / 2) + kCrossoverAdditionalPathingDilation;
       }
 
       public LocalGeometryJob Job => LocalGeometryViewManager.Job;
@@ -116,17 +114,24 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
    public class TerrainOverlayNetworkManager {
       private readonly Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription;
-      private readonly HashSet<SectorEdgeDescription> edgeDescriptions;
+      private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
+      private readonly Dictionary<double, TerrainOverlayNetwork> terrainOverlayNetworkCache = new Dictionary<double, TerrainOverlayNetwork>();
 
       public TerrainOverlayNetworkManager(
          Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription, 
-         HashSet<SectorEdgeDescription> edgeDescriptions
+         IReadOnlyList<SectorEdgeDescription> edgeDescriptions
       ) {
          this.localGeometryViewManagerBySectorNodeDescription = localGeometryViewManagerBySectorNodeDescription;
          this.edgeDescriptions = edgeDescriptions;
       }
 
-      public void CompileTerrainOverlayNetwork(double agentRadius) {
+      public TerrainOverlayNetwork CompileTerrainOverlayNetwork(double agentRadius) {
+         if (terrainOverlayNetworkCache.TryGetValue(agentRadius, out TerrainOverlayNetwork existingTerrainOverlayNetwork)) {
+            return existingTerrainOverlayNetwork;
+         }
+
+         Console.WriteLine($"Compiling Terrain Overlay Network for Agent Radius {agentRadius}.");
+
          //----------------------------------------------------------------------------------------
          // Sector Node Description => Default Local Geometry View
          //----------------------------------------------------------------------------------------
@@ -172,6 +177,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             edgesBySource,
             edgesByDestination,
             edgesByEndpoints);
+         return terrainOverlayNetworkCache[agentRadius] = terrainOverlayNetwork;
       }
 
       //
@@ -206,136 +212,20 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          SectorNodeDescription = sectorNodeDescription;
          LocalGeometryView = localGeometryView;
          LandPolyNode = landPolyNode;
+
+         crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
       }
 
       public readonly SectorNodeDescription SectorNodeDescription;
       public readonly LocalGeometryView LocalGeometryView;
       public readonly PolyNode LandPolyNode;
-      public readonly AddOnlyOrderedHashSet<IntVector2[]> CrossoverPointSets = new AddOnlyOrderedHashSet<IntVector2[]>();
+      public readonly PolyNodeCrossoverPointManager crossoverPointManager;
    }
 
    public class TerrainSnapshot {
       public int Version { get; set; }
-      public IReadOnlyList<SectorSnapshot> SectorSnapshots { get; set; }
-      public IReadOnlyList<DynamicTerrainHoleDescription> TemporaryHoles { get; set; }
-
-      private readonly Dictionary<double, XErodedLocalGeometryView> erodedViews = new Dictionary<double, XErodedLocalGeometryView>();
-
-      public XErodedLocalGeometryView GetErodedView(double actorRadius) {
-         if (erodedViews.TryGetValue(actorRadius, out XErodedLocalGeometryView cachedContext)) return cachedContext;
-         return erodedViews[actorRadius] = new XErodedLocalGeometryView(this, actorRadius);
-      }
-   }
-
-   public class XErodedLocalGeometryView {
-      public XErodedLocalGeometryView(TerrainSnapshot terrainSnapshot, double holeDilationRadius) {
-         HoleDilationRadius = holeDilationRadius;
-         this.TerrainSnapshot = terrainSnapshot;
-      }
-
-      public readonly TerrainSnapshot TerrainSnapshot;
-      public readonly double HoleDilationRadius;
-      public IReadOnlyList<SectorSnapshot> SectorSnapshots => TerrainSnapshot.SectorSnapshots;
-
-      // Geometry context
-      public Dictionary<SectorSnapshot, SectorSnapshotGeometryContext> GeometryContextsBySectorSnapshot { get; set; } = new Dictionary<SectorSnapshot, SectorSnapshotGeometryContext>();
-
-      public SectorSnapshotGeometryContext GetGeometryContext(SectorSnapshot sectorSnapshot) {
-         if (GeometryContextsBySectorSnapshot.TryGetValue(sectorSnapshot, out SectorSnapshotGeometryContext cachedResult)) return cachedResult;
-         return GeometryContextsBySectorSnapshot[sectorSnapshot] = new SectorSnapshotGeometryContext(sectorSnapshot, HoleDilationRadius);
-      }
-   }
-
-   public class Q {
-      private readonly SectorSnapshot s;
-      private readonly SectorSnapshotGeometryContext ssgc;
-
-      public Q(SectorSnapshot s, SectorSnapshotGeometryContext ssgc) {
-         this.s = s;
-         this.ssgc = ssgc;
-      }
-
-      public void GCOw() {
-//         var ecs = ssgc.ErodedCrossoverSegments;
-//         var pl = ssgc.PunchedLand;
-      }
-   }
-
-   public class SSGCPNWM {
-      private readonly PolyNode polyNode;
-      private readonly IntVector2[] waypoints;
-      private readonly PolyNodeVisibilityGraph visibilityGraph;
-
-      /// <summary>
-      /// [DestinationWaypointIndex][SourceWaypointIndex] => (next hop, total path cost)
-      /// </summary>
-      private readonly PathLink[][] waypointToWaypointLut;
-
-      /// <summary>
-      /// [CrossoverIndex] => visible waypoint links of (visible waypoint index, cost from crossover point to waypoint)[]
-      /// </summary>
-      private readonly List<PathLink[]> visibleWaypointLinksByCrossoverPointIndex = new List<PathLink[]>();
-
-      /// <summary>
-      /// [CrossoverIndex][WaypointIndex] => links of (next hop, total path cost)
-      /// Note: final hop will be a waypoint to itself of nonzero cost. This should hop to the crossover point.
-      /// </summary>
-      private readonly List<PathLink[]> optimalLinkToWaypointsByCrossoverPointIndex = new List<PathLink[]>();
-
-      /// <summary>
-      /// [SourceCrossoverIndex][DestCrossoverIndex] = (first hop, total path cost),
-      /// probably followed by a lookup of [DestCrossoverIndex][first hop] in optimalLinkToWaypointsByCrossoverPointIndex
-      /// </summary>
-      private readonly List<List<PathLink>> optimalLinkToOtherCrossoversByCrossoverPointIndex = new List<List<PathLink>>();
-
-      public SSGCPNWM(PolyNode polyNode) {
-         this.polyNode = polyNode;
-         waypoints = polyNode.FindAggregateContourCrossoverWaypoints();
-         visibilityGraph = polyNode.ComputeVisibilityGraph();
-         waypointToWaypointLut = visibilityGraph.BuildWaypointToWaypointLut();
-      }
-
-//      private IReadOnlyList<CrossoverSnapshot> CrossoverSnapshots => polyNode.visibilityGraphNodeData.CrossoverSnapshots;
-//      private IReadOnlyList<IntLineSegment2> ErodedCrossoverSegments => polyNode.visibilityGraphNodeData.ErodedCrossoverSegments;
-
-//      public void Add(CrossoverSnapshot cs, IntVector2 crossoverPoint) {
-//         var crossoverPointIndex = crossoverPoints.Count;
-//
-//         // Find cost from crossoverPoint to visible waypoints
-//         var crossoverPointSeeingWaypointIndices = polyNode.ComputeCrossoverSeeingWaypoints(cs)
-//            .Where(wi => polyNode.SegmentInLandPolygonNonrecursive(waypoints[wi], crossoverPoint))
-//            .ToList();
-//         var crossoverPointWaypointLinks = crossoverPointSeeingWaypointIndices.Map(wi => {
-//            var cost = waypoints[wi].To(crossoverPoint).Norm2F();
-//            return new PathLink { PriorIndex = wi, TotalCost = cost };
-//         });
-//         visibleWaypointLinksByCrossoverPointIndex.Add(crossoverPointWaypointLinks);
-//
-//         // Cost from crossoverPoint to all waypoints
-//         var optimalLinkToWaypoints = waypoints.Map((waypoint, wi) => crossoverPointWaypointLinks.MinBy(cpwl => cpwl.TotalCost + waypointToWaypointLut[wi][cpwl.PriorIndex].TotalCost));
-//         optimalLinkToWaypointsByCrossoverPointIndex.Add(optimalLinkToWaypoints);
-//
-//         // Cost from crossoverPoint to other crossoverPoints...
-//         for (var otherCrossoverPointIndex = 0; otherCrossoverPointIndex < crossoverPoints.Count; otherCrossoverPointIndex++) {
-////            var optimalLinkToWaypointsB = optimalLinkToWaypointsByCrossoverPointIndex[otherCrossoverPointIndex];
-////            var optimalLinkFromCrossoverPointToOtherCrossoverPoint = crossoverPointWaypointLinks.MinBy(
-////               cpwl => cpwl.TotalCost + )
-//         }
-//      }
-
-      private struct Kappa {
-
-      }
-   }
-
-   public static class SSGCPNWMCalculator {
-      public static void FindVisibleWaypointLinks() {
-
-      }
-
-      public static void BuildOptimalFirstPathLinkToWaypointLut(
-         PathLink[][] waypointToWaypointLut
-         ) {
-      }
+      public IReadOnlyList<SectorNodeDescription> NodeDescriptions { get; set; }
+      public IReadOnlyList<SectorEdgeDescription> EdgeDescriptions { get; set; }
+      public TerrainOverlayNetworkManager OverlayNetworkManager { get; set; }
    }
 }

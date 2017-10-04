@@ -97,6 +97,14 @@ namespace OpenMOBA.DevTool.Debugging {
       private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
       private static IntLineSegment3 ToILS3(IntLineSegment2 p) => new IntLineSegment3(ToIV3(p.First), ToIV3(p.Second));
 
+      public static void DrawPoint(this IDebugCanvas canvas, IntVector2 p, StrokeStyle strokeStyle) {
+         canvas.DrawPoint(ToDV3(p), strokeStyle);
+      }
+
+      public static void DrawPoint(this IDebugCanvas canvas, DoubleVector2 p, StrokeStyle strokeStyle) {
+         canvas.DrawPoint(ToDV3(p), strokeStyle);
+      }
+
       public static void DrawPolygon(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
          canvas.DrawPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
       }

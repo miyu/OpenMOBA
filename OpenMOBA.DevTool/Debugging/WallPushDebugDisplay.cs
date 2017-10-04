@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -11,16 +12,17 @@ namespace OpenMOBA.DevTool.Debugging {
       private static readonly StrokeStyle InHoleStrokeStyle = new StrokeStyle(Color.Red, 3.0);
       private static readonly StrokeStyle NearestLandStrokeStyle = new StrokeStyle(Color.Red, 1.0);
 
-      public static void DrawWallPushGrid(this IDebugCanvas canvas, SectorSnapshotGeometryContext sectorSnapshotGeometryContext, double holeDilationRadius, double xlow = -50, double xhigh = 1100, double xstep = 100, double ylow = -50, double yhigh = 1100, double ystep = 100) {
+      public static void DrawWallPushGrid(this IDebugCanvas canvas, LocalGeometryView lgv, double holeDilationRadius, double xlow = -50, double xhigh = 1100, double xstep = 100, double ylow = -50, double yhigh = 1100, double ystep = 100) {
          for (double x = xlow; x < xhigh; x += xstep) {
             for (double y = ylow; y < yhigh; y += ystep) {
-               var query = new DoubleVector2(x, y);
-               DoubleVector2 nearestLandPoint;
-               var isInHole = sectorSnapshotGeometryContext.FindNearestLandPointAndIsInHole(query, out nearestLandPoint);
-               canvas.DrawPoint(new DoubleVector3(query), isInHole ? InHoleStrokeStyle : InLandStrokeStyle);
-               if (isInHole) {
-                  canvas.DrawLine(new DoubleVector3(query), new DoubleVector3(nearestLandPoint), NearestLandStrokeStyle);
-               }
+               throw new NotImplementedException();
+               //               var query = new DoubleVector2(x, y);
+               //               DoubleVector2 nearestLandPoint;
+               //               var isInHole = lgv.FindNearestLandPointAndIsInHole(query, out nearestLandPoint);
+               //               canvas.DrawPoint(new DoubleVector3(query), isInHole ? InHoleStrokeStyle : InLandStrokeStyle);
+               //               if (isInHole) {
+               //                  canvas.DrawLine(new DoubleVector3(query), new DoubleVector3(nearestLandPoint), NearestLandStrokeStyle);
+               //               }
             }
          }
       }

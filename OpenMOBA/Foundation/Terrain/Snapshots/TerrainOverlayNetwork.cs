@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ClipperLib;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.Visibility;
 using OpenMOBA.Geometry;
 
@@ -14,7 +15,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       private readonly Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView;
       private readonly Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode;
 
-      private readonly HashSet<SectorEdgeDescription> edges;
+      private readonly IReadOnlyList<SectorEdgeDescription> edges;
       private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgesBySource;
       private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByDestination;
       private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByEndpoints;
@@ -27,7 +28,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          Dictionary<SectorNodeDescription, TerrainOverlayNetworkNode[]> activeTerrainNodesBySectorNodeDescription,
          Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView,
          Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode,
-         HashSet<SectorEdgeDescription> edges,
+         IReadOnlyList<SectorEdgeDescription> edges,
          ILookup<SectorNodeDescription, SectorEdgeDescription> edgesBySource, 
          ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByDestination, 
          ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByEndpoints
@@ -42,6 +43,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          this.edgesByDestination = edgesByDestination;
          this.edgesByEndpoints = edgesByEndpoints;
       }
+
+      public IReadOnlyCollection<TerrainOverlayNetworkNode> TerrainNodes => terrainNodesBySectorNodeDescriptionAndPolyNode.Values;
 
       public void Initialize() {
          foreach (var edge in edges) {
@@ -67,18 +70,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var destinationNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Destination, edgeJob.DestinationPolyNode)];
             var (sourceCrossoverPoints, destinationCrossoverPoints) = ComputeEdgeCrossoverPoints(edgeJob.SourceSegment, edgeJob.DestinationSegment);
 
-            var isNewSourceCrossoverPoints = sourceNode.CrossoverPointSets.Add(sourceCrossoverPoints);
-            var isNewDestinationCrossoverPoints = destinationNode.CrossoverPointSets.Add(destinationCrossoverPoints);
-
-            void HandleNewCrossoverPoints(TerrainOverlayNetworkNode node, IntVector2[] addedCps) {
-               for (var i = 0; i < node.CrossoverPointSets.Count - 1; i++) {
-                  var existingCps = node.CrossoverPointSets[i];
-               }
-            }
-
-            if (isNewSourceCrossoverPoints) HandleNewCrossoverPoints(sourceNode, sourceCrossoverPoints);
-            if (isNewDestinationCrossoverPoints) HandleNewCrossoverPoints(destinationNode, destinationCrossoverPoints);
-            
+            sourceNode.crossoverPointManager.AddMany(edgeJob.SourceSegment, sourceCrossoverPoints);
+            destinationNode.crossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
          }
 
          // Flag Source/Destination PolyNodes as dirty.
@@ -111,9 +104,17 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       }
    }
 
+   /// <summary>
+   /// Handles finding optimal path between crossoverpoints in a given terrainNode
+   /// Waypoints refer to waypoints in the polynode visibility graph.
+   /// CrossoverPoints are a tacked on concept by the terrain engine.
+   /// </summary>
+   public class PolyNodeCrossoverPointManager {
+      private readonly PolyNode landPolyNode;
 
-   public class JSSGCPNWM {
-      private readonly PolyNode polyNode;
+      //-------------------------------------------------------------------------------------------
+      // Data from the PolyNode
+      //-------------------------------------------------------------------------------------------
       private readonly IntVector2[] waypoints;
       private readonly PolyNodeVisibilityGraph visibilityGraph;
 
@@ -121,6 +122,11 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       /// [DestinationWaypointIndex][SourceWaypointIndex] => (next hop, total path cost)
       /// </summary>
       private readonly PathLink[][] waypointToWaypointLut;
+
+      //-------------------------------------------------------------------------------------------
+      // Data about Crossover Points
+      //-------------------------------------------------------------------------------------------
+      private readonly AddOnlyOrderedHashSet<IntVector2> crossoverPoints = new AddOnlyOrderedHashSet<IntVector2>();
 
       /// <summary>
       /// [CrossoverIndex] => visible waypoint links of (visible waypoint index, cost from crossover point to waypoint)[]
@@ -139,43 +145,61 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       /// </summary>
       private readonly List<List<PathLink>> optimalLinkToOtherCrossoversByCrossoverPointIndex = new List<List<PathLink>>();
 
-      public JSSGCPNWM(PolyNode polyNode) {
-         this.polyNode = polyNode;
-         waypoints = polyNode.FindAggregateContourCrossoverWaypoints();
-         visibilityGraph = polyNode.ComputeVisibilityGraph();
+      public PolyNodeCrossoverPointManager(PolyNode landPolyNode) {
+         this.landPolyNode = landPolyNode;
+         waypoints = landPolyNode.FindAggregateContourCrossoverWaypoints();
+         visibilityGraph = landPolyNode.ComputeVisibilityGraph();
          waypointToWaypointLut = visibilityGraph.BuildWaypointToWaypointLut();
       }
 
-      //      private IReadOnlyList<CrossoverSnapshot> CrossoverSnapshots => polyNode.visibilityGraphNodeData.CrossoverSnapshots;
-      //      private IReadOnlyList<IntLineSegment2> ErodedCrossoverSegments => polyNode.visibilityGraphNodeData.ErodedCrossoverSegments;
+      public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
+         var segmentSeeingWaypoints = landPolyNode.ComputeSegmentSeeingWaypoints(edgeSegment);
+         return points.Map(p => {
+            TryAdd(p, out int cpi);
+            return cpi;
+         });
 
-      //      public void Add(CrossoverSnapshot cs, IntVector2 crossoverPoint) {
-      //         var crossoverPointIndex = crossoverPoints.Count;
-      //
-      //         // Find cost from crossoverPoint to visible waypoints
-      //         var crossoverPointSeeingWaypointIndices = polyNode.ComputeCrossoverSeeingWaypoints(cs)
-      //            .Where(wi => polyNode.SegmentInLandPolygonNonrecursive(waypoints[wi], crossoverPoint))
-      //            .ToList();
-      //         var crossoverPointWaypointLinks = crossoverPointSeeingWaypointIndices.Map(wi => {
-      //            var cost = waypoints[wi].To(crossoverPoint).Norm2F();
-      //            return new PathLink { PriorIndex = wi, TotalCost = cost };
-      //         });
-      //         visibleWaypointLinksByCrossoverPointIndex.Add(crossoverPointWaypointLinks);
-      //
-      //         // Cost from crossoverPoint to all waypoints
-      //         var optimalLinkToWaypoints = waypoints.Map((waypoint, wi) => crossoverPointWaypointLinks.MinBy(cpwl => cpwl.TotalCost + waypointToWaypointLut[wi][cpwl.PriorIndex].TotalCost));
-      //         optimalLinkToWaypointsByCrossoverPointIndex.Add(optimalLinkToWaypoints);
-      //
-      //         // Cost from crossoverPoint to other crossoverPoints...
-      //         for (var otherCrossoverPointIndex = 0; otherCrossoverPointIndex < crossoverPoints.Count; otherCrossoverPointIndex++) {
-      ////            var optimalLinkToWaypointsB = optimalLinkToWaypointsByCrossoverPointIndex[otherCrossoverPointIndex];
-      ////            var optimalLinkFromCrossoverPointToOtherCrossoverPoint = crossoverPointWaypointLinks.MinBy(
-      ////               cpwl => cpwl.TotalCost + )
-      //         }
-      //      }
+         bool TryAdd(IntVector2 crossoverPoint, out int crossoverPointIndex) {
+            if (!crossoverPoints.TryAdd(crossoverPoint, out crossoverPointIndex)) {
+               return false;
+            }
 
-      private struct Kappa {
+            // Find cost from crossoverPoint to visible waypoints - inefficient!
+            var crossoverPointSeeingWaypointIndices = segmentSeeingWaypoints
+               .Where(wi => landPolyNode.SegmentInLandPolygonNonrecursive(waypoints[wi], crossoverPoint))
+               .ToList();
+            var crossoverPointWaypointLinks = crossoverPointSeeingWaypointIndices.Map(wi => {
+               var cost = waypoints[wi].To(crossoverPoint).Norm2F();
+               return new PathLink { PriorIndex = wi, TotalCost = cost };
+            });
+            visibleWaypointLinksByCrossoverPointIndex.Add(crossoverPointWaypointLinks);
 
+            // Cost from crossoverPoint to all waypoints
+            var optimalLinkToWaypoints = waypoints.Map((waypoint, wi) => {
+               var optimalLink = crossoverPointWaypointLinks.MinBy(cpwl => cpwl.TotalCost + waypointToWaypointLut[wi][cpwl.PriorIndex].TotalCost);
+               return new PathLink { PriorIndex = optimalLink.PriorIndex, TotalCost = optimalLink.TotalCost + waypointToWaypointLut[wi][optimalLink.PriorIndex].TotalCost };
+            });
+            optimalLinkToWaypointsByCrossoverPointIndex.Add(optimalLinkToWaypoints);
+
+            // Cost from crossoverPoint to other crossoverPoints...
+            var optimalLinkToOtherCrossovers = new List<PathLink>();
+            optimalLinkToOtherCrossoversByCrossoverPointIndex.Add(optimalLinkToOtherCrossovers);
+            for (var otherCpi = 0; otherCpi < crossoverPoints.Count - 1; otherCpi++) {
+               var otherOptimalLinkByWaypointIndex = optimalLinkToWaypointsByCrossoverPointIndex[otherCpi];
+               var optimalLinkToOtherCrossoverPoint = crossoverPointWaypointLinks.MinBy(cpwl => cpwl.TotalCost + otherOptimalLinkByWaypointIndex[cpwl.PriorIndex].TotalCost);
+               var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
+               var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
+               optimalLinkToOtherCrossoversByCrossoverPointIndex[otherCpi].Add(new PathLink {
+                  PriorIndex = optimalLinkFromOtherCrossoverPoint.PriorIndex,
+                  TotalCost = totalCost
+               });
+               optimalLinkToOtherCrossovers.Add(new PathLink {
+                  PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
+                  TotalCost = totalCost
+               });
+            }
+            return true;
+         }
       }
    }
 }

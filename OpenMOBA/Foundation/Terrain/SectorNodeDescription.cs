@@ -18,7 +18,6 @@ namespace OpenMOBA.Foundation.Terrain {
 //      public HashSet<DynamicTerrainHole> Holes;
 
       public int CachedSnapshotVersion;
-      public SectorSnapshot CachedSnapshot;
    }
 
    public class SectorNodeDescription {
