@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace OpenMOBA.DataStructures {
-   public class AddOnlyOrderedHashSet<T> : IEnumerable<T> {
+   public class AddOnlyOrderedHashSet<T> : IReadOnlyList<T> {
       private readonly List<T> list = new List<T>();
       private readonly Dictionary<T, int> set = new Dictionary<T, int>();
 

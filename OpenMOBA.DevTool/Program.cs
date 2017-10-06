@@ -76,8 +76,20 @@ namespace OpenMOBA.DevTool {
 
       private void RenderDebugFrame() {
          var holeDilationRadius = 15.0;
-//         DrawTestPathfindingQueries(null, holeDilationRadius);
-//         return;
+         for (var i = 0; i < 100; i++) {
+            TerrainService.SnapshotCompiler.InvalidateCaches();
+            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+         }
+         GC.Collect();
+         var sw = new Stopwatch();
+         sw.Start();
+         for (var i = 0; i < 100; i++) {
+            TerrainService.SnapshotCompiler.InvalidateCaches();
+            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+         }
+         Console.WriteLine("100itr: " + sw.ElapsedMilliseconds + "ms");
+         //         DrawTestPathfindingQueries(null, holeDilationRadius);
+         return;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
@@ -120,6 +132,11 @@ namespace OpenMOBA.DevTool {
 //                  var ind = landPolyNode.FindAggregateContourCrossoverWaypoints()[ssw];
 //                  debugCanvas.DrawPoint(ind, new StrokeStyle(Color.DarkSlateGray, 10));
 //               }
+
+               foreach (var p in terrainNode.CrossoverPointManager.CrossoverPoints) {
+                  debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
+               }
+//               terrainNode.CrossoverPointManager.CrossoverPoints
 
                continue;
 

@@ -42,9 +42,16 @@ namespace OpenMOBA.Foundation.Terrain {
          this.descriptionStore = descriptionStore;
       }
 
+      /// <summary>
+      /// For benchmarking purposes
+      /// </summary>
+      public void InvalidateCaches() {
+         cachedSnapshot = null;
+      }
+
       public TerrainSnapshot CompileSnapshot() {
          if (cachedSnapshot?.Version == descriptionStore.Version) return cachedSnapshot;
-         Console.WriteLine("Terrain Snapshot Compile Triggered");
+//         Console.WriteLine("Terrain Snapshot Compile Triggered");
 
          var nodeDescriptions = descriptionStore.EnumerateSectorNodeDescriptions().ToList();
          var edgeDescriptions = descriptionStore.EnumerateSectorEdgeDescriptions().ToList();

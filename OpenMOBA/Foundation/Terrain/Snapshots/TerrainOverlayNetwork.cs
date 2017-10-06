@@ -70,8 +70,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var destinationNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Destination, edgeJob.DestinationPolyNode)];
             var (sourceCrossoverPoints, destinationCrossoverPoints) = ComputeEdgeCrossoverPoints(edgeJob.SourceSegment, edgeJob.DestinationSegment);
 
-            sourceNode.crossoverPointManager.AddMany(edgeJob.SourceSegment, sourceCrossoverPoints);
-            destinationNode.crossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
+            sourceNode.CrossoverPointManager.AddMany(edgeJob.SourceSegment, sourceCrossoverPoints);
+            destinationNode.CrossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
          }
 
          // Flag Source/Destination PolyNodes as dirty.
@@ -152,6 +152,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          waypointToWaypointLut = visibilityGraph.BuildWaypointToWaypointLut();
       }
 
+      public IReadOnlyList<IntVector2> CrossoverPoints => crossoverPoints;
+
       public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
          var segmentSeeingWaypoints = landPolyNode.ComputeSegmentSeeingWaypoints(edgeSegment);
          return points.Map(p => {
@@ -164,14 +166,14 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                return false;
             }
 
-            // Find cost from crossoverPoint to visible waypoints - inefficient!
-            var crossoverPointSeeingWaypointIndices = segmentSeeingWaypoints
-               .Where(wi => landPolyNode.SegmentInLandPolygonNonrecursive(waypoints[wi], crossoverPoint))
-               .ToList();
-            var crossoverPointWaypointLinks = crossoverPointSeeingWaypointIndices.Map(wi => {
-               var cost = waypoints[wi].To(crossoverPoint).Norm2F();
-               return new PathLink { PriorIndex = wi, TotalCost = cost };
-            });
+            // Find cost from crossoverPoint to visible waypoints - crazy inefficient (has visibility poly, atan)!
+            var crossoverPointWaypointLinks =
+            (from wi in segmentSeeingWaypoints
+               let cost = waypoints[wi].To(crossoverPoint).Norm2F()
+               let costSquared = cost * cost
+               let visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi]
+               where visibilityPolygon.Stab(crossoverPoint).MidpointDistanceToOriginSquared >= costSquared
+               select new PathLink { PriorIndex = wi, TotalCost = cost }).ToArray();
             visibleWaypointLinksByCrossoverPointIndex.Add(crossoverPointWaypointLinks);
 
             // Cost from crossoverPoint to all waypoints

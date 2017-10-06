@@ -25,7 +25,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
    }
 
    public class LocalGeometryView {
-      private const int kCrossoverAdditionalPathingDilation = 4;
+      private const int kCrossoverAdditionalPathingDilation = 2;
 
       public readonly LocalGeometryViewManager LocalGeometryViewManager;
       public readonly double ActorRadius;
@@ -130,8 +130,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             return existingTerrainOverlayNetwork;
          }
 
-         Console.WriteLine($"Compiling Terrain Overlay Network for Agent Radius {agentRadius}.");
-
+//         Console.WriteLine($"Compiling Terrain Overlay Network for Agent Radius {agentRadius}.");
          //----------------------------------------------------------------------------------------
          // Sector Node Description => Default Local Geometry View
          //----------------------------------------------------------------------------------------
@@ -142,7 +141,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value.IsPunchedLandEvaluated ? kvp.Value : kvp.Value.Preview);
-
+         
          var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.ToDictionary(
             lgv => lgv,
             lgv => lgv.PunchedLand.EnumerateLandNodes().ToList());
@@ -213,13 +212,13 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          LocalGeometryView = localGeometryView;
          LandPolyNode = landPolyNode;
 
-         crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
+         CrossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
       }
 
       public readonly SectorNodeDescription SectorNodeDescription;
       public readonly LocalGeometryView LocalGeometryView;
       public readonly PolyNode LandPolyNode;
-      public readonly PolyNodeCrossoverPointManager crossoverPointManager;
+      public readonly PolyNodeCrossoverPointManager CrossoverPointManager;
    }
 
    public class TerrainSnapshot {

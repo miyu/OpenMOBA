@@ -120,10 +120,10 @@ namespace OpenMOBA.Foundation {
          TerrainService.AddSectorNodeDescription(sector1);
 
          var sector2 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Test2D);
+         sector2.EnableDebugHighlight = true;
          TerrainService.AddSectorNodeDescription(sector2);
 
          var sector3 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.FourSquares2D);
-         sector3.EnableDebugHighlight = true;
          sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
          TerrainService.AddSectorNodeDescription(sector3);
 

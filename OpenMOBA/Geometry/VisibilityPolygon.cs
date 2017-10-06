@@ -321,6 +321,8 @@ namespace OpenMOBA.Geometry {
 
       public IntervalRange[] Get() => _intervalRanges;
 
+      public IntervalRange Stab(IntVector2 reference) => Stab(FindXYRadiansRelativeToOrigin(reference.X, reference.Y));
+      public IntervalRange Stab(DoubleVector2 reference) => Stab(FindXYRadiansRelativeToOrigin(reference.X, reference.Y));
       public IntervalRange Stab(double theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
 
       public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(IntLineSegment2 s) {

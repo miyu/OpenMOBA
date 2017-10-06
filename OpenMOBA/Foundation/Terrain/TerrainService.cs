@@ -277,6 +277,8 @@ namespace OpenMOBA.Foundation.Terrain {
          this.snapshotCompiler = snapshotCompiler;
       }
 
+      public TerrainSnapshotCompiler SnapshotCompiler => snapshotCompiler;
+
       public SectorNodeDescription CreateSectorNodeDescription(TerrainStaticMetadata metadata) => new SectorNodeDescription(this, metadata);
 
       public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) => storage.AddSectorNodeDescription(sectorNodeDescription);

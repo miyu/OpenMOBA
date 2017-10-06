@@ -106,6 +106,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
       public static PolyNodeVisibilityGraph ComputeVisibilityGraph(this PolyNode landNode) {
          if (landNode.visibilityGraphNodeData.VisibilityDistanceMatrix != null) return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix;
+         Console.WriteLine("Compute Visibility Graph");
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
          return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(waypoints, barriers);
@@ -148,7 +149,6 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
             for (var i = 0; i < segmentsIndices.Length && !crossoverSeen; i++) {
                var (rangeStartIndex, rangeEndIndex) = segmentsIndices[i];
                for (var j = rangeStartIndex; j <= rangeEndIndex && !crossoverSeen; j++) {
-                  Console.WriteLine(waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared + " VS " + erodedCrossoverSegmentWaypointDistanceSquared);
                   if (waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared >= erodedCrossoverSegmentWaypointDistanceSquared) {
                      crossoverSeen = true;
                   }
@@ -231,7 +231,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          var s = new PriorityQueue<DijkstrasIntermediate>((a, b) => a.TotalCost.CompareTo(b.TotalCost));
          foreach (var nearestAndDistance in nearestAndDistances) s.Enqueue(nearestAndDistance);
 
-         var results = Waypoints.Map(x => new PathLink { PriorIndex = -1, TotalCost = float.NaN });
+         var results = Waypoints.Map(x => new PathLink { PriorIndex = -1, TotalCost = float.PositiveInfinity });
          var terminalsToCompletion = terminals?.Length ?? 0;
          while (!s.IsEmpty) {
             // no-op if waypoint already visited
@@ -242,7 +242,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
             // mark waypoint as visited
             var prior = x.Prior;
             var totalCost = x.TotalCost;
-            results[current] = new PathLink { PriorIndex = prior, TotalCost = totalCost };
+            results[current].PriorIndex = prior;
+            results[current].TotalCost = totalCost;
             if (terminals != null && Array.BinarySearch(terminals, current) >= 0) {
                terminalsToCompletion--;
                if (terminalsToCompletion == 0) return results;
@@ -256,7 +257,11 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
                var next = t.NextIndex;
                var currentToNextDistance = t.Cost;
                if (results[next].PriorIndex != -1) continue;
-               s.Enqueue(new DijkstrasIntermediate(current, next, totalCost + currentToNextDistance));
+               var nextTotalCost = totalCost + currentToNextDistance;
+               if (results[next].TotalCost >= nextTotalCost) {
+                  results[next].TotalCost = nextTotalCost;
+                  s.Enqueue(new DijkstrasIntermediate(current, next, nextTotalCost));
+               }
             }
          }
          return results;
