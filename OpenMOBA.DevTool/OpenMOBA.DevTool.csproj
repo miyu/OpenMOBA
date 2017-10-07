@@ -12,6 +12,11 @@
 
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'" />
 
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+     <DebugType>full</DebugType>
+     <DebugSymbols>true</DebugSymbols>
+   </PropertyGroup>
+
    <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
       <Reference Include="System.Drawing" />
       <Reference Include="System.Windows.Forms" />

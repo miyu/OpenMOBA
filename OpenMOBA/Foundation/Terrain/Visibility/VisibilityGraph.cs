@@ -267,7 +267,40 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          return results;
       }
 
+      // Note: Dijkstra's over adjacency list is O(ElogN), so Floyd's algorithm for All Pairwise Shortest Path (APSP)
+      // is potentially more efficient at O(N^3) given we have quite dense graphs and it doesn't use a PQ.
+      // See https://www.cs.rochester.edu/~nelson/courses/csc_173/graphs/apsp.html
+      // TODO: could improve locality via [,] instead of [][]?
       public PathLink[][] BuildWaypointToWaypointLut() {
+         return BuildWaypointToWaypointLutFloydWarshall();
+      }
+
+
+      // TODO: this is doing double work given we have a symmetric matrix.
+      public PathLink[][] BuildWaypointToWaypointLutFloydWarshall() {
+         var res = new PathLink[Waypoints.Length][];
+         for (var swi = 0; swi < Offsets.Length - 1; swi++) {
+            res[swi] = new PathLink[Waypoints.Length];
+            for (var j = Offsets[swi]; j < Offsets[swi + 1]; j++) {
+               var edge = Edges[j];
+               res[swi][edge.NextIndex].TotalCost = edge.Cost;
+               res[swi][edge.NextIndex].PriorIndex = -1;
+            }
+         }
+         for (var k = 0; k < Waypoints.Length; k++) {
+            for (var i = 0; i < Waypoints.Length; i++) {
+               for (var j = 0; j < Waypoints.Length; j++) {
+                  if (res[i][k].TotalCost + res[k][j].TotalCost < res[i][j].TotalCost) {
+                     res[i][j].TotalCost = res[i][k].TotalCost + res[k][j].TotalCost;
+                     res[i][j].PriorIndex = k;
+                  }
+               }
+            }
+         }
+         return res;
+      }
+
+      public PathLink[][] BuildWaypointToWaypointLutDijkstras() {
          var res = new PathLink[Waypoints.Length][];
          for (var wi = 0; wi < Waypoints.Length; wi++) {
             res[wi] = Dijkstras(new[] { Waypoints[wi] });

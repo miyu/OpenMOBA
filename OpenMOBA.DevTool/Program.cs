@@ -83,11 +83,11 @@ namespace OpenMOBA.DevTool {
          GC.Collect();
          var sw = new Stopwatch();
          sw.Start();
-         for (var i = 0; i < 100; i++) {
+         for (var i = 0; i < 1000; i++) {
             TerrainService.SnapshotCompiler.InvalidateCaches();
             TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
          }
-         Console.WriteLine("100itr: " + sw.ElapsedMilliseconds + "ms");
+         Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
          //         DrawTestPathfindingQueries(null, holeDilationRadius);
          return;
 
