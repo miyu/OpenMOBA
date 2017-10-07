@@ -206,6 +206,30 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       //      }
    }
 
+   public class TerrainOverlayNetworkEdgeGroup {
+      public readonly TerrainOverlayNetworkNode Source;
+      public readonly TerrainOverlayNetworkNode Destination;
+      public readonly TerrainOverlayNetworkEdge[] Edges;
+
+      public TerrainOverlayNetworkEdgeGroup(TerrainOverlayNetworkNode source, TerrainOverlayNetworkNode destination, TerrainOverlayNetworkEdge[] edges) {
+         Source = source;
+         Destination = destination;
+         Edges = edges;
+      }
+   }
+
+   public class TerrainOverlayNetworkEdge {
+      public TerrainOverlayNetworkEdge(int sourceCrossoverIndex, int destinationCrossoverIndex, int cost) {
+         SourceCrossoverIndex = sourceCrossoverIndex;
+         DestinationCrossoverIndex = destinationCrossoverIndex;
+         Cost = cost;
+      }
+
+      public readonly int SourceCrossoverIndex;
+      public readonly int DestinationCrossoverIndex;
+      public readonly int Cost;
+   }
+
    public class TerrainOverlayNetworkNode {
       public TerrainOverlayNetworkNode(SectorNodeDescription sectorNodeDescription, LocalGeometryView localGeometryView, PolyNode landPolyNode) {
          SectorNodeDescription = sectorNodeDescription;
@@ -219,6 +243,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public readonly LocalGeometryView LocalGeometryView;
       public readonly PolyNode LandPolyNode;
       public readonly PolyNodeCrossoverPointManager CrossoverPointManager;
+      public HashSet<TerrainOverlayNetworkEdgeGroup> EdgeGroups = new HashSet<TerrainOverlayNetworkEdgeGroup>();
    }
 
    public class TerrainSnapshot {

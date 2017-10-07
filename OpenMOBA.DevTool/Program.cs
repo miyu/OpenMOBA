@@ -76,20 +76,21 @@ namespace OpenMOBA.DevTool {
 
       private void RenderDebugFrame() {
          var holeDilationRadius = 15.0;
-         for (var i = 0; i < 100; i++) {
-            TerrainService.SnapshotCompiler.InvalidateCaches();
-            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
-         }
-         GC.Collect();
-         var sw = new Stopwatch();
-         sw.Start();
-         for (var i = 0; i < 1000; i++) {
-            TerrainService.SnapshotCompiler.InvalidateCaches();
-            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
-         }
-         Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
-         //         DrawTestPathfindingQueries(null, holeDilationRadius);
-         return;
+
+//         for (var i = 0; i < 100; i++) {
+//            TerrainService.SnapshotCompiler.InvalidateCaches();
+//            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+//         }
+//         GC.Collect();
+//         var sw = new Stopwatch();
+//         sw.Start();
+//         for (var i = 0; i < 1000; i++) {
+//            TerrainService.SnapshotCompiler.InvalidateCaches();
+//            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+//         }
+//         Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
+//         //         DrawTestPathfindingQueries(null, holeDilationRadius);
+//         return;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
@@ -113,6 +114,7 @@ namespace OpenMOBA.DevTool {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
                var localGeometryView = terrainNode.LocalGeometryView;
                var landPolyNode = terrainNode.LandPolyNode;
+               var crossoverPointManager = terrainNode.CrossoverPointManager;
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
                debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
@@ -120,6 +122,17 @@ namespace OpenMOBA.DevTool {
                if (!sectorNodeDescription.EnableDebugHighlight) {
 //                  debugCanvas.DrawWallPushGrid(sectorSnapshot, holeDilationRadius);
                   continue;
+               }
+
+               if (terrainNode.EdgeGroups.Count >= 4) {
+                  var g1 = terrainNode.EdgeGroups.First();
+                  var g2 = terrainNode.EdgeGroups.Skip(3).First();
+                  var e1 = g1.Edges[g1.Edges.Length * 3 / 4];
+                  var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
+                  var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
+                  var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
+                  debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
+                  debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
                }
 
 //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)));
@@ -133,10 +146,17 @@ namespace OpenMOBA.DevTool {
 //                  debugCanvas.DrawPoint(ind, new StrokeStyle(Color.DarkSlateGray, 10));
 //               }
 
-               foreach (var p in terrainNode.CrossoverPointManager.CrossoverPoints) {
+               foreach (var p in crossoverPointManager.CrossoverPoints) {
                   debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
                }
-//               terrainNode.CrossoverPointManager.CrossoverPoints
+
+               foreach (var g in terrainNode.EdgeGroups) {
+                  foreach (var e in g.Edges) {
+                     debugCanvas.DrawPoint(crossoverPointManager.CrossoverPoints[e.SourceCrossoverIndex], new StrokeStyle(Color.White, 3));
+                  }
+               }
+
+               //               terrainNode.CrossoverPointManager.CrossoverPoints
 
                continue;
 

@@ -15,10 +15,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       private readonly Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView;
       private readonly Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode;
 
-      private readonly IReadOnlyList<SectorEdgeDescription> edges;
-      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgesBySource;
-      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByDestination;
-      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByEndpoints;
+      private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
+      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsBySource;
+      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination;
+      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByEndpoints;
 
       private readonly Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>> edgeJobCache = new Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>>();
 
@@ -28,26 +28,26 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          Dictionary<SectorNodeDescription, TerrainOverlayNetworkNode[]> activeTerrainNodesBySectorNodeDescription,
          Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView,
          Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode,
-         IReadOnlyList<SectorEdgeDescription> edges,
-         ILookup<SectorNodeDescription, SectorEdgeDescription> edgesBySource, 
-         ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByDestination, 
-         ILookup<SectorNodeDescription, SectorEdgeDescription> edgesByEndpoints
+         IReadOnlyList<SectorEdgeDescription> edgeDescriptions,
+         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsBySource, 
+         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination, 
+         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByEndpoints
       ) {
          this.agentRadius = agentRadius;
          this.activeLocalGeometryViewBySectorNodeDescription = activeLocalGeometryViewBySectorNodeDescription;
          this.activeTerrainNodesBySectorNodeDescription = activeTerrainNodesBySectorNodeDescription;
          this.landPolyNodesByDefaultLocalGeometryView = landPolyNodesByDefaultLocalGeometryView;
          this.terrainNodesBySectorNodeDescriptionAndPolyNode = terrainNodesBySectorNodeDescriptionAndPolyNode;
-         this.edges = edges;
-         this.edgesBySource = edgesBySource;
-         this.edgesByDestination = edgesByDestination;
-         this.edgesByEndpoints = edgesByEndpoints;
+         this.edgeDescriptions = edgeDescriptions;
+         this.edgeDescriptionsBySource = edgeDescriptionsBySource;
+         this.edgeDescriptionsByDestination = edgeDescriptionsByDestination;
+         this.edgeDescriptionsByEndpoints = edgeDescriptionsByEndpoints;
       }
 
       public IReadOnlyCollection<TerrainOverlayNetworkNode> TerrainNodes => terrainNodesBySectorNodeDescriptionAndPolyNode.Values;
 
       public void Initialize() {
-         foreach (var edge in edges) {
+         foreach (var edge in edgeDescriptions) {
             UpdateEdge(edge, false);
          }
       }
@@ -70,8 +70,12 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var destinationNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Destination, edgeJob.DestinationPolyNode)];
             var (sourceCrossoverPoints, destinationCrossoverPoints) = ComputeEdgeCrossoverPoints(edgeJob.SourceSegment, edgeJob.DestinationSegment);
 
-            sourceNode.CrossoverPointManager.AddMany(edgeJob.SourceSegment, sourceCrossoverPoints);
-            destinationNode.CrossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
+            var sourceCrossoverIndices = sourceNode.CrossoverPointManager.AddMany(edgeJob.SourceSegment, sourceCrossoverPoints);
+            var destinationCrossoverIndices = destinationNode.CrossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
+
+            var edges = sourceCrossoverIndices.Zip(destinationCrossoverIndices, (sci, dci) => new TerrainOverlayNetworkEdge(sci, dci, 0))
+                                              .ToArray();
+            sourceNode.EdgeGroups.Add(new TerrainOverlayNetworkEdgeGroup(sourceNode, destinationNode, edges));
          }
 
          // Flag Source/Destination PolyNodes as dirty.
@@ -152,7 +156,9 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          waypointToWaypointLut = visibilityGraph.BuildWaypointToWaypointLut();
       }
 
+      public IReadOnlyList<IntVector2> Waypoints => waypoints;
       public IReadOnlyList<IntVector2> CrossoverPoints => crossoverPoints;
+      public IReadOnlyList<IReadOnlyList<PathLink>> OptimalLinkToOtherCrossoversByCrossoverPointIndex => optimalLinkToOtherCrossoversByCrossoverPointIndex;
 
       public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
          var segmentSeeingWaypoints = landPolyNode.ComputeSegmentSeeingWaypoints(edgeSegment);
