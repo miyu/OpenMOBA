@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using ClipperLib;
 using OpenMOBA.DataStructures;
@@ -120,6 +121,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       // Data from the PolyNode
       //-------------------------------------------------------------------------------------------
       private readonly IntVector2[] waypoints;
+      private readonly int[] allWaypointIndices;
       private readonly PolyNodeVisibilityGraph visibilityGraph;
 
       /// <summary>
@@ -152,6 +154,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public PolyNodeCrossoverPointManager(PolyNode landPolyNode) {
          this.landPolyNode = landPolyNode;
          waypoints = landPolyNode.FindAggregateContourCrossoverWaypoints();
+         allWaypointIndices = waypoints.Map((_, i) => i);
          visibilityGraph = landPolyNode.ComputeVisibilityGraph();
          waypointToWaypointLut = visibilityGraph.BuildWaypointToWaypointLut();
       }
@@ -159,6 +162,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public IReadOnlyList<IntVector2> Waypoints => waypoints;
       public IReadOnlyList<IntVector2> CrossoverPoints => crossoverPoints;
       public IReadOnlyList<IReadOnlyList<PathLink>> OptimalLinkToOtherCrossoversByCrossoverPointIndex => optimalLinkToOtherCrossoversByCrossoverPointIndex;
+
+      // Todo: Can we support DV2s?
 
       public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
          var segmentSeeingWaypoints = landPolyNode.ComputeSegmentSeeingWaypoints(edgeSegment);
@@ -172,54 +177,69 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                return false;
             }
 
-            // Find cost from crossoverPoint to visible waypoints - crazy inefficient (has visibility poly, atan)!
-            var crossoverPointWaypointLinks =
-            (from wi in segmentSeeingWaypoints
-               let cost = waypoints[wi].To(crossoverPoint).Norm2F()
-               let costSquared = cost * cost
-               let visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi]
-               where visibilityPolygon.Stab(crossoverPoint).MidpointDistanceToOriginSquared >= costSquared
-               select new PathLink { PriorIndex = wi, TotalCost = cost }).ToArray();
-            visibleWaypointLinksByCrossoverPointIndex.Add(crossoverPointWaypointLinks);
-
-            // Cost from crossoverPoint to all waypoints
-            var optimalLinkToWaypoints = waypoints.Map((waypoint, wi) => {
-               var optimalLink = crossoverPointWaypointLinks.MinBy(cpwl => cpwl.TotalCost + waypointToWaypointLut[wi][cpwl.PriorIndex].TotalCost);
-               return new PathLink { PriorIndex = optimalLink.PriorIndex, TotalCost = optimalLink.TotalCost + waypointToWaypointLut[wi][optimalLink.PriorIndex].TotalCost };
-            });
+            var (visibleWaypointLinks, optimalLinkToWaypoints, optimalLinkToCrossovers) = FindOptimalLinksToCrossovers(crossoverPoint, segmentSeeingWaypoints);
+            visibleWaypointLinksByCrossoverPointIndex.Add(visibleWaypointLinks);
             optimalLinkToWaypointsByCrossoverPointIndex.Add(optimalLinkToWaypoints);
+            optimalLinkToOtherCrossoversByCrossoverPointIndex.Add(optimalLinkToCrossovers);
+            Trace.Assert(optimalLinkToOtherCrossoversByCrossoverPointIndex.Count == optimalLinkToCrossovers.Count);
 
-            // Cost from crossoverPoint to other crossoverPoints...
-            var optimalLinkToOtherCrossovers = new List<PathLink>();
-            optimalLinkToOtherCrossoversByCrossoverPointIndex.Add(optimalLinkToOtherCrossovers);
             for (var otherCpi = 0; otherCpi < crossoverPoints.Count - 1; otherCpi++) {
-               if (landPolyNode.SegmentInLandPolygonNonrecursive(crossoverPoint, crossoverPoints[otherCpi])) {
-                  var totalCost = crossoverPoint.To(crossoverPoints[otherCpi]).Norm2F();
-                  optimalLinkToOtherCrossoversByCrossoverPointIndex[otherCpi].Add(new PathLink {
-                     PriorIndex = PathLink.DirectPathIndex,
-                     TotalCost = totalCost
-                  });
-                  optimalLinkToOtherCrossovers.Add(new PathLink {
-                     PriorIndex = PathLink.DirectPathIndex,
-                     TotalCost = totalCost
-                  });
-               } else {
-                  var otherOptimalLinkByWaypointIndex = optimalLinkToWaypointsByCrossoverPointIndex[otherCpi];
-                  var optimalLinkToOtherCrossoverPoint = crossoverPointWaypointLinks.MinBy(cpwl => cpwl.TotalCost + otherOptimalLinkByWaypointIndex[cpwl.PriorIndex].TotalCost);
-                  var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
-                  var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
-                  optimalLinkToOtherCrossoversByCrossoverPointIndex[otherCpi].Add(new PathLink {
-                     PriorIndex = optimalLinkFromOtherCrossoverPoint.PriorIndex,
-                     TotalCost = totalCost
-                  });
-                  optimalLinkToOtherCrossovers.Add(new PathLink {
-                     PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
-                     TotalCost = totalCost
-                  });
-               }
+               var linkToOther = optimalLinkToCrossovers[otherCpi];
+               var linkFromOther = linkToOther.PriorIndex == PathLink.DirectPathIndex
+                  ? new PathLink { PriorIndex = PathLink.DirectPathIndex, TotalCost = linkToOther.TotalCost }
+                  : new PathLink {
+                     PriorIndex = optimalLinkToWaypointsByCrossoverPointIndex[otherCpi][linkToOther.PriorIndex].PriorIndex,
+                     TotalCost = linkToOther.TotalCost
+                  };
+               optimalLinkToOtherCrossoversByCrossoverPointIndex[otherCpi].Add(linkFromOther);
             }
             return true;
          }
+      }
+
+      public (PathLink[] visibleWaypointLinks, PathLink[] optimalLinkToWaypoints, List<PathLink> optimalLinkToCrossovers) FindOptimalLinksToCrossovers(IntVector2 p, int[] candidateWaypoints = null) {
+         candidateWaypoints = candidateWaypoints ?? allWaypointIndices;
+
+         // Find cost from p to visible waypoints - crazy inefficient (has visibility poly, atan)!
+         var visibleWaypointLinks = (from wi in candidateWaypoints
+                                     let costSquared = waypoints[wi].To(p).SquaredNorm2()
+                                     let cost = Math.Sqrt(costSquared)
+                                     let visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi]
+                                     where visibilityPolygon.Stab(p).MidpointDistanceToOriginSquared >= costSquared
+                                     select new PathLink { PriorIndex = wi, TotalCost = (float)cost }).ToArray();
+
+         // Cost from p to all waypoints
+         var optimalLinkToWaypoints = waypoints.Map((waypoint, wi) => {
+            var optimalLink = visibleWaypointLinks.MinBy(cpwl => cpwl.TotalCost + waypointToWaypointLut[wi][cpwl.PriorIndex].TotalCost);
+            return new PathLink { PriorIndex = optimalLink.PriorIndex, TotalCost = optimalLink.TotalCost + waypointToWaypointLut[wi][optimalLink.PriorIndex].TotalCost };
+         });
+
+         // Cost from p to other crossoverPoints...
+         var optimalLinkToCrossovers = new List<PathLink>();
+         for (var cpi = 0; cpi < crossoverPoints.Count; cpi++) {
+            if (p == crossoverPoints[cpi]) {
+               optimalLinkToCrossovers.Add(new PathLink {
+                  PriorIndex = PathLink.DirectPathIndex,
+                  TotalCost = 0
+               });
+            } else if (landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi])) {
+               var totalCost = p.To(crossoverPoints[cpi]).Norm2F();
+               optimalLinkToCrossovers.Add(new PathLink {
+                  PriorIndex = PathLink.DirectPathIndex,
+                  TotalCost = totalCost
+               });
+            } else {
+               var otherOptimalLinkByWaypointIndex = optimalLinkToWaypointsByCrossoverPointIndex[cpi];
+               var optimalLinkToOtherCrossoverPoint = visibleWaypointLinks.MinBy(cpwl => cpwl.TotalCost + otherOptimalLinkByWaypointIndex[cpwl.PriorIndex].TotalCost);
+               var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
+               var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
+               optimalLinkToCrossovers.Add(new PathLink {
+                  PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
+                  TotalCost = totalCost
+               });
+            }
+         }
+         return (visibleWaypointLinks, optimalLinkToWaypoints, optimalLinkToCrossovers);
       }
    }
 }
