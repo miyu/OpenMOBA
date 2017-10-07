@@ -220,8 +220,60 @@ namespace OpenMOBA.Foundation {
          return false;
       }
 
-      public bool TryFindPath(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint) {
-         var (_, _, optimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
+      public struct OverlayPathLink {
+         public const int UnvisitedIndex = int.MinValue;
+
+         public IReadOnlyList<IntVector2> PriorCrossoverPointSet;
+         public int PriorCrossoverPointIndex;
+         public float TotalCost;
+      }
+
+      public struct OverlayDijkstrasIntermediate {
+         public float TotalCost;
+
+         public TerrainOverlayNetworkNode CurrentNode;
+         public IReadOnlyList<IntVector2> CurrentCrossoverPointSet;
+         public int CurrentCrossoverPointIndex;
+      }
+
+      public bool Dijkstras(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint) {
+         var (_, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
+         var (_, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
+
+         var results = new Dictionary<TerrainOverlayNetworkNode, OverlayPathLink[]>();
+         var q = new PriorityQueue<OverlayDijkstrasIntermediate>((a, b) => a.TotalCost.CompareTo(b.TotalCost));
+
+         var startNodeResults = results[sourceNode] = sourceNode.CrossoverPointManager.CrossoverPoints.Map(_ => new OverlayPathLink());
+         foreach (var (cpi, link) in sourceOptimalLinkToCrossovers.Enumerate()) {
+            startNodeResults[cpi].TotalCost = link.TotalCost;
+            startNodeResults[cpi].PriorCrossoverPointIndex = -1;
+            startNodeResults[cpi].PriorCrossoverPointSet = null;
+
+            q.Enqueue(new OverlayDijkstrasIntermediate {
+               TotalCost = link.TotalCost,
+               CurrentNode = sourceNode,
+               CurrentCrossoverPointSet = sourceNode.CrossoverPointManager.CrossoverPoints,
+               CurrentCrossoverPointIndex = cpi
+            });
+         }
+
+         while (!q.IsEmpty) {
+            var x = q.Dequeue();
+            if (!results.TryGetValue(x.CurrentNode, out OverlayPathLink[] nodeCrossoverPointResults)) {
+               nodeCrossoverPointResults = x.CurrentNode.CrossoverPointManager.CrossoverPoints.Map(
+                  _ => new OverlayPathLink { PriorCrossoverPointIndex = OverlayPathLink.UnvisitedIndex });
+               results[x.CurrentNode] = nodeCrossoverPointResults;
+            }
+
+            if (nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointIndex != OverlayPathLink.UnvisitedIndex) {
+               continue;
+            }
+            nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].TotalCost = x.TotalCost;
+            nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointSet = x.PriorCrossoverPointSet;
+            nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointIndex = x.PriorCrossoverPointIndex;
+
+            x.CurrentNode.CrossoverPointManager.
+         }
          return false;
       }
    }
