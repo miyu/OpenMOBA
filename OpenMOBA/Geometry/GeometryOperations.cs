@@ -315,6 +315,10 @@ namespace OpenMOBA.Geometry {
          return FindNearestPoint(p1, p2, query);
       }
 
+      public static DoubleVector2 FindNearestPoint(DoubleLineSegment2 segment, DoubleVector2 query) {
+         return FindNearestPoint(segment.First, segment.Second, query);
+      }
+
       public static bool TryErode(this IntLineSegment2 segment, int erosionRadius, out IntLineSegment2 result) {
          var a = segment.First;
          var b = segment.Second;

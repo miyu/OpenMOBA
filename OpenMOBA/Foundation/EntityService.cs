@@ -8,6 +8,7 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Snapshots;
+using OpenMOBA.Foundation.Terrain.Visibility;
 using OpenMOBA.Geometry;
 using cInt = System.Int64;
 
@@ -217,6 +218,30 @@ namespace OpenMOBA.Foundation {
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out List<DoubleVector3> path) {
          path = null;
          return false;
+      }
+
+      public bool TryFindPath(TerrainOverlayNetworkNode sourceNode, DoubleVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, DoubleVector2 destinationPoint) {
+         var sourceVisibilityPolygon = VisibilityPolygon.Create(sourcePoint, sourceNode.LandPolyNode.FindContourAndChildHoleBarriers());
+         var destinationVisibilityPolygon = VisibilityPolygon.Create(destinationPoint, destinationNode.LandPolyNode.FindContourAndChildHoleBarriers());
+         return false;
+      }
+
+      private void FindCostsToEdgeGroups(TerrainOverlayNetworkNode node, DoubleVector2 p) {
+         var visibilityPolygon = VisibilityPolygon.Create(p, node.LandPolyNode.FindContourAndChildHoleBarriers());
+         var edgeGroups = node.EdgeGroups.ToArray();
+         var edgeGroupCosts = edgeGroups.Map(g => g.Edges.Map(e => -1));
+         
+
+         foreach (var g in node.EdgeGroups) {
+            var pToEdgeDistanceSquared = GeometryOperations.FindNearestPoint(g.EdgeJob.SourceSegment, p).To(p).SquaredNorm2D();
+            var ranges = visibilityPolygon.Get();
+            var rangeIndices = visibilityPolygon.RangeStab(g.EdgeJob.SourceSegment);
+            foreach (var (startIndexInclusive, endIndexExclusive) in rangeIndices) {
+               for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+                  
+               }
+            }
+         }
       }
    }
 

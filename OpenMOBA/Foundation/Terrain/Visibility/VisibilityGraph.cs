@@ -162,6 +162,21 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          return crossoverSeeingWaypoints.ToArray();
       }
 
+      public static (int, double)[] ComputePointSeeingWaypointsAndDistances(this PolyNode landNode, IntVector2 query) => ComputePointSeeingWaypointsAndDistances(landNode, query.ToDoubleVector2());
+
+      // Potential optimization: Switch algos if visibility polygons not yet computed
+      public static (int, double)[] ComputePointSeeingWaypointsAndDistances(this PolyNode landNode, DoubleVector2 query) {
+         var visibilityPolygons = ComputeWaypointVisibilityPolygons(landNode);
+         return (
+            from wi in Enumerable.Range(0, visibilityPolygons.Length)
+            let vp = visibilityPolygons[wi]
+            let queryOriginSquaredDistance = vp.Origin.To(query).SquaredNorm2D()
+            where queryOriginSquaredDistance <= vp.Stab(query).MidpointDistanceToOriginSquared
+            let queryOriginDistance = Math.Sqrt(queryOriginSquaredDistance)
+            select (wi, queryOriginDistance)
+         ).ToArray();
+      }
+
 //      public static HashSet<ISourceSegmentEdgeDescription>[] ComputeCrossoversSeenByWaypoints(this PolyNode landNode) {
 //         if (landNode.visibilityGraphNodeData.EdgesSeenByWaypointIndices != null) {
 //            return landNode.visibilityGraphNodeData.EdgesSeenByWaypointIndices;
@@ -182,6 +197,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
    }
 
    public struct PathLink {
+      public const int DirectPathIndex = -1337;
+
       public int PriorIndex;
       public float TotalCost;
    }

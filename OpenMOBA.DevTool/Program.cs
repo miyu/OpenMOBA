@@ -131,8 +131,13 @@ namespace OpenMOBA.DevTool {
                   var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
                   var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
                   var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
-                  debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
-                  debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
+                  if (linkEnter.PriorIndex == PathLink.DirectPathIndex) {
+                     debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
+
+                  } else {
+                     debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
+                     debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
+                  }
                }
 
 //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)));

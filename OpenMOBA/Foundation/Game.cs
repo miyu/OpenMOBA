@@ -119,7 +119,7 @@ namespace OpenMOBA.Foundation {
          sector1.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
          TerrainService.AddSectorNodeDescription(sector1);
 
-         var sector2 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Test2D);
+         var sector2 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
          sector2.EnableDebugHighlight = true;
          TerrainService.AddSectorNodeDescription(sector2);
 
