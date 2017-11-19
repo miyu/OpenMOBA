@@ -269,10 +269,8 @@ namespace OpenMOBA.Foundation {
                continue;
             }
             nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].TotalCost = x.TotalCost;
-            nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointSet = x.PriorCrossoverPointSet;
-            nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointIndex = x.PriorCrossoverPointIndex;
-
-            x.CurrentNode.CrossoverPointManager.
+            // nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointSet = x.PriorCrossoverPointSet;
+            // nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointIndex = x.PriorCrossoverPointIndex;
          }
          return false;
       }

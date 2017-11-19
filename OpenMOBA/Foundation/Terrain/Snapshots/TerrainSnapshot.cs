@@ -104,8 +104,16 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             node.Childs.ForEach(TagSectorSnapshotAndGeometryContext);
          }
 
+         void TagBoundingVolumeHierarchies(PolyNode node) {
+            var contourEdges = node.Contour.Zip(node.Contour.RotateLeft(), IntLineSegment2.Create).ToArray();
+            var bvh = BvhILS2.Build(contourEdges);
+            node.visibilityGraphNodeData.Bvh = bvh;
+            node.Childs.ForEach(TagBoundingVolumeHierarchies);
+         }
+
          PrunePolytree(punchedLand);
          TagSectorSnapshotAndGeometryContext(punchedLand);
+         TagBoundingVolumeHierarchies(punchedLand);
          return punchedLand;
       }
 
@@ -176,6 +184,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             edgesBySource,
             edgesByDestination,
             edgesByEndpoints);
+         terrainOverlayNetwork.Initialize();
          return terrainOverlayNetworkCache[agentRadius] = terrainOverlayNetwork;
       }
 
@@ -245,7 +254,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public readonly LocalGeometryView LocalGeometryView;
       public readonly PolyNode LandPolyNode;
       public readonly PolyNodeCrossoverPointManager CrossoverPointManager;
-      public readonly HashSet<TerrainOverlayNetworkEdgeGroup> EdgeGroups = new HashSet<TerrainOverlayNetworkEdgeGroup>();
+      public readonly MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup> InboundEdgeGroups = new MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup>();
+      public readonly MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup> OutboundEdgeGroups = new MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup>();
    }
 
    public class TerrainSnapshot {

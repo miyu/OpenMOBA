@@ -126,15 +126,24 @@ namespace OpenMOBA.Geometry {
       }
 
       private static PolygonContainmentResult SegmentInPolygon(this PolyNode node, IntLineSegment2 query) {
-         for (var i = 0; i < node.Contour.Count; i++) {
-            var a = node.Contour[i == 0 ? node.Contour.Count - 1 : i - 1];
-            var b = node.Contour[i];
-            var s = new IntLineSegment2(a, b);
-            if ((s.First == query.First && s.Second == query.Second) || (s.Second == query.First && s.First == query.Second)) {
-               return PolygonContainmentResult.OnPolygon;
-            }
-            if (s.Intersects(query)) {
+         var bvh = node.visibilityGraphNodeData.Bvh;
+         if (bvh != null) {
+            if (bvh.Intersects(ref query)) {
                return PolygonContainmentResult.IntersectsPolygon;
+            }
+         } else {
+            var last = node.Contour[node.Contour.Count - 1];
+            var q1 = query.First;
+            var q2 = query.Second;
+            for (var i = 0; i < node.Contour.Count; i++) {
+               var current = node.Contour[i];
+               if ((current == q1 && last == q2) || (current == q2 && last == q1)) {
+                  return PolygonContainmentResult.OnPolygon;
+               }
+               if (IntLineSegment2.Intersects(current.X, current.Y, last.X, last.Y, q1.X, q1.Y, q2.X, q2.Y)) {
+                  return PolygonContainmentResult.IntersectsPolygon;
+               }
+               last = current;
             }
          }
 

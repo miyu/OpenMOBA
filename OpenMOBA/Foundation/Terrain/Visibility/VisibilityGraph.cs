@@ -12,7 +12,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
    public struct PolyNodeVisbilityGraphTreeData {
    }
 
-   public struct PolyNodeVisbilityGraphNodeData {
+   public struct ExtraNodeData {
       public LocalGeometryView LocalGeometryView;
 
       public IntVector2[] ContourWaypoints;
@@ -20,6 +20,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       public IntLineSegment2[] ContourAndChildHoleBarriers;
       public PolyNodeVisibilityGraph VisibilityDistanceMatrix;
       public VisibilityPolygon[] AggregateContourWaypointVisibilityPolygons;
+      public BvhILS2 Bvh;
    }
 
    public class Path {

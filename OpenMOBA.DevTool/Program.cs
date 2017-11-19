@@ -29,6 +29,7 @@ namespace OpenMOBA.DevTool {
 
    public class GameDebugger : IGameDebugger {
       private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 15.0);
+      private static readonly StrokeStyle PathStroke2 = new StrokeStyle(Color.DarkGreen, 15.0);
       private static readonly StrokeStyle NoPathStroke = new StrokeStyle(Color.Red, 15.0, new[] { 1.0f, 1.0f });
       private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
 
@@ -74,23 +75,29 @@ namespace OpenMOBA.DevTool {
          TerrainService.AddTemporaryHoleDescription(new DynamicTerrainHoleDescription{ Polygons = holeSquiggle });
       }
 
+      private void Benchmark(double holeDilationRadius) {
+         void RunBenchmarkIteration() {
+            TerrainService.SnapshotCompiler.InvalidateCaches();
+            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+         }
+
+         for (var i = 0; i < 100; i++) {
+            RunBenchmarkIteration();
+         }
+         GC.Collect();
+         var sw = new Stopwatch();
+         sw.Start();
+         PolyNodeCrossoverPointManager.A = PolyNodeCrossoverPointManager.B = PolyNodeCrossoverPointManager.C = 0;
+         for (var i = 0; i < 1000; i++) {
+            RunBenchmarkIteration();
+         }
+         Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
+         Console.WriteLine(PolyNodeCrossoverPointManager.A + " " + PolyNodeCrossoverPointManager.B + " " + PolyNodeCrossoverPointManager.C);
+      }
+
       private void RenderDebugFrame() {
          var holeDilationRadius = 15.0;
-
-//         for (var i = 0; i < 100; i++) {
-//            TerrainService.SnapshotCompiler.InvalidateCaches();
-//            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
-//         }
-//         GC.Collect();
-//         var sw = new Stopwatch();
-//         sw.Start();
-//         for (var i = 0; i < 1000; i++) {
-//            TerrainService.SnapshotCompiler.InvalidateCaches();
-//            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
-//         }
-//         Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
-//         //         DrawTestPathfindingQueries(null, holeDilationRadius);
-//         return;
+         Benchmark(holeDilationRadius);
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
@@ -124,20 +131,25 @@ namespace OpenMOBA.DevTool {
                   continue;
                }
 
-               if (terrainNode.EdgeGroups.Count >= 4) {
-                  var g1 = terrainNode.EdgeGroups.First();
-                  var g2 = terrainNode.EdgeGroups.Skip(3).First();
+               var outboundEdges = terrainNode.OutboundEdgeGroups.SelectMany(kvp => kvp.Value).ToList();
+               if (outboundEdges.Count >= 4) {
+                  var g1 = outboundEdges.First();
+                  var g2 = outboundEdges.Skip(3).First();
                   var e1 = g1.Edges[g1.Edges.Length * 3 / 4];
                   var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
                   var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
                   var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
                   if (linkEnter.PriorIndex == PathLink.DirectPathIndex) {
-                     debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
-
+                     debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke2);
                   } else {
                      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
                      debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
                   }
+               }
+
+               var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.Bvh;
+               if (bvh != null) {
+                  debugCanvas.DrawBvh(bvh);
                }
 
 //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)));
@@ -155,7 +167,7 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
                }
 
-               foreach (var g in terrainNode.EdgeGroups) {
+               foreach (var g in outboundEdges) {
                   foreach (var e in g.Edges) {
                      debugCanvas.DrawPoint(crossoverPointManager.CrossoverPoints[e.SourceCrossoverIndex], new StrokeStyle(Color.White, 3));
                   }

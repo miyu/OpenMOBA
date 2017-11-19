@@ -1,7 +1,7 @@
 ﻿using System;
 using System.CodeDom;
 using System.Drawing;
-
+using System.Runtime.CompilerServices;
 using cInt = System.Int64;
 
 namespace OpenMOBA.Geometry {
@@ -24,7 +24,17 @@ namespace OpenMOBA.Geometry {
       public bool Intersects(IntLineSegment2 other) {
          cInt ax = X1, ay = Y1, bx = X2, by = Y2;
          cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
+      }
 
+      public bool Intersects(ref IntLineSegment2 other) {
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy) {
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
          var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
          var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
@@ -54,6 +64,9 @@ namespace OpenMOBA.Geometry {
       public override string ToString() => $"({First}, {Second})";
 
       public IntVector2 ComputeMidpoint() => new IntVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static IntLineSegment2 Create(IntVector2 first, IntVector2 second) => new IntLineSegment2(first, second);
    }
 
    public struct IntLineSegment3 {

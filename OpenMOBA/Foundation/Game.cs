@@ -125,7 +125,7 @@ namespace OpenMOBA.Foundation {
 
          var sector3 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.FourSquares2D);
          sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
-         TerrainService.AddSectorNodeDescription(sector3);
+//         TerrainService.AddSectorNodeDescription(sector3);
 
          var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
          var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
@@ -137,10 +137,10 @@ namespace OpenMOBA.Foundation {
          TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left1, right1));
          TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left2, right2));
 
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right1, left1));
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right2, left2));
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left1, right1));
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left2, right2));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right1, left1));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right2, left2));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left1, right1));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left2, right2));
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
@@ -230,7 +230,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
 //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 1) {
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 5) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
                break;
             }

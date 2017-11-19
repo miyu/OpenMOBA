@@ -1,6 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using OpenMOBA.Geometry;
 using cInt = System.Int64;
 
 namespace OpenMOBA.DataStructures {
@@ -130,5 +133,64 @@ namespace OpenMOBA.DataStructures {
       }
 
       public override string ToString() => $"Rect {Left} {Top} {Right} {Bottom}";
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static IntRect2 BoundingRectangles(IntRect2 first, IntRect2 second) {
+         return new IntRect2 {
+            Left = Math.Min(first.Left, second.Left),
+            Top = Math.Min(first.Top, second.Top),
+            Right = Math.Max(first.Right, second.Right),
+            Bottom = Math.Max(first.Bottom, second.Bottom)
+         };
+      }
+
+      public static IntRect2 BoundingSegments(IntLineSegment2[] subsegments, int startIndexInclusive = 0, int endIndexExclusive = -1) {
+         if (endIndexExclusive == -1) endIndexExclusive = subsegments.Length;
+         cInt minX = cInt.MaxValue, minY = cInt.MaxValue, maxX = cInt.MinValue, maxY = cInt.MinValue;
+         for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+            if (subsegments[i].First.X < minX) minX = subsegments[i].First.X;
+            if (subsegments[i].Second.X < minX) minX = subsegments[i].Second.X;
+
+            if (subsegments[i].First.Y < minY) minY = subsegments[i].First.Y;
+            if (subsegments[i].Second.Y < minY) minY = subsegments[i].Second.Y;
+
+            if (maxX < subsegments[i].First.X) maxX = subsegments[i].First.X;
+            if (maxX < subsegments[i].Second.X) maxX = subsegments[i].Second.X;
+
+            if (maxY < subsegments[i].First.Y) maxY = subsegments[i].First.Y;
+            if (maxY < subsegments[i].Second.Y) maxY = subsegments[i].Second.Y;
+         }
+         return new IntRect2 { Left = minX, Top = minY, Right = maxX, Bottom = maxY };
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool Contains(IntVector2 p) {
+         return Left <= p.X && p.X < Right && Top <= p.Y && p.Y < Bottom;
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool Contains(ref IntVector2 p) {
+         return Left <= p.X && p.X < Right && Top <= p.Y && p.Y < Bottom;
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool FullyContains(IntLineSegment2 segment) {
+         return Contains(segment.First) && Contains(segment.Second);
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool FullyContains(ref IntLineSegment2 segment) {
+         return Contains(segment.First) && Contains(segment.Second);
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool ContainsOrIntersects(IntLineSegment2 segment) {
+         return Contains(segment.First) || Contains(segment.Second);
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool ContainsOrIntersects(ref IntLineSegment2 segment) {
+         return Contains(segment.First) || Contains(segment.Second);
+      }
    }
 }

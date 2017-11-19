@@ -237,5 +237,17 @@ namespace OpenMOBA {
       public static KeyValuePair<TKey, TValue> PairKey<TKey, TValue>(this TValue value, TKey key) {
          return key.PairValue(value);
       }
+
+      public static IEnumerable<T> RotateLeft<T>(this IEnumerable<T> e) {
+         var it = e.GetEnumerator();
+         if (!it.MoveNext()) {
+            yield break;
+         }
+         var first = it.Current;
+         while (it.MoveNext()) {
+            yield return it.Current;
+         }
+         yield return first;
+      }
    }
 }

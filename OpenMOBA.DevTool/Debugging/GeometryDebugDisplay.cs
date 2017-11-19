@@ -121,7 +121,8 @@ namespace OpenMOBA.DevTool.Debugging {
                new DoubleVector3(nodeRect.Left, nodeRect.Top, z),
                new DoubleVector3(nodeRect.Right, nodeRect.Top, z),
                new DoubleVector3(nodeRect.Right, nodeRect.Bottom, z),
-               new DoubleVector3(nodeRect.Left, nodeRect.Bottom, z)
+               new DoubleVector3(nodeRect.Left, nodeRect.Bottom, z),
+               new DoubleVector3(nodeRect.Left, nodeRect.Top, z)
             }, strokeStyle);
       }
    }

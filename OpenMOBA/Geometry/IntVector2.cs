@@ -125,6 +125,8 @@ namespace OpenMOBA.Geometry {
 
       [Pure] public override int GetHashCode() => unchecked((int)((X * 397) ^ Y));
 
+      public override string ToString() => $"({X}, {Y})";
+
       public static IntVector2 Zero => new IntVector2(0, 0);
       public static IntVector2 UnitX => new IntVector2(1, 0);
       public static IntVector2 UnitY => new IntVector2(0, 1);

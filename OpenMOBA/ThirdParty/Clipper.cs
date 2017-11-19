@@ -146,7 +146,7 @@ namespace ClipperLib {
       internal List<PolyNode> m_Childs = new List<PolyNode>();
 
       // Added by me for visgraph - miyu
-      public PolyNodeVisbilityGraphNodeData visibilityGraphNodeData;
+      public ExtraNodeData visibilityGraphNodeData;
 
       private bool IsHoleNode() {
          bool result = true;
