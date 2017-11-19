@@ -87,12 +87,10 @@ namespace OpenMOBA.DevTool {
          GC.Collect();
          var sw = new Stopwatch();
          sw.Start();
-         PolyNodeCrossoverPointManager.A = PolyNodeCrossoverPointManager.B = PolyNodeCrossoverPointManager.C = 0;
          for (var i = 0; i < 1000; i++) {
             RunBenchmarkIteration();
          }
          Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
-         Console.WriteLine(PolyNodeCrossoverPointManager.A + " " + PolyNodeCrossoverPointManager.B + " " + PolyNodeCrossoverPointManager.C);
       }
 
       private void RenderDebugFrame() {

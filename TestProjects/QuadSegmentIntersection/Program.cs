@@ -8,25 +8,27 @@ using OpenMOBA.Geometry;
 namespace QuadSegmentIntersection {
    public class Program {
       private static readonly Size bounds = new Size(1280, 720);
-      private static readonly Random random = new Random(1);
+      private static readonly Random random = new Random(3);
+      private static readonly DebugMultiCanvasHost host = DebugMultiCanvasHost.CreateAndShowCanvas(bounds, new Point(50, 50), new OrthographicXYProjector());
+      private static int frameCounter = 0;
 
       public static void Main(string[] args) {
-         RenderVisualization();
+         for (var i = 0; i < 100; i++) RenderVisualizationFrame();
          Benchmark();
       }
 
-      private static void RenderVisualization() {
+      private static void RenderVisualizationFrame() {
          var segments = Util.Generate(200, RandomSegment);
-         var quad = new[] { new IntVector2(100, 100), new IntVector2(200, 200), new IntVector2(300, 300), new IntVector2(400, 400) };
-         // var quad = Util.Generate(4, RandomPoint);
-         var hull = GeometryOperations.ConvexHull(quad);
+//         var quad = new[] { new IntVector2(100, 100), new IntVector2(200, 200), new IntVector2(300, 300), new IntVector2(400, 400) };
+         var quad = Util.Generate(4, RandomPoint);
+         var hull = GeometryOperations.ConvexHull4(quad[0], quad[1], quad[2], quad[3]);
 
-         var host = DebugMultiCanvasHost.CreateAndShowCanvas(bounds, new Point(50, 50), new OrthographicXYProjector());
-         var canvas = host.CreateAndAddCanvas(0);
+         var canvas = host.CreateAndAddCanvas(frameCounter++);
          canvas.BatchDraw(() => {
+            foreach (var (x, y) in quad.Zip(quad.RotateLeft())) canvas.DrawLine(x, y, StrokeStyle.BlackHairLineDashed5);
             foreach (var (x, y) in hull.Zip(hull.RotateLeft())) canvas.DrawLine(x, y, StrokeStyle.BlackHairLineSolid);
             foreach (var p in hull) canvas.DrawPoint(p, StrokeStyle.RedThick5Solid);
-            foreach (var s in segments) canvas.DrawLine(s.First, s.Second, GeometryOperations.SegmentIntersectsConvexPolygon(s, hull) ? StrokeStyle.LimeHairLineDashed5 : StrokeStyle.RedHairLineDashed5);
+            foreach (var s in segments) canvas.DrawLine(s.First, s.Second, GeometryOperations.SegmentIntersectsConvexPolygonInterior(s, hull) ? StrokeStyle.LimeHairLineDashed5 : StrokeStyle.RedHairLineDashed5);
          });
       }
 
@@ -39,7 +41,7 @@ namespace QuadSegmentIntersection {
          const int niters = 100;
          for (var i = 0; i < niters; i++) {
             for (var j = 0; j < segments.Length; j++) {
-               GeometryOperations.SegmentIntersectsConvexPolygon(segments[j], hull);
+               GeometryOperations.SegmentIntersectsConvexPolygonInterior(segments[j], hull);
             }
          }
          Console.WriteLine(sw.Elapsed.TotalMilliseconds / niters);

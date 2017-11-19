@@ -99,6 +99,14 @@ namespace OpenMOBA {
          return result;
       }
 
+      public static Dictionary<K, R> Map<K, V, R>(this IReadOnlyDictionary<K, V> dict, Func<K, V, R> map) {
+         return dict.ToDictionary(kvp => kvp.Key, kvp => map(kvp.Key, kvp.Value));
+      }
+
+      public static Dictionary<RK, RV> Map<K, V, RK, RV>(this IReadOnlyDictionary<K, V> dict, Func<K, V, RK> kmap, Func<K, V, RV> vmap) {
+         return dict.ToDictionary(kvp => kmap(kvp.Key, kvp.Value), kvp => vmap(kvp.Key, kvp.Value));
+      }
+
       public static U[] MapMany<T, U>(this T[] arr, Func<T, IReadOnlyList<U>> cheapMap) {
          var result = new U[arr.Sum(x => cheapMap(x).Count)];
          var nextIndex = 0;
