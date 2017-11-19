@@ -67,6 +67,11 @@ namespace OpenMOBA.Geometry {
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static IntLineSegment2 Create(IntVector2 first, IntVector2 second) => new IntLineSegment2(first, second);
+
+      public void Deconstruct(out IntVector2 first, out IntVector2 second) {
+         first = First;
+         second = Second;
+      }
    }
 
    public struct IntLineSegment3 {

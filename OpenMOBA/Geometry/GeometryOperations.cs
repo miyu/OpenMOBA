@@ -8,6 +8,7 @@ using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
 
 using cInt = System.Int64;
+using Clk = OpenMOBA.Geometry.Clockness;
 
 namespace OpenMOBA.Geometry {
    public static class GeometryOperations {
@@ -181,6 +182,20 @@ namespace OpenMOBA.Geometry {
          }
          triangleIndex = -1;
          return false;
+      }
+      // assumes p is ccw ordered
+      public static bool SegmentInConvexPolygon(IntLineSegment2 s, IntVector2[] p) {
+#if DEBUG
+         if (Clockness(p[0], p[1], p[2]) == Clk.Clockwise) throw new BadInputException("p not ccw");
+#endif
+
+         var (p1, p2) = s;
+         for (var i = 0; i < p.Length; i++) {
+            var a = p[i == 0 ? p.Length - 1 : i - 1];
+            var b = p[i];
+            if (Clockness(a, b, p1) == Clk.Clockwise && Clockness(a, b, p2) == Clk.Clockwise) return false;
+         }
+         return true;
       }
 
       public static bool IsPointInTriangle(double px, double py, ref Triangle3 triangle) {
