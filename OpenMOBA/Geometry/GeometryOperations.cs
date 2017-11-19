@@ -183,10 +183,22 @@ namespace OpenMOBA.Geometry {
          triangleIndex = -1;
          return false;
       }
+
+      public static bool SegmentIntersectsConvexPolygon(IntLineSegment2 s, IntVector2[] p) {
+         if (p.Length == 1) {
+            return false;
+         } else if (p.Length == 2) {
+            return s.Intersects(new IntLineSegment2(p[0], p[1]));
+         } else {
+            return SegmentIntersectsNonDegenerateConvexPolygon(s, p);
+         }
+      }
+
       // assumes p is ccw ordered
-      public static bool SegmentInConvexPolygon(IntLineSegment2 s, IntVector2[] p) {
+      public static bool SegmentIntersectsNonDegenerateConvexPolygon(IntLineSegment2 s, IntVector2[] p) {
 #if DEBUG
          if (Clockness(p[0], p[1], p[2]) == Clk.Clockwise) throw new BadInputException("p not ccw");
+         if (p.Length < 3) throw new BadInputException("len(p) < 3");
 #endif
 
          var (p1, p2) = s;
