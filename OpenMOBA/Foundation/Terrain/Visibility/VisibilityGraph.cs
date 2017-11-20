@@ -298,18 +298,64 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       public PathLink[][] BuildWaypointToWaypointLutFloydWarshall() {
          var res = new PathLink[Waypoints.Length][];
          for (var swi = 0; swi < Offsets.Length - 1; swi++) {
-            res[swi] = Waypoints.Map(x => new PathLink { PriorIndex = -1, TotalCost = float.PositiveInfinity });
+            res[swi] = Util.Repeat(swi + 1, new PathLink { PriorIndex = -1, TotalCost = float.PositiveInfinity });
+         }
+         for (var swi = 0; swi < Offsets.Length - 1; swi++) {
             for (var j = Offsets[swi]; j < Offsets[swi + 1]; j++) {
-               var edge = Edges[j];
-               res[swi][edge.NextIndex].TotalCost = edge.Cost;
-               res[swi][edge.NextIndex].PriorIndex = -1;
+               ref var edge = ref Edges[j];
+
+               // edges are undirected and duplicated as directed, so only process one
+               if (edge.NextIndex < res[swi].Length) {
+                  res[swi][edge.NextIndex].TotalCost = edge.Cost;
+               }
             }
          }
-         for (var k = 0; k < Waypoints.Length; k++) {
-            for (var i = 0; i < Waypoints.Length; i++) {
-               for (var j = 0; j < Waypoints.Length; j++) {
-                  if (res[i][k].TotalCost + res[k][j].TotalCost < res[i][j].TotalCost) {
-                     res[i][j].TotalCost = res[i][k].TotalCost + res[k][j].TotalCost;
+            /*
+            for (var j = Offsets[swi]; j < Offsets[swi + 1]; j++) {
+               ref var edge = ref Edges[j];
+               var (a, b) = (swi, edge.NextIndex);
+               if (a < b) (a, b) = (b, a);
+               res[a][b].TotalCost = edge.Cost;
+               res[a][b].PriorIndex = -1;
+            }*/
+
+         // Optimized of vanilla floyd warshall since we have symmetry
+         // for (var k = 0; k < Waypoints.Length; k++) {
+         //    for (var i = 0; i < Waypoints.Length; i++) {
+         //       for (var j = 0; j < Waypoints.Length; j++) {
+         //          if (res[i][k].TotalCost + res[k][j].TotalCost < res[i][j].TotalCost) {
+         //             res[i][j].TotalCost = res[i][k].TotalCost + res[k][j].TotalCost;
+         //             res[i][j].PriorIndex = k;
+         //          }
+         //       }
+         //    }
+         // }
+         // See https://stackoverflow.com/questions/2037735/optimise-floyd-warshall-for-symmetric-adjacency-matrix
+         for (int k = 0; k < Waypoints.Length; ++k) {
+            for (int i = 0; i < k; ++i) {
+               for (int j = 0; j <= i; ++j) {
+                  // i >= j, i < k, j <= i < k
+                  var c = res[k][i].TotalCost + res[k][j].TotalCost;
+                  if (c < res[i][j].TotalCost) {
+                     res[i][j].TotalCost = c;
+                     res[i][j].PriorIndex = k;
+                  }
+               }
+            }
+            for (int i = k; i < Waypoints.Length; ++i) {
+               for (int j = 0; j < k; ++j) {
+                  // i >= k, j < k, i >= k > j
+                  var c = res[i][k].TotalCost + res[k][j].TotalCost;
+                  if (c < res[i][j].TotalCost) {
+                     res[i][j].TotalCost = c;
+                     res[i][j].PriorIndex = k;
+                  }
+               }
+               for (int j = k; j <= i; ++j) {
+                  // i >= j >= k
+                  var c = res[i][k].TotalCost + res[j][k].TotalCost;
+                  if (c < res[i][j].TotalCost) {
+                     res[i][j].TotalCost = c;
                      res[i][j].PriorIndex = k;
                   }
                }

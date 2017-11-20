@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Net;
 using System.Numerics;
 using System.Threading;
 using OpenMOBA.Debugging;
@@ -115,32 +116,71 @@ namespace OpenMOBA.Foundation {
       public GameLogicFacade GameLogicFacade { get; set; }
 
       public void Run() {
-         var sector1 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
-         sector1.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
-         TerrainService.AddSectorNodeDescription(sector1);
-
-         var sector2 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
-         sector2.EnableDebugHighlight = true;
-         TerrainService.AddSectorNodeDescription(sector2);
-
-         var sector3 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.FourSquares2D);
-         sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
+//         var sector1 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
+//         sector1.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-1000, 0, 0));
+//         TerrainService.AddSectorNodeDescription(sector1);
+//
+//         var sector2 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Test2D);
+//         sector2.EnableDebugHighlight = true;
+//         TerrainService.AddSectorNodeDescription(sector2);
+//
+//         var sector3 = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.FourSquares2D);
+//         sector3.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateRotationY(-0.0f), Matrix4x4.CreateTranslation(1000, 0, 0));
 //         TerrainService.AddSectorNodeDescription(sector3);
+//
+//         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
+//         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+//         var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
+//         var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
+//
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector1, sector2, right1, left1));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector1, sector2, right2, left2));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left1, right1));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left2, right2));
+//
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right1, left1));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right2, left2));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left1, right1));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left2, right2));
+
+         var sectorSpanWidth = 5;
+         var sectorSpanHeight = 5;
+         var sectors = new SectorNodeDescription[sectorSpanHeight, sectorSpanWidth];
+         for (var y = 0; y < sectorSpanHeight; y++) {
+            var rng = new Random(y);
+            for (var x = 0; x < sectorSpanWidth; x++) {
+               var presets = new[]{ SectorMetadataPresets.FourSquares2D, SectorMetadataPresets.HashCircle2  };
+               var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(presets[rng.Next(presets.Length)]);
+               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(x * 1000, y * 1000, 0));
+               TerrainService.AddSectorNodeDescription(sector);
+            }
+         }
 
          var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
          var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
          var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
          var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
+         for (var y = 0; y < sectorSpanHeight; y++) {
+            for (var x = 1; x < sectorSpanWidth; x++) {
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x - 1], sectors[y, x], right1, left1));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x - 1], sectors[y, x], right2, left2));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y, x - 1], left1, right1));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y, x - 1], left2, right2));
+            }
+         }
 
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector1, sector2, right1, left1));
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector1, sector2, right2, left2));
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left1, right1));
-         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector1, left2, right2));
-
-//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right1, left1));
-//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector2, sector3, right2, left2));
-//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left1, right1));
-//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left2, right2));
+         var up1 = new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0));
+         var up2 = new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0));
+         var down1 = new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000));
+         var down2 = new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000));
+         for (var y = 1; y < sectorSpanHeight; y++) {
+            for (var x = 0; x < sectorSpanWidth; x++) {
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y - 1, x], sectors[y, x], down1, up1));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y - 1, x], sectors[y, x], down2, up2));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up1, down1));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up2, down2));
+            }
+         }
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {

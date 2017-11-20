@@ -259,5 +259,13 @@ namespace OpenMOBA {
       }
 
       public static IEnumerable<Tuple<T, U>> Zip<T, U>(this IEnumerable<T> e1, IEnumerable<U> e2) => e1.Zip(e2, Tuple.Create);
+
+      public static void Resize<T>(this List<T> list, int size) {
+         if (size < list.Count) {
+            list.RemoveRange(size, list.Count - size);
+         } else if (size > list.Count) {
+            list.AddRange(new T[size - list.Count]);
+         }
+      }
    }
 }

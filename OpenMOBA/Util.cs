@@ -110,7 +110,13 @@ namespace OpenMOBA {
       /// Creates a variable of the given value repeated [count] times.
       /// Note that this just copies reference if we have a Object.
       /// </summary>
-      public static T[] Repeat<T>(int count, T t) => Generate(count, i => t);
+      public static T[] Repeat<T>(int count, T t) {
+         var res = new T[count];
+         for (var i = 0; i < res.Length; i++) {
+            res[i] = t;
+         }
+         return res;
+      }
 
       public static bool ByteArraysEqual(byte[] param1, byte[] param2) {
          return ByteArraysEqual(param1, 0, param1.Length, param2, 0, param2.Length);

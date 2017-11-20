@@ -70,7 +70,7 @@ namespace OpenMOBA.Foundation.Terrain {
             localGeometryRenderJobByNodeDescription.Add(sectorNodeDescription, localGeometryRenderJob);
          }
 
-         var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.ToDictionary(
+         var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.Distinct().ToDictionary(
             localGeometryJob => localGeometryJob,
             localGeometryJob => new LocalGeometryJob(localGeometryJob.TerrainStaticMetadata, localGeometryJob.CrossoverSegments));
 

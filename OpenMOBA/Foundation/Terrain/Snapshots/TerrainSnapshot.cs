@@ -150,7 +150,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             kvp => kvp.Key,
             kvp => kvp.Value.IsPunchedLandEvaluated ? kvp.Value : kvp.Value.Preview);
          
-         var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.ToDictionary(
+         var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.Distinct().ToDictionary(
             lgv => lgv,
             lgv => lgv.PunchedLand.EnumerateLandNodes().ToList());
 

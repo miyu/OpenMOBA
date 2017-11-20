@@ -247,6 +247,70 @@ namespace OpenMOBA.Geometry {
          return xInterior && yInterior;
       }
 
+
+      public static bool SegmentIntersectsConvexPolygonInterior(DoubleLineSegment2 s, DoubleVector2[] p) {
+         if (p.Length == 1) {
+            return false;
+         } else if (p.Length == 2) {
+            return s.Intersects(new DoubleLineSegment2(p[0], p[1]));
+         } else {
+            return SegmentIntersectsNonDegenerateConvexPolygonInterior(s, p);
+         }
+      }
+
+      // assumes p is ccw ordered
+      public static bool ConvexPolygonContainsPoint(DoubleVector2 x, DoubleVector2[] p) {
+#if DEBUG
+         if (Clockness(p[0], p[1], p[2]) == Clk.Clockwise) throw new BadInputException("p not ccw");
+         if (p.Length < 3) throw new BadInputException("len(p) < 3");
+#endif
+
+         for (var i = 0; i < p.Length; i++) {
+            var a = p[i == 0 ? p.Length - 1 : i - 1];
+            var b = p[i];
+            if (Clockness(a, b, x) == Clk.Clockwise) return false;
+         }
+         return true;
+      }
+
+      // assumes p is ccw ordered, edge is counted as interior (neither case)
+      public static bool SegmentIntersectsNonDegenerateConvexPolygonInterior(DoubleLineSegment2 s, DoubleVector2[] p) {
+#if DEBUG
+         if (Clockness(p[0], p[1], p[2]) == Clk.Clockwise) throw new BadInputException("p not ccw");
+         if (p.Length < 3) throw new BadInputException("len(p) < 3");
+#endif
+         var (x, y) = s;
+         bool xInterior = true, yInterior = true;
+         DoubleVector2 a = p[p.Length - 1], b;
+         int i = 0;
+         for (; i < p.Length && (xInterior || yInterior); i++, a = b) {
+            b = p[i];
+            var abx = Clockness(a, b, x);
+            var aby = Clockness(a, b, y);
+            if (abx == Clk.Clockwise && aby == Clk.Clockwise) return false;
+            xInterior &= abx != Clk.Clockwise;
+            yInterior &= aby != Clk.Clockwise;
+            if (abx == (Clk)(-(int)aby) || abx == Clk.Neither || aby == Clk.Neither) {
+               // The below is equivalent to: 
+               // // (a, b) places x, y onto opposite half-planes.
+               // // Intersect if (x, y) places a, b onto opposite half-planes.
+               // var xya = Clockness(x, y, a);
+               // var xyb = Clockness(x, y, b);
+               // if (xya != xyb || xya == Clk.Neither || xyb == Clk.Neither) return true;
+               if (DoubleLineSegment2.Intersects(a.X, a.Y, b.X, b.Y, x.X, x.Y, y.X, y.Y)) {
+                  return true;
+               }
+            }
+         }
+         for (; i < p.Length; i++, a = b) {
+            b = p[i];
+            if (DoubleLineSegment2.Intersects(a.X, a.Y, b.X, b.Y, x.X, x.Y, y.X, y.Y)) {
+               return true;
+            }
+         }
+         return xInterior && yInterior;
+      }
+
       public static bool IsPointInTriangle(double px, double py, ref Triangle3 triangle) {
          // Barycentric coordinates for PIP w/ triangle test http://blackpawn.com/texts/pointinpoly/
 
@@ -509,6 +573,76 @@ namespace OpenMOBA.Geometry {
 
       // See https://stackoverflow.com/questions/2122305/convex-hull-of-4-points
       public static IntVector2[] ConvexHull4(IntVector2 a, IntVector2 b, IntVector2 c, IntVector2 d) {
+         var abc = Clockness(a, b, c);
+
+         if (abc == Clk.Neither) {
+            var (s, t) = FindCollinearBounds(a, b, c);
+            return ConvexHull3(s, t, d);
+         }
+
+         // make abc ccw
+         if (abc == Clk.Clockwise) (a, c) = (c, a);
+
+         var abd = Clockness(a, b, d);
+         var bcd = Clockness(b, c, d);
+         var cad = Clockness(c, a, d);
+
+         if (abd == Clk.Neither) {
+            var (s, t) = FindCollinearBounds(a, b, d);
+            return ConvexHull3(s, t, c);
+         }
+
+         if (bcd == Clk.Neither) {
+            var (s, t) = FindCollinearBounds(b, c, d);
+            return ConvexHull3(s, t, a);
+         }
+
+         if (cad == Clk.Neither) {
+            var (s, t) = FindCollinearBounds(c, a, d);
+            return ConvexHull3(s, t, b);
+         }
+
+         if (abd == Clk.CounterClockwise) {
+            if (bcd == Clk.CounterClockwise && cad == Clk.CounterClockwise) return new[] { a, b, c };
+            if (bcd == Clk.CounterClockwise && cad == Clk.Clockwise) return new[] { a, b, c, d };
+            if (bcd == Clk.Clockwise && cad == Clk.CounterClockwise) return new[] { a, b, d, c };
+            if (bcd == Clk.Clockwise && cad == Clk.Clockwise) return new[] { a, b, d };
+            throw new InvalidStateException();
+         } else {
+            if (bcd == Clk.CounterClockwise && cad == Clk.CounterClockwise) return new[] { a, d, b, c };
+            if (bcd == Clk.CounterClockwise && cad == Clk.Clockwise) return new[] { d, b, c };
+            if (bcd == Clk.Clockwise && cad == Clk.CounterClockwise) return new[] { a, d, c };
+            // 4th state impossible
+            throw new InvalidStateException();
+         }
+      }
+
+
+      public static DoubleVector2[] ConvexHull3(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) {
+         var abc = Clockness(a, b, c);
+         if (abc == Clk.Neither) {
+            var (s, t) = FindCollinearBounds(a, b, c);
+            return s == t ? new[] { s } : new[] { s, t };
+         }
+         if (abc == Clk.Clockwise) {
+            return new[] { c, b, a };
+         }
+         return new[] { a, b, c };
+      }
+
+      public static (DoubleVector2, DoubleVector2) FindCollinearBounds(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) {
+         var ab = a.To(b).SquaredNorm2D();
+         var ac = a.To(c).SquaredNorm2D();
+         var bc = b.To(c).SquaredNorm2D();
+         if (ab > ac) {
+            return ab > bc ? (a, b) : (b, c);
+         } else {
+            return ac > bc ? (a, c) : (b, c);
+         }
+      }
+
+      // See https://stackoverflow.com/questions/2122305/convex-hull-of-4-points
+      public static DoubleVector2[] ConvexHull4(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c, DoubleVector2 d) {
          var abc = Clockness(a, b, c);
 
          if (abc == Clk.Neither) {

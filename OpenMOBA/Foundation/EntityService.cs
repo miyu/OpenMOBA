@@ -237,8 +237,8 @@ namespace OpenMOBA.Foundation {
       }
 
       public bool Dijkstras(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint) {
-         var (_, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
-         var (_, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
+         var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
+         var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
 
          var results = new Dictionary<TerrainOverlayNetworkNode, OverlayPathLink[]>();
          var q = new PriorityQueue<OverlayDijkstrasIntermediate>((a, b) => a.TotalCost.CompareTo(b.TotalCost));

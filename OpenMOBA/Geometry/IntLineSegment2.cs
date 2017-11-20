@@ -120,6 +120,11 @@ namespace OpenMOBA.Geometry {
       public bool Equals(IntLineSegment3 other) => First == other.First && Second == other.Second;
 
       public override string ToString() => $"({First}, {Second})";
+
+      public void Deconstruct(out IntVector3 first, out IntVector3 second) {
+         first = First;
+         second = Second;
+      }
    }
    public struct DoubleLineSegment2 {
       public DoubleLineSegment2(DoubleVector2 first, DoubleVector2 second) {
@@ -140,7 +145,10 @@ namespace OpenMOBA.Geometry {
       public bool Intersects(DoubleLineSegment2 other) {
          double ax = X1, ay = Y1, bx = X2, by = Y2;
          double cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
+      }
 
+      public static bool Intersects(double ax, double ay, double bx, double by, double cx, double cy, double dx, double dy) {
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
          var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
          var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
@@ -170,5 +178,10 @@ namespace OpenMOBA.Geometry {
       public override string ToString() => $"({First}, {Second})";
 
       public DoubleVector2 ComputeMidpoint() => new DoubleVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
+
+      public void Deconstruct(out DoubleVector2 first, out DoubleVector2 second) {
+         first = First;
+         second = Second;
+      }
    }
 }
