@@ -107,7 +107,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
       public static PolyNodeVisibilityGraph ComputeVisibilityGraph(this PolyNode landNode) {
          if (landNode.visibilityGraphNodeData.VisibilityDistanceMatrix != null) return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix;
-         Console.WriteLine("Compute Visibility Graph");
+         // Console.WriteLine("Compute Visibility Graph");
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
          return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(waypoints, barriers);

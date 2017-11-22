@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.Visibility;
@@ -160,6 +161,18 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       private readonly Dictionary<DoubleLineSegment2, int[]> indicesBySegment = new Dictionary<DoubleLineSegment2, int[]>();
       private readonly Dictionary<IntVector2, DoubleLineSegment2> segmentByCrossoverPoint = new Dictionary<IntVector2, DoubleLineSegment2>();
 
+      //-------------------------------------------------------------------------------------------
+      // For debugging computational complexity
+      //-------------------------------------------------------------------------------------------
+      public static int CrossoverPointsAdded = 0;
+      public static int FindOptimalLinksToCrossoversInvocationCount = 0;
+      public static int FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck = 0;
+      public static int FindOptimalLinksToCrossovers_CostToWaypointCount = 0;
+      public static int ProcessCpiInvocationCount = 0;
+      public static int ProcessCpiInvocation_CandidateBarrierIntersectCount = 0;
+      public static int ProcessCpiInvocation_DirectCount = 0;
+      public static int ProcessCpiInvocation_IndirectCount = 0;
+
       public PolyNodeCrossoverPointManager(PolyNode landPolyNode) {
          this.landPolyNode = landPolyNode;
          waypoints = landPolyNode.FindAggregateContourCrossoverWaypoints();
@@ -188,6 +201,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
          return indicesBySegment[edgeSegment] = points.Map(p => {
             if (TryAdd(p, out int cpi)) {
+               Interlocked.Increment(ref CrossoverPointsAdded);
                segmentByCrossoverPoint[p] = edgeSegment;
             }
             return cpi;
@@ -219,12 +233,15 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       }
 
       public (PathLink[] visibleWaypointLinks, int visibleWaypointLinksLength, PathLink[] optimalLinkToWaypoints, List<PathLink> optimalLinkToCrossovers) FindOptimalLinksToCrossovers(IntVector2 p, int[] candidateWaypoints = null, IReadOnlyDictionary<DoubleLineSegment2, IntLineSegment2[]> candidateBarriersByDestinationSegment = null) {
+         Interlocked.Increment(ref FindOptimalLinksToCrossoversInvocationCount);
+
          candidateWaypoints = candidateWaypoints ?? allWaypointIndices;
 
          // Find cost from p to visible waypoints - crazy inefficient (has visibility poly, atan)!
          var visibleWaypointLinks = new PathLink[candidateWaypoints.Length];
          var visibleWaypointLinksLength = 0;
          for (var i = 0; i < candidateWaypoints.Length; i++) {
+            Interlocked.Increment(ref FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck);
             var wi = candidateWaypoints[i];
             long costSquared = waypoints[wi].To(p).SquaredNorm2();
             VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
@@ -237,6 +254,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          // Cost from p to all waypoints. Below is an unrolled map
          var optimalLinkToWaypoints = new PathLink[waypoints.Length];
          for (var wi = 0; wi < waypoints.Length; wi++) {
+            Interlocked.Increment(ref FindOptimalLinksToCrossovers_CostToWaypointCount);
             // unrolled from minby loop for 25% perf gain
             var optimalLinkIndex = -1;
             var optimalLinkCost = float.PositiveInfinity;
@@ -267,6 +285,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          };
 
          void ProcessCpi(int cpi, IntLineSegment2[] candidateBarriers) {
+            Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
             if (candidateBarriers == null) {
                isDirectPath = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
@@ -276,18 +295,23 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                isDirectPath = true;
                var seg = new IntLineSegment2(p, crossoverPoints[cpi]);
                for (var bi = 0; bi < candidateBarriers.Length && isDirectPath; bi++) {
+                  Interlocked.Increment(ref ProcessCpiInvocation_CandidateBarrierIntersectCount);
+
                   if (seg.Intersects(ref candidateBarriers[bi])) {
                      isDirectPath = false;
                   }
                }
             }
+
             if (isDirectPath) {
+               Interlocked.Increment(ref ProcessCpiInvocation_DirectCount);
                var totalCost = p.To(crossoverPoints[cpi]).Norm2F();
                optimalLinkToCrossovers[cpi] = new PathLink {
                   PriorIndex = PathLink.DirectPathIndex,
                   TotalCost = totalCost
                };
             } else {
+               Interlocked.Increment(ref ProcessCpiInvocation_IndirectCount);
                var otherOptimalLinkByWaypointIndex = optimalLinkToWaypointsByCrossoverPointIndex[cpi];
 
                //--
@@ -316,6 +340,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          }
 
          if (candidateBarriersByDestinationSegment == null) {
+            Console.WriteLine("Warning: candidateBarriersByDestinationSegment null?");
             for (var cpi = 0; cpi < crossoverPoints.Count - 1; cpi++) {
                ProcessCpi(cpi, null);
             }

@@ -114,6 +114,14 @@ namespace OpenMOBA.DevTool.Debugging {
          canvas.DrawPoint(ToDV3(p), strokeStyle);
       }
 
+      public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<IntVector2> p, StrokeStyle strokeStyle) {
+         canvas.DrawPoints(p.Map(ToIV3), strokeStyle);
+      }
+
+      public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> p, StrokeStyle strokeStyle) {
+         canvas.DrawPoints(p.Map(ToDV3), strokeStyle);
+      }
+
       public static void DrawPolygon(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
          canvas.DrawPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
       }
@@ -163,8 +171,14 @@ namespace OpenMOBA.DevTool.Debugging {
    public class OrthographicXYProjector : IProjector {
       public static readonly OrthographicXYProjector Instance = new OrthographicXYProjector();
 
+      private readonly double scale;
+
+      public OrthographicXYProjector(double scale = 1.0) {
+         this.scale = scale;
+      }
+
       public DoubleVector2 Project(DoubleVector3 p) {
-         return p.XY;
+         return p.XY * scale;
       }
 
       public double ComputeApparentThickness(DoubleVector3 p, double thickness) {

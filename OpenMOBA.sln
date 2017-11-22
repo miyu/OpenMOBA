@@ -18,7 +18,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestProjects", "TestProject
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuadSegmentIntersection", "TestProjects\QuadSegmentIntersection\QuadSegmentIntersection.csproj", "{A40207E1-6DD9-4FE5-B0B2-26F0C2E035C9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyNodeCrossoverPointManagerBenchmark", "TestProjects\PolyNodeCrossoverPointManagerBenchmark\PolyNodeCrossoverPointManagerBenchmark.csproj", "{F753B129-46AB-43AC-87E3-552C7E07ECA5}"
+EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -72,14 +77,30 @@ Global
 		{A40207E1-6DD9-4FE5-B0B2-26F0C2E035C9}.Release|x64.Build.0 = Release|Any CPU
 		{A40207E1-6DD9-4FE5-B0B2-26F0C2E035C9}.Release|x86.ActiveCfg = Release|Any CPU
 		{A40207E1-6DD9-4FE5-B0B2-26F0C2E035C9}.Release|x86.Build.0 = Release|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Debug|x64.Build.0 = Debug|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Debug|x86.Build.0 = Debug|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Release|x64.ActiveCfg = Release|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Release|x64.Build.0 = Release|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Release|x86.ActiveCfg = Release|Any CPU
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A40207E1-6DD9-4FE5-B0B2-26F0C2E035C9} = {74294450-A622-43FE-8296-939C6420556C}
+		{F753B129-46AB-43AC-87E3-552C7E07ECA5} = {74294450-A622-43FE-8296-939C6420556C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal
