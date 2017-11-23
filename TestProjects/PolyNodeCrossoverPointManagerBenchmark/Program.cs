@@ -81,13 +81,14 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
 
          // Precompute polynode geometry structures to isolate in profiling results.
          landPolyNode.FindAggregateContourCrossoverWaypoints();
-         landPolyNode.ComputeVisibilityGraph();
          landPolyNode.ComputeWaypointVisibilityPolygons();
+         landPolyNode.ComputeVisibilityGraph();
          landPolyNode.FindContourAndChildHoleBarriers();
          landPolyNode.FindContourAndChildHoleBarriersBvh();
 
          // Then build CPM, which uses cached results from above.
          var crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
+         return (localGeometryView, landPolyNode, crossoverPointManager);
 
          var spacing = 10;
          AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(200, 0), new DoubleVector2(400, 0)), spacing);

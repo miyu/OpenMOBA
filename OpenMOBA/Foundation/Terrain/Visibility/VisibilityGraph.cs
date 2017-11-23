@@ -40,14 +40,6 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       private const int kBarrierPolyTreeDilationFactor = 5; // dilation to move holes inward
       private const int kBarrierSegmentExpansionFactor = 2; // expansion to make corners hit
 
-      // Used to trivially achieve a reduced visibility graph (no edges that'd never be used)
-      // The edges you don't want are the ones that drive straight into a polygonal obstacle. So,
-      // when checking whether an edge is valid when building visibility graph, dilate first by
-      // a factor more than kBarrierPolyTreeDilationFactor. You want something larger than
-      // kBarrierPolyTreeDilationFactor - high values result in accidental edge removals while
-      // low values result in a cluttered graph with useless edges.
-      private const int kVisibilityGraphConstructionEdgeCheckDilation = 20;
-
       // Note: Holes in polytree are in reverse clockness than lands.
       private static IntVector2[] FindContourWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourWaypoints != null) return node.visibilityGraphNodeData.ContourWaypoints;
@@ -125,7 +117,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          // Console.WriteLine("Compute Visibility Graph");
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
-         return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(landNode, waypoints, barriers, kVisibilityGraphConstructionEdgeCheckDilation);
+         return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(landNode, waypoints, barriers);
       }
 
       public static VisibilityPolygon[] ComputeWaypointVisibilityPolygons(this PolyNode landNode) {
@@ -387,22 +379,50 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          return res;
       }
 
-      public static PolyNodeVisibilityGraph Construct(PolyNode polyNode, IntVector2[] waypoints, IntLineSegment2[] barriers, int edgeCheckSegmentDilation) {
-         var bvh = polyNode.FindContourAndChildHoleBarriersBvh();
-         var neighborsToCosts = new SortedDictionary<int, float>[waypoints.Length];
-         for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new SortedDictionary<int, float>();
+      // Note: Between two waypoints a, b, we might dilate the edge segment when testing its 
+      // validity to trivially achieve a reduced visibility graph (no edges that'd never be used)
+      // The edges you don't want are the ones that drive straight into a polygonal obstacle. So,
+      // when checking whether an edge is valid when building visibility graph, dilate first by
+      // a factor more than kBarrierPolyTreeDilationFactor. You want something larger than
+      // kBarrierPolyTreeDilationFactor - high values result in accidental edge removals while
+      // low values result in a cluttered graph with useless edges.
+      //
+      // EDIT: Actually, pruning visibility graph had a high performance cost (seemingly due to
+      // branch prediction misses?)... in any case, we're doing APSP with Floyd-Warshall which is
+      // O(V^3), so minimizing edges doesn't actually yield a perf gain for us and this feature
+      // has been omitted.
+      public static PolyNodeVisibilityGraph Construct(PolyNode polyNode, IntVector2[] waypoints, IntLineSegment2[] barriers) {
+         // If waypoint visibility polygons computed, use that. Else, generate and use barriers BVH.
+         // In either case, this is N^2 logN, though the WVP route is faster by constant factors.
+         var wvp = polyNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons;
+         var bvh = wvp == null ? polyNode.FindContourAndChildHoleBarriersBvh() : null;
+
+         var neighborsToCosts = new List<(int, float)>[waypoints.Length];
+         for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new List<(int, float)>();
          for (var i = 0; i < waypoints.Length - 1; i++) {
             var a = waypoints[i];
             for (var j = i + 1; j < waypoints.Length; j++) {
                var b = waypoints[j];
 
-               // Used to trivially achieve a reduced visibility graph (no edges that'd never be used)
-               var q = new IntLineSegment2(a, b).Dilate(edgeCheckSegmentDilation);
-               if (!bvh.Intersects(q)) {
-               //if (!barriers.Any(new IntLineSegment2(a, b).Intersects)) {
-                  var cost = a.To(b).Norm2F();
-                  neighborsToCosts[i][j] = neighborsToCosts[j][i] = cost;
+               if (wvp != null) {
+                  var dx = a.X - b.X;
+                  var dy = a.Y - b.Y;
+                  var sqnorm = dx * dx + dy * dy;
+
+                  var range1 = wvp[i].Stab(waypoints[j]);
+                  if (sqnorm >= range1.MidpointDistanceToOriginSquared) continue;
+
+                  var range2 = wvp[j].Stab(waypoints[i]);
+                  if (sqnorm >= range2.MidpointDistanceToOriginSquared) continue;
                }
+               if (bvh != null) {
+                  var q = new IntLineSegment2(a, b);
+                  if (bvh.Intersects(ref q)) continue;
+               }
+
+               var cost = a.To(b).Norm2F();
+               neighborsToCosts[i].Add((j, cost));
+               neighborsToCosts[j].Add((i, cost));
             }
          }
          var offsets = new int[waypoints.Length + 1];
@@ -411,8 +431,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          var edgeIndex = 0;
          for (var i = 0; i < waypoints.Length; i++) {
             offsets[i] = edgeIndex;
-            foreach (var edge in neighborsToCosts[i]) {
-               edges[edgeIndex] = new EdgeLink(edge.Key, edge.Value);
+            foreach (var (key, cost) in neighborsToCosts[i]) {
+               edges[edgeIndex] = new EdgeLink(key, cost);
                edgeIndex++;
             }
          }
