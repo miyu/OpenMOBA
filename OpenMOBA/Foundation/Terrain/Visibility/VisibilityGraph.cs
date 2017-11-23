@@ -20,7 +20,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       public IntLineSegment2[] ContourAndChildHoleBarriers;
       public PolyNodeVisibilityGraph VisibilityDistanceMatrix;
       public VisibilityPolygon[] AggregateContourWaypointVisibilityPolygons;
-      public BvhILS2 Bvh;
+      public BvhILS2 ContourBvh;
+      public BvhILS2 ContourAndChildHoleBarriersBvh;
    }
 
    public class Path {
@@ -34,6 +35,19 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
    }
 
    public static class PolyNodeVisibilityGraphExtensions {
+      // To compute barriers, dilate polytrees (so hole regions are away from waypoints
+      // then expand segments so they cross each other and are watertight
+      private const int kBarrierPolyTreeDilationFactor = 5; // dilation to move holes inward
+      private const int kBarrierSegmentExpansionFactor = 2; // expansion to make corners hit
+
+      // Used to trivially achieve a reduced visibility graph (no edges that'd never be used)
+      // The edges you don't want are the ones that drive straight into a polygonal obstacle. So,
+      // when checking whether an edge is valid when building visibility graph, dilate first by
+      // a factor more than kBarrierPolyTreeDilationFactor. You want something larger than
+      // kBarrierPolyTreeDilationFactor - high values result in accidental edge removals while
+      // low values result in a cluttered graph with useless edges.
+      private const int kVisibilityGraphConstructionEdgeCheckDilation = 20;
+
       // Note: Holes in polytree are in reverse clockness than lands.
       private static IntVector2[] FindContourWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourWaypoints != null) return node.visibilityGraphNodeData.ContourWaypoints;
@@ -56,16 +70,10 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       public static IntLineSegment2[] FindContourAndChildHoleBarriers(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourAndChildHoleBarriers != null) return node.visibilityGraphNodeData.ContourAndChildHoleBarriers;
 
-         // dilation to move holes inward
-         const int kDilationFactor = 5;
-
-         // expansion to make corners hit
-         const int kExpansionFactor = 2;
-
          var nodeAndChildrenContours = new[] { node.Contour }.Concat(node.Childs.Select(c => c.Contour));
          var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
                                                                .Include(nodeAndChildrenContours)
-                                                               .Dilate(kDilationFactor)
+                                                               .Dilate(kBarrierPolyTreeDilationFactor)
                                                                .Execute();
 
          var results = new List<IntLineSegment2>();
@@ -80,8 +88,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
                var dx = b.X - a.X;
                var dy = b.Y - a.Y;
                var mag = (long)Math.Sqrt(dx * dx + dy * dy); // normalizing on xy plane.
-               dx = dx * kExpansionFactor / mag;
-               dy = dy * kExpansionFactor / mag;
+               dx = dx * kBarrierSegmentExpansionFactor / mag;
+               dy = dy * kBarrierSegmentExpansionFactor / mag;
 
                var p1 = new IntVector2(a.X - dx, a.Y - dy);
                var p2 = new IntVector2(b.X + dx, b.Y + dy);
@@ -90,6 +98,13 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
             }
          }
          return node.visibilityGraphNodeData.ContourAndChildHoleBarriers = results.ToArray();
+      }
+
+      public static BvhILS2 FindContourAndChildHoleBarriersBvh(this PolyNode node) {
+         if (node.visibilityGraphNodeData.ContourAndChildHoleBarriersBvh != null) {
+            return node.visibilityGraphNodeData.ContourAndChildHoleBarriersBvh;
+         }
+         return node.visibilityGraphNodeData.ContourAndChildHoleBarriersBvh = BvhILS2.Build(node.FindContourAndChildHoleBarriers());
       }
 
       public static IntVector2[] FindAggregateContourCrossoverWaypoints(this PolyNode node) {
@@ -110,7 +125,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          // Console.WriteLine("Compute Visibility Graph");
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
-         return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(waypoints, barriers);
+         return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(landNode, waypoints, barriers, kVisibilityGraphConstructionEdgeCheckDilation);
       }
 
       public static VisibilityPolygon[] ComputeWaypointVisibilityPolygons(this PolyNode landNode) {
@@ -372,15 +387,19 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          return res;
       }
 
-      public static PolyNodeVisibilityGraph Construct(IntVector2[] waypoints, IntLineSegment2[] barriers) {
+      public static PolyNodeVisibilityGraph Construct(PolyNode polyNode, IntVector2[] waypoints, IntLineSegment2[] barriers, int edgeCheckSegmentDilation) {
+         var bvh = polyNode.FindContourAndChildHoleBarriersBvh();
          var neighborsToCosts = new SortedDictionary<int, float>[waypoints.Length];
          for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new SortedDictionary<int, float>();
          for (var i = 0; i < waypoints.Length - 1; i++) {
             var a = waypoints[i];
             for (var j = i + 1; j < waypoints.Length; j++) {
                var b = waypoints[j];
-               var query = new IntLineSegment2(a, b);
-               if (!barriers.Any(query.Intersects)) {
+
+               // Used to trivially achieve a reduced visibility graph (no edges that'd never be used)
+               var q = new IntLineSegment2(a, b).Dilate(edgeCheckSegmentDilation);
+               if (!bvh.Intersects(q)) {
+               //if (!barriers.Any(new IntLineSegment2(a, b).Intersects)) {
                   var cost = a.To(b).Norm2F();
                   neighborsToCosts[i][j] = neighborsToCosts[j][i] = cost;
                }

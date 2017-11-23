@@ -145,7 +145,7 @@ namespace OpenMOBA.DevTool {
                   }
                }
 
-               var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.Bvh;
+               var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.ContourBvh;
                if (bvh != null) {
                   debugCanvas.DrawBvh(bvh);
                }

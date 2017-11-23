@@ -48,7 +48,7 @@ namespace OpenMOBA.DataStructures {
       }
 
       public bool TryIntersect(ref IntLineSegment2 segment, out DoubleVector2 p) {
-         if (!Bounds.FullyContains(ref segment)) {
+         if (!Bounds.ContainsOrIntersects(ref segment)) {
             p = default;
             return false;
          }
@@ -64,45 +64,62 @@ namespace OpenMOBA.DataStructures {
          return false;
       }
 
-      public static BvhILS2 Build(IEnumerable<IntLineSegment2> segmentEnumerable) {
-         var segments = segmentEnumerable.ToArray();
-         var segmentAndMidpoints = segments.Map(s => (s, s.ComputeMidpoint()));
-         var xComparer = Comparer<(IntLineSegment2, IntVector2)>.Create((a, b) => a.Item2.X.CompareTo(b.Item2.X));
-         var yComparer = Comparer<(IntLineSegment2, IntVector2)>.Create((a, b) => a.Item2.Y.CompareTo(b.Item2.Y));
+      public void DumpToConsole(int indent) {
+         Console.WriteLine(new string('\t', indent * 2) + Bounds);
+         for (var i = SegmentsStartIndexInclusive; i < SegmentsEndIndexExclusive; i++) {
+            Console.ForegroundColor = Bounds.FullyContains(Segments[i]) ? ConsoleColor.Green : ConsoleColor.Red;
+            Console.WriteLine(new string('\t', indent * 2 + 1) + Segments[i]);
+         }
+         First?.DumpToConsole(indent + 1);
+         Second?.DumpToConsole(indent + 1);
+         Console.ForegroundColor = ConsoleColor.Gray;
+      }
 
-         IntRect2 BoundingSegments(int startIndexInclusive = 0, int endIndexExclusive = -1) {
-            if (endIndexExclusive == -1) endIndexExclusive = segmentAndMidpoints.Length;
+      public static BvhILS2 Build(IEnumerable<IntLineSegment2> segmentEnumerable) {
+         var inputSegments = segmentEnumerable.ToArray();
+         var inputSegmentMidpoints = inputSegments.Map(s => s.ComputeMidpoint());
+         var segmentIndices = Util.Generate(inputSegments.Length, i => i);
+         var xComparer = Comparer<int>.Create((a, b) => inputSegmentMidpoints[a].X.CompareTo(inputSegmentMidpoints[b].X));
+         var yComparer = Comparer<int>.Create((a, b) => inputSegmentMidpoints[a].Y.CompareTo(inputSegmentMidpoints[b].Y));
+         var outputSegments = new IntLineSegment2[inputSegments.Length];
+
+         IntRect2 BoundingSegments(int startIndexInclusive, int endIndexExclusive) {
             cInt minX = cInt.MaxValue, minY = cInt.MaxValue, maxX = cInt.MinValue, maxY = cInt.MinValue;
             for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
-               if (segmentAndMidpoints[i].Item1.First.X < minX) minX = segmentAndMidpoints[i].Item1.First.X;
-               if (segmentAndMidpoints[i].Item1.Second.X < minX) minX = segmentAndMidpoints[i].Item1.Second.X;
+               if (inputSegments[segmentIndices[i]].First.X < minX) minX = inputSegments[segmentIndices[i]].First.X;
+               if (inputSegments[segmentIndices[i]].Second.X < minX) minX = inputSegments[segmentIndices[i]].Second.X;
 
-               if (segmentAndMidpoints[i].Item1.First.Y < minY) minY = segmentAndMidpoints[i].Item1.First.Y;
-               if (segmentAndMidpoints[i].Item1.Second.Y < minY) minY = segmentAndMidpoints[i].Item1.Second.Y;
+               if (inputSegments[segmentIndices[i]].First.Y < minY) minY = inputSegments[segmentIndices[i]].First.Y;
+               if (inputSegments[segmentIndices[i]].Second.Y < minY) minY = inputSegments[segmentIndices[i]].Second.Y;
 
-               if (maxX < segmentAndMidpoints[i].Item1.First.X) maxX = segmentAndMidpoints[i].Item1.First.X;
-               if (maxX < segmentAndMidpoints[i].Item1.Second.X) maxX = segmentAndMidpoints[i].Item1.Second.X;
+               if (maxX < inputSegments[segmentIndices[i]].First.X) maxX = inputSegments[segmentIndices[i]].First.X;
+               if (maxX < inputSegments[segmentIndices[i]].Second.X) maxX = inputSegments[segmentIndices[i]].Second.X;
 
-               if (maxY < segmentAndMidpoints[i].Item1.First.Y) maxY = segmentAndMidpoints[i].Item1.First.Y;
-               if (maxY < segmentAndMidpoints[i].Item1.Second.Y) maxY = segmentAndMidpoints[i].Item1.Second.Y;
+               if (maxY < inputSegments[segmentIndices[i]].First.Y) maxY = inputSegments[segmentIndices[i]].First.Y;
+               if (maxY < inputSegments[segmentIndices[i]].Second.Y) maxY = inputSegments[segmentIndices[i]].Second.Y;
             }
-            return new IntRect2 { Left = minX, Top = minY, Right = maxX + 1, Bottom = maxY + 1};
+            // ir2 is inclusive
+            return new IntRect2 { Left = minX, Top = minY, Right = maxX, Bottom = maxY};
          }
 
          BvhILS2 BuildInternal(int startInclusive, int endExclusive, bool splitXElseY) {
-            if (endExclusive - startInclusive < 8) {
-               return new BvhILS2(null, null, segments, startInclusive, endExclusive, BoundingSegments(startInclusive, endExclusive));
+            if (endExclusive - startInclusive < 16) {
+               for (var i = startInclusive; i < endExclusive; i++) {
+                  outputSegments[i] = inputSegments[segmentIndices[i]];
+               }
+               return new BvhILS2(null, null, outputSegments, startInclusive, endExclusive, BoundingSegments(startInclusive, endExclusive));
             }
 
-            Array.Sort(segmentAndMidpoints, startInclusive, endExclusive - startInclusive, splitXElseY ? xComparer : yComparer);
+            Array.Sort(segmentIndices, startInclusive, endExclusive - startInclusive, splitXElseY ? xComparer : yComparer);
             int midpoint = (startInclusive + endExclusive) / 2;
             var first = BuildInternal(startInclusive, midpoint, !splitXElseY);
             var second = BuildInternal(midpoint, endExclusive, !splitXElseY);
             var bounds = IntRect2.BoundingRectangles(first.Bounds, second.Bounds);
-            return new BvhILS2(first, second, segments, startInclusive, endExclusive, bounds);
+
+            return new BvhILS2(first, second, outputSegments, startInclusive, endExclusive, bounds);
          }
 
-         return BuildInternal(0, segmentAndMidpoints.Length, true);
+         return BuildInternal(0, inputSegments.Length, true);
       }
    }
 }

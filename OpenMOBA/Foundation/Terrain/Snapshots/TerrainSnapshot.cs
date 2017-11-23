@@ -107,7 +107,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          void TagBoundingVolumeHierarchies(PolyNode node) {
             var contourEdges = node.Contour.Zip(node.Contour.RotateLeft(), IntLineSegment2.Create).ToArray();
             var bvh = BvhILS2.Build(contourEdges);
-            node.visibilityGraphNodeData.Bvh = bvh;
+            node.visibilityGraphNodeData.ContourBvh = bvh;
             node.Childs.ForEach(TagBoundingVolumeHierarchies);
          }
 

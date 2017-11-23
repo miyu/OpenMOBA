@@ -465,6 +465,17 @@ namespace OpenMOBA.Geometry {
          return true;
       }
 
+      public static IntLineSegment2 Dilate(this IntLineSegment2 segment, int dilationRadius) {
+         var a = segment.First;
+         var b = segment.Second;
+         var aToB = a.To(b);
+         var aToBMagSquared = aToB.SquaredNorm2();
+
+         var aToBMag = Math.Sqrt(aToBMagSquared);
+         var shrink = aToB.LossyScale(dilationRadius / aToBMag);
+         return new IntLineSegment2(a - shrink, b + shrink);
+      }
+
       /// <summary>
       /// Will continue gracefully even if R3 basis can be formed. Beware!
       /// </summary>

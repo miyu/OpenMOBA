@@ -126,7 +126,7 @@ namespace OpenMOBA.Geometry {
       }
 
       private static PolygonContainmentResult SegmentInPolygon(this PolyNode node, IntLineSegment2 query) {
-         var bvh = node.visibilityGraphNodeData.Bvh;
+         var bvh = node.visibilityGraphNodeData.ContourBvh;
          if (bvh != null) {
             if (bvh.Intersects(ref query)) {
                return PolygonContainmentResult.IntersectsPolygon;

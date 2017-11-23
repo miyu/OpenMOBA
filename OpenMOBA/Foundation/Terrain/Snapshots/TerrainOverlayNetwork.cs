@@ -234,6 +234,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
       public (PathLink[] visibleWaypointLinks, int visibleWaypointLinksLength, PathLink[] optimalLinkToWaypoints, List<PathLink> optimalLinkToCrossovers) FindOptimalLinksToCrossovers(IntVector2 p, int[] candidateWaypoints = null, IReadOnlyDictionary<DoubleLineSegment2, IntLineSegment2[]> candidateBarriersByDestinationSegment = null) {
          Interlocked.Increment(ref FindOptimalLinksToCrossoversInvocationCount);
+         return (new PathLink[0], 0, new PathLink[waypoints.Length], Util.Generate(crossoverPoints.Count, i => new PathLink { PriorIndex = 0, TotalCost = 0 }).ToList());
 
          candidateWaypoints = candidateWaypoints ?? allWaypointIndices;
 
@@ -288,7 +289,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
             if (candidateBarriers == null) {
-               isDirectPath = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
+               isDirectPath = landPolyNode.FindContourAndChildHoleBarriersBvh().Intersects(new IntLineSegment2(p, crossoverPoints[cpi]));
+               //isDirectPath = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
             } else {
                // below is equivalent to (and shaved off 22% execution time relative to):
                // isDirectPath = candidateBarriers.None(new ILS2(p, crossoverPoints[cpi]).Intersects)

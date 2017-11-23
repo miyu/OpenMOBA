@@ -76,6 +76,11 @@ namespace OpenMOBA.Geometry {
          return new DoubleVector2(x, y);
       }
 
+      public void Deconstruct(out double x, out double y) {
+         x = X;
+         y = Y;
+      }
+
       public override string ToString() => $"[{X}, {Y}]";
    }
 
@@ -145,6 +150,11 @@ namespace OpenMOBA.Geometry {
          var x = (cInt)(radius * Math.Cos(radians));
          var y = (cInt)(radius * Math.Sin(radians));
          return new IntVector2(x, y);
+      }
+
+      public void Deconstruct(out cInt x, out cInt y) {
+         x = X;
+         y = Y;
       }
    }
 }

@@ -108,12 +108,19 @@ namespace OpenMOBA.DataStructures {
       }
    }
 
+   // Inclusive on top/left/bottom/right. Bottom has greater value than top.
    public struct IntRect2 {
       public cInt Left;
       public cInt Top;
       public cInt Right;
-      // below top, has greater value than top
       public cInt Bottom;
+
+      public IntRect2(cInt left, cInt top, cInt right, cInt bottom) {
+         Left = left;
+         Top = top;
+         Right = right;
+         Bottom = bottom;
+      }
 
       public bool IntersectsWith(IntRect2 rect) {
          if (Right < rect.Left) return false;
@@ -124,11 +131,12 @@ namespace OpenMOBA.DataStructures {
       }
 
       public static IntRect2 FromRectangle(Rectangle rect) {
+         // Rect bottom and right are exclusive.
          return new IntRect2 {
             Left = rect.Left,
             Top = rect.Top,
-            Right = rect.Right,
-            Bottom = rect.Bottom
+            Right = rect.Right - 1,
+            Bottom = rect.Bottom - 1
          };
       }
 
@@ -165,12 +173,12 @@ namespace OpenMOBA.DataStructures {
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Contains(IntVector2 p) {
-         return Left <= p.X && p.X < Right && Top <= p.Y && p.Y < Bottom;
+         return Left <= p.X && p.X <= Right && Top <= p.Y && p.Y <= Bottom;
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Contains(ref IntVector2 p) {
-         return Left <= p.X && p.X < Right && Top <= p.Y && p.Y < Bottom;
+         return Left <= p.X && p.X <= Right && Top <= p.Y && p.Y <= Bottom;
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -183,14 +191,30 @@ namespace OpenMOBA.DataStructures {
          return Contains(segment.First) && Contains(segment.Second);
       }
 
+      // Degenerates into segment-segment or point-segment intersection
+      // for either or both left=right, top=bottom.
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool ContainsOrIntersects(IntLineSegment2 segment) {
-         return Contains(segment.First) || Contains(segment.Second);
+         return ContainsOrIntersects(ref segment);
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool ContainsOrIntersects(ref IntLineSegment2 segment) {
-         return Contains(segment.First) || Contains(segment.Second);
+         var tl = GeometryOperations.Clockness(segment.X1, segment.Y1, segment.X2, segment.Y2, Left, Top);
+         var tr = GeometryOperations.Clockness(segment.X1, segment.Y1, segment.X2, segment.Y2, Right, Top);
+         var bl = GeometryOperations.Clockness(segment.X1, segment.Y1, segment.X2, segment.Y2, Left, Bottom);
+         var br = GeometryOperations.Clockness(segment.X1, segment.Y1, segment.X2, segment.Y2, Right, Bottom);
+         
+         // If all on same side (and assuming assume not all collinear), then not intersecting!
+         if (tl == tr && tr == bl && bl == br && br != Clockness.Neither) {
+            return false;
+         }
+
+         // Some point (or cross-sectional segment!) of rect intersects with line formed by segment
+         return (segment.X1 >= Left || segment.X2 >= Left) && 
+                (segment.X1 <= Right || segment.X2 <= Right) && 
+                (segment.Y1 >= Top || segment.Y2 >= Top) && 
+                (segment.Y1 <= Bottom || segment.Y2 <= Bottom);
       }
    }
 }
