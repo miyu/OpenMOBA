@@ -6,6 +6,7 @@
     <AssemblyName>OpenMOBA</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>OpenMOBA</PackageId>
+    <StartupObject>OpenMOBA.Program</StartupObject>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />

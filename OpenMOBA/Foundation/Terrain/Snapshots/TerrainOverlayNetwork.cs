@@ -248,7 +248,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var wi = candidateWaypoints[i];
             long costSquared = waypoints[wi].To(p).SquaredNorm2();
             VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
-            if (visibilityPolygon.Stab(p).MidpointDistanceToOriginSquared >= costSquared) {
+            if (visibilityPolygon.Contains(p.ToDoubleVector2())) {
                visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };
                visibleWaypointLinksLength++;
             }

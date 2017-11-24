@@ -152,16 +152,16 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
             var erodedCrossoverSegmentWaypointDistanceSquared = waypoint.ToDoubleVector2().To((segment.First + segment.Second) / 2.0).SquaredNorm2D();
 
-            var segmentsIndices = waypointVisibilityPolygon.RangeStab(segment);
-            var crossoverSeen = false;
-            for (var i = 0; i < segmentsIndices.Length && !crossoverSeen; i++) {
-               var (rangeStartIndex, rangeEndIndex) = segmentsIndices[i];
-               for (var j = rangeStartIndex; j <= rangeEndIndex && !crossoverSeen; j++) {
-                  if (waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared >= erodedCrossoverSegmentWaypointDistanceSquared) {
-                     crossoverSeen = true;
-                  }
-               }
-            }
+            //var segmentsIndices = waypointVisibilityPolygon.RangeStab(segment);
+            var crossoverSeen = waypointVisibilityPolygon.IsPartiallyVisible(segment);
+            //for (var i = 0; i < segmentsIndices.Length && !crossoverSeen; i++) {
+            //   var (rangeStartIndex, rangeEndIndex) = segmentsIndices[i];
+            //   for (var j = rangeStartIndex; j <= rangeEndIndex && !crossoverSeen; j++) {
+            //      if (waypointVisibilityPolygonBarriers[j].MidpointDistanceToOriginSquared >= erodedCrossoverSegmentWaypointDistanceSquared) {
+            //         crossoverSeen = true;
+            //      }
+            //   }
+            //}
 
             if (crossoverSeen) {
                crossoverSeeingWaypoints.Add(waypointIndex);
@@ -178,9 +178,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          return (
             from wi in Enumerable.Range(0, visibilityPolygons.Length)
             let vp = visibilityPolygons[wi]
-            let queryOriginSquaredDistance = vp.Origin.To(query).SquaredNorm2D()
-            where queryOriginSquaredDistance <= vp.Stab(query).MidpointDistanceToOriginSquared
-            let queryOriginDistance = Math.Sqrt(queryOriginSquaredDistance)
+            where vp.Contains(query)
+            let queryOriginDistance = vp.Origin.To(query).Norm2D()
             select (wi, queryOriginDistance)
          ).ToArray();
       }
@@ -409,11 +408,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
                   var dy = a.Y - b.Y;
                   var sqnorm = dx * dx + dy * dy;
 
-                  var range1 = wvp[i].Stab(waypoints[j]);
-                  if (sqnorm >= range1.MidpointDistanceToOriginSquared) continue;
-
-                  var range2 = wvp[j].Stab(waypoints[i]);
-                  if (sqnorm >= range2.MidpointDistanceToOriginSquared) continue;
+                  if (!wvp[i].Contains(waypoints[j].ToDoubleVector2())) continue;
+                  if (!wvp[j].Contains(waypoints[i].ToDoubleVector2())) continue;
                }
                if (bvh != null) {
                   var q = new IntLineSegment2(a, b);

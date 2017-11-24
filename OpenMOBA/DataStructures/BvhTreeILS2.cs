@@ -49,7 +49,7 @@ namespace OpenMOBA.DataStructures {
 
       public bool TryIntersect(ref IntLineSegment2 segment, out DoubleVector2 p) {
          if (!Bounds.ContainsOrIntersects(ref segment)) {
-            p = default;
+            p = default(DoubleVector2);
             return false;
          }
          if (First != null) {
@@ -60,7 +60,7 @@ namespace OpenMOBA.DataStructures {
                return true;
             }
          }
-         p = default;
+         p = default(DoubleVector2);
          return false;
       }
 

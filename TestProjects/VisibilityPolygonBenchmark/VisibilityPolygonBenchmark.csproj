@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{A40207E1-6DD9-4FE5-B0B2-26F0C2E035C9}</ProjectGuid>
+    <ProjectGuid>{B40207E1-6DD9-4FE5-B0B2-26E0C2E035C9}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>QuadSegmentIntersection</RootNamespace>
-    <AssemblyName>QuadSegmentIntersection</AssemblyName>
+    <RootNamespace>VisibilityPolygonBenchmark</RootNamespace>
+    <AssemblyName>VisibilityPolygonBenchmark</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -32,7 +32,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>QuadSegmentIntersection.Program</StartupObject>
+    <StartupObject>VisibilityPolygonBenchmark.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

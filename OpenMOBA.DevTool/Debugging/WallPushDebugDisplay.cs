@@ -29,11 +29,12 @@ namespace OpenMOBA.DevTool.Debugging {
    }
 
    public static class LineOfSightDebugDisplay {
-      private static readonly FillStyle LineOfSightFillStyle = new FillStyle(Color.FromArgb(120, Color.Yellow));
+      private static readonly FillStyle DefaultFillStyle = new FillStyle(Color.FromArgb(120, Color.Yellow));
       private static readonly StrokeStyle AngleBoundaryStrokeStyle = new StrokeStyle(Color.FromArgb(30, Color.Black), 1.0, new [] { 10f, 10f });
-      private static readonly StrokeStyle VisibleWallStrokeStyle = new StrokeStyle(Color.Black, 5.0);
+      private static readonly StrokeStyle VisibleWallStrokeStyle = new StrokeStyle(Color.Black, 3.0);
 
-      public static void DrawLineOfSight(this IDebugCanvas debugCanvas, VisibilityPolygon avss, double z = 0.0) {
+      public static void DrawVisibilityPolygon(this IDebugCanvas debugCanvas, VisibilityPolygon avss, double z = 0.0, FillStyle fillStyle = null) {
+         fillStyle = fillStyle ?? DefaultFillStyle;
          var oxy = avss.Origin;
          foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_NULL)) {
             var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
@@ -55,7 +56,7 @@ namespace OpenMOBA.DevTool.Debugging {
                      new DoubleVector3(oxy.X, oxy.Y, z),
                      new DoubleVector3(visibleStart.X, visibleStart.Y, z),
                      new DoubleVector3(visibleEnd.X, visibleEnd.Y, z)
-                  }, LineOfSightFillStyle);
+                  }, fillStyle);
 
                debugCanvas.DrawLine(
                   new DoubleVector3(oxy.X, oxy.Y, z),

@@ -88,7 +88,7 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
 
          // Then build CPM, which uses cached results from above.
          var crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
-         return (localGeometryView, landPolyNode, crossoverPointManager);
+         //return (localGeometryView, landPolyNode, crossoverPointManager);
 
          var spacing = 10;
          AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(200, 0), new DoubleVector2(400, 0)), spacing);

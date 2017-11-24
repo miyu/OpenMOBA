@@ -196,7 +196,7 @@ namespace OpenMOBA.DevTool {
 //                     debugCanvas.DrawLine(c.SourceSegment.First, c.SourceSegment.Second, new StrokeStyle(Color.Red, 5));
 //                  }
 
-                  debugCanvas.DrawLineOfSight(landNode.ComputeWaypointVisibilityPolygons()[25]);
+                  debugCanvas.DrawVisibilityPolygon(landNode.ComputeWaypointVisibilityPolygons()[25]);
 
 //                  var colors = new[] { Color.Lime, Color.Orange, Color.Cyan, Color.Magenta, Color.Yellow, Color.Pink };
 //                  for (int crossoverIndex = 0; crossoverIndex < visibilityGraphNodeData.ErodedCrossoverSegments.Count; crossoverIndex++) {
