@@ -90,16 +90,16 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          var crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
          //return (localGeometryView, landPolyNode, crossoverPointManager);
 
-         var spacing = 10;
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(200, 0), new DoubleVector2(400, 0)), spacing);
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(600, 0), new DoubleVector2(800, 0)), spacing);
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(200, 1000), new DoubleVector2(400, 1000)), spacing);
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(600, 1000), new DoubleVector2(800, 1000)), spacing);
-         
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)), spacing);
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(0, 600), new DoubleVector2(0, 800)), spacing);
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(1000, 200), new DoubleVector2(1000, 400)), spacing);
-         AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(1000, 600), new DoubleVector2(1000, 800)), spacing);
+         //var spacing = 10;
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(200, 0), new DoubleVector2(400, 0)), spacing);
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(600, 0), new DoubleVector2(800, 0)), spacing);
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(200, 1000), new DoubleVector2(400, 1000)), spacing);
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(600, 1000), new DoubleVector2(800, 1000)), spacing);
+         //
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)), spacing);
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(0, 600), new DoubleVector2(0, 800)), spacing);
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(1000, 200), new DoubleVector2(1000, 400)), spacing);
+         //AddCrossoverPoints(crossoverPointManager, new DoubleLineSegment2(new DoubleVector2(1000, 600), new DoubleVector2(1000, 800)), spacing);
          
          //Console.WriteLine(crossoverPointManager.CrossoverPoints.Count + " " + crossoverPointManager.CrossoverPoints.Count / 8);
 

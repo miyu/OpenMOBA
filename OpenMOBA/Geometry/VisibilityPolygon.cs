@@ -15,22 +15,24 @@ namespace OpenMOBA.Geometry {
       private const double PiDiv2 = Math.PI / 2.0;
       private readonly DoubleVector2 _origin;
       private IntervalRange[] _intervalRanges;
+      private readonly Comparer<IntLineSegment2> _segmentComparer;
       private int rangeIdCounter = RANGE_ID_NULL;
 
-      public VisibilityPolygon(DoubleVector2 origin) {
-         _origin = origin;
-         _intervalRanges = new [] {
-            new IntervalRange {
-               Id = rangeIdCounter++,
-               ThetaStart = 0.0,
-               ThetaEnd = TwoPi
-            }
-         };
-      }
+//      public VisibilityPolygon(DoubleVector2 origin) {
+//         _origin = origin;
+//         _intervalRanges = new [] {
+//            new IntervalRange {
+//               Id = rangeIdCounter++,
+//               ThetaStart = 0.0,
+//               ThetaEnd = TwoPi
+//            }
+//         };
+//      }
 
-      public VisibilityPolygon(DoubleVector2 origin, IntervalRange[] intervalRanges) {
+      public VisibilityPolygon(DoubleVector2 origin, IntervalRange[] intervalRanges, Comparer<IntLineSegment2> segmentComparer) {
          _origin = origin;
          _intervalRanges = intervalRanges;
+         _segmentComparer = segmentComparer;
       }
 
       public DoubleVector2 Origin => _origin;
@@ -292,12 +294,24 @@ namespace OpenMOBA.Geometry {
       private static double FindXYRadiansRelativeToOrigin(DoubleVector2 origin, double x, double y) {
          var dx = x - origin.X;
          var dy = y - origin.Y;
-//         var r = Math.Atan2(dy, dx);
+         //         var r = Math.Atan2(dy, dx);
          var r = FastAtan2(dy, dx);
 
-//         Console.WriteLine(Math.Atan2(1.0, 0.0));
-//         Console.WriteLine(FastAtan2(1.0, 0.0));
-//         while (true) ;
+         //         Console.WriteLine(Math.Atan2(1.0, 0.0));
+         //         Console.WriteLine(FastAtan2(1.0, 0.0));
+         //         while (true) ;
+         return r >= 0 ? r : r + TwoPi;
+      }
+
+      private static double FindXYRadiansRelativeToOrigin(IntVector2 origin, double x, double y) {
+         var dx = x - origin.X;
+         var dy = y - origin.Y;
+         //         var r = Math.Atan2(dy, dx);
+         var r = FastAtan2(dy, dx);
+
+         //         Console.WriteLine(Math.Atan2(1.0, 0.0));
+         //         Console.WriteLine(FastAtan2(1.0, 0.0));
+         //         while (true) ;
          return r >= 0 ? r : r + TwoPi;
       }
 
@@ -369,6 +383,20 @@ namespace OpenMOBA.Geometry {
       }
 
       public bool IsPartiallyVisible(DoubleLineSegment2 segment) {
+         var ranges = RangeStab(segment);
+         foreach (var (startInclusive, endExclusive) in ranges) {
+            for (var i = startInclusive; i < endExclusive; i++) {
+               var comparison = OverlappingIntSegmentOriginDistanceComparator.Compare(
+                  _origin,
+                  segment,
+                  new DoubleLineSegment2(
+                     _intervalRanges[i].Segment.First.ToDoubleVector2(),
+                     _intervalRanges[i].Segment.Second.ToDoubleVector2()));
+               if (comparison < 0) {
+                  return true;
+               }
+            }
+         }
          return false;
       }
 
@@ -389,18 +417,15 @@ namespace OpenMOBA.Geometry {
          public double ThetaStart; // inclusive
          public double ThetaEnd; // exclusive
       }
-
-      // todo: this is the classic skyline problem in polar coordinates. Abusing that would probably
-      // yield significant performance gains.
-      public static VisibilityPolygon Create(DoubleVector2 origin, IReadOnlyList<IntLineSegment2> barriers) {
-         var q = new PriorityQueue<(double, bool, int)>((a, b) => {
-            var res = a.Item1.CompareTo(b.Item1);
-            if (res != 0) return res;
-            return a.Item2.CompareTo(b.Item2);
-         });
+      
+      // IV2 origin variant doesn't have significant perf gains - overhead is largely in struct copying
+      // and tree structure stuff.
+      public static VisibilityPolygon Create(DoubleVector2 origin, IntLineSegment2[] barriers) {
+         var events = new (float, bool, int)[barriers.Length * 4];
+         var numEvents = 0;
 
          // Initialize PQ with events
-         for (var i = 0; i < barriers.Count; i++) {
+         for (var i = 0; i < barriers.Length; i++) {
             var s = barriers[i];
 
             // front-face looks CCW to us
@@ -410,29 +435,31 @@ namespace OpenMOBA.Geometry {
             }
 
             var id = i;
-            var theta1 = FindXYRadiansRelativeToOrigin(origin, s.X1, s.Y1);
-            var theta2 = FindXYRadiansRelativeToOrigin(origin, s.X2, s.Y2);
+            var theta1 = (float)FindXYRadiansRelativeToOrigin(origin, s.X1, s.Y1);
+            var theta2 = (float)FindXYRadiansRelativeToOrigin(origin, s.X2, s.Y2);
 
             // ensure theta1 < theta2
             if (theta1 > theta2) (theta1, theta2) = (theta2, theta1);
 
-            void Enqueue((double, bool, int) item) {
+            void Enqueue((float, bool, int) item) {
                // Console.WriteLine(
                //    "TASK " + item.Item1 + " " +
                //    (item.Item2 ? "ADD" : "REM") + " " +
                //    item.Item3 + " " +
                //    item.Item4);
-               q.Enqueue(item);
+               events[numEvents] = item;
+               numEvents++;
             }
 
             if (theta2 - theta1 > Math.PI) {
-               if (theta1 > 0.0) {
-                  Enqueue((0.0, true, id));
+               if (theta1 > 0.0f) {
+                  Enqueue((0.0f, true, id));
                   Enqueue((theta1, false, id));
                }
-               if (theta2 < 2 * Math.PI) {
+               const float twopi = (float)(2 * Math.PI);
+               if (theta2 < twopi) {
                   Enqueue((theta2, true, id));
-                  Enqueue((2 * Math.PI, false, id));
+                  Enqueue((twopi, false, id));
                }
             } else {
                Enqueue((theta1, true, id));
@@ -440,11 +467,25 @@ namespace OpenMOBA.Geometry {
             }
          }
 
+         Array.Sort(events, 0, numEvents, Comparer<(float, bool, int)>.Create((a, b) => {
+            var res = a.Item1.CompareTo(b.Item1);
+            if (res != 0) return res;
+            return a.Item2.CompareTo(b.Item2);
+         }));
+
          var lastTheta = 0.0;
-         var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingSegmentOriginDistanceComparator.Compare(origin, a, b));
-         var orderedSegmentComparer = Comparer<int>.Create((a, b) => segmentComparer.Compare(barriers[a], barriers[b]));
-         var orderedSegments = new SortedSet<int>(orderedSegmentComparer);
-         var outputRanges = new List<IntervalRange>();
+         var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingIntSegmentOriginDistanceComparator.Compare(origin, a, b));
+         int OrderedSegmentComparison(int a, int b) => OverlappingIntSegmentOriginDistanceComparator.Compare(ref origin, ref barriers[a], ref barriers[b]);
+         var orderedSegmentComparer = Comparer<int>.Create(OrderedSegmentComparison);
+         //var orderedSegments = new SortedSet<int>(orderedSegmentComparer);
+
+         // Generally segment count is quite small. We only care about the minimum (nearest) segment 
+         // at a given time, not the total ordering of segments. In practice PQ is much faster than sorted set.
+         // We do need to support removal - nontracking PQ (one that scans on removal) is fast enough given
+         // we only have ~10 at most items in the PQ (usually more like 1-5) and we're scanning for ints.
+         // Tracking PQ indices with hashset is still faster than sortedset, but slower than nontracking PQ.
+         var orderedSegments = new NonTrackingRemovablePriorityQueue<int>(OrderedSegmentComparison);
+         var outputRanges = new List<IntervalRange>(barriers.Length * 2);
 
          void ValidateOrderingTransitivity(IntLineSegment2 sq) {
             var arr = orderedSegments.ToArray();
@@ -505,10 +546,10 @@ namespace OpenMOBA.Geometry {
             throw new InvalidStateException();
          }
 
-         while (!q.IsEmpty) {
-            var (theta, add, id) = q.Dequeue();   
+         for (var i = 0; i < numEvents && i < events.Length; i++) {
+            var (theta, add, id) = events[i];
             if (theta != lastTheta) {
-               var nearestId = orderedSegments.Count == 0 ? RANGE_ID_NULL : orderedSegments.Min;
+               var nearestId = orderedSegments.Count == 0 ? RANGE_ID_NULL : orderedSegments.Peek();
                if (outputRanges.Count != 0 && outputRanges[outputRanges.Count - 1].Id == nearestId) {
                   // extend prev output range
                   // Console.WriteLine($"EXTEND to {theta} {id}");
@@ -529,71 +570,17 @@ namespace OpenMOBA.Geometry {
             if (add) {
                // ValidateOrderingTransitivity(seg);
 
-               // Console.WriteLine("ADD " + theta + " " + seg + " " + id + " " + orderedSegments.Count);
-               if (!orderedSegments.Add(id))
-                  ThrowInvalidState(barriers[id]);
+               // Console.WriteLine("ADD " + theta + " " + barriers[id] + " " + id + " " + orderedSegments.Count);
+               orderedSegments.Enqueue(id);
+               // if (!orderedSegments.Enqueue(id))
+               //    ThrowInvalidState(barriers[id]);
             } else {
-               // Console.WriteLine("REM " + theta + " " + seg + " " + id + " " + orderedSegments.Count);
+               // Console.WriteLine("REM " + theta + " " + barriers[id] + " " + id + " " + orderedSegments.Count);
                if (!orderedSegments.Remove(id))
                   ThrowInvalidState(barriers[id]);
             }
          }
-         return new VisibilityPolygon(origin, outputRanges.ToArray());
-      }
-   }
-
-   public class OverlappingSegmentOriginDistanceComparator : IComparer<IntLineSegment2> {
-      private readonly DoubleVector2 _origin;
-
-      public OverlappingSegmentOriginDistanceComparator(DoubleVector2 origin) {
-         _origin = origin;
-      }
-
-      // clockness(origin, seg.first, seg.second) must be clockwise.
-      public int Compare(IntLineSegment2 x, IntLineSegment2 y) {
-         return Compare(_origin, x, y);
-      }
-
-      public static int Compare(DoubleVector2 p, IntLineSegment2 a, IntLineSegment2 b) {
-#if DEBUG
-         if (GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2) != Clockness.Clockwise) {
-            throw new InvalidStateException();
-         }
-         if (GeometryOperations.Clockness(p.X, p.Y, b.X1, b.Y1, b.X2, b.Y2) != Clockness.Clockwise) {
-            throw new InvalidStateException();
-         }
-#endif
-         var clk = GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, b.X1, b.Y1);
-         if (clk != Clockness.Clockwise) {
-            // b before a; b \' a *origin
-            var res = (int)GeometryOperations.Clockness(b.First, b.Second, a.First);
-            if (res != 0) return res;
-            
-            // just need something to resolve ambiguity. b1 b2 a1 is collinear.
-            // a1 must be within the angle b1 p b2 (see visibility polygon building algorithm)
-            // so a1 is BETWEEN b1 b2. a2 cannot be collinear with b1 b2 (disallow segments intersecting
-            // other than at endpoint), but still, a2 is either 'in front of' or 'behind' b.
-            res = (int)GeometryOperations.Clockness(b.First, b.Second, a.Second);
-#if DEBUG
-            if (res == 0 && a != b) {
-               throw new BadInputException();
-            }
-#endif
-            return res;
-         } else {
-            // a before b; a \' b *origin
-            var res = -(int)GeometryOperations.Clockness(a.First, a.Second, b.First);
-            if (res != 0) return res;
-
-            // just need something to resolve ambiguity. a1 a2 b1 is collinear.
-            res = -(int)GeometryOperations.Clockness(a.First, a.Second, b.Second);
-#if DEBUG
-            if (res == 0 && a != b) {
-               throw new BadInputException();
-            }
-#endif
-            return res;
-         }
+         return new VisibilityPolygon(origin, outputRanges.ToArray(), segmentComparer);
       }
    }
 }

@@ -14,7 +14,7 @@ namespace VisibilityPolygonBenchmark {
       private static int frameCounter = 0;
 
       public static void Main(string[] args) {
-         //for (var i = 0; i < 200; i++) RenderVisualizationFrame();
+         for (var i = 0; i < 100; i++) RenderVisualizationFrame();
          Benchmark();
       }
 

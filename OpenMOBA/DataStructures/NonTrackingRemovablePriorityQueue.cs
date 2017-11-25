@@ -11,19 +11,18 @@ namespace OpenMOBA.DataStructures
    /// 
    /// log(N) deletion, does not support inserting an instance more than once.
    /// </summary>
-   public class RemovablePriorityQueue<TItem> : IReadOnlyCollection<TItem> {
+   public class NonTrackingRemovablePriorityQueue<TItem> : IReadOnlyCollection<TItem> {
       // 1 + 4 + 16 + 64 = 5 + 16 + 64 = 21 + 64 = 85
       private const int kNodesPerLevel = 4;
       private const int kInitialCapacity = 1 + kNodesPerLevel;
       private readonly Comparison<TItem> itemComparer;
+      private static readonly IEqualityComparer<TItem> equalityComparer = typeof(TItem).IsValueType ? EqualityComparer<TItem>.Default : ReferenceEqualityComparer<TItem>.Instance;
 
       private TItem[] items = new TItem[kInitialCapacity];
-      private Dictionary<TItem, int> itemIndices = new Dictionary<TItem, int>(
-         typeof(TItem).IsValueType ? EqualityComparer<TItem>.Default : ReferenceEqualityComparer<TItem>.Instance);
 
-      public RemovablePriorityQueue() : this(Comparer<TItem>.Default.Compare) { }
+      public NonTrackingRemovablePriorityQueue() : this(Comparer<TItem>.Default.Compare) { }
 
-      public RemovablePriorityQueue(Comparison<TItem> itemComparer) {
+      public NonTrackingRemovablePriorityQueue(Comparison<TItem> itemComparer) {
          this.itemComparer = itemComparer;
       }
 
@@ -33,12 +32,11 @@ namespace OpenMOBA.DataStructures
       public int Count { get; private set; }
 
       public IEnumerator<TItem> GetEnumerator() {
-         var clone = new RemovablePriorityQueue<TItem>(itemComparer);
+         var clone = new NonTrackingRemovablePriorityQueue<TItem>(itemComparer);
          clone.items = new TItem[items.Length];
          for (int i = 0; i < Count; i++) {
             clone.items[i] = items[i];
          }
-         clone.itemIndices = new Dictionary<TItem, int>(itemIndices);
          clone.Count = Count;
          while (!clone.IsEmpty) {
             yield return clone.Dequeue();
@@ -68,7 +66,6 @@ namespace OpenMOBA.DataStructures
 
          // handle childless case
          if (childrenStartIndexInclusive == childrenEndIndexExclusive) {
-            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
             return;
          }
@@ -83,12 +80,10 @@ namespace OpenMOBA.DataStructures
 
          if (itemComparer(items[leastChildIndex], item) < 0) {
             // Our least child is smaller than item, move it up the heap and percolate further.
-            itemIndices[items[leastChildIndex]] = currentIndex;
             items[currentIndex] = items[leastChildIndex];
             PercolateDown(leastChildIndex, item);
          } else {
             // Our item is greater than its descendents, store.
-            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
          }
       }
@@ -102,18 +97,15 @@ namespace OpenMOBA.DataStructures
 
       private void PercolateUp(int currentIndex, TItem item) {
          if (currentIndex == 0) {
-            itemIndices[item] = 0;
             items[0] = item;
             return;
          }
 
          var parentIndex = (currentIndex - 1) / kNodesPerLevel;
          if (itemComparer(item, items[parentIndex]) < 0) {
-            itemIndices[items[parentIndex]] = currentIndex;
             items[currentIndex] = items[parentIndex];
             PercolateUp(parentIndex, item);
          } else {
-            itemIndices[item] = currentIndex;
             items[currentIndex] = item;
          }
       }
@@ -134,17 +126,17 @@ namespace OpenMOBA.DataStructures
       }
 
       public bool Remove(TItem item) {
-         int itemIndex;
-         if (!itemIndices.TryGetValue(item, out itemIndex)) {
-            return false;
+         for (var i = 0; i < Count; i++) {
+            if (equalityComparer.Equals(item, items[i])) {
+               RemoveAtIndex(i);
+               return true;
+            }
          }
-         RemoveAtIndex(itemIndex);
-         return true;
+         return false;
       }
 
       private TItem RemoveAtIndex(int i) {
          var result = items[i];
-         itemIndices.Remove(result);
 
          Count--;
          var tail = items[Count];

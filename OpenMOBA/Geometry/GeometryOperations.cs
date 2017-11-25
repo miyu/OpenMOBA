@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
 
@@ -20,21 +21,21 @@ namespace OpenMOBA.Geometry {
       public static bool IsReal(DoubleVector2 v) => IsReal(v.X) && IsReal(v.Y);
       public static bool IsReal(DoubleVector3 v) => IsReal(v.X) && IsReal(v.Y) && IsReal(v.Z);
 
-      public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
-      public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
-      public static Clockness Clockness(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
-      public static Clockness Clockness(cInt bax, cInt bay, cInt bcx, cInt bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(cInt bax, cInt bay, cInt bcx, cInt bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static cInt Cross(this IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
-      public static cInt Cross(cInt ax, cInt ay, cInt bx, cInt by) => ax * by - ay * bx;
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static cInt Cross(this IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static cInt Cross(cInt ax, cInt ay, cInt bx, cInt by) => ax * by - ay * bx;
 
-      public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
-      public static Clockness Clockness(DoubleVector2 ba, DoubleVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
-      public static Clockness Clockness(double ax, double ay, double bx, double by, double cx, double cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
-      public static Clockness Clockness(double bax, double bay, double bcx, double bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(DoubleVector2 ba, DoubleVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(double ax, double ay, double bx, double by, double cx, double cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(double bax, double bay, double bcx, double bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      public static double Cross(this DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
-      public static double Cross(double ax, double ay, double bx, double by) => ax * by - ay * bx;
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static double Cross(this DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static double Cross(double ax, double ay, double bx, double by) => ax * by - ay * bx;
 
       public static Vector3 ToDotNetVector(this IntVector3 v) => new Vector3(v.X, v.Y, v.Z);
       public static Vector3 ToDotNetVector(this DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
