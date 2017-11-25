@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using OpenMOBA.DataStructures;
 
@@ -266,7 +267,7 @@ namespace OpenMOBA.Geometry {
          var upperExclusive = _intervalRanges.Length;
          while (lowerInclusive != upperExclusive) {
             var mid = lowerInclusive + (upperExclusive - lowerInclusive) / 2;
-            var item = _intervalRanges[mid];
+            ref var item = ref _intervalRanges[mid];
             if (item.ThetaStart == theta) {
                if (inclusiveRangeStart) {
                   return mid;
@@ -291,6 +292,7 @@ namespace OpenMOBA.Geometry {
       private double FindXYRadiansRelativeToOrigin(double x, double y) => FindXYRadiansRelativeToOrigin(_origin, x, y);
 
       // from [0, 2pi)
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       private static double FindXYRadiansRelativeToOrigin(DoubleVector2 origin, double x, double y) {
          var dx = x - origin.X;
          var dy = y - origin.Y;
@@ -303,6 +305,7 @@ namespace OpenMOBA.Geometry {
          return r >= 0 ? r : r + TwoPi;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       private static double FindXYRadiansRelativeToOrigin(IntVector2 origin, double x, double y) {
          var dx = x - origin.X;
          var dy = y - origin.Y;
@@ -316,6 +319,7 @@ namespace OpenMOBA.Geometry {
       }
 
       // https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       private static double FastAtan2(double y, double x) {
          var ax = Math.Abs(x);
          var ay = Math.Abs(y);
@@ -346,6 +350,7 @@ namespace OpenMOBA.Geometry {
       public IntervalRange Stab(IntVector2 reference) => Stab(FindXYRadiansRelativeToOrigin(reference.X, reference.Y));
       public IntervalRange Stab(DoubleVector2 reference) => Stab(FindXYRadiansRelativeToOrigin(reference.X, reference.Y));
       public IntervalRange Stab(double theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
+      public ref IntervalRange RefStab(double theta) => ref _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
 
       public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(IntLineSegment2 s) {
          return RangeStab(new DoubleLineSegment2(s.First.ToDoubleVector2(), s.Second.ToDoubleVector2()));
@@ -386,12 +391,13 @@ namespace OpenMOBA.Geometry {
          var ranges = RangeStab(segment);
          foreach (var (startInclusive, endExclusive) in ranges) {
             for (var i = startInclusive; i < endExclusive; i++) {
+               ref var s = ref _intervalRanges[i].Segment;
                var comparison = OverlappingIntSegmentOriginDistanceComparator.Compare(
                   _origin,
                   segment,
                   new DoubleLineSegment2(
-                     _intervalRanges[i].Segment.First.ToDoubleVector2(),
-                     _intervalRanges[i].Segment.Second.ToDoubleVector2()));
+                     s.First.ToDoubleVector2(),
+                     s.Second.ToDoubleVector2()));
                if (comparison < 0) {
                   return true;
                }
@@ -400,18 +406,27 @@ namespace OpenMOBA.Geometry {
          return false;
       }
 
-      public bool Contains(DoubleVector2 p) {
+      public bool Contains(IntVector2 p) {
          var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
-         var pToOriginDistSquared = _origin.To(p).SquaredNorm2D();
-         var rangeAtTheta = Stab(theta);
+         ref var rangeAtTheta = ref RefStab(theta);
          if (rangeAtTheta.Id == RANGE_ID_NULL) {
             return false;
          }
-         var (s1, s2) = rangeAtTheta.Segment;
-         return GeometryOperations.Clockness(s1.X, s1.Y, s2.X, s2.Y, p.X, p.Y) == Clockness.Clockwise;
+         ref var s = ref rangeAtTheta.Segment;
+         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) == Clockness.Clockwise;
       }
 
-      public class IntervalRange {
+      public bool Contains(DoubleVector2 p) {
+         var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
+         ref var rangeAtTheta = ref RefStab(theta);
+         if (rangeAtTheta.Id == RANGE_ID_NULL) {
+            return false;
+         }
+         ref var s = ref rangeAtTheta.Segment;
+         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) == Clockness.Clockwise;
+      }
+
+      public struct IntervalRange {
          public int Id;
          public IntLineSegment2 Segment;
          public double ThetaStart; // inclusive
@@ -421,7 +436,7 @@ namespace OpenMOBA.Geometry {
       // IV2 origin variant doesn't have significant perf gains - overhead is largely in struct copying
       // and tree structure stuff.
       public static VisibilityPolygon Create(DoubleVector2 origin, IntLineSegment2[] barriers) {
-         var events = new (float, bool, int)[barriers.Length * 4];
+         var events = new (float, int, bool)[barriers.Length * 4];
          var numEvents = 0;
 
          // Initialize PQ with events
@@ -441,37 +456,46 @@ namespace OpenMOBA.Geometry {
             // ensure theta1 < theta2
             if (theta1 > theta2) (theta1, theta2) = (theta2, theta1);
 
-            void Enqueue((float, bool, int) item) {
+            void Enqueue((float, int, bool) item) {
                // Console.WriteLine(
                //    "TASK " + item.Item1 + " " +
                //    (item.Item2 ? "ADD" : "REM") + " " +
                //    item.Item3 + " " +
                //    item.Item4);
+               // var val = (item.Item3 << 1) | (item.Item2 ? 1 : 0);
                events[numEvents] = item;
                numEvents++;
             }
 
             if (theta2 - theta1 > Math.PI) {
                if (theta1 > 0.0f) {
-                  Enqueue((0.0f, true, id));
-                  Enqueue((theta1, false, id));
+                  Enqueue((0.0f, id, true));
+                  Enqueue((theta1, id, false));
                }
                const float twopi = (float)(2 * Math.PI);
                if (theta2 < twopi) {
-                  Enqueue((theta2, true, id));
-                  Enqueue((twopi, false, id));
+                  Enqueue((theta2, id, true));
+                  Enqueue((twopi, id, false));
                }
             } else {
-               Enqueue((theta1, true, id));
-               Enqueue((theta2, false, id));
+               Enqueue((theta1, id, true));
+               Enqueue((theta2, id, false));
             }
          }
 
-         Array.Sort(events, 0, numEvents, Comparer<(float, bool, int)>.Create((a, b) => {
-            var res = a.Item1.CompareTo(b.Item1);
+         var eventIndices = Util.GenerateRange(numEvents);
+         Array.Sort(eventIndices, (a, b) => {
+            var res = events[a].Item1.CompareTo(events[b].Item1);
             if (res != 0) return res;
-            return a.Item2.CompareTo(b.Item2);
-         }));
+            //return (events[a].Item2 & 1).CompareTo(events[b].Item2 & 1);
+            return events[a].Item3.CompareTo(events[b].Item3);
+         });
+
+//         Array.Sort(events, 0, numEvents, Comparer<(float, bool, int)>.Create((a, b) => {
+//            var res = a.Item1.CompareTo(b.Item1);
+//            if (res != 0) return res;
+//            return a.Item2.CompareTo(b.Item2);
+//         }));
 
          var lastTheta = 0.0;
          var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingIntSegmentOriginDistanceComparator.Compare(origin, a, b));
@@ -485,7 +509,7 @@ namespace OpenMOBA.Geometry {
          // we only have ~10 at most items in the PQ (usually more like 1-5) and we're scanning for ints.
          // Tracking PQ indices with hashset is still faster than sortedset, but slower than nontracking PQ.
          var orderedSegments = new NonTrackingRemovablePriorityQueue<int>(OrderedSegmentComparison);
-         var outputRanges = new List<IntervalRange>(barriers.Length * 2);
+         var outputRanges = new IntervalRange[eventIndices.Length + 1];
 
          void ValidateOrderingTransitivity(IntLineSegment2 sq) {
             var arr = orderedSegments.ToArray();
@@ -546,23 +570,28 @@ namespace OpenMOBA.Geometry {
             throw new InvalidStateException();
          }
 
-         for (var i = 0; i < numEvents && i < events.Length; i++) {
-            var (theta, add, id) = events[i];
+         var lastOutputRangeIndex = -1;
+         for (var i = 0; i < eventIndices.Length; i++) {
+            //var (theta, id, add) = events[eventIndices[i]];
+            var (theta, id, add) = events[eventIndices[i]];
+            //var id = val >> 1;
+            //var add = (val & 1) == 1;
             if (theta != lastTheta) {
                var nearestId = orderedSegments.Count == 0 ? RANGE_ID_NULL : orderedSegments.Peek();
-               if (outputRanges.Count != 0 && outputRanges[outputRanges.Count - 1].Id == nearestId) {
+               if (lastOutputRangeIndex != -1 && outputRanges[lastOutputRangeIndex].Id == nearestId) {
                   // extend prev output range
                   // Console.WriteLine($"EXTEND to {theta} {id}");
-                  outputRanges[outputRanges.Count - 1].ThetaEnd = theta;
+                  outputRanges[lastOutputRangeIndex].ThetaEnd = theta;
                } else {
                   // Console.WriteLine($"EMIT {lastTheta} to {theta} {nearestId} {nearestSegment}");
                   // emit from theta to lastTheta
-                  outputRanges.Add(new IntervalRange {
+                  lastOutputRangeIndex++;
+                  outputRanges[lastOutputRangeIndex] = new IntervalRange {
                      Id = nearestId,
                      Segment = nearestId == RANGE_ID_NULL ? default(IntLineSegment2) : barriers[nearestId],
                      ThetaStart = lastTheta,
                      ThetaEnd = theta
-                  });
+                  };
                }
                lastTheta = theta;
             }
@@ -580,7 +609,14 @@ namespace OpenMOBA.Geometry {
                   ThrowInvalidState(barriers[id]);
             }
          }
-         return new VisibilityPolygon(origin, outputRanges.ToArray(), segmentComparer);
+
+         var outputRangeCount = lastOutputRangeIndex + 1;
+         var finalOutputRanges = new IntervalRange[outputRangeCount];
+         Array.Copy(outputRanges, finalOutputRanges, outputRangeCount);
+//         for (var i = 0; i < outputRangeCount; i++) {
+//            finalOutputRanges[i] = outputRanges[i];
+//         }
+         return new VisibilityPolygon(origin, finalOutputRanges, segmentComparer);
       }
    }
 }

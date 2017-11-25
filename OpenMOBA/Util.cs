@@ -9,6 +9,14 @@ using System.Threading.Tasks;
 namespace OpenMOBA {
    // from dargon/commons
    public static unsafe class Util {
+      public static int[] GenerateRange(int count) {
+         var res = new int[count];
+         for (var i = 0; i < count; i++) {
+            res[i] = i;
+         }
+         return res;
+      }
+
       public static T[] Generate<T>(int count, Func<T> generator) {
          return Generate(count, i => generator());
       }

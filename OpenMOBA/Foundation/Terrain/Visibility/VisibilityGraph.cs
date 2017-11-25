@@ -399,17 +399,14 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          var neighborsToCosts = new List<(int, float)>[waypoints.Length];
          for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new List<(int, float)>();
          for (var i = 0; i < waypoints.Length - 1; i++) {
+            var wvpi = wvp[i];
+
             var a = waypoints[i];
             for (var j = i + 1; j < waypoints.Length; j++) {
                var b = waypoints[j];
 
                if (wvp != null) {
-                  var dx = a.X - b.X;
-                  var dy = a.Y - b.Y;
-                  var sqnorm = dx * dx + dy * dy;
-
-                  if (!wvp[i].Contains(waypoints[j].ToDoubleVector2())) continue;
-                  if (!wvp[j].Contains(waypoints[i].ToDoubleVector2())) continue;
+                  if (!wvpi.Contains(waypoints[j])) continue;
                }
                if (bvh != null) {
                   var q = new IntLineSegment2(a, b);
