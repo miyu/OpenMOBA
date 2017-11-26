@@ -47,7 +47,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public bool IsPunchedLandEvaluated => _punchedLand != null;
 
       private PolyTree _dilatedHolesUnion;
-      private IntLineSegment2?[] _erodedCrossoverSegments;
+      //private IntLineSegment2?[] _erodedCrossoverSegments;
       private PolyTree _punchedLand;
       private Triangulation _triangulation;
 
@@ -57,23 +57,34 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                              .Dilate(ActorRadius)
                              .Execute());
 
-      public IntLineSegment2?[] ErodedBoundaryCrossoverSegments =>
-         _erodedCrossoverSegments ?? (_erodedCrossoverSegments =
-            Job.CrossoverSegments.Select(segment =>
-               segment.TryErode(CrossoverErosionRadius, out IntLineSegment2 erosionResult)
-                  ? erosionResult
-                  : (IntLineSegment2?)null).ToArray());
+      //public IntLineSegment2?[] ErodedBoundaryCrossoverSegments =>
+      //   _erodedCrossoverSegments ?? (_erodedCrossoverSegments =
+      //      Job.CrossoverSegments.Select(segment =>
+      //         segment.TryErode(CrossoverErosionRadius, out IntLineSegment2 erosionResult)
+      //            ? erosionResult
+      //            : (IntLineSegment2?)null).ToArray());
 
       private PolyTree ComputeErodedOuterContour() =>
          PolygonOperations.Offset().Include(Job.TerrainStaticMetadata.LocalIncludedContours)
                           .Erode(ActorRadius)
                           .Execute();
 
-      private IEnumerable<Polygon2> ComputeCrossoverLandPolys() =>
-         ErodedBoundaryCrossoverSegments
-            .Where(s => s.HasValue)
-            .SelectMany(s => PolylineOperations.ExtrudePolygon(s.Value.Points, CrossoverDilationFactor)
-                                               .FlattenToPolygons());
+      private IEnumerable<Polygon2> ComputeCrossoverLandPolys() {
+         return Job.CrossoverSegments.Select(segment => {
+            var firstToSecond = segment.First.To(segment.Second).ToDoubleVector2();
+            var perp = new DoubleVector2(firstToSecond.Y, -firstToSecond.X);
+            var extrusionMagnitude = ActorRadius;
+            var extrusion = perp * (extrusionMagnitude / perp.Norm2D());
+            var shrink = firstToSecond * (ActorRadius / firstToSecond.Norm2D());
+            var points = new List<IntVector2>(new []{
+               (segment.First.ToDoubleVector2() - extrusion + shrink).LossyToIntVector2(),
+               (segment.First.ToDoubleVector2() + extrusion + shrink).LossyToIntVector2(),
+               (segment.Second.ToDoubleVector2() + extrusion - shrink).LossyToIntVector2(),
+               (segment.Second.ToDoubleVector2() - extrusion - shrink).LossyToIntVector2()
+            });
+            return new Polygon2(points, false);
+         }).ToArray();
+      }
 
       public PolyTree PunchedLand =>
          _punchedLand ?? (_punchedLand =
@@ -86,10 +97,15 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             ));
 
       private PolyTree PostProcessPunchedLand(PolyTree punchedLand) {
+         var pruneArea = (2 * ActorRadius + 2) * (2 * ActorRadius + 2);
          void PrunePolytree(PolyNode polyTree) {
+            var cleaned = Clipper.CleanPolygon(polyTree.Contour, ActorRadius / 5 + 2);
+            polyTree.Contour.Clear();
+            polyTree.Contour.AddRange(cleaned);
+
             for (var i = polyTree.Childs.Count - 1; i >= 0; i--) {
                var child = polyTree.Childs[i];
-               if (Math.Abs(Clipper.Area(child.Contour)) < 16 * 16) {
+               if (Math.Abs(Clipper.Area(child.Contour)) < 15 * 15) {
                   Console.WriteLine("Prune: " + Clipper.Area(child.Contour) + " " + child.Contour.Count);
                   polyTree.Childs.RemoveAt(i);
                   continue;

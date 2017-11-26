@@ -352,11 +352,11 @@ namespace OpenMOBA.Geometry {
       public IntervalRange Stab(double theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
       public ref IntervalRange RefStab(double theta) => ref _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
 
-      public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(IntLineSegment2 s) {
+      public (int startIndexInclusive, int endIndexInclusive)[] RangeStab(IntLineSegment2 s) {
          return RangeStab(new DoubleLineSegment2(s.First.ToDoubleVector2(), s.Second.ToDoubleVector2()));
       }
 
-      public (int startIndexInclusive, int endIndexExclusive)[] RangeStab(DoubleLineSegment2 s) {
+      public (int startIndexInclusive, int endIndexInclusive)[] RangeStab(DoubleLineSegment2 s) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
          var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
 
@@ -388,9 +388,13 @@ namespace OpenMOBA.Geometry {
       }
 
       public bool IsPartiallyVisible(DoubleLineSegment2 segment) {
+         if (GeometryOperations.Clockness(segment.First, segment.Second, _origin) == Clockness.Neither) {
+            return true;
+         }
+
          var ranges = RangeStab(segment);
-         foreach (var (startInclusive, endExclusive) in ranges) {
-            for (var i = startInclusive; i < endExclusive; i++) {
+         foreach (var (startInclusive, endInclusive) in ranges) {
+            for (var i = startInclusive; i <= endInclusive; i++) {
                ref var s = ref _intervalRanges[i].Segment;
                var comparison = OverlappingIntSegmentOriginDistanceComparator.Compare(
                   _origin,
@@ -398,7 +402,7 @@ namespace OpenMOBA.Geometry {
                   new DoubleLineSegment2(
                      s.First.ToDoubleVector2(),
                      s.Second.ToDoubleVector2()));
-               if (comparison < 0) {
+               if (comparison <= 0) {
                   return true;
                }
             }
@@ -407,23 +411,25 @@ namespace OpenMOBA.Geometry {
       }
 
       public bool Contains(IntVector2 p) {
+         if (p.ToDoubleVector2() == _origin) return true;
          var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
          ref var rangeAtTheta = ref RefStab(theta);
          if (rangeAtTheta.Id == RANGE_ID_NULL) {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
-         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) == Clockness.Clockwise;
+         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
       }
 
       public bool Contains(DoubleVector2 p) {
+         if (p == _origin) return true;
          var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
          ref var rangeAtTheta = ref RefStab(theta);
          if (rangeAtTheta.Id == RANGE_ID_NULL) {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
-         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) == Clockness.Clockwise;
+         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
       }
 
       public struct IntervalRange {

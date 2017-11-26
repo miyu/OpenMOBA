@@ -152,6 +152,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
             var erodedCrossoverSegmentWaypointDistanceSquared = waypoint.ToDoubleVector2().To((segment.First + segment.Second) / 2.0).SquaredNorm2D();
 
+            // TODO: If segment matches waypoint this explodes (can't vispoly stab with its origin)
             //var segmentsIndices = waypointVisibilityPolygon.RangeStab(segment);
             var crossoverSeen = waypointVisibilityPolygon.IsPartiallyVisible(segment);
             //for (var i = 0; i < segmentsIndices.Length && !crossoverSeen; i++) {
@@ -399,7 +400,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          var neighborsToCosts = new List<(int, float)>[waypoints.Length];
          for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new List<(int, float)>();
          for (var i = 0; i < waypoints.Length - 1; i++) {
-            var wvpi = wvp[i];
+            var wvpi = wvp?[i];
 
             var a = waypoints[i];
             for (var j = i + 1; j < waypoints.Length; j++) {

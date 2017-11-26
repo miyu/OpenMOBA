@@ -83,14 +83,27 @@ namespace OpenMOBA.DevTool {
 
          for (var i = 0; i < 100; i++) {
             RunBenchmarkIteration();
+            if (i == 0) {
+               Console.WriteLine(
+                  PolyNodeCrossoverPointManager.AddMany_ConvexHullsComputed + " " +
+                  PolyNodeCrossoverPointManager.CrossoverPointsAdded + " " +
+                  PolyNodeCrossoverPointManager.FindOptimalLinksToCrossoversInvocationCount + " " +
+                  PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck + " " +
+                  PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CostToWaypointCount + " " +
+                  PolyNodeCrossoverPointManager.ProcessCpiInvocationCount + " " +
+                  PolyNodeCrossoverPointManager.ProcessCpiInvocation_CandidateBarrierIntersectCount + " " +
+                  PolyNodeCrossoverPointManager.ProcessCpiInvocation_DirectCount + " " +
+                  PolyNodeCrossoverPointManager.ProcessCpiInvocation_IndirectCount);
+            }
+            return;
          }
          GC.Collect();
          var sw = new Stopwatch();
          sw.Start();
-         for (var i = 0; i < 1000; i++) {
+         for (var i = 0; i < 100; i++) {
             RunBenchmarkIteration();
          }
-         Console.WriteLine("1000itr: " + sw.ElapsedMilliseconds + "ms");
+         Console.WriteLine("100itr: " + sw.ElapsedMilliseconds + "ms");
       }
 
       private void RenderDebugFrame() {

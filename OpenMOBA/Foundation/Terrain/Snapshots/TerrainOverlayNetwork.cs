@@ -98,7 +98,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var destinationSegmentLength = destinationSegmentVector.Norm2D();
 
          var longestSegmentLength = Math.Max(sourceSegmentLength, destinationSegmentLength);
-         var crossoverPointSpacing = 10;
+         var crossoverPointSpacing = 50;
          var points = (int)Math.Ceiling(longestSegmentLength / crossoverPointSpacing) + 1;
 
          var sourceCrossoverPoints = new IntVector2[points]; 
@@ -164,6 +164,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       //-------------------------------------------------------------------------------------------
       // For debugging computational complexity
       //-------------------------------------------------------------------------------------------
+      public static int AddMany_ConvexHullsComputed = 0;
       public static int CrossoverPointsAdded = 0;
       public static int FindOptimalLinksToCrossoversInvocationCount = 0;
       public static int FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck = 0;
@@ -193,10 +194,12 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          // It's safe to assume <some> point in points will be new, so preprocess which segments are betwen us and other edge segments
          var barriers = landPolyNode.FindContourAndChildHoleBarriers();
          var barriersBySegment = indicesBySegment.Map((s, _) => {
+            Interlocked.Increment(ref AddMany_ConvexHullsComputed);
             var hull = GeometryOperations.ConvexHull4(s.First, s.Second, edgeSegment.First, edgeSegment.Second);
-            return barriers.Where(b => GeometryOperations.SegmentIntersectsConvexPolygonInterior(
-                                          new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2()), hull))
-                              .ToArray();
+            return barriers.Where(b => {
+               var barrierDv2 = new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2());
+               return GeometryOperations.SegmentIntersectsConvexPolygonInterior(barrierDv2, hull);
+            }).ToArray();
          });
 
          return indicesBySegment[edgeSegment] = points.Map(p => {
@@ -248,7 +251,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var wi = candidateWaypoints[i];
             long costSquared = waypoints[wi].To(p).SquaredNorm2();
             VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
-            if (visibilityPolygon.Contains(p.ToDoubleVector2())) {
+            if (visibilityPolygon.Contains(p)) {
                visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };
                visibleWaypointLinksLength++;
             }
