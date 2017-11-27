@@ -35,7 +35,12 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
       public PolyNode DilatedHolesUnion =>
          _dilatedHolesUnion ?? (_dilatedHolesUnion =
-            PolygonOperations.Offset().Include((IEnumerable<Polygon2>)Job.TerrainStaticMetadata.LocalExcludedContours)
+            PolygonOperations.Offset()
+                             .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
+                             .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours))
+                             .Include(Job.DynamicHoles.Values.SelectMany(item => 
+                                 item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList(), true))
+                             ))
                              .Dilate(ActorRadius)
                              .Execute());
 
@@ -68,31 +73,48 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          }).ToArray();
       }
 
+//      public List<Polygon2> ComputeHolePolygons() =>
+//         PolygonOperations.Union()
+//                          .Include(
+//                             Job.DynamicHoles.Values.SelectMany(item =>
+//                                PolygonOperations.Punch()
+//                                                 .Include(item.holeIncludedContours)
+//                                                 .Exclude(item.holeExcludedContours)
+//                                                 .Execute().FlattenToPolygons()
+//                             ).ToArray()
+//                          )
+//                          .Execute()
+//                          .FlattenToPolygons();
+
+
       public PolyTree PunchedLand =>
          _punchedLand ?? (_punchedLand =
             PostProcessPunchedLand(
                PolygonOperations.Punch()
-                                .Include(PolygonOperations.FlattenToPolygons(ComputeErodedOuterContour())).Include((IEnumerable<Polygon2>)ComputeCrossoverLandPolys())
-                                .Exclude(PolygonOperations.FlattenToPolygons(DilatedHolesUnion))
+                                .Include(ComputeErodedOuterContour().FlattenToPolygons())
+                                .Include(ComputeCrossoverLandPolys())
+                                .Exclude(DilatedHolesUnion.FlattenToPolygons())
+                                //.Exclude(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)) // we exclude what the hole includes.
+                                //.Include(Job.DynamicHoles.Values.SelectMany(item => item.holeExcludedContours))
                                 .Execute()
             ));
 
       private PolyTree PostProcessPunchedLand(PolyTree punchedLand) {
-         var pruneArea = (2 * ActorRadius + 2) * (2 * ActorRadius + 2);
-         void PrunePolytree(PolyNode polyTree) {
+         void PrunePolytree(PolyNode polyTree, double areaPruneThreshold) {
             var cleaned = Clipper.CleanPolygon(polyTree.Contour, ActorRadius / 5 + 2);
             polyTree.Contour.Clear();
             polyTree.Contour.AddRange(cleaned);
 
             for (var i = polyTree.Childs.Count - 1; i >= 0; i--) {
                var child = polyTree.Childs[i];
-               if (Math.Abs(Clipper.Area(child.Contour)) < pruneArea) {
+               var childArea = Math.Abs(Clipper.Area(child.Contour));
+               if (childArea < areaPruneThreshold) {
                   // Console.WriteLine("Prune: " + Clipper.Area(child.Contour) + " " + child.Contour.Count);
                   polyTree.Childs.RemoveAt(i);
                   continue;
                }
 
-               PrunePolytree(child);
+               PrunePolytree(child, Math.Max(16, childArea * 0.001));
             }
          }
 
@@ -108,7 +130,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             node.Childs.ForEach(TagBoundingVolumeHierarchies);
          }
 
-         PrunePolytree(punchedLand);
+         PrunePolytree(punchedLand, 15 * 15);
          TagSectorSnapshotAndGeometryContext(punchedLand);
          TagBoundingVolumeHierarchies(punchedLand);
          return punchedLand;

@@ -139,6 +139,14 @@ namespace OpenMOBA.DevTool.Debugging {
          canvas.FillPolygon(polygonPoints.Select(ToDV3).ToList(), fillStyle);
       }
 
+      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polygons, StrokeStyle strokeStyle) {
+         canvas.DrawPolygons(polygons.Select(p => new Polygon3(p.Points.Select(ToIV3).ToList(), p.IsHole)).ToList(), strokeStyle);
+      }
+
+      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<IntVector2>> polygons, StrokeStyle strokeStyle) {
+         canvas.DrawPolygons(polygons.Select(p => p.Select(ToDV3).ToList()).ToList(), strokeStyle);
+      }
+
       public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
          canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
       }

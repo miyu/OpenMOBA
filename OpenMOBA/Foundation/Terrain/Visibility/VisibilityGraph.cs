@@ -304,8 +304,11 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       // See https://www.cs.rochester.edu/~nelson/courses/csc_173/graphs/apsp.html
       public PathLink[][] BuildWaypointToWaypointLutFloydWarshall() {
          var res = new PathLink[Waypoints.Length][];
-         for (var swi = 0; swi < Offsets.Length - 1; swi++) {
+         if (Waypoints.Length != Offsets.Length - 1) throw new InvalidStateException();
+         for (var swi = 0; swi < Waypoints.Length; swi++) {
             res[swi] = Util.Repeat(swi + 1, new PathLink { PriorIndex = -1, TotalCost = float.PositiveInfinity });
+            res[swi][swi].TotalCost = 0;
+            res[swi][swi].PriorIndex = swi;
          }
          for (var swi = 0; swi < Offsets.Length - 1; swi++) {
             for (var j = Offsets[swi]; j < Offsets[swi + 1]; j++) {

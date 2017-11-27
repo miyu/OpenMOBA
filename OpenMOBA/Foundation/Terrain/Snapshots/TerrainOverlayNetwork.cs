@@ -201,7 +201,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                return GeometryOperations.SegmentIntersectsConvexPolygonInterior(barrierDv2, hull);
             }).ToArray();
          });
-
+         
          return indicesBySegment[edgeSegment] = points.Map(p => {
             if (TryAdd(p, out int cpi)) {
                Interlocked.Increment(ref CrossoverPointsAdded);
@@ -360,6 +360,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                   ProcessCpi(cpi, barriers);
                   isCpiVisited[cpi] = true;
                }
+            }
+            for (var cpi = 0; cpi < isCpiVisited.Length; cpi++) {
+               if (isCpiVisited[cpi]) continue;
+               ProcessCpi(cpi, new IntLineSegment2[0]);
             }
          }
          return (visibleWaypointLinks, visibleWaypointLinksLength, optimalLinkToWaypoints, optimalLinkToCrossovers);

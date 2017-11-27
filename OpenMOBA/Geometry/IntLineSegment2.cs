@@ -101,14 +101,18 @@ namespace OpenMOBA.Geometry {
          return new IntVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
       }
 
-      [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static IntLineSegment2 Create(IntVector2 first, IntVector2 second) {
-         return new IntLineSegment2(first, second);
+      public DoubleVector2 PointAt(double t) {
+         return First.ToDoubleVector2() * (1 - t) + Second.ToDoubleVector2() * t;
       }
 
       public void Deconstruct(out IntVector2 first, out IntVector2 second) {
          first = First;
          second = Second;
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static IntLineSegment2 Create(IntVector2 first, IntVector2 second) {
+         return new IntLineSegment2(first, second);
       }
    }
 

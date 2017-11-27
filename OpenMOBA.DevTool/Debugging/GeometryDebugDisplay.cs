@@ -80,6 +80,14 @@ namespace OpenMOBA.DevTool.Debugging {
          });
       }
 
+      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<DoubleVector3>> contours, StrokeStyle strokeStyle) {
+         canvas.BatchDraw(() => {
+            foreach (var contour in contours) {
+               canvas.DrawPolygon(contour, strokeStyle);
+            }
+         });
+      }
+
       public static void DrawPolyTree(this IDebugCanvas canvas, PolyTree polytree, StrokeStyle landStroke = null, StrokeStyle holeStroke = null) {
          landStroke = landStroke ?? new StrokeStyle(Color.Orange);
          holeStroke = holeStroke ?? new StrokeStyle(Color.Brown);

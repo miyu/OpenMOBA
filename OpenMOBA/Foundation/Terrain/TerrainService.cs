@@ -151,6 +151,7 @@ namespace OpenMOBA.Foundation.Terrain {
                   polyNode.Contour[i]);
 
                if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
+                  Console.WriteLine("Breakpoint: " + t + " " + seg.PointAt(t));
                   breakpoints.Add(t, polyNode);
                }
             }
@@ -204,10 +205,12 @@ namespace OpenMOBA.Foundation.Terrain {
    public class SectorGraphDescriptionStore : ISectorGraphDescriptionStore {
       private readonly HashSet<SectorNodeDescription> nodeDescriptions = new HashSet<SectorNodeDescription>();
       private readonly HashSet<SectorEdgeDescription> edgeDescriptions = new HashSet<SectorEdgeDescription>();
+      private readonly HashSet<DynamicTerrainHoleDescription> holeDescriptions = new HashSet<DynamicTerrainHoleDescription>();
       public int Version { get; private set; }
 
       public IEnumerable<SectorNodeDescription> EnumerateSectorNodeDescriptions() => nodeDescriptions;
       public IEnumerable<SectorEdgeDescription> EnumerateSectorEdgeDescriptions() => edgeDescriptions;
+      public IEnumerable<DynamicTerrainHoleDescription> EnumerateDynamicTerrainHoleDescriptions() => holeDescriptions;
 
       public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) {
          if (nodeDescriptions.Add(sectorNodeDescription)) {
@@ -242,8 +245,9 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public void AddTemporaryHoleDescription(DynamicTerrainHoleDescription holeDescription) {
-         // if (temporaryHoles.Add(hole)) {
-         //    version++;
+         if (holeDescriptions.Add(holeDescription)) {
+            Version++;
+         }
          // 
          //    foreach (var sector in sectors.Where(sector => sector.AbsoluteBounds.IntersectsWith(hole.AbsoluteBounds))) {
          //       holesBySector.Add(sector, hole);
@@ -253,8 +257,9 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public void RemoveTemporaryHoleDescription(DynamicTerrainHoleDescription holeDescription) {
-         // if (temporaryHoles.Remove(hole)) {
-         //    version++;
+         if (holeDescriptions.Remove(holeDescription)) {
+            Version++;
+         }
          // 
          //    HashSet<Sector> sectors;
          //    if (sectorsByHole.TryGetValue(hole, out sectors)) {
@@ -280,6 +285,7 @@ namespace OpenMOBA.Foundation.Terrain {
       public TerrainSnapshotCompiler SnapshotCompiler => snapshotCompiler;
 
       public SectorNodeDescription CreateSectorNodeDescription(TerrainStaticMetadata metadata) => new SectorNodeDescription(this, metadata);
+      public DynamicTerrainHoleDescription CreateHoleDescription(TerrainStaticMetadata metadata) => new DynamicTerrainHoleDescription(this, metadata);
 
       public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) => storage.AddSectorNodeDescription(sectorNodeDescription);
       public void RemoveSectorNodeDescription(SectorNodeDescription sectorNodeDescription) => storage.RemoveSectorNodeDescription(sectorNodeDescription);
@@ -292,19 +298,21 @@ namespace OpenMOBA.Foundation.Terrain {
 
    public static class TerrainHoleHelpers {
       public static bool ContainsPoint(this DynamicTerrainHoleDescription dynamicTerrainHoleDescription, double holeDilationRadius, DoubleVector3 point) {
-         // Padding so that when flooring the point, we don't accidentally say a point isn't
-         // in the hole when in reality, it is. 
-         var paddedHoleShapeUnion = PolygonOperations.Offset()
-                                                     .Dilate(holeDilationRadius)
-                                                     .Include(dynamicTerrainHoleDescription.Polygons)
-                                                     .Execute();
-
-         PolyNode node;
-         bool isHole;
-         paddedHoleShapeUnion.PickDeepestPolynodeGivenHoleShapePolytree(point.XY.LossyToIntVector2(), out node, out isHole);
-
-         // we want land inside the hole-shape-union because we want to know if we're in the hole, not a hole of the hole shape.
-         return !isHole;
+         Console.WriteLine("NI: ContainsPoint");
+         return false;
+//         // Padding so that when flooring the point, we don't accidentally say a point isn't
+//         // in the hole when in reality, it is. 
+//         var paddedHoleShapeUnion = PolygonOperations.Offset()
+//                                                     .Dilate(holeDilationRadius)
+//                                                     .Include(dynamicTerrainHoleDescription.Polygons)
+//                                                     .Execute();
+//
+//         PolyNode node;
+//         bool isHole;
+//         paddedHoleShapeUnion.PickDeepestPolynodeGivenHoleShapePolytree(point.XY.LossyToIntVector2(), out node, out isHole);
+//
+//         // we want land inside the hole-shape-union because we want to know if we're in the hole, not a hole of the hole shape.
+//         return !isHole;
       }
    }
 }

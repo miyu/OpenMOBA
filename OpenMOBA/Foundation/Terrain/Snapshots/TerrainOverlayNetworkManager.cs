@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenMOBA;
+using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain.Snapshots {
    public class TerrainOverlayNetworkManager {
@@ -25,12 +26,13 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          //----------------------------------------------------------------------------------------
          // Sector Node Description => Default Local Geometry View
          //----------------------------------------------------------------------------------------
-         var renderedLocalGeometryViewBySectorNodeDescription = Enumerable.ToDictionary<KeyValuePair<SectorNodeDescription, LocalGeometryViewManager>, SectorNodeDescription, LocalGeometryView>(localGeometryViewManagerBySectorNodeDescription, kvp => kvp.Key,
+         var renderedLocalGeometryViewBySectorNodeDescription = localGeometryViewManagerBySectorNodeDescription.ToDictionary(
+            kvp => kvp.Key,
             kvp => kvp.Value.GetErodedView(agentRadius));
 
          var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.ToDictionary(
             kvp => kvp.Key,
-            kvp => kvp.Value.IsPunchedLandEvaluated ? kvp.Value : kvp.Value.Preview);
+            kvp => (true || kvp.Value.IsPunchedLandEvaluated) ? kvp.Value : kvp.Value.Preview);
          
          var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.Distinct().ToDictionary(
             lgv => lgv,
@@ -46,10 +48,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          //----------------------------------------------------------------------------------------
          // Edge Lookups
          //----------------------------------------------------------------------------------------
-         var edgesBySource = Enumerable.ToLookup<SectorEdgeDescription, SectorNodeDescription>(edgeDescriptions, ed => ed.Source);
-         var edgesByDestination = Enumerable.ToLookup<SectorEdgeDescription, SectorNodeDescription>(edgeDescriptions, ed => ed.Destination);
-         var edgesByEndpoints = Enumerable.Select<SectorEdgeDescription, KeyValuePair<SectorNodeDescription, SectorEdgeDescription>>(edgeDescriptions, ed => LinqExtensions.PairValue<SectorNodeDescription, SectorEdgeDescription>(ed.Source, ed))
-                                                .Concat(Enumerable.Select<SectorEdgeDescription, KeyValuePair<SectorNodeDescription, SectorEdgeDescription>>(edgeDescriptions, ed => LinqExtensions.PairValue<SectorNodeDescription, SectorEdgeDescription>(ed.Destination, ed)))
+         var edgesBySource = edgeDescriptions.ToLookup(ed => ed.Source);
+         var edgesByDestination = edgeDescriptions.ToLookup(ed => ed.Destination);
+         var edgesByEndpoints = edgeDescriptions.Select(ed => ed.Source.PairValue(ed))
+                                                .Concat(edgeDescriptions.Select(ed => ed.Destination.PairValue(ed)))
                                                 .Distinct()
                                                 .ToLookup(kvp => kvp.Key, kvp => kvp.Value);
 
