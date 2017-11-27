@@ -192,7 +192,7 @@ namespace OpenMOBA.Foundation {
          var donutOriginX = 900;
          var donutOriginY = 400;
          var donutThickness = 25;
-         var donutInnerSpan = 45;
+         var donutInnerSpan = 35;
          var holeTsm = new TerrainStaticMetadata {
             LocalBoundary = new Rectangle(donutOriginX, donutOriginY, 2 * donutThickness + donutInnerSpan, 2 * donutThickness + donutInnerSpan),
             LocalIncludedContours = new[] { Polygon2.CreateRect(donutOriginX, donutOriginY, 2 * donutThickness + donutInnerSpan, 2 * donutThickness + donutInnerSpan) },

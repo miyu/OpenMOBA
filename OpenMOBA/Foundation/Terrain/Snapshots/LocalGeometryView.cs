@@ -100,10 +100,13 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             ));
 
       private PolyTree PostProcessPunchedLand(PolyTree punchedLand) {
+         const double minAreaPrune = 16;
          void PrunePolytree(PolyNode polyTree, double areaPruneThreshold) {
             var cleaned = Clipper.CleanPolygon(polyTree.Contour, ActorRadius / 5 + 2);
-            polyTree.Contour.Clear();
-            polyTree.Contour.AddRange(cleaned);
+            if (cleaned.Count > 0) {
+               polyTree.Contour.Clear();
+               polyTree.Contour.AddRange(cleaned);
+            }
 
             for (var i = polyTree.Childs.Count - 1; i >= 0; i--) {
                var child = polyTree.Childs[i];
@@ -114,7 +117,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                   continue;
                }
 
-               PrunePolytree(child, Math.Max(16, childArea * 0.001));
+               PrunePolytree(child, Math.Max(minAreaPrune, childArea * 0.001));
             }
          }
 
@@ -130,7 +133,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             node.Childs.ForEach(TagBoundingVolumeHierarchies);
          }
 
-         PrunePolytree(punchedLand, 15 * 15);
+         PrunePolytree(punchedLand, minAreaPrune);
          TagSectorSnapshotAndGeometryContext(punchedLand);
          TagBoundingVolumeHierarchies(punchedLand);
          return punchedLand;
