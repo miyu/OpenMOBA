@@ -36,15 +36,17 @@ namespace QuadSegmentIntersection {
          var segments = Util.Generate(100000, RandomSegment);
          var quad = Util.Generate(4, RandomPoint);
          var hull = GeometryOperations.ConvexHull(quad);
-         var sw = new Stopwatch();
-         sw.Start();
-         const int niters = 100;
-         for (var i = 0; i < niters; i++) {
-            for (var j = 0; j < segments.Length; j++) {
-               GeometryOperations.SegmentIntersectsConvexPolygonInterior(segments[j], hull);
+         while (true) {
+            var sw = new Stopwatch();
+            sw.Start();
+            const int niters = 100;
+            for (var i = 0; i < niters; i++) {
+               for (var j = 0; j < segments.Length; j++) {
+                  GeometryOperations.SegmentIntersectsConvexPolygonInterior(segments[j], hull);
+               }
             }
+            Console.WriteLine(sw.Elapsed.TotalMilliseconds / niters);
          }
-         Console.WriteLine(sw.Elapsed.TotalMilliseconds / niters);
       }
 
       private static IntVector2 RandomPoint() {

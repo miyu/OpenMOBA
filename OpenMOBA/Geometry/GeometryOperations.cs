@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using ClipperLib;
 using Poly2Tri.Triangulation.Delaunay;
 
-using cInt = System.Int64;
+using cInt = System.Int32;
 using Clk = OpenMOBA.Geometry.Clockness;
 
 namespace OpenMOBA.Geometry {

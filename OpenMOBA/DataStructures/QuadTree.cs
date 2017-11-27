@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenMOBA.Geometry;
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA.DataStructures {
    public class QuadTree<T> {

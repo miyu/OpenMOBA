@@ -10,7 +10,7 @@ using Poly2Tri;
 using Poly2Tri.Triangulation.Polygon;
 //using Polygon = Poly2Tri.Polygon;
 
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA {
    // Connected Components. We avoid that term because 'Component' is pretty overloaded in meaning.

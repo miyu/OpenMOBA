@@ -83,7 +83,7 @@ namespace OpenMOBA.DevTool {
 
          for (var i = 0; i < 100; i++) {
             RunBenchmarkIteration();
-            if (i == 0) {
+            if (false && i == 0) {
                Console.WriteLine(
                   PolyNodeCrossoverPointManager.AddMany_ConvexHullsComputed + " " +
                   PolyNodeCrossoverPointManager.CrossoverPointsAdded + " " +
@@ -95,7 +95,6 @@ namespace OpenMOBA.DevTool {
                   PolyNodeCrossoverPointManager.ProcessCpiInvocation_DirectCount + " " +
                   PolyNodeCrossoverPointManager.ProcessCpiInvocation_IndirectCount);
             }
-            return;
          }
          GC.Collect();
          var sw = new Stopwatch();
@@ -108,7 +107,7 @@ namespace OpenMOBA.DevTool {
 
       private void RenderDebugFrame() {
          var holeDilationRadius = 15.0;
-         Benchmark(holeDilationRadius);
+         //Benchmark(holeDilationRadius);
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
@@ -384,9 +383,9 @@ namespace OpenMOBA.DevTool {
          var rotation = 80 * Math.PI / 180.0;
          float scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-         var center = new DoubleVector3(2500, 2500, 0);
+         var center = new DoubleVector3(1500, 500, 0);
          var projector = new PerspectiveProjector(
-            center + DoubleVector3.FromRadiusAngleAroundXAxis(3000, rotation),
+            center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
             center,
             DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation + Math.PI / 2),
             displaySize.Width,

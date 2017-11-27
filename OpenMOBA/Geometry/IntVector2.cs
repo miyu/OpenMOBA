@@ -2,7 +2,7 @@
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA.Geometry {
    public struct DoubleVector2 {

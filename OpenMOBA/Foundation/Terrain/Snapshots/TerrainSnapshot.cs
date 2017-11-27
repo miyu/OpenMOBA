@@ -105,8 +105,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
             for (var i = polyTree.Childs.Count - 1; i >= 0; i--) {
                var child = polyTree.Childs[i];
-               if (Math.Abs(Clipper.Area(child.Contour)) < 15 * 15) {
-                  Console.WriteLine("Prune: " + Clipper.Area(child.Contour) + " " + child.Contour.Count);
+               if (Math.Abs(Clipper.Area(child.Contour)) < pruneArea) {
+                  // Console.WriteLine("Prune: " + Clipper.Area(child.Contour) + " " + child.Contour.Count);
                   polyTree.Childs.RemoveAt(i);
                   continue;
                }

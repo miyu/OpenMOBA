@@ -38,9 +38,23 @@
 *                                                                              *
 *******************************************************************************/
 
+/**
+ * miyu: from 26 Nov 2017 see
+ * http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/ClipperBase/Methods/AddPaths.htm
+ * 
+ * Path Coordinate range:
+ * Path coordinates must be between ± 0x3FFFFFFFFFFFFFFF (± 4.6e+18), otherwise
+ * a range error will be thrown when attempting to add the path to the Clipper
+ * object. If coordinates can be kept between ± 0x3FFFFFFF (± 1.0e+9), a modest
+ * increase in performance (approx. 15-20%) over the larger range can be achieved
+ * by avoiding large integer math. If the preprocessor directive use_int32 is
+ * defined (allowing a further increase in performance of 20-30%), then the
+ * maximum range is restricted to ± 32,767. 
+ */
+
 //use_int32: When enabled 32bit ints are used instead of 64bit ints. This
 //improve performance but coordinate values are limited to the range +/- 46340
-//#define use_int32
+#define use_int32
 
 //use_xyz: adds a Z member to IntPoint. Adds a minor cost to performance.
 //#define use_xyz

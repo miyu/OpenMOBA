@@ -76,18 +76,18 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
 
       private static (LocalGeometryView, PolyNode, PolyNodeCrossoverPointManager) BenchmarkAddCrossoverPoints(TerrainStaticMetadata terrainStaticMetadata) {
          var crossoverSegments = new IntLineSegment2[] {
-            //new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0)),
-            //new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0)),
-            //new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000)),
-            //new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000)),
-            //
-            //new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
-            //new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
-            //new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
-            //new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))
+            new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0)),
+            new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0)),
+            new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000)),
+            new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000)),
+            
+            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
+            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
+            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
+            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))
          };
 
-         var actorRadius = 58.0;
+         var actorRadius = 10.0;
          var localGeometryJob = new LocalGeometryJob(terrainStaticMetadata, crossoverSegments.ToHashSet());
          var localGeometryViewManager = new LocalGeometryViewManager(localGeometryJob);
          var localGeometryView = localGeometryViewManager.GetErodedView(actorRadius);

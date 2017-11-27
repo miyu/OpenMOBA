@@ -249,7 +249,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          for (var i = 0; i < candidateWaypoints.Length; i++) {
             Interlocked.Increment(ref FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck);
             var wi = candidateWaypoints[i];
-            long costSquared = waypoints[wi].To(p).SquaredNorm2();
+            var costSquared = waypoints[wi].To(p).SquaredNorm2();
             VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
             if (visibilityPolygon.Contains(p)) {
                visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };

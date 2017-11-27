@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA.Geometry {
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -13,31 +13,31 @@ namespace OpenMOBA.Geometry {
       }
 
       public readonly IntVector2 First;
-      public long X1 => First.X;
-      public long Y1 => First.Y;
+      public cInt X1 => First.X;
+      public cInt Y1 => First.Y;
 
       public readonly IntVector2 Second;
-      public long X2 => Second.X;
-      public long Y2 => Second.Y;
+      public cInt X2 => Second.X;
+      public cInt Y2 => Second.Y;
 
       public IntVector2[] Points => new[] { First, Second };
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Intersects(IntLineSegment2 other) {
-         long ax = X1, ay = Y1, bx = X2, by = Y2;
-         long cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
          return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Intersects(ref IntLineSegment2 other) {
-         long ax = X1, ay = Y1, bx = X2, by = Y2;
-         long cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
          return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static bool Intersects(long ax, long ay, long bx, long by, long cx, long cy, long dx, long dy) {
+      public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy) {
          // // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
          // var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
          // var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
@@ -119,20 +119,20 @@ namespace OpenMOBA.Geometry {
       }
 
       public IntVector3 First { get; }
-      public long X1 => First.X;
-      public long Y1 => First.Y;
-      public long Z1 => First.Z;
+      public cInt X1 => First.X;
+      public cInt Y1 => First.Y;
+      public cInt Z1 => First.Z;
 
       public IntVector3 Second { get; }
-      public long X2 => Second.X;
-      public long Y2 => Second.Y;
-      public long Z2 => Second.Z;
+      public cInt X2 => Second.X;
+      public cInt Y2 => Second.Y;
+      public cInt Z2 => Second.Z;
 
       public IntVector3[] Points => new[] { First, Second };
 
       public bool IntersectsXY(IntLineSegment3 other) {
-         long ax = X1, ay = Y1, bx = X2, by = Y2;
-         long cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
 
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
          var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));

@@ -6,7 +6,7 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA.Foundation.Terrain.Visibility {
    public struct PolyNodeVisbilityGraphTreeData {
@@ -79,7 +79,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
                var dx = b.X - a.X;
                var dy = b.Y - a.Y;
-               var mag = (long)Math.Sqrt(dx * dx + dy * dy); // normalizing on xy plane.
+               var mag = (cInt)Math.Sqrt(dx * dx + dy * dy); // normalizing on xy plane.
                dx = dx * kBarrierSegmentExpansionFactor / mag;
                dy = dy * kBarrierSegmentExpansionFactor / mag;
 

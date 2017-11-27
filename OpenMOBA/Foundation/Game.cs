@@ -143,8 +143,8 @@ namespace OpenMOBA.Foundation {
 //         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left1, right1));
 //         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector3, sector2, left2, right2));
 
-         var sectorSpanWidth = 5;
-         var sectorSpanHeight = 5;
+         var sectorSpanWidth = 3;
+         var sectorSpanHeight = 1;
          var sectors = new SectorNodeDescription[sectorSpanHeight, sectorSpanWidth];
          for (var y = 0; y < sectorSpanHeight; y++) {
             var rng = new Random(y);

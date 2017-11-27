@@ -10,7 +10,7 @@ using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Foundation.Terrain.Visibility;
 using OpenMOBA.Geometry;
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA.Foundation {
    public class Entity {
@@ -147,22 +147,22 @@ namespace OpenMOBA.Foundation {
 
    public static class IntMath {
       private const int MaxLutIntExclusive = 1024 * 1024;
-      private static readonly long[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (long)Math.Sqrt(x)).ToArray();
+      private static readonly cInt[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (cInt)Math.Sqrt(x)).ToArray();
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static long Square(long x) {
+      public static cInt Square(cInt x) {
          return x * x;
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static long Quad(long x) {
+      public static cInt Quad(cInt x) {
          return Square(Square(x));
       }
 
-      public static long Sqrt(long x) {
+      public static cInt Sqrt(cInt x) {
          if (x < 0) throw new ArgumentException($"sqrti({x})");
          else if (x < MaxLutIntExclusive) return SqrtLut[x];
-         else return (long)Math.Sqrt(x);
+         else return (cInt)Math.Sqrt(x);
       }
    }
 

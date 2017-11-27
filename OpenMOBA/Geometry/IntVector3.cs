@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
-using cInt = System.Int64;
+using cInt = System.Int32;
 
 namespace OpenMOBA.Geometry {
    public struct DoubleVector3 {
