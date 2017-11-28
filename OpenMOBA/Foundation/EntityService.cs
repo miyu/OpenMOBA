@@ -176,6 +176,9 @@ namespace OpenMOBA.Foundation {
       }
 
       private bool IsDestinationReachable(double holeDilationRadius, PolyNode sourceLand, PolyNode destinationLand) {
+         var snapshot = terrainService.CompileSnapshot();
+         var overlayNetwork = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+         
 //         var s = new Queue<PolyNode>();
 //         s.Enqueue(sourceLand);
 //

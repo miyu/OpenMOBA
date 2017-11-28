@@ -189,8 +189,8 @@ namespace OpenMOBA.Foundation {
             TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up2, down2));
          }
 
-         var donutOriginX = 900;
-         var donutOriginY = 400;
+         var donutOriginX = 1250;
+         var donutOriginY = 300;
          var donutThickness = 25;
          var donutInnerSpan = 35;
          var holeTsm = new TerrainStaticMetadata {
