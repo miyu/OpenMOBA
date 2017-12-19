@@ -17,16 +17,14 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
 
    public interface IMesh {
       void Draw(IRenderContext renderContext);
-
-      ITechnique DefaultRenderTechnique { get; }
-      ITechnique DefaultDepthOnlyRenderTechnique { get; }
    }
 
    public interface IVertexBuffer { }
 
    public enum InputLayoutType {
       PositionColor,
-      PositionColorTexture
+      PositionColorTexture,
+      PositionNormalColorTexture
    }
 
    public interface IAssetManager {
@@ -40,21 +38,20 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
    }
 
    public interface ITechniqueCollection {
-      ITechnique DefaultPositionColor { get; }
-      ITechnique DefaultPositionColorShadow { get; }
-      ITechnique DefaultPositionColorTexture { get; }
-      ITechnique DefaultPositionColorTextureShadow { get; }
-      ITechnique DefaultPositionColorTextureDerivative { get; }
+      ITechnique Forward { get; }
+      ITechnique ForwardDepthOnly { get; }
+      ITechnique Derivative { get; }
    }
 
    public interface IMeshPresets {
       IMesh UnitCube { get; }
-      IMesh UnitCubeColor { get; }
       IMesh UnitPlaneXY { get; }
    }
 
    public enum DepthConfiguration {
       Uninitialized = 0,
+
+      Disabled,
 
       /// <summary>
       /// Depth test enabled, less comparison function, stencil disabled
@@ -68,7 +65,12 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
       /// <summary>
       /// Cull backfaces, fill polys
       /// </summary>
-      Fill
+      FillFront,
+
+      /// <summary>
+      /// Cull frontfaces, fill polys
+      /// </summary>
+      FillBack,
    }
 
    public class ShaderCompilationException : Exception {

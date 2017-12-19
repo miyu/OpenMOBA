@@ -44,19 +44,13 @@
    </ItemGroup>
 
    <ItemGroup>
-     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorTextureShadow.hlsl">
+     <None Update="Debugging\Canvas3D\Assets\shaders\forward_depth_only.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
-     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorShadow.hlsl">
+     <None Update="Debugging\Canvas3D\Assets\shaders\forward.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
-     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorTextureDerivative.hlsl">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-     </None>
-     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColorTexture.hlsl">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-     </None>
-     <None Update="Debugging\Canvas3D\Assets\shaders\defaultPositionColor.hlsl">
+     <None Update="Debugging\Canvas3D\Assets\shaders\derivative.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
    </ItemGroup>

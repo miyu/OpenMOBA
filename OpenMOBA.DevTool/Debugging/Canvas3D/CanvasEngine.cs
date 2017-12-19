@@ -89,7 +89,7 @@ namespace Shade {
          _immediateContext = new ImmediateRenderContext(_device.ImmediateContext, _renderStates, _swapChain);
          _assetManager = new Direct3DAssetManager(this);
          _techniqueCollection = Direct3DTechniqueCollection.Create(AssetManager);
-         _meshPresets = Direct3DMeshPresets.Create(this, TechniqueCollection);
+         _meshPresets = Direct3DMeshPresets.Create(this);
       }
 
       internal Direct3DDevice InternalD3DDevice => _device;
@@ -104,7 +104,7 @@ namespace Shade {
          _form.UserResized += (s, e) => _isResizeTriggered = true;
          
          _immediateContext.SetDepthConfiguration(DepthConfiguration.Enabled);
-         _immediateContext.SetRasterizerConfiguration(RasterizerConfiguration.Fill);
+         _immediateContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
       }
 
       public void DoEvents() {
@@ -119,17 +119,9 @@ namespace Shade {
          return new DeferredRenderContext(new DeviceContext(_device), _renderStates);
       }
 
-      public IVertexBuffer CreateVertexBuffer(VertexPositionColor[] vertices) {
-         foreach (var v in vertices) {
-            Console.WriteLine($"{v.Position} {v.Color}");
-         }
+      public IVertexBuffer CreateVertexBuffer(VertexPositionNormalColorTexture[] vertices) {
          var buffer = Buffer.Create(_device, BindFlags.VertexBuffer, vertices);
-         return new VertexBufferBox { Buffer = buffer, Stride = VertexPositionColor.Size };
-      }
-
-      public IVertexBuffer CreateVertexBuffer(VertexPositionColorTexture[] vertices) {
-         var buffer = Buffer.Create(_device, BindFlags.VertexBuffer, vertices);
-         return new VertexBufferBox { Buffer = buffer, Stride = VertexPositionColorTexture.Size };
+         return new VertexBufferBox { Buffer = buffer, Stride = VertexPositionNormalColorTexture.Size };
       }
 
       private void ResizeBackBuffer(Size renderSize) {
@@ -240,18 +232,25 @@ namespace Shade {
          }
 
          private InputLayout CreateInputLayout(InputLayoutType inputLayoutType, ShaderSignature signature) {
-            if (inputLayoutType == InputLayoutType.PositionColor) {
-               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+            //            if (inputLayoutType == InputLayoutType.PositionColor) {
+            //               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+            //                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
+            //                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0)
+            //               });
+            //            } else if (inputLayoutType == InputLayoutType.PositionColorTexture) {
+            //               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+            //                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
+            //                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0),
+            //                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0)
+            //               });
+            //            } else {
+            return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
                   new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0)
+                  new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0),
+                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0),
+                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0)
                });
-            } else {
-               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
-                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0),
-                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0)
-               });
-            }
+//            }
          }
 
          private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {
@@ -342,9 +341,12 @@ namespace Shade {
             if (config != _currentDepthConfiguration) {
                _currentDepthConfiguration = config;
 
-               Console.WriteLine("Set Depth Configuration: " + config);
+               // Console.WriteLine("Set Depth Configuration: " + config);
 
                switch (config) {
+                  case DepthConfiguration.Disabled:
+                     _deviceContext.OutputMerger.DepthStencilState = _renderStates.DepthDisable;
+                     break;
                   case DepthConfiguration.Enabled:
                      _deviceContext.OutputMerger.DepthStencilState = _renderStates.DepthEnable;
                      break;
@@ -358,11 +360,14 @@ namespace Shade {
             if (config != _currentRasterizerConfiguration) {
                _currentRasterizerConfiguration = config;
 
-               Console.WriteLine("Set Rasterizer Configuration: " + config);
+               // Console.WriteLine("Set Rasterizer Configuration: " + config);
 
                switch (config) {
-                  case RasterizerConfiguration.Fill:
-                     _deviceContext.Rasterizer.State = _renderStates.RasterizerFill;
+                  case RasterizerConfiguration.FillFront:
+                     _deviceContext.Rasterizer.State = _renderStates.RasterizerFillFront;
+                     break;
+                  case RasterizerConfiguration.FillBack:
+                     _deviceContext.Rasterizer.State = _renderStates.RasterizerFillBack;
                      break;
                   default:
                      throw new ArgumentException($"Unknown Rasterizer Configuration '{config}'");
@@ -469,23 +474,30 @@ namespace Shade {
 
       public class RenderStates : IDisposable {
          private DepthStencilState _depthEnable;
-         private RasterizerState _rasterizerFill;
+         private DepthStencilState _depthDisable;
+         private RasterizerState _rasterizerFillFront;
+         private RasterizerState _rasterizerFillBack;
 
          public RenderStates(Direct3DDevice device) {
-            _depthEnable = new DepthStencilState(device, DepthStencilDesc);
-            _rasterizerFill = new RasterizerState(device, RasterizerDesc);
+            _depthEnable = new DepthStencilState(device, DepthStencilDesc(true));
+            _depthDisable = new DepthStencilState(device, DepthStencilDesc(false));
+            _rasterizerFillFront = new RasterizerState(device, RasterizerDesc(true));
+            _rasterizerFillBack = new RasterizerState(device, RasterizerDesc(false));
          }
 
+         public DepthStencilState DepthDisable => _depthDisable;
          public DepthStencilState DepthEnable => _depthEnable;
-         public RasterizerState RasterizerFill => _rasterizerFill;
+         public RasterizerState RasterizerFillFront => _rasterizerFillFront;
+         public RasterizerState RasterizerFillBack => _rasterizerFillBack;
 
          public void Dispose() {
+            Utilities.Dispose(ref _depthDisable);
             Utilities.Dispose(ref _depthEnable);
-            Utilities.Dispose(ref _rasterizerFill);
+            Utilities.Dispose(ref _rasterizerFillFront);
          }
 
-         private static DepthStencilStateDescription DepthStencilDesc => new DepthStencilStateDescription {
-            IsDepthEnabled = true,
+         private static DepthStencilStateDescription DepthStencilDesc(bool enableDepth) => new DepthStencilStateDescription {
+            IsDepthEnabled = enableDepth,
             DepthComparison = Comparison.Less,
             DepthWriteMask = DepthWriteMask.All,
             IsStencilEnabled = false,
@@ -493,8 +505,8 @@ namespace Shade {
             StencilWriteMask = 0xff
          };
 
-         private static RasterizerStateDescription RasterizerDesc => new RasterizerStateDescription {
-            CullMode = CullMode.Back,
+         private static RasterizerStateDescription RasterizerDesc(bool frontFacesElseBackFace) => new RasterizerStateDescription {
+            CullMode = frontFacesElseBackFace ? CullMode.Back : CullMode.Front,
             FillMode = FillMode.Solid,
             IsDepthClipEnabled = false
          };
@@ -503,39 +515,27 @@ namespace Shade {
       public class Direct3DTechniqueCollection : ITechniqueCollection {
          private Direct3DTechniqueCollection() { }
 
-         public ITechnique DefaultPositionColor { get; private set; }
-         public ITechnique DefaultPositionColorShadow { get; private set; }
-         public ITechnique DefaultPositionColorTexture { get; private set; }
-         public ITechnique DefaultPositionColorTextureShadow { get; private set; }
-         public ITechnique DefaultPositionColorTextureDerivative { get; private set; }
+         public ITechnique Forward { get; private set; }
+         public ITechnique ForwardDepthOnly { get; private set; }
+         public ITechnique Derivative { get; private set; }
 
          public static Direct3DTechniqueCollection Create(IAssetManager assetManager) {
             var collection = new Direct3DTechniqueCollection();
-            collection.DefaultPositionColor = new Technique {
+            collection.Forward = new Technique {
                Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColor", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColor", InputLayoutType.PositionColor, "VSMain")
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward", InputLayoutType.PositionNormalColorTexture, "VSMain")
             };
-            collection.DefaultPositionColorShadow = new Technique {
+            collection.ForwardDepthOnly = new Technique {
                Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorShadow", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorShadow", InputLayoutType.PositionColor, "VSMain")
+               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", InputLayoutType.PositionNormalColorTexture, "VSMain")
             };
-            collection.DefaultPositionColorTexture = new Technique {
-               Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTexture", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTexture", InputLayoutType.PositionColorTexture, "VSMain")
-            };
-            collection.DefaultPositionColorTextureShadow = new Technique {
-               Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTextureShadow", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTextureShadow", InputLayoutType.PositionColorTexture, "VSMain")
-            };
-            collection.DefaultPositionColorTextureDerivative = new Technique {
-               Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/defaultPositionColorTextureDerivative", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/defaultPositionColorTextureDerivative", InputLayoutType.PositionColorTexture, "VSMain")
-            };
+            //collection.Derivative = new Technique {
+            //   Passes = 1,
+            //   PixelShader = assetManager.LoadPixelShaderFromFile("shaders/derivative", "PSMain"),
+            //   VertexShader = assetManager.LoadVertexShaderFromFile("shaders/derivative", InputLayoutType.PositionNormalColorTexture, "VSMain")
+            //};
             return collection;
          }
 
@@ -561,9 +561,6 @@ namespace Shade {
          public int Vertices;
          public int VertexBufferOffset;
 
-         public ITechnique DefaultRenderTechnique { get; internal set; }
-         public ITechnique DefaultDepthOnlyRenderTechnique { get; internal set; }
-
          public void Draw(IRenderContext renderContext) {
             renderContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
             renderContext.SetVertexBuffer(VertexBuffer);
@@ -575,52 +572,40 @@ namespace Shade {
          private Direct3DMeshPresets() { }
 
          public IMesh UnitCube { get; set; }
-         public IMesh UnitCubeColor { get; set; }
          public IMesh UnitPlaneXY { get; set; }
 
-         public static Direct3DMeshPresets Create(Direct3DGraphicsDevice device, ITechniqueCollection techniqueCollection) {
+         public static Direct3DMeshPresets Create(Direct3DGraphicsDevice device) {
             var presets = new Direct3DMeshPresets();
 
             presets.UnitCube = new Direct3DMesh {
                VertexBuffer = device.CreateVertexBuffer(
                   ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.ColoredCubeVertices)),
                Vertices = HardcodedMeshPresets.ColoredCubeVertices.Length,
-               VertexBufferOffset = 0,
-               DefaultRenderTechnique = techniqueCollection.DefaultPositionColorTextureShadow,
-               DefaultDepthOnlyRenderTechnique = techniqueCollection.DefaultPositionColorTexture
-            };
-
-            presets.UnitCubeColor = new Direct3DMesh {
-               VertexBuffer = device.CreateVertexBuffer(
-                  ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.ColoredCubeVertices)
-                  .Select(v => new VertexPositionColor(v.Position, v.Color)).ToArray()
-               ),
-               Vertices = HardcodedMeshPresets.ColoredCubeVertices.Length,
-               VertexBufferOffset = 0,
-               DefaultRenderTechnique = techniqueCollection.DefaultPositionColorShadow,
-               DefaultDepthOnlyRenderTechnique = techniqueCollection.DefaultPositionColor
+               VertexBufferOffset = 0
             };
 
             presets.UnitPlaneXY = new Direct3DMesh {
                VertexBuffer = device.CreateVertexBuffer(
                   ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.PlaneXYVertices)),
                Vertices = HardcodedMeshPresets.PlaneXYVertices.Length,
-               VertexBufferOffset = 0,
-               DefaultRenderTechnique = techniqueCollection.DefaultPositionColorTextureShadow,
-               DefaultDepthOnlyRenderTechnique = techniqueCollection.DefaultPositionColorTexture
+               VertexBufferOffset = 0
             };
 
             return presets;
          }
 
-         private static VertexPositionColorTexture[] ConvertLeftHandToRightHandTriangleList(VertexPositionColorTexture[] vertices) {
-            var results = new VertexPositionColorTexture[vertices.Length];
+         private static VertexPositionNormalColorTexture[] ConvertLeftHandToRightHandTriangleList(VertexPositionNormalColorTexture[] vertices) {
+            var results = new VertexPositionNormalColorTexture[vertices.Length];
             for (var i = 0; i < vertices.Length; i++) {
-               results[i] = new VertexPositionColorTexture(
+               results[i] = new VertexPositionNormalColorTexture(
                   new Vector3(
                      vertices[i].Position.X,
                      vertices[i].Position.Y,
-                     -vertices[i].Position.Z), 
+                     -vertices[i].Position.Z),
+                  new Vector3(
+                     vertices[i].Normal.X,
+                     vertices[i].Normal.Y,
+                     -vertices[i].Normal.Z),
                   vertices[i].Color,
                   vertices[i].UV);
             }

@@ -16,13 +16,13 @@ using Resource = SharpDX.Direct3D11.Resource;
 
 namespace OpenMOBA.DevTool.Debugging.Canvas3D {
    public class BatchedRenderer3D {
-      private readonly Dictionary<ITechnique, List<RenderableInfo>> renderablesBySceneTechnique = new Dictionary<ITechnique, List<RenderableInfo>>();
-      private readonly Dictionary<ITechnique, List<RenderableInfo>> renderablesByShadowTechnique = new Dictionary<ITechnique, List<RenderableInfo>>();
+      private readonly List<RenderableInfo> renderables = new List<RenderableInfo>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
 
       private readonly IGraphicsDevice _graphicsDevice;
       private readonly Device _d3d;
-      private readonly Buffer _constantBuffer;
+      private readonly Buffer _sceneBuffer;
+      private readonly Buffer _objectBuffer;
       private readonly Buffer _shadowMapEntriesBuffer;
       private readonly ShaderResourceView _shadowMapEntriesBufferSrv;
       private readonly Texture2D _lightDepthBuffer;
@@ -36,12 +36,22 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
       public BatchedRenderer3D(IGraphicsDevice graphicsDevice) {
          _graphicsDevice = graphicsDevice;
          _d3d = ((Direct3DGraphicsDevice)graphicsDevice).InternalD3DDevice;
-         _constantBuffer = new Buffer(
+
+         _sceneBuffer = new Buffer(
             _d3d, 
-            3 * Utilities.SizeOf<Matrix>(),
-            ResourceUsage.Default, 
+            2 * Utilities.SizeOf<Matrix>(),
+            ResourceUsage.Dynamic, 
             BindFlags.ConstantBuffer, 
-            CpuAccessFlags.None, 
+            CpuAccessFlags.Write, 
+            ResourceOptionFlags.None,
+            0);
+
+         _objectBuffer = new Buffer(
+            _d3d,
+            1 * Utilities.SizeOf<Matrix>(),
+            ResourceUsage.Dynamic,
+            BindFlags.ConstantBuffer,
+            CpuAccessFlags.Write,
             ResourceOptionFlags.None,
             0);
 
@@ -146,104 +156,125 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          _whiteTextureShaderResourceView = new ShaderResourceView(_d3d, _whiteTexture);
       }
 
+      public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
+
       public void SetProjView(Matrix projView) {
          _projView = projView;
       }
 
       public void ClearScene() {
-         foreach (var kvp in renderablesBySceneTechnique) {
-            kvp.Value.Clear();
-         }
-         foreach (var kvp in renderablesByShadowTechnique) {
-            kvp.Value.Clear();
-         }
+         renderables.Clear();
          spotlightInfos.Clear();
       }
 
       public void AddRenderable(Matrix worldCm, IMesh mesh) {
-         AddRenderable(mesh.DefaultRenderTechnique, mesh.DefaultDepthOnlyRenderTechnique, new RenderableInfo {
+         AddRenderable(new RenderableInfo {
             WorldCM = worldCm,
             Mesh = mesh
          });
       }
 
-      public void AddRenderable(ITechnique sceneTechnique, ITechnique shadowTechnique, RenderableInfo info) {
-         List<RenderableInfo> infos;
-         if (!renderablesBySceneTechnique.TryGetValue(sceneTechnique, out infos)) {
-            infos = new List<RenderableInfo>();
-            renderablesBySceneTechnique[sceneTechnique] = infos;
-         }
-         infos.Add(info);
+      public void AddRenderable(RenderableInfo info) => renderables.Add(info);
 
-         if (!renderablesByShadowTechnique.TryGetValue(shadowTechnique, out infos)) {
-            infos = new List<RenderableInfo>();
-            renderablesByShadowTechnique[shadowTechnique] = infos;
-         }
-         infos.Add(info);
-      }
-
-      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float power) {
-         var proj = MatrixCM.PerspectiveFovRH(theta, 1.0f, 0.1f, 100.0f);
+      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float spotlightAttenuationPower) {
+         var proj = MatrixCM.PerspectiveFovRH(theta, 1.0f, 0.1f, far);
 
          var up = Vector3.Up; // todo: handle degenerate
          var view = MatrixCM.LookAtRH(position, lookat, up);
-         AddSpotlight(new SpotlightInfo { ProjViewCM = proj * view, Color = color, Power = power });
+
+         // solve distance attenuation constants: 1/256 = atten = 1 / (x * darc + far * x * darl + far * far * x * darq)
+         // 256 = x * darc + far * x * darl + far * far * x * darq
+         // 256 = x * (darc + far * darl + far * far * darq)
+         float x = 256 / (daRatioConstant + far * daRatioLinear + far * far * daRatioQuadratic);
+         Console.WriteLine(x + " " + daRatioConstant + " " + daRatioLinear + " " + daRatioQuadratic);
+         var direction = lookat - position;
+         direction.Normalize();
+
+         Console.WriteLine("@8: " + (daRatioConstant * x + daRatioLinear * x * 8 + daRatioQuadratic * x * 8 * 8));
+         Console.WriteLine("@far: " + (daRatioConstant * x + daRatioLinear * x * far + daRatioQuadratic * x * far * far));
+
+         AddSpotlight(new SpotlightInfo {
+            Origin = position,
+            Direction = direction,
+            
+            Color = color,
+            DistanceAttenuationConstant = x * daRatioConstant,
+            DistanceAttenuationLinear = x * daRatioLinear,
+            DistanceAttenuationQuadratic = x * daRatioQuadratic,
+            SpotlightAttenuationPower = spotlightAttenuationPower,
+
+            ProjViewCM = proj * view,
+         });
       }
 
       public void AddSpotlight(SpotlightInfo info) {
          spotlightInfos.Add(info);
       }
 
+      private void UpdateSceneConstantBuffer(Matrix projView, bool shadowTestEnabled) {
+         var db = _d3d.ImmediateContext.MapSubresource(_sceneBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
+         var off = db.DataPointer;
+         off = Utilities.WriteAndPosition(off, ref projView);
+         off = Utilities.WriteAndPosition(off, ref shadowTestEnabled);
+         _d3d.ImmediateContext.UnmapSubresource(_sceneBuffer, 0);
+      }
+
+      private void UpdateObjectConstantBuffer(Matrix world) {
+         var db = _d3d.ImmediateContext.MapSubresource(_objectBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
+         var off = db.DataPointer;
+         off = Utilities.WriteAndPosition(off, ref world);
+         _d3d.ImmediateContext.UnmapSubresource(_objectBuffer, 0);
+      }
+
       public void RenderScene() {
+
          var renderContext = _graphicsDevice.ImmediateContext;
          renderContext.ClearRenderTarget(Color.Gray);
          renderContext.ClearDepthBuffer(1.0f);
 
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
-         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.Fill);
 
          // Store backbuffer render targets for screen draw
-         IDepthStencilView backBufferDepthStencilView;
-         IRenderTargetView backBufferRenderTargetView;
-         renderContext.GetRenderTargets(out backBufferDepthStencilView, out backBufferRenderTargetView);
+         renderContext.GetRenderTargets(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
 
          // Draw spotlights
-         var shadowMapEntries = BuildSpotlightShadowMapPlan();
+         var shadowMapEntries = ComputeShadowMapEntries();
 
-         foreach (var lsdv in _lightDepthStencilViews) {
-            renderContext.SetRenderTargets(lsdv, null);
+         foreach (var ldsv in _lightDepthStencilViews) {
+            renderContext.SetRenderTargets(ldsv, null);
             renderContext.ClearDepthBuffer(1.0f);
          }
 
+         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          foreach (var shadowMapEntry in shadowMapEntries) {
             renderContext.SetRenderTargets(_lightDepthStencilViews[(int)shadowMapEntry.AtlasLocation.Position.Z], null);
-            renderContext.ClearDepthBuffer(1.0f);
          
             var atlasLocation = shadowMapEntry.AtlasLocation;
             renderContext.SetViewportRect(new RectangleF(atlasLocation.Position.X, atlasLocation.Position.Y, 2048 * atlasLocation.Size.X, 2048 * atlasLocation.Size.Y));
-         
-            foreach (var techniqueAndRenderables in renderablesByShadowTechnique) {
-               var renderables = techniqueAndRenderables.Value;
-         
+
+            UpdateSceneConstantBuffer(shadowMapEntry.SpotlightInfo.ProjViewCM, false);
+
+            for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
+               Techniques.Forward.BeginPass(renderContext, pass);
+
                foreach (var renderable in renderables) {
-                  var world = renderable.WorldCM;
-                  _d3d.ImmediateContext.UpdateSubresource(new[] { shadowMapEntry.SpotlightInfo.ProjViewCM, world, Matrix.Identity }, _constantBuffer, 0);
-                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _constantBuffer);
-                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _constantBuffer);
-         
+                  UpdateObjectConstantBuffer(renderable.WorldCM);
+
+                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
+                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
+                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+
                   renderable.Mesh.Draw(renderContext);
                }
             }
          }
 
          // Prepare for scene render
-//         _d3d.ImmediateContext.UpdateSubresource(shadowMapEntries, _shadowMapEntriesBuffer);
          var box = _d3d.ImmediateContext.MapSubresource(_shadowMapEntriesBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          var cur = box.DataPointer;
          for (var i = 0; i < shadowMapEntries.Length; i++) {
-            var nextCur = Utilities.WriteAndPosition(cur, ref shadowMapEntries[i]);
-//            Console.WriteLine("OFfset: " + (nextCur.ToInt64() - cur.ToInt64() + " " + ShadowMapEntry.Size));
-            cur = nextCur;
+            cur = Utilities.WriteAndPosition(cur, ref shadowMapEntries[i]);
          }
          _d3d.ImmediateContext.UnmapSubresource(_shadowMapEntriesBuffer, 0);
          _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
@@ -252,45 +283,50 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          // Draw Scene
          renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
+         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
-         foreach (var techniqueAndRenderables in renderablesBySceneTechnique) {
-            var technique = techniqueAndRenderables.Key;
-            var renderables = techniqueAndRenderables.Value;
+         UpdateSceneConstantBuffer(_projView, true);
+         for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
+            Techniques.Forward.BeginPass(renderContext, pass);
          
-            for (var pass = 0; pass < technique.Passes; pass++) {
-               technique.BeginPass(renderContext, pass);
-         
-               foreach (var renderable in renderables) {
-                  var world = renderable.WorldCM;
-                  _d3d.ImmediateContext.UpdateSubresource(new[] { _projView, world, Matrix.Identity }, _constantBuffer, 0);
-                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _constantBuffer);
-                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _constantBuffer);
-                  _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
-                  _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
-                  _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
+            foreach (var renderable in renderables) {
+               UpdateObjectConstantBuffer(renderable.WorldCM);
 
-                  renderable.Mesh.Draw(renderContext);
-               }
+               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
+               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
+               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+               _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
+               _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
+               _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
+
+               renderable.Mesh.Draw(renderContext);
             }
          }
 
          // draw depth texture
-         _graphicsDevice.TechniqueCollection.DefaultPositionColorTexture.BeginPass(renderContext, 0);
-         for (var i = 0; i < 2 ; i++)
-         {
-            var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
-            var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
-            _d3d.ImmediateContext.UpdateSubresource(new[] { orthoProj, quadWorld, Matrix.Identity }, _constantBuffer, 0);
-            _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
-            _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _constantBuffer);
-            _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _constantBuffer);
-            _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext);
+         for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
+            Techniques.Forward.BeginPass(renderContext, pass);
+            for (var i = 0; i < 2; i++) {
+               var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
+               var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
+               UpdateSceneConstantBuffer(orthoProj, false);
+               UpdateObjectConstantBuffer(quadWorld);
+
+               _d3d.ImmediateContext.UpdateSubresource(new[] { quadWorld }, _objectBuffer, 0);
+               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
+               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
+               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+               _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
+               _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext);
+            }
          }
 
          renderContext.Present();
       }
 
-      private ShadowMapEntry[] BuildSpotlightShadowMapPlan() {
+      private ShadowMapEntry[] ComputeShadowMapEntries() {
          var result = new ShadowMapEntry[spotlightInfos.Count];
          for (var i = 0; i < spotlightInfos.Count; i++) {
             result[i].AtlasLocation = new AtlasLocation {
@@ -302,7 +338,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          return result;
       }
 
-      [StructLayout(LayoutKind.Sequential)]
+      [StructLayout(LayoutKind.Sequential, Pack = 1)]
       struct AtlasLocation {
          public Vector3 Position;
          public Vector2 Size;
@@ -310,10 +346,10 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          public const int SIZE = 4 * (3 + 2);
       };
 
-      [StructLayout(LayoutKind.Sequential)]
+      [StructLayout(LayoutKind.Sequential, Pack = 1)]
       struct ShadowMapEntry {
-         public AtlasLocation AtlasLocation;
          public SpotlightInfo SpotlightInfo;
+         public AtlasLocation AtlasLocation;
 
          public const int Size = AtlasLocation.SIZE + SpotlightInfo.Size;
       };
@@ -324,13 +360,20 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          public IMesh Mesh;
       }
 
-      [StructLayout(LayoutKind.Sequential)]
+      [StructLayout(LayoutKind.Sequential, Pack = 1)]
       public struct SpotlightInfo {
-         public Matrix ProjViewCM;
-         public Color4 Color;
-         public float Power;
+         public Vector3 Origin;
+         public Vector3 Direction;
 
-         public const int Size = 4 * 4 * 4 + 4 * 4 + 4;
+         public Color4 Color;
+         public float DistanceAttenuationConstant;
+         public float DistanceAttenuationLinear;
+         public float DistanceAttenuationQuadratic;
+         public float SpotlightAttenuationPower;
+
+         public Matrix ProjViewCM;
+
+         public const int Size = (3 * 4) * 2 + (4 * 4) * 1 + (4) * 4 + (4 * 4) * 1;
       }
    }
 }

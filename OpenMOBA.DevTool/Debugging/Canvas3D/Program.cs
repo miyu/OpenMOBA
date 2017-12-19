@@ -32,13 +32,13 @@ namespace Shade {
                graphicsDevice.DoEvents();
 
                var proj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
-               var view = MatrixCM.LookAtRH(new Vector3(3, 2, 5), new Vector3(0, 0, 0), new Vector3(0, 1, 0));
+               var view = MatrixCM.LookAtRH(new Vector3(3, 2.5f, 5), new Vector3(0, 0.5f, 0), new Vector3(0, 1, 0));
                var projView = proj * view;
 
                renderer.ClearScene();
                renderer.SetProjView(projView);
-               renderer.AddRenderable(MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.Scaling(4) * MatrixCM.RotationX((float)Math.PI / 2.0f), meshPresets.UnitPlaneXY);
-               renderer.AddRenderable(Matrix.Identity, meshPresets.UnitCube);
+               renderer.AddRenderable(MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI), meshPresets.UnitCube);
+               renderer.AddRenderable(MatrixCM.Translation(0, 0.5f, 0), meshPresets.UnitCube);
 
                var dt = (float)(DateTime.Now - start).TotalSeconds;
                for (var i = 0; i < 10; i++) {
@@ -48,8 +48,17 @@ namespace Shade {
                   );
                }
 
-               renderer.AddSpotlight(new Vector3(5, 4, 3), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.White, 5.0f);
-               renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.Red, 5.0f);
+               //renderer.AddSpotlight(
+               //   new Vector3(5, 4, 3), new Vector3(0, 0, 0), (float)Math.PI / 8.0f,
+               //   Color.White, 100.0f,
+               //   3.0f, 6.0f, 1.0f,
+               //   100.0f);
+               renderer.AddSpotlight(
+                  new Vector3(4, 4, 4), new Vector3(0, 0, 0), (float)Math.PI / 8.0f,
+                  Color.White, 100.0f,
+                  3.0f, 6.0f, 1.0f,
+                  100.0f);
+               //renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.Red, 10.0f, 3.0f, 6.0f, 1.0f, 0.0f);
                renderer.RenderScene();
             }
          }
