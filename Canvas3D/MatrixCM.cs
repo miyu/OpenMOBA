@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SharpDX;
+﻿using SharpDX;
 
-namespace OpenMOBA.DevTool.Debugging.Canvas3D {
+namespace Canvas3D {
    // column-major matrices
    public static class MatrixCM {
       public static Matrix LookAtRH(Vector3 eye, Vector3 target, Vector3 up) {

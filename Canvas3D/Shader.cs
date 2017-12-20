@@ -1,14 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Shade;
-using SharpDX;
-using SharpDX.D3DCompiler;
-using SharpDX.Direct3D11;
 
-namespace OpenMOBA.DevTool.Debugging.Canvas3D {
+namespace Canvas3D {
    public interface IDepthStencilView { }
    public interface IRenderTargetView { }
 

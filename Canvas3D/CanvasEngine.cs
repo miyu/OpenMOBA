@@ -1,24 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
-using OpenMOBA.DevTool.Debugging.Canvas3D;
-using OpenMOBA.Foundation;
 using SharpDX;
 using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
-using SharpDX.Mathematics.Interop;
 using SharpDX.Windows;
 using Size = System.Drawing.Size;
 using Buffer = SharpDX.Direct3D11.Buffer;
 using Direct3DDevice = SharpDX.Direct3D11.Device;
 using Resource = SharpDX.Direct3D11.Resource;
 
-namespace Shade {
+namespace Canvas3D {
    public interface IGraphicsDevice {
       IImmediateRenderContext ImmediateContext { get; }
       IAssetManager AssetManager { get; }

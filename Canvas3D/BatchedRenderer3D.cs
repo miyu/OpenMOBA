@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using Shade;
 using SharpDX;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
@@ -13,9 +12,8 @@ using Color = SharpDX.Color;
 using Device = SharpDX.Direct3D11.Device;
 using RectangleF = SharpDX.RectangleF;
 using MapFlags = SharpDX.Direct3D11.MapFlags;
-using Resource = SharpDX.Direct3D11.Resource;
 
-namespace OpenMOBA.DevTool.Debugging.Canvas3D {
+namespace Canvas3D {
    public class BatchedRenderer3D {
       private readonly Dictionary<IMesh, List<RenderJobDescription>> renderJobDescriptionsByMesh = new Dictionary<IMesh, List<RenderJobDescription>>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();

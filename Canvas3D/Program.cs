@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Drawing;
-using OpenMOBA.DevTool.Debugging.Canvas3D;
-using Shade;
 using SharpDX;
 using SharpDX.Windows;
 using Color = SharpDX.Color;

@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using SharpDX;
 
-namespace OpenMOBA.DevTool.Debugging.Canvas3D {
+namespace Canvas3D {
    public class VertexElementAttribute : Attribute {
       public string Name { get; }
 
