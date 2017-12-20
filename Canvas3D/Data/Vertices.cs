@@ -3,6 +3,10 @@ using System.Runtime.InteropServices;
 using SharpDX;
 
 namespace Canvas3D {
+   public enum VertexLayout {
+      PositionNormalColorTexture
+   }
+
    public class VertexElementAttribute : Attribute {
       public string Name { get; }
 
@@ -13,6 +17,8 @@ namespace Canvas3D {
 
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct VertexPositionNormalColorTexture {
+      public const VertexLayout Layout = VertexLayout.PositionNormalColorTexture;
+
       [VertexElement("POSITION")]
       public Vector3 Position;
 

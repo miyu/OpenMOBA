@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using SharpDX;
@@ -8,56 +9,19 @@ using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
 using SharpDX.Windows;
-using Size = System.Drawing.Size;
 using Buffer = SharpDX.Direct3D11.Buffer;
-using Direct3DDevice = SharpDX.Direct3D11.Device;
+using Color = SharpDX.Color;
+using Device = SharpDX.Direct3D11.Device;
+using RectangleF = SharpDX.RectangleF;
 using Resource = SharpDX.Direct3D11.Resource;
 
-namespace Canvas3D {
-   public interface IGraphicsDevice {
-      IImmediateRenderContext ImmediateContext { get; }
-      IAssetManager AssetManager { get; }
-      ITechniqueCollection TechniqueCollection { get; }
-      IMeshPresets MeshPresets { get; }
-
-      void DoEvents();
-      IDeferredRenderContext CreateDeferredRenderContext();
-   }
-
-   public interface IRenderContext {
-      void SetVsyncEnabled(bool val);
-      void SetDepthConfiguration(DepthConfiguration config);
-      void SetRasterizerConfiguration(RasterizerConfiguration config);
-
-      void GetRenderTargets(out IDepthStencilView depthStencilView, out IRenderTargetView renderTargetView);
-      void SetRenderTargets(IDepthStencilView depthStencilView, IRenderTargetView renderTargetView);
-
-      void ClearRenderTarget(Color color);
-      void ClearDepthBuffer(float depth);
-
-      void SetViewportRect(RectangleF rectangle);
-
-      void SetPixelShader(IPixelShader shader);
-      void SetVertexShader(IVertexShader shader);
-
-      void SetPrimitiveTopology(PrimitiveTopology topology);
-      void SetVertexBuffer(IVertexBuffer vertexBuffer);
-      void Draw(int vertices, int offset);
-   }
-
-   public interface IImmediateRenderContext : IRenderContext {
-      void Present();
-   }
-
-   public interface IDeferredRenderContext : IRenderContext {
-   }
-
+namespace Canvas3D.LowLevel.Direct3D {
    public class Direct3DGraphicsDevice : IGraphicsDevice, IDisposable {
       private const int BackBufferCount = 2;
 
       // Lifetime Resources
       private readonly RenderForm _form; // don't dispose
-      private readonly Direct3DDevice _device;
+      private readonly Device _device;
       private readonly SwapChain _swapChain;
 
       // Swap Chain + Resizing
@@ -75,7 +39,7 @@ namespace Canvas3D {
       private readonly Direct3DTechniqueCollection _techniqueCollection;
       private readonly Direct3DMeshPresets _meshPresets;
 
-      private Direct3DGraphicsDevice(RenderForm form, Direct3DDevice device, SwapChain swapChain, DeviceContext deviceImmediateContext) {
+      private Direct3DGraphicsDevice(RenderForm form, Device device, SwapChain swapChain, DeviceContext deviceImmediateContext) {
          _form = form;
          _device = device;
          _swapChain = swapChain;
@@ -88,7 +52,7 @@ namespace Canvas3D {
          _meshPresets = Direct3DMeshPresets.Create(this);
       }
 
-      internal Direct3DDevice InternalD3DDevice => _device;
+      internal Device InternalD3DDevice => _device;
       public IImmediateRenderContext ImmediateContext => _immediateContext;
       public IAssetManager AssetManager => _assetManager;
       public ITechniqueCollection TechniqueCollection => _techniqueCollection;
@@ -139,10 +103,10 @@ namespace Canvas3D {
       }
 
       private void DisposeBackBuffersAndViews() {
-         Utilities.Dispose(ref _backBufferRenderTargetTexture);
-         Utilities.Dispose(ref _backBufferRenderTargetView.RenderTargetView);
-         Utilities.Dispose(ref _backBufferDepthTexture);
-         Utilities.Dispose(ref _backBufferDepthView.DepthStencilView);
+         Utilities.Dispose<Texture2D>(ref _backBufferRenderTargetTexture);
+         Utilities.Dispose<RenderTargetView>(ref _backBufferRenderTargetView.RenderTargetView);
+         Utilities.Dispose<Texture2D>(ref _backBufferDepthTexture);
+         Utilities.Dispose<DepthStencilView>(ref _backBufferDepthView.DepthStencilView);
       }
 
       public void Dispose() {
@@ -159,9 +123,9 @@ namespace Canvas3D {
 
          // Init device, swapchain
          var deviceCreationFlags = DeviceCreationFlags.Debug;
-         Direct3DDevice device;
+         Device device;
          SwapChain swapChain;
-         Direct3DDevice.CreateWithSwapChain(DriverType.Hardware, deviceCreationFlags, swapChainDescription, out device, out swapChain);
+         Device.CreateWithSwapChain(DriverType.Hardware, deviceCreationFlags, swapChainDescription, out device, out swapChain);
          var immediateContext = device.ImmediateContext;
 
          // DXGI ignores window events
@@ -219,21 +183,24 @@ namespace Canvas3D {
             return new PixelShaderBox { Shader = shader };
          }
 
-         public IVertexShader LoadVertexShaderFromFile(string relativePath, InputLayoutType inputLayoutType, string entryPoint = null) {
+         public IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null) {
             var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_0");
             var shader = new VertexShader(_graphicsDevice.InternalD3DDevice, bytecode);
             var signature = ShaderSignature.GetInputSignature(bytecode);
-            var inputLayout = CreateInputLayout(inputLayoutType, signature);
+            var inputLayout = CreateInputLayout(vertexLayout, signature);
             return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
          }
 
-         private InputLayout CreateInputLayout(InputLayoutType inputLayoutType, ShaderSignature signature) {
-            return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
-               new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
-               new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
-               new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
-               new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0, InputClassification.PerVertexData, 0)
-            });
+         private InputLayout CreateInputLayout(VertexLayout vertexLayout, ShaderSignature signature) {
+            if (vertexLayout == VertexLayout.PositionNormalColorTexture) {
+               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
+                  new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
+                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
+                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0, InputClassification.PerVertexData, 0)
+               });
+            }
+            throw new NotSupportedException("Unsupported Input Layout: " + vertexLayout);
          }
 
          private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {
@@ -434,7 +401,7 @@ namespace Canvas3D {
          }
 
          public void Dispose() {
-            Utilities.Dispose(ref _deviceContext);
+            Utilities.Dispose<DeviceContext>(ref _deviceContext);
          }
       }
 
@@ -466,7 +433,7 @@ namespace Canvas3D {
          private RasterizerState _rasterizerFillFront;
          private RasterizerState _rasterizerFillBack;
 
-         public RenderStates(Direct3DDevice device) {
+         public RenderStates(Device device) {
             _depthEnable = new DepthStencilState(device, DepthStencilDesc(true));
             _depthDisable = new DepthStencilState(device, DepthStencilDesc(false));
             _rasterizerFillFront = new RasterizerState(device, RasterizerDesc(true));
@@ -479,9 +446,9 @@ namespace Canvas3D {
          public RasterizerState RasterizerFillBack => _rasterizerFillBack;
 
          public void Dispose() {
-            Utilities.Dispose(ref _depthDisable);
-            Utilities.Dispose(ref _depthEnable);
-            Utilities.Dispose(ref _rasterizerFillFront);
+            Utilities.Dispose<DepthStencilState>(ref _depthDisable);
+            Utilities.Dispose<DepthStencilState>(ref _depthEnable);
+            Utilities.Dispose<RasterizerState>(ref _rasterizerFillFront);
          }
 
          private static DepthStencilStateDescription DepthStencilDesc(bool enableDepth) => new DepthStencilStateDescription {
@@ -512,12 +479,12 @@ namespace Canvas3D {
             collection.Forward = new Technique {
                Passes = 1,
                PixelShader = assetManager.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward", InputLayoutType.PositionNormalColorTexture, "VSMain")
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
             collection.ForwardDepthOnly = new Technique {
                Passes = 1,
                PixelShader = assetManager.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", InputLayoutType.PositionNormalColorTexture, "VSMain")
+               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
             //collection.Derivative = new Technique {
             //   Passes = 1,
@@ -601,48 +568,4 @@ namespace Canvas3D {
          }
       }
    }
-
-   public class CanvasApplication { }
-
-//   public class CanvasEngine : Game {
-//      private readonly CanvasProgram program;
-//      private SpriteBatch spriteBatch;
-//
-//      public CanvasEngine(CanvasProgram program) {
-//         this.program = program;
-//
-//         var graphicsDeviceManager = new GraphicsDeviceManager(this) {
-//            PreferredBackBufferWidth = 1280,
-//            PreferredBackBufferHeight = 720,
-//            DeviceCreationFlags = DeviceCreationFlags.Debug
-//         };
-//      }
-//
-//      public Canvas RootCanvas { get; private set; }
-//
-//      protected override void Initialize() {
-//         base.Initialize();
-//         spriteBatch = new SpriteBatch(GraphicsDevice);
-//
-//         Canvas.Engine = this;
-//         RootCanvas = new Canvas(GraphicsDevice.BackBuffer.Width, GraphicsDevice.BackBuffer.Height);
-//
-//         program.Engine = this;
-//         program.Setup();
-//      }
-//
-//      protected override void Draw(GameTime gameTime) {
-//         base.Draw(gameTime);
-//         program.Render(gameTime);
-//         GraphicsDevice.Clear(Color.Black);
-//         spriteBatch.Begin();
-//         spriteBatch.Draw(RootCanvas.RenderTarget, new Vector2(0, 0), Color.White);
-//         spriteBatch.End();
-//      }
-//
-//      protected override void Update(GameTime gameTime) {
-//         base.Update(gameTime);
-//         program.Step(gameTime);
-//      }
-//   }
 }

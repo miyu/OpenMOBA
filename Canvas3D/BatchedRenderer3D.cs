@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using Canvas3D.LowLevel;
+using Canvas3D.LowLevel.Direct3D;
 using SharpDX;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
+using SharpDX.Windows;
 using Buffer = SharpDX.Direct3D11.Buffer;
 using Color = SharpDX.Color;
 using Device = SharpDX.Direct3D11.Device;
@@ -181,6 +184,16 @@ namespace Canvas3D {
             kvp.Value.Clear();
          }
          spotlightInfos.Clear();
+      }
+
+      public void AddRenderable(MeshPreset preset, Matrix worldCm) {
+         if (preset == MeshPreset.UnitCube) {
+            AddRenderable(_graphicsDevice.MeshPresets.UnitCube, worldCm);
+         } else if (preset == MeshPreset.UnitPlaneXY) {
+            AddRenderable(_graphicsDevice.MeshPresets.UnitPlaneXY, worldCm);
+         } else {
+            throw new NotSupportedException();
+         }
       }
 
       public void AddRenderable(IMesh mesh, Matrix worldCm) {

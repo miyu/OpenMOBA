@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Canvas3D {
+namespace Canvas3D.LowLevel {
    public interface IDepthStencilView { }
    public interface IRenderTargetView { }
 
@@ -13,15 +13,9 @@ namespace Canvas3D {
 
    public interface IVertexBuffer { }
 
-   public enum InputLayoutType {
-      PositionColor,
-      PositionColorTexture,
-      PositionNormalColorTexture
-   }
-
    public interface IAssetManager {
       IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null);
-      IVertexShader LoadVertexShaderFromFile(string relativePath, InputLayoutType inputLayoutType, string entryPoint = null);
+      IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null);
    }
 
    public interface ITechnique {
