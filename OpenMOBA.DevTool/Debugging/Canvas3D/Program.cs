@@ -25,6 +25,8 @@ namespace Shade {
          var immediateContext = graphicsDevice.ImmediateContext;
          var renderer = new BatchedRenderer3D(graphicsDevice);
 
+         graphicsDevice.ImmediateContext.SetVsyncEnabled(false);
+
          renderForm.Show();
          var start = DateTime.Now;
          using (var renderLoop = new RenderLoop(renderForm)) {
@@ -37,14 +39,14 @@ namespace Shade {
 
                renderer.ClearScene();
                renderer.SetProjView(projView);
-               renderer.AddRenderable(MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI), meshPresets.UnitCube);
-               renderer.AddRenderable(MatrixCM.Translation(0, 0.5f, 0), meshPresets.UnitCube);
+               renderer.AddRenderable(meshPresets.UnitCube, MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI));
+               renderer.AddRenderable(meshPresets.UnitCube, MatrixCM.Translation(0, 0.5f, 0));
 
-               var dt = (float)(DateTime.Now - start).TotalSeconds / 10;
+               var dt = (float)(DateTime.Now - start).TotalSeconds / 4;
                for (var i = 0; i < 10; i++) {
                   renderer.AddRenderable(
-                     MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * MatrixCM.Translation(1.0f, 0.9f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * MatrixCM.Scaling(0.2f) * MatrixCM.RotationY(i),
-                     meshPresets.UnitCube
+                     meshPresets.UnitCube,
+                     MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * MatrixCM.Translation(1.0f, 0.9f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * MatrixCM.Scaling(0.2f) * MatrixCM.RotationY(i)
                   );
                }
 

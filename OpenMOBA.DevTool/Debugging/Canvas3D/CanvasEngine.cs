@@ -30,6 +30,7 @@ namespace Shade {
    }
 
    public interface IRenderContext {
+      void SetVsyncEnabled(bool val);
       void SetDepthConfiguration(DepthConfiguration config);
       void SetRasterizerConfiguration(RasterizerConfiguration config);
 
@@ -232,25 +233,12 @@ namespace Shade {
          }
 
          private InputLayout CreateInputLayout(InputLayoutType inputLayoutType, ShaderSignature signature) {
-            //            if (inputLayoutType == InputLayoutType.PositionColor) {
-            //               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
-            //                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-            //                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0)
-            //               });
-            //            } else if (inputLayoutType == InputLayoutType.PositionColorTexture) {
-            //               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
-            //                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-            //                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 12, 0),
-            //                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0)
-            //               });
-            //            } else {
             return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
-                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-                  new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0),
-                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0),
-                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0)
-               });
-//            }
+               new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
+               new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
+               new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
+               new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0, InputClassification.PerVertexData, 0)
+            });
          }
 
          private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {

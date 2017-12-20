@@ -17,7 +17,7 @@ using Resource = SharpDX.Direct3D11.Resource;
 
 namespace OpenMOBA.DevTool.Debugging.Canvas3D {
    public class BatchedRenderer3D {
-      private readonly List<RenderableInfo> renderables = new List<RenderableInfo>();
+      private readonly Dictionary<IMesh, List<RenderJobDescription>> renderJobDescriptionsByMesh = new Dictionary<IMesh, List<RenderJobDescription>>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
 
       private readonly IGraphicsDevice _graphicsDevice;
@@ -168,18 +168,24 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
       }
 
       public void ClearScene() {
-         renderables.Clear();
+         foreach (var kvp in renderJobDescriptionsByMesh) {
+            kvp.Value.Clear();
+         }
          spotlightInfos.Clear();
       }
 
-      public void AddRenderable(Matrix worldCm, IMesh mesh) {
-         AddRenderable(new RenderableInfo {
+      public void AddRenderable(IMesh mesh, Matrix worldCm) {
+         AddRenderable(mesh, new RenderJobDescription {
             WorldCM = worldCm,
-            Mesh = mesh
          });
       }
 
-      public void AddRenderable(RenderableInfo info) => renderables.Add(info);
+      public void AddRenderable(IMesh mesh, RenderJobDescription info) {
+         if (!renderJobDescriptionsByMesh.TryGetValue(mesh, out var renderables)) {
+            renderables = renderJobDescriptionsByMesh[mesh] = new List<RenderJobDescription>();
+         }
+         renderables.Add(info);
+      }
 
       public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f) {
          var proj = MatrixCM.PerspectiveFovRH(theta, 1.0f, 0.1f, far);
@@ -277,16 +283,20 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
 
-               for (var i = 0; i < renderables.Count; i++) {
-                  var renderable = renderables[i];
-                  UpdateObjectConstantBuffer(renderable.WorldCM);
+               foreach (var kvp in renderJobDescriptionsByMesh) {
+                  var mesh = kvp.Key;
+                  var jobs = kvp.Value;
+                  for (var i = 0; i < jobs.Count; i++) {
+                     var renderable = jobs[i];
+                     UpdateObjectConstantBuffer(renderable.WorldCM);
 
-                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
-                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+                     _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
+                     _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+                     _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
+                     _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
 
-                  renderable.Mesh.Draw(renderContext);
+                     mesh.Draw(renderContext);
+                  }
                }
             }
          }
@@ -307,19 +317,23 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
 
-            for (var i = 0; i < renderables.Count; i++) {
-               var renderable = renderables[i];
-               UpdateObjectConstantBuffer(renderable.WorldCM);
+            foreach (var kvp in renderJobDescriptionsByMesh) {
+               var mesh = kvp.Key;
+               var jobs = kvp.Value;
+               for (var i = 0; i < jobs.Count; i++) {
+                  var renderable = jobs[i];
+                  UpdateObjectConstantBuffer(renderable.WorldCM);
 
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
-               _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
-               _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
-               _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
+                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
+                  _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
+                  _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+                  _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
+                  _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
+                  _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
 
-               renderable.Mesh.Draw(renderContext);
+                  mesh.Draw(renderContext);
+               }
             }
          }
 
@@ -371,9 +385,8 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
       };
 
 
-      public struct RenderableInfo {
+      public struct RenderJobDescription {
          public Matrix WorldCM;
-         public IMesh Mesh;
       }
 
       [StructLayout(LayoutKind.Sequential, Pack = 1)]
