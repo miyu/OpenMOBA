@@ -12,13 +12,10 @@ using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Foundation.Terrain.Visibility;
 using OpenMOBA.Geometry;
-using Shade;
 
 namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
-         CanvasProgram.EntryPoint(args);
-         return;
          var gameFactory = new GameFactory();
          gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
          OpenMOBA.Program.Main(gameFactory);

@@ -216,7 +216,7 @@ namespace Shade {
             _graphicsDevice = graphicsDevice;
          }
 
-         public string BasePath => @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\Debugging\Canvas3D\Assets";
+         public string BasePath => @"C:\my-repositories\miyu\derp\Canvas3D\Assets";
 
          public IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null) {
             var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_0");

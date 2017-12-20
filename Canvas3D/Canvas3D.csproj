@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+   <PropertyGroup>
+      <TargetFramework>net461</TargetFramework>
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      <AssemblyName>Canvas3D</AssemblyName>
+      <OutputType>Exe</OutputType>
+      <PackageId>Canvas3D</PackageId>
+      <StartupObject>Canvas3D.Program</StartupObject>
+   </PropertyGroup>
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'" />
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+     <DebugType>full</DebugType>
+     <DebugSymbols>true</DebugSymbols>
+     <LangVersion>latest</LangVersion>
+   </PropertyGroup>
+
+   <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
+      <Reference Include="System.Drawing" />
+      <Reference Include="System.Windows.Forms" />
+      <Reference Include="System" />
+      <Reference Include="Microsoft.CSharp" />
+   </ItemGroup>
+
+   <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+      <PackageReference Include="SharpDX" Version="3.1.1" />
+      <PackageReference Include="SharpDX.D3DCompiler" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Desktop" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Direct3D11" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Mathematics" Version="3.1.1" />
+   </ItemGroup>
+
+   <ItemGroup>
+      <ProjectReference Include="..\OpenMOBA\OpenMOBA.csproj" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <Folder Include="Properties\" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <None Update="Assets\shaders\forward_depth_only.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+     <None Update="Assets\shaders\forward.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+     <None Update="Assets\shaders\derivative.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+   </ItemGroup>
+
+</Project>
