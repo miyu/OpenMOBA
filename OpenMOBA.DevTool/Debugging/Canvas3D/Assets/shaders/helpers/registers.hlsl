@@ -10,6 +10,7 @@
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4x4 projView;
    bool shadowTestEnabled;
+   int numSpotlights;
 }
 
 cbuffer Object : register(REG_OBJECT_DATA) {

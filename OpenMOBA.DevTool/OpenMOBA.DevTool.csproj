@@ -16,7 +16,7 @@
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
      <DebugType>full</DebugType>
      <DebugSymbols>true</DebugSymbols>
-     <LangVersion>default</LangVersion>
+     <LangVersion>latest</LangVersion>
    </PropertyGroup>
 
    <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">

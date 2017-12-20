@@ -6,17 +6,19 @@ SamplerState DiffuseSampler {
    AddressV = Wrap;
 };
 
-float3 computeSpotlightLighting(float4 objectWorld, Texture2DArray shadowMap, SpotlightDescription spotlight);
+float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight);
 bool testShadowMap(float4 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation);
 
-float3 computeSpotlightLighting(float4 objectWorld, Texture2DArray shadowMap, SpotlightDescription spotlight) {
+float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight) {
    float shadowing = float(testShadowMap(objectWorld, shadowMap, spotlight.projView, spotlight.shadowMapLocation));
    float d = distance(objectWorld.xyz, spotlight.origin);
    float distanceAttenuation = clamp(1.0f / (spotlight.distanceAttenuationConstant + d * spotlight.distanceAttenuationLinear + d * d * spotlight.distanceAttenuationQuadratic), 0.0f, 1.0f);
-   float spotlightToObjectWorld = normalize(objectWorld.xyz - spotlight.origin);
-   float dawt = dot(spotlightToObjectWorld, normalize(spotlight.direction));
-   float spotlightAttenuation = pow(max(dawt, 0), 5);
-   return spotlightAttenuation; // shadowing * spotlight.color.xyz * distanceAttenuation * spotlight.color.w * spotlightAttenuation;
+   float3 spotlightToObjectWorld = normalize(objectWorld.xyz - spotlight.origin);
+   float dawt = dot(spotlightToObjectWorld, spotlight.direction);
+   //float dawt = distance(objectWorld.xyz, float3(0, 0, 0)) / 10; //abs(dot(normalize(objectWorld.xyz), float3(0, -1, 0)));;
+   float spotlightAttenuation = pow(max(dawt, 0), spotlight.spotlightAttenuationPower);
+   float diffuseFactor = max(0, dot(-spotlight.direction, normalize(normalWorld)));
+   return diffuseFactor * shadowing * spotlight.color.xyz * distanceAttenuation * spotlight.color.w * spotlightAttenuation;
 } 
 
 

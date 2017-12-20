@@ -40,25 +40,20 @@ namespace Shade {
                renderer.AddRenderable(MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI), meshPresets.UnitCube);
                renderer.AddRenderable(MatrixCM.Translation(0, 0.5f, 0), meshPresets.UnitCube);
 
-               var dt = (float)(DateTime.Now - start).TotalSeconds;
+               var dt = (float)(DateTime.Now - start).TotalSeconds / 10;
                for (var i = 0; i < 10; i++) {
                   renderer.AddRenderable(
-                     MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * MatrixCM.Translation(1.0f, 0.4f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * MatrixCM.Scaling(0.2f) * MatrixCM.RotationY(i),
+                     MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * MatrixCM.Translation(1.0f, 0.9f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * MatrixCM.Scaling(0.2f) * MatrixCM.RotationY(i),
                      meshPresets.UnitCube
                   );
                }
 
-               //renderer.AddSpotlight(
-               //   new Vector3(5, 4, 3), new Vector3(0, 0, 0), (float)Math.PI / 8.0f,
-               //   Color.White, 100.0f,
-               //   3.0f, 6.0f, 1.0f,
-               //   100.0f);
                renderer.AddSpotlight(
-                  new Vector3(4, 4, 4), new Vector3(0, 0, 0), (float)Math.PI / 8.0f,
+                  new Vector3(5, 4, 3), new Vector3(0, 0, 0), (float)Math.PI / 8.0f,
                   Color.White, 100.0f,
-                  3.0f, 6.0f, 1.0f,
-                  100.0f);
-               //renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 4.0f, Color.Red, 10.0f, 3.0f, 6.0f, 1.0f, 0.0f);
+                  0.0f, 6.0f, 3.0f,
+                  0.5f / 256.0f);
+               renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 8.0f, Color.Red, 100.0f, 3.0f, 6.0f, 1.0f);
                renderer.RenderScene();
             }
          }

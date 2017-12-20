@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Shade;
@@ -38,8 +39,8 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          _d3d = ((Direct3DGraphicsDevice)graphicsDevice).InternalD3DDevice;
 
          _sceneBuffer = new Buffer(
-            _d3d, 
-            2 * Utilities.SizeOf<Matrix>(),
+            _d3d,
+            ((Utilities.SizeOf<Matrix>() + Utilities.SizeOf<bool>() + Utilities.SizeOf<int>()) / 16 + 1) * 16,
             ResourceUsage.Dynamic, 
             BindFlags.ConstantBuffer, 
             CpuAccessFlags.Write, 
@@ -58,12 +59,12 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          var shadowMapEntriesBufferLength = 256;
          _shadowMapEntriesBuffer = new Buffer(
             _d3d,
-            shadowMapEntriesBufferLength * ShadowMapEntry.Size,
+            shadowMapEntriesBufferLength * SpotlightDescription.Size,
             ResourceUsage.Dynamic,
             BindFlags.ShaderResource,
             CpuAccessFlags.Write,
             ResourceOptionFlags.BufferStructured,
-            ShadowMapEntry.Size);
+            SpotlightDescription.Size);
          _shadowMapEntriesBufferSrv = new ShaderResourceView(
             _d3d, 
             _shadowMapEntriesBuffer,
@@ -74,7 +75,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
                   ElementCount = shadowMapEntriesBufferLength,
                   FirstElement = 0,
                   ElementOffset = 0,
-                  ElementWidth = ShadowMapEntry.Size
+                  ElementWidth = SpotlightDescription.Size
                }
             });
 
@@ -154,6 +155,10 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          _d3d.ImmediateContext.UnmapSubresource(_whiteTexture, 0);
 
          _whiteTextureShaderResourceView = new ShaderResourceView(_d3d, _whiteTexture);
+
+         Trace.Assert(Utilities.SizeOf<SpotlightInfo>() == SpotlightInfo.Size);
+         Trace.Assert(Utilities.SizeOf<AtlasLocation>() == AtlasLocation.SIZE);
+         Trace.Assert(Utilities.SizeOf<SpotlightDescription>() == SpotlightDescription.Size);
       }
 
       public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
@@ -176,7 +181,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
 
       public void AddRenderable(RenderableInfo info) => renderables.Add(info);
 
-      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float spotlightAttenuationPower) {
+      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f) {
          var proj = MatrixCM.PerspectiveFovRH(theta, 1.0f, 0.1f, far);
 
          var up = Vector3.Up; // todo: handle degenerate
@@ -186,12 +191,19 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          // 256 = x * darc + far * x * darl + far * far * x * darq
          // 256 = x * (darc + far * darl + far * far * darq)
          float x = 256 / (daRatioConstant + far * daRatioLinear + far * far * daRatioQuadratic);
-         Console.WriteLine(x + " " + daRatioConstant + " " + daRatioLinear + " " + daRatioQuadratic);
+         //Console.WriteLine(x + " " + daRatioConstant + " " + daRatioLinear + " " + daRatioQuadratic);
          var direction = lookat - position;
          direction.Normalize();
+         //Console.WriteLine("@8: " + (daRatioConstant * x + daRatioLinear * x * 8 + daRatioQuadratic * x * 8 * 8));
+         //Console.WriteLine("@far: " + (daRatioConstant * x + daRatioLinear * x * far + daRatioQuadratic * x * far * far));
 
-         Console.WriteLine("@8: " + (daRatioConstant * x + daRatioLinear * x * 8 + daRatioQuadratic * x * 8 * 8));
-         Console.WriteLine("@far: " + (daRatioConstant * x + daRatioLinear * x * far + daRatioQuadratic * x * far * far));
+         // solve spotlight attenuation constant.
+         // edge% = atten_spotlight = dot(spotlightDirectionUnit, objectDirectionUnit) ^ power
+         // edge% = cos(theta) ^ power
+         // Math.Log(edge%, cos(theta)) = power
+         var power = Math.Log(edgeSpotlightAttenuationPercent, Math.Cos(theta));
+         //Console.WriteLine("Power: " + power);
+         //Console.WriteLine("@far: " + Math.Pow(Math.Cos(theta), power));
 
          AddSpotlight(new SpotlightInfo {
             Origin = position,
@@ -201,7 +213,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
             DistanceAttenuationConstant = x * daRatioConstant,
             DistanceAttenuationLinear = x * daRatioLinear,
             DistanceAttenuationQuadratic = x * daRatioQuadratic,
-            SpotlightAttenuationPower = spotlightAttenuationPower,
+            SpotlightAttenuationPower = (float)power,
 
             ProjViewCM = proj * view,
          });
@@ -211,11 +223,13 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          spotlightInfos.Add(info);
       }
 
-      private void UpdateSceneConstantBuffer(Matrix projView, bool shadowTestEnabled) {
+      private void UpdateSceneConstantBuffer(Matrix projView, bool shadowTestEnabled, int numSpotlights) {
          var db = _d3d.ImmediateContext.MapSubresource(_sceneBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          var off = db.DataPointer;
          off = Utilities.WriteAndPosition(off, ref projView);
          off = Utilities.WriteAndPosition(off, ref shadowTestEnabled);
+         off += 3; // 4-byte alignment in HLSL struct
+         off = Utilities.WriteAndPosition(off, ref numSpotlights);
          _d3d.ImmediateContext.UnmapSubresource(_sceneBuffer, 0);
       }
 
@@ -226,8 +240,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          _d3d.ImmediateContext.UnmapSubresource(_objectBuffer, 0);
       }
 
-      public void RenderScene() {
-
+      public unsafe void RenderScene() {
          var renderContext = _graphicsDevice.ImmediateContext;
          renderContext.ClearRenderTarget(Color.Gray);
          renderContext.ClearDepthBuffer(1.0f);
@@ -238,26 +251,34 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          renderContext.GetRenderTargets(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
 
          // Draw spotlights
-         var shadowMapEntries = ComputeShadowMapEntries();
+         var spotlightDescriptions = stackalloc SpotlightDescription[spotlightInfos.Count];
+         ComputeSpotlightDescriptions(spotlightDescriptions);
 
-         foreach (var ldsv in _lightDepthStencilViews) {
+         for (var i = 0; i < _lightDepthStencilViews.Length; i++) {
+            var ldsv = _lightDepthStencilViews[i];
             renderContext.SetRenderTargets(ldsv, null);
             renderContext.ClearDepthBuffer(1.0f);
          }
 
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
-         foreach (var shadowMapEntry in shadowMapEntries) {
-            renderContext.SetRenderTargets(_lightDepthStencilViews[(int)shadowMapEntry.AtlasLocation.Position.Z], null);
-         
-            var atlasLocation = shadowMapEntry.AtlasLocation;
-            renderContext.SetViewportRect(new RectangleF(atlasLocation.Position.X, atlasLocation.Position.Y, 2048 * atlasLocation.Size.X, 2048 * atlasLocation.Size.Y));
+         for (var spotlightIndex = 0; spotlightIndex < spotlightInfos.Count; spotlightIndex++) {
+            var spotlightDescription = &spotlightDescriptions[spotlightIndex];
+            renderContext.SetRenderTargets(_lightDepthStencilViews[(int)spotlightDescription->AtlasLocation.Position.Z], null);
 
-            UpdateSceneConstantBuffer(shadowMapEntry.SpotlightInfo.ProjViewCM, false);
+            renderContext.SetViewportRect(new RectangleF(
+               spotlightDescription->AtlasLocation.Position.X,
+               spotlightDescription->AtlasLocation.Position.Y,
+               2048 * spotlightDescription->AtlasLocation.Size.X,
+               2048 * spotlightDescription->AtlasLocation.Size.Y
+            ));
+
+            UpdateSceneConstantBuffer(spotlightDescription->SpotlightInfo.ProjViewCM, false, 0);
 
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
 
-               foreach (var renderable in renderables) {
+               for (var i = 0; i < renderables.Count; i++) {
+                  var renderable = renderables[i];
                   UpdateObjectConstantBuffer(renderable.WorldCM);
 
                   _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
@@ -272,10 +293,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
 
          // Prepare for scene render
          var box = _d3d.ImmediateContext.MapSubresource(_shadowMapEntriesBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         var cur = box.DataPointer;
-         for (var i = 0; i < shadowMapEntries.Length; i++) {
-            cur = Utilities.WriteAndPosition(cur, ref shadowMapEntries[i]);
-         }
+         Utilities.CopyMemory(box.DataPointer, (IntPtr)spotlightDescriptions, spotlightInfos.Count * SpotlightDescription.Size);
          _d3d.ImmediateContext.UnmapSubresource(_shadowMapEntriesBuffer, 0);
          _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
          _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
@@ -285,11 +303,12 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
-         UpdateSceneConstantBuffer(_projView, true);
+         UpdateSceneConstantBuffer(_projView, true, spotlightInfos.Count);
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
-         
-            foreach (var renderable in renderables) {
+
+            for (var i = 0; i < renderables.Count; i++) {
+               var renderable = renderables[i];
                UpdateObjectConstantBuffer(renderable.WorldCM);
 
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
@@ -310,10 +329,9 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
                var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
-               UpdateSceneConstantBuffer(orthoProj, false);
+               UpdateSceneConstantBuffer(orthoProj, false, 0);
                UpdateObjectConstantBuffer(quadWorld);
 
-               _d3d.ImmediateContext.UpdateSubresource(new[] { quadWorld }, _objectBuffer, 0);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
@@ -326,16 +344,14 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
          renderContext.Present();
       }
 
-      private ShadowMapEntry[] ComputeShadowMapEntries() {
-         var result = new ShadowMapEntry[spotlightInfos.Count];
+      private unsafe void ComputeSpotlightDescriptions(SpotlightDescription* res) {
          for (var i = 0; i < spotlightInfos.Count; i++) {
-            result[i].AtlasLocation = new AtlasLocation {
+            res[i].AtlasLocation = new AtlasLocation {
                Position = new Vector3(0, 0, i),
                Size = new Vector2(1, 1)
             };
-            result[i].SpotlightInfo = spotlightInfos[i];
+            res[i].SpotlightInfo = spotlightInfos[i];
          }
-         return result;
       }
 
       [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -347,7 +363,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
       };
 
       [StructLayout(LayoutKind.Sequential, Pack = 1)]
-      struct ShadowMapEntry {
+      struct SpotlightDescription {
          public SpotlightInfo SpotlightInfo;
          public AtlasLocation AtlasLocation;
 
@@ -373,7 +389,7 @@ namespace OpenMOBA.DevTool.Debugging.Canvas3D {
 
          public Matrix ProjViewCM;
 
-         public const int Size = (3 * 4) * 2 + (4 * 4) * 1 + (4) * 4 + (4 * 4) * 1;
+         public const int Size = (3 * 4) * 2 + (4 * 4) * 1 + (4) * 4 + (4 * 4 * 4) * 1;
       }
    }
 }

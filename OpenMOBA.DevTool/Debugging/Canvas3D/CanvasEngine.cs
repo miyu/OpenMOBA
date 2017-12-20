@@ -325,6 +325,7 @@ namespace Shade {
          protected DeviceContext _deviceContext;
          protected RenderStates _renderStates;
 
+         protected bool _isVsyncEnabled = true;
          protected DepthConfiguration _currentDepthConfiguration;
          protected RasterizerConfiguration _currentRasterizerConfiguration;
          protected IDepthStencilView _currentDepthStencilView;
@@ -332,10 +333,14 @@ namespace Shade {
          protected RectangleF _currentViewportRect;
          protected IVertexBuffer _currentVertexBuffer;
 
+
          public BaseRenderContext(DeviceContext deviceContext, RenderStates renderStates) {
             _deviceContext = deviceContext;
             _renderStates = renderStates;
          }
+
+         public void SetVsyncEnabled(bool val) => _isVsyncEnabled = val;
+         public bool GetVsyncEnabled() => _isVsyncEnabled;
 
          public void SetDepthConfiguration(DepthConfiguration config) {
             if (config != _currentDepthConfiguration) {
@@ -464,7 +469,7 @@ namespace Shade {
          }
 
          public void Present() {
-            _swapChain.Present(1, PresentFlags.None);
+            _swapChain.Present(GetVsyncEnabled() ? 1 : 0, PresentFlags.None);
          }
       }
 
