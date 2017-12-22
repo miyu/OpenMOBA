@@ -4,13 +4,12 @@ struct PSInput {
    float4 positionObject : POSITION1;
    float4 positionWorld : POSITION2;
    float4 position : SV_Position;
+   float4 normalObject : NORMAL1;
    float4 normalWorld : NORMAL2;
    float4 normal : NORMAL3;
    float4 color : COLOR;
    float2 uv : TEXCOORD;
 };
-
-Texture2D diffuseMap;
 
 PSInput VSMain(
    float3 position : POSITION, 
@@ -21,10 +20,10 @@ PSInput VSMain(
 ) {
    PSInput result;
 
-   //float4x4 world = float4x4(world_1, world_2, world_3, world_4);
    result.positionObject = float4(position, 1);
    result.positionWorld = mul(world, float4(position, 1));
    result.position = mul(mul(projView, world), float4(position, 1));
+   result.normalObject = float4(normal, 1);
    result.normalWorld = normalize(mul(world, float4(normal, 0)));
    result.normal = normalize(mul(mul(projView, world), float4(normal, 0)));
    result.color = color;
@@ -37,12 +36,11 @@ float4 PSMain(PSInput input) : SV_TARGET {
    uint numStructs, structStride;
    SpotlightDescriptions.GetDimensions(numStructs, structStride);
 
-   float4 diffuse = input.color * diffuseMap.Sample(DiffuseSampler, input.uv);
-   //return float4((input.normalWorld + float3(1, 1, 1)) / 2, 1);
+   float4 diffuse = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
 
    float4 colorAccumulator = float4(0, 0, 0, diffuse.w);
    if (!shadowTestEnabled) {
-      colorAccumulator = diffuse.x;
+      colorAccumulator = diffuse;
    } else {
       for (uint i = 0; i != numSpotlights; i++) {
          float3 lighting = computeSpotlightLighting(input.positionWorld, input.normalWorld, ShadowMaps, SpotlightDescriptions[i]);

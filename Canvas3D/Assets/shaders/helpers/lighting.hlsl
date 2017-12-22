@@ -1,11 +1,5 @@
 #include "registers.hlsl"
 
-SamplerState DiffuseSampler {
-   Filter = MIN_MAG_MIP_LINEAR;
-   AddressU = Wrap;
-   AddressV = Wrap;
-};
-
 float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight);
 bool testShadowMap(float4 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation);
 
@@ -20,7 +14,6 @@ float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2
    float diffuseFactor = max(0, dot(-spotlight.direction, normalize(normalWorld)));
    return diffuseFactor * shadowing * spotlight.color.xyz * distanceAttenuation * spotlight.color.w * spotlightAttenuation;
 } 
-
 
 // Todo: Branching here is probably real bad
 bool testShadowMap(float4 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation) {
@@ -47,7 +40,7 @@ bool testShadowMap(float4 objectWorld, Texture2DArray shadowMap, float4x4 projVi
 
     //transform from texture coords to where it is in atlas
     float3 sampleLocation = shadowMapLocation.position + float3(lightPosition.xy * shadowMapLocation.size, 0);
-    float shadowMapDepth = shadowMap.Sample(DiffuseSampler, sampleLocation).r;
+    float shadowMapDepth = shadowMap.Sample(LinearSampler, sampleLocation).r;
     shadowMapDepth += 0.0001; // depth bias
 
     //if clip space z value greater than shadow map value then pixel is in shadow

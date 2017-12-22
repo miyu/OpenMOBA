@@ -33,10 +33,7 @@
       <PackageReference Include="SharpDX.Desktop" Version="3.1.1" />
       <PackageReference Include="SharpDX.Direct3D11" Version="3.1.1" />
       <PackageReference Include="SharpDX.Mathematics" Version="3.1.1" />
-   </ItemGroup>
-
-   <ItemGroup>
-      <ProjectReference Include="..\OpenMOBA\OpenMOBA.csproj" />
+      <PackageReference Include="System.ValueTuple" Version="4.4.0" />
    </ItemGroup>
 
    <ItemGroup>
