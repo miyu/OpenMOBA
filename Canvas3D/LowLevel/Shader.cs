@@ -8,7 +8,9 @@ namespace Canvas3D.LowLevel {
    public interface IVertexShader { }
 
    public interface IMesh {
-      void Draw(IRenderContext renderContext);
+      VertexLayout VertexLayout { get; }
+
+      void Draw(IRenderContext renderContext, int instances);
    }
 
    public interface IVertexBuffer { }

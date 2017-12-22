@@ -14,7 +14,7 @@ cbuffer Scene : register(REG_SCENE_DATA) {
 }
 
 cbuffer Object : register(REG_OBJECT_DATA) {
-   float4x4 world;
+   //float4x4 world;
 }
 
 //Texture2D DiffuseMap : register(REG_DIFFUSE_MAP);

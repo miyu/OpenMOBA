@@ -1,6 +1,6 @@
 ﻿using SharpDX;
 
-namespace Canvas3D {
+namespace Canvas3D.LowLevel {
    public static class HardcodedMeshPresets {
       public static VertexPositionNormalColorTexture[] ColoredCubeVertices { get; } = {
          new VertexPositionNormalColorTexture(0.5f * new Vector3(-1.0f, -1.0f, -1.0f), new Vector3(0, 0, -1), Color.Red, new Vector2(0, 0)), // Front

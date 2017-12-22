@@ -20,7 +20,8 @@ namespace Canvas3D.LowLevel {
 
       void SetPrimitiveTopology(PrimitiveTopology topology);
       void SetVertexBuffer(IVertexBuffer vertexBuffer);
-      void Draw(int vertices, int offset);
+      void Draw(int vertices, int verticesOffset);
+      void DrawInstanced(int vertices, int verticesOffset, int instances, int instancesOffset);
    }
 
    public interface IImmediateRenderContext : IRenderContext {

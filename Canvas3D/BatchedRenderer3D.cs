@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using Canvas3D.LowLevel;
 using Canvas3D.LowLevel.Direct3D;
+using Canvas3D.LowLevel.Helpers;
 using SharpDX;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
@@ -18,13 +19,13 @@ using MapFlags = SharpDX.Direct3D11.MapFlags;
 
 namespace Canvas3D {
    public class BatchedRenderer3D {
-      private readonly Dictionary<IMesh, List<RenderJobDescription>> renderJobDescriptionsByMesh = new Dictionary<IMesh, List<RenderJobDescription>>();
+      private readonly Dictionary<IMesh, StructArrayList<RenderJobDescription>> renderJobDescriptionsByMesh = new Dictionary<IMesh, StructArrayList<RenderJobDescription>>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
 
       private readonly IGraphicsDevice _graphicsDevice;
       private readonly Device _d3d;
       private readonly Buffer _sceneBuffer;
-      private readonly Buffer _objectBuffer;
+      // private readonly Buffer _objectBuffer;
       private readonly Buffer _instancingBuffer;
       private readonly Buffer _shadowMapEntriesBuffer;
       private readonly ShaderResourceView _shadowMapEntriesBufferSrv;
@@ -49,14 +50,14 @@ namespace Canvas3D {
             ResourceOptionFlags.None,
             0);
 
-         _objectBuffer = new Buffer(
-            _d3d,
-            1 * Utilities.SizeOf<Matrix>(),
-            ResourceUsage.Dynamic,
-            BindFlags.ConstantBuffer,
-            CpuAccessFlags.Write,
-            ResourceOptionFlags.None,
-            0);
+         //_objectBuffer = new Buffer(
+         //   _d3d,
+         //   1 * Utilities.SizeOf<Matrix>(),
+         //   ResourceUsage.Dynamic,
+         //   BindFlags.ConstantBuffer,
+         //   CpuAccessFlags.Write,
+         //   ResourceOptionFlags.None,
+         //   0);
 
          _instancingBuffer = new Buffer(
             _d3d,
@@ -171,6 +172,7 @@ namespace Canvas3D {
          Trace.Assert(Utilities.SizeOf<SpotlightInfo>() == SpotlightInfo.Size);
          Trace.Assert(Utilities.SizeOf<AtlasLocation>() == AtlasLocation.SIZE);
          Trace.Assert(Utilities.SizeOf<SpotlightDescription>() == SpotlightDescription.Size);
+         Trace.Assert(Utilities.SizeOf<RenderJobDescription>() == RenderJobDescription.Size);
       }
 
       public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
@@ -198,13 +200,13 @@ namespace Canvas3D {
 
       public void AddRenderable(IMesh mesh, Matrix worldCm) {
          AddRenderable(mesh, new RenderJobDescription {
-            WorldCM = worldCm,
+            WorldTransform = worldCm,
          });
       }
 
       public void AddRenderable(IMesh mesh, RenderJobDescription info) {
          if (!renderJobDescriptionsByMesh.TryGetValue(mesh, out var renderables)) {
-            renderables = renderJobDescriptionsByMesh[mesh] = new List<RenderJobDescription>();
+            renderables = renderJobDescriptionsByMesh[mesh] = new StructArrayList<RenderJobDescription>();
          }
          renderables.Add(info);
       }
@@ -261,11 +263,16 @@ namespace Canvas3D {
          _d3d.ImmediateContext.UnmapSubresource(_sceneBuffer, 0);
       }
 
-      private void UpdateObjectConstantBuffer(Matrix world) {
-         var db = _d3d.ImmediateContext.MapSubresource(_objectBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         var off = db.DataPointer;
-         off = Utilities.WriteAndPosition(off, ref world);
-         _d3d.ImmediateContext.UnmapSubresource(_objectBuffer, 0);
+      private void UpdateInstancingBuffer(StructArrayList<RenderJobDescription> jobDescriptions) {
+         var db = _d3d.ImmediateContext.MapSubresource(_instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
+         Utilities.Write(db.DataPointer, jobDescriptions.store, 0, jobDescriptions.size);
+         _d3d.ImmediateContext.UnmapSubresource(_instancingBuffer, 0);
+      }
+
+      private void UpdateInstancingBuffer(RenderJobDescription jobDescription) {
+         var jobs = new StructArrayList<RenderJobDescription>(1);
+         jobs.store[0] = jobDescription;
+         UpdateInstancingBuffer(jobs);
       }
 
       public unsafe void RenderScene() {
@@ -301,24 +308,18 @@ namespace Canvas3D {
             ));
 
             UpdateSceneConstantBuffer(spotlightDescription->SpotlightInfo.ProjViewCM, false, 0);
-
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+               //_d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+               //_d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
 
                foreach (var kvp in renderJobDescriptionsByMesh) {
                   var mesh = kvp.Key;
                   var jobs = kvp.Value;
-                  mesh.Draw(renderContext);
-//                  for (var i = 0; i < jobs.Count; i++) {
-//                     var renderable = jobs[i];
-//                     UpdateObjectConstantBuffer(renderable.WorldCM);
-//
-//                     mesh.Draw(renderContext);
-//                  }
+                  UpdateInstancingBuffer(jobs);
+                  mesh.Draw(renderContext, jobs.Count);
                }
             }
          }
@@ -339,41 +340,46 @@ namespace Canvas3D {
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
             _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-            _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+            //_d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
             _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-            _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+            //_d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
-
             foreach (var kvp in renderJobDescriptionsByMesh) {
                var mesh = kvp.Key;
                var jobs = kvp.Value;
-               for (var i = 0; i < jobs.Count; i++) {
-                  var renderable = jobs[i];
-                  UpdateObjectConstantBuffer(renderable.WorldCM);
-                  mesh.Draw(renderContext);
-               }
+               UpdateInstancingBuffer(jobs);
+
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(
+                  1,
+                  new VertexBufferBinding(
+                     _instancingBuffer,
+                     RenderJobDescription.Size,
+                     0));
+               mesh.Draw(renderContext, jobs.Count);
             }
          }
 
          // draw depth texture
-         for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
-            Techniques.Forward.BeginPass(renderContext, pass);
-            for (var i = 0; i < 2; i++) {
-               var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
-               var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
-               UpdateSceneConstantBuffer(orthoProj, false, 0);
-               UpdateObjectConstantBuffer(quadWorld);
-
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
-               _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
-               _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext);
-            }
-         }
+//         for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
+//            Techniques.Forward.BeginPass(renderContext, pass);
+//            for (var i = 0; i < 2; i++) {
+//               var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
+//               var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
+//               UpdateInstancingBuffer(new RenderJobDescription {
+//                  WorldTransform = quadWorld
+//               });
+//               UpdateSceneConstantBuffer(orthoProj, false, 0);
+//
+//               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
+//               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
+//               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
+//               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
+//               _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
+//               _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext, 1);
+//            }
+//         }
 
          renderContext.Present();
       }
@@ -404,10 +410,17 @@ namespace Canvas3D {
          public const int Size = AtlasLocation.SIZE + SpotlightInfo.Size;
       };
 
-
+      [StructLayout(LayoutKind.Sequential, Pack = 4)]
       public struct RenderJobDescription {
-         public Matrix WorldCM;
-         public const int Size = (4 * 4 * 4) * 1;
+         public Matrix WorldTransform;
+         //public MaterialDescription Material;
+
+         public const int Size = (4 * 4 * 4) * 1 + MaterialDescription.Size;
+      }
+
+      [StructLayout(LayoutKind.Sequential, Pack = 4)]
+      public struct MaterialDescription {
+         public const int Size = 0;
       }
 
       [StructLayout(LayoutKind.Sequential, Pack = 1)]
