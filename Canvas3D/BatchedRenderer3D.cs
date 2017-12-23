@@ -398,8 +398,8 @@ namespace Canvas3D {
             _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
             _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
-            _d3d.ImmediateContext.PixelShader.SetShaderResource(1, _flatColoredCubeMapShaderResourceView);
-            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _whiteCubeMapShaderResourceView);
+            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _flatColoredCubeMapShaderResourceView);
+            _d3d.ImmediateContext.PixelShader.SetShaderResource(1, _whiteCubeMapShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
             foreach (var kvp in renderJobDescriptionsByMesh) {

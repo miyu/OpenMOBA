@@ -36,7 +36,7 @@ namespace Canvas3D {
                Color.White, 100.0f,
                0.0f, 6.0f, 3.0f,
                0.5f / 256.0f);
-            renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 8.0f, Color.Red, 100.0f, 3.0f, 6.0f, 1.0f);
+            renderer.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), (float)Math.PI / 8.0f, Color.White, 100.0f, 3.0f, 6.0f, 1.0f);
 
             // Draw the scene
             renderer.RenderScene();
