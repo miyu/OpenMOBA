@@ -302,9 +302,10 @@ namespace Canvas3D {
 
       public enum DiffuseTextureSamplingMode {
          FlatUV = 0,
-         FlatGrayscale,
-         CubeObjectRelative,
-         CubeNormal,
+         FlatGrayscale = 10,
+         FlatGrayscaleDerivative = 11,
+         CubeObjectRelative = 20,
+         CubeNormal = 21,
       }
 
       private void UpdateObjectConstantBuffer(DiffuseTextureSamplingMode diffuseSamplingMode) {
@@ -321,9 +322,9 @@ namespace Canvas3D {
       }
 
       private void UpdateInstancingBuffer(RenderJobDescription jobDescription) {
-         var jobs = new StructArrayList<RenderJobDescription>(1);
-         jobs.store[0] = jobDescription;
-         UpdateInstancingBuffer(jobs);
+         var db = _d3d.ImmediateContext.MapSubresource(_instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
+         Utilities.Write(db.DataPointer, ref jobDescription);
+         _d3d.ImmediateContext.UnmapSubresource(_instancingBuffer, 0);
       }
 
       public unsafe void RenderScene() {
@@ -387,7 +388,7 @@ namespace Canvas3D {
          renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
-         UpdateSceneConstantBuffer(_projView, false, spotlightInfos.Count);
+         UpdateSceneConstantBuffer(_projView, true, spotlightInfos.Count);
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
 
@@ -419,14 +420,16 @@ namespace Canvas3D {
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
-            UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatUV);
+
+            UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscale);
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
+               UpdateSceneConstantBuffer(orthoProj, false, 0);
+
                var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
                UpdateInstancingBuffer(new RenderJobDescription {
                   WorldTransform = quadWorld
                });
-               UpdateSceneConstantBuffer(orthoProj, false, 0);
 
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
