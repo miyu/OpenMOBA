@@ -1,4 +1,5 @@
 ﻿#include "helpers/lighting.hlsl"
+#include "helpers/pbr.hlsl"
 
 struct PSInput {
    float4 positionObject : POSITION1;
@@ -36,17 +37,52 @@ float4 PSMain(PSInput input) : SV_TARGET {
    uint numStructs, structStride;
    SpotlightDescriptions.GetDimensions(numStructs, structStride);
 
-   float4 diffuse = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
+   float metallic = 0.4f;
+   float roughness = 0.8f;
 
-   float4 colorAccumulator = float4(0, 0, 0, diffuse.w);
-   if (!shadowTestEnabled) {
-      colorAccumulator = diffuse;
-   } else {
-      for (uint i = 0; i != numSpotlights; i++) {
-         float3 lighting = computeSpotlightLighting(input.positionWorld, input.normalWorld, ShadowMaps, SpotlightDescriptions[i]);
-         colorAccumulator += diffuse * float4(lighting, 0);
-      }
+   // raw material color (albedo)
+   float4 base = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
+
+   // metallic doesn't diffuse.
+   float4 specular = lerp(base, float4(0, 0, 0, base.w), metallic);
+
+   //float4 colorAccumulator = float4(base.xyz * 0.2f, base.w);
+   float4 colorAccumulator = float4(0, 0, 0, base.w);
+   for (uint i = 0; i != numSpotlights; i++) {
+      float lf = computeSpotlightLighting(input.positionWorld, input.normalWorld, ShadowMaps, SpotlightDescriptions[i]);
+      // colorAccumulator += diffuse * float4(lighting, 0);
+      float3 so = SpotlightDescriptions[i].origin;
+      float3 sd = SpotlightDescriptions[i].direction;
+      float N = input.normalWorld;
+      float3 L = normalize(so - input.positionWorld);
+      float3 V = normalize(cameraEye - input.positionWorld);
+      float3 H = normalize(L + V);
+      float vDotH = max(0.0f, dot(V, H));
+      float vDotN = max(0.0f, dot(V, N));
+      float nDotH = max(0.0f, dot(N, H));
+      float nDotL = max(0.0f, dot(N, L));
+      float f0 = 0.2f;
+      float ks = ctSpecularFactor(f0, vDotH);
+      float ct = cookTorranceBrdf(vDotH, vDotN, nDotH, nDotL, roughness, ks);
+      colorAccumulator += lf * (specular * ks * ct);
+      //colorAccumulator += lf * (base * (1.0f - ks) * (1.0f / PI) * nDotL + specular * ks * ct);
    }
 
    return colorAccumulator;
+
+
+   // Traditional diffuse lighting
+   // float4 diffuse = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
+   // 
+   // float4 colorAccumulator = float4(0, 0, 0, diffuse.w);
+   // if (!shadowTestEnabled) {
+   //    colorAccumulator = diffuse;
+   // } else {
+   //    for (uint i = 0; i != numSpotlights; i++) {
+   //       float3 lighting = computeSpotlightLighting(input.positionWorld, input.normalWorld, ShadowMaps, SpotlightDescriptions[i]);
+   //       colorAccumulator += diffuse * float4(lighting, 0);
+   //    }
+   // }
+   //
+   // return colorAccumulator;
 }

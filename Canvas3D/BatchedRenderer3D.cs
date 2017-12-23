@@ -39,6 +39,7 @@ namespace Canvas3D {
       private readonly ShaderResourceView _whiteCubeMapShaderResourceView;
       private readonly Texture2D _flatColoredCubeMap;
       private readonly ShaderResourceView _flatColoredCubeMapShaderResourceView;
+      private Vector3 _cameraEye;
       private Matrix _projView;
 
       public BatchedRenderer3D(IGraphicsDevice graphicsDevice) {
@@ -47,7 +48,7 @@ namespace Canvas3D {
 
          _sceneBuffer = new Buffer(
             _d3d,
-            ((Utilities.SizeOf<Matrix>() + Utilities.SizeOf<bool>() + Utilities.SizeOf<int>()) / 16 + 1) * 16,
+            ((Utilities.SizeOf<Vector4>() + Utilities.SizeOf<Matrix>() + Utilities.SizeOf<bool>() + Utilities.SizeOf<int>()) / 16 + 1) * 16,
             ResourceUsage.Dynamic, 
             BindFlags.ConstantBuffer, 
             CpuAccessFlags.Write, 
@@ -212,7 +213,8 @@ namespace Canvas3D {
          return (texture, srv);
       }
 
-      public void SetProjView(Matrix projView) {
+      public void SetCamera(Vector3 cameraEye, Matrix projView) {
+         _cameraEye = cameraEye;
          _projView = projView;
       }
 
@@ -288,9 +290,10 @@ namespace Canvas3D {
          spotlightInfos.Add(info);
       }
 
-      private void UpdateSceneConstantBuffer(Matrix projView, bool shadowTestEnabled, int numSpotlights) {
+      private void UpdateSceneConstantBuffer(Vector4 cameraEye, Matrix projView, bool shadowTestEnabled, int numSpotlights) {
          var db = _d3d.ImmediateContext.MapSubresource(_sceneBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          var off = db.DataPointer;
+         off = Utilities.WriteAndPosition(off, ref cameraEye);
          off = Utilities.WriteAndPosition(off, ref projView);
          off = Utilities.WriteAndPosition(off, ref shadowTestEnabled); // renderdoc bugs out
          off = Utilities.WriteAndPosition(off, ref shadowTestEnabled); // if endianness assumed
@@ -359,7 +362,7 @@ namespace Canvas3D {
                2048 * spotlightDescription->AtlasLocation.Size.Y
             ));
 
-            UpdateSceneConstantBuffer(spotlightDescription->SpotlightInfo.ProjViewCM, false, 0);
+            UpdateSceneConstantBuffer(new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, false, 0);
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
@@ -388,7 +391,7 @@ namespace Canvas3D {
          renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
-         UpdateSceneConstantBuffer(_projView, true, spotlightInfos.Count);
+         UpdateSceneConstantBuffer(new Vector4(_cameraEye, 1.0f), _projView, true, spotlightInfos.Count);
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
 
@@ -424,7 +427,7 @@ namespace Canvas3D {
             UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscale);
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
-               UpdateSceneConstantBuffer(orthoProj, false, 0);
+               UpdateSceneConstantBuffer(Vector4.Zero, orthoProj, false, 0);
 
                var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
                UpdateInstancingBuffer(new RenderJobDescription {

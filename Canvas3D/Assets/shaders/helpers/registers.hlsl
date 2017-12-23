@@ -9,6 +9,7 @@
 #define REG_SHADOW_MAPS_ENTRIES t11
 
 cbuffer Scene : register(REG_SCENE_DATA) {
+   float4 cameraEye;
    float4x4 projView;
    bool shadowTestEnabled;
    int numSpotlights;
