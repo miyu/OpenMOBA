@@ -5,6 +5,7 @@
 
 #define REG_DIFFUSE_MAP t0
 #define REG_DIFFUSE_CUBE_MAP t1
+#define REG_ENVIRONMENT_CUBE_MAP t8
 #define REG_SHADOW_MAPS t10
 #define REG_SHADOW_MAPS_ENTRIES t11
 
@@ -21,6 +22,7 @@ cbuffer Object : register(REG_OBJECT_DATA) {
 
 Texture2D DiffuseMap : register(REG_DIFFUSE_MAP);
 TextureCube<float4> DiffuseCubeMap : register(REG_DIFFUSE_CUBE_MAP);
+TextureCube<float4> EnvironmentCubeMap : register(REG_ENVIRONMENT_CUBE_MAP);
 
 SamplerState PointSampler {
    Filter = MIN_MAG_MIP_POINT;

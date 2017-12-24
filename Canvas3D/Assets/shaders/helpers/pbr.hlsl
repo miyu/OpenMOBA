@@ -1,5 +1,6 @@
 //-------------------------------------------------------------------------------------------------
-// See http://www.codinglabs.net/article_physically_based_rendering_cook_torrance.aspx
+// See https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md
+//     http://www.codinglabs.net/article_physically_based_rendering_cook_torrance.aspx
 //     https://en.wikipedia.org/wiki/Specular_highlight#Cook.E2.80.93Torrance_model
 //     https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 // For Lambertian and Cook-Torrance BRDFs.
@@ -12,8 +13,8 @@ static const float PI = 3.14159265f;
 //-------------------------------------------------------------------------------------------------
 // Lambertian BRDF
 //-------------------------------------------------------------------------------------------------
-float lambertianBrdf() {
-   return 1 / PI;
+float3 lambertianBrdf() {
+   return (float3)(1.0f / PI);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -29,13 +30,15 @@ float ctUtilChi(float x) {
 // Microfacet Distribution D function via GGX model.
 // Article equates (m.n)^2 with nDotH^2
 // alpha is roughness^2
+// I added saturate - intuitively you can't have <0 or >1
+// probability of a microfacet pointing in a direction.
 float ctDistributionGGX(float nDotH, float roughness) {
    // "disney reparameterization"; see UE paper.
    float alpha = roughness * roughness;
    float nDotH2 = nDotH * nDotH;
    float alpha2 = alpha * alpha;
    float temp = nDotH2 * (alpha2 - 1.0f) + 1;
-   return alpha2 / (PI * temp * temp);
+   return saturate(alpha2 / (PI * temp * temp));
    //float numerator = alpha2 * ctUtilChi(nDotH);
    //float temp = (nDotH2 * alpha2) + (1 - nDotH2);
    //return numerator / (PI * temp * temp);
@@ -46,9 +49,20 @@ float ctDistributionGGX(float nDotH, float roughness) {
 // f0 is ((n1-n2)/(n1+n2))^2
 // theta is angle between viewing direction and half vector
 // for Cook-Torrance BRDF (eq V.H for unit V, H).
+// 
+// Alt interpretation: Computes k_specular, % specular reflection.
+// This happens to use the same computation as CT's F in our implementation.
 float ctFresnelShlick(float f0, float vDotH) {
    // Assumes dielectric material. See article for better conductor formula.
    return f0 + (1.0f - f0) * pow(1.0f - vDotH, 5.0f);
+}
+
+float ctFresnelShlick3(float3 f0, float vDotH) {
+   return float3(
+      ctFresnelShlick(f0.x, vDotH),
+      ctFresnelShlick(f0.y, vDotH),
+      ctFresnelShlick(f0.z, vDotH)
+   );
 }
 
 // Light attenuation via microfacet shadowing G function.
@@ -66,17 +80,51 @@ float ctGeometryUE4(float nDotL, float nDotV, float roughness) {
    //return ctUtilChi(saturate(vDotH) / saturate(vDotN)) * 2.0f / (1.0f + sqrt(1.0f + alpha * alpha * temp));
 }
 
-// Computes k_specular, % specular reflection.
-// This happens to use the same computation as CT's F in our implementation.
-float ctSpecularFactor(float f0, float vDotH) {
-   return ctFresnelShlick(f0, vDotH);
-}
-
 // Unweighted Cook-Torrance BRDF.
-float cookTorranceBrdf(float nDotH, float nDotL, float nDotV, float roughness, float F) {
+float3 cookTorranceBrdf(float nDotH, float nDotL, float nDotV, float roughness, float3 F) {
    float D = ctDistributionGGX(nDotH, roughness);
    float G = ctGeometryUE4(nDotL, nDotV, roughness);
-   float numerator = D * F * G;
+   float3 numerator = D * F * G;
    float denominator = 4 * nDotL * nDotV;
    return numerator / denominator;
+}
+
+void pbrMaterialDiffuseF0(float3 base, float metallic, out float3 diffuse, out float3 F0) {
+   // Via glTF section on metallic/roughness materials
+   const float3 DIELECTRIC_SPECULAR = float3(0.04f, 0.04f, 0.04f);
+   const float3 BLACK = float3(0.0f, 0.0f, 0.0f);
+   
+   diffuse = lerp(base * (1 - DIELECTRIC_SPECULAR.x), BLACK, metallic);
+   F0 = lerp(DIELECTRIC_SPECULAR, base, metallic);
+}
+
+float2 random2(float2 p) {
+   float2 k1 = float2(57.72156649015328, 5.606512090824026);
+   float2 k2 = float2(23.57111317192329, 16.06695152415291);
+   return float2(
+      frac(cos(dot(p, k1)) * 12345.6789),
+      frac(sin(dot(p, k2)) * 1359.21337)
+   );
+}
+
+float2 concentricSampleDisk(float2 rand) {
+   float2 randoffset = 2.0f * rand - float2(1.0f, 1.0f);
+   if (length(randoffset) == 0) {
+      return float2(0.0f, 0.0f);
+   }
+   float theta, r;
+   if (abs(randoffset.x) > abs(randoffset.y)) {
+      r = randoffset.x;
+      theta = (PI / 4) * (randoffset.y / randoffset.x);
+   } else {
+      r = randoffset.y;
+      theta = (PI / 2) - (PI / 4) * (randoffset.x / randoffset.y);
+   }
+   return r * float2(cos(theta), sin(theta));
+}
+
+float3 cosineSampleHemisphere(float2 rand) {
+   float2 d = concentricSampleDisk(rand);
+   float z = sqrt(max(0.0f, 1.0f - d.x * d.x - d.y * d.y));
+   return float3(d.x, d.y, z);
 }
