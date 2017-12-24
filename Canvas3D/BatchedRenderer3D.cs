@@ -37,6 +37,10 @@ namespace Canvas3D {
       private readonly ShaderResourceView _whiteTextureShaderResourceView;
       private readonly Texture2D _whiteCubeMap;
       private readonly ShaderResourceView _whiteCubeMapShaderResourceView;
+      private readonly Texture2D _limeTexture;
+      private readonly ShaderResourceView _limeTextureShaderResourceView;
+      private readonly Texture2D _limeCubeMap;
+      private readonly ShaderResourceView _limeCubeMapShaderResourceView;
       private readonly Texture2D _flatColoredCubeMap;
       private readonly ShaderResourceView _flatColoredCubeMapShaderResourceView;
       private Vector3 _cameraEye;
@@ -156,6 +160,8 @@ namespace Canvas3D {
 
          (_whiteTexture, _whiteTextureShaderResourceView) = CreateSolidColorTexture(Color4.White);
          (_whiteCubeMap, _whiteCubeMapShaderResourceView) = CreateSolidColorCubeMapTexture(Color4.White);
+         (_limeTexture, _limeTextureShaderResourceView) = CreateSolidColorTexture(Color.Lime);
+         (_limeCubeMap, _limeCubeMapShaderResourceView) = CreateSolidColorCubeMapTexture(Color.Lime);
          (_flatColoredCubeMap, _flatColoredCubeMapShaderResourceView) = CreateSolidColorCubeMapTexture(Color.Cyan, Color.Magenta, Color.Blue, Color.Yellow, Color.Red, Color.Lime);
 
          Trace.Assert(Utilities.SizeOf<SpotlightInfo>() == SpotlightInfo.Size);
@@ -230,6 +236,8 @@ namespace Canvas3D {
             AddRenderable(_graphicsDevice.MeshPresets.UnitCube, worldCm);
          } else if (preset == MeshPreset.UnitPlaneXY) {
             AddRenderable(_graphicsDevice.MeshPresets.UnitPlaneXY, worldCm);
+         } else if (preset == MeshPreset.UnitSphere) {
+            AddRenderable(_graphicsDevice.MeshPresets.UnitSphere, worldCm);
          } else {
             throw new NotSupportedException();
          }
@@ -400,9 +408,11 @@ namespace Canvas3D {
             _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
             _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
             _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
-            _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
-            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _flatColoredCubeMapShaderResourceView);
+            //_d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
+            //_d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(1, _whiteCubeMapShaderResourceView);
+            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _limeCubeMapShaderResourceView);
+            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _flatColoredCubeMapShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
             foreach (var kvp in renderJobDescriptionsByMesh) {
@@ -422,6 +432,7 @@ namespace Canvas3D {
 
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
+            break;
             Techniques.Forward.BeginPass(renderContext, pass);
 
             UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscale);

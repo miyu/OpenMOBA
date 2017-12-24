@@ -34,6 +34,7 @@ namespace Canvas3D.LowLevel {
    public interface IMeshPresets {
       IMesh UnitCube { get; }
       IMesh UnitPlaneXY { get; }
+      IMesh UnitSphere { get; }
    }
 
    public enum DepthConfiguration {

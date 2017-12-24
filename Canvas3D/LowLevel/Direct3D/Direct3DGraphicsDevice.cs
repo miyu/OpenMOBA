@@ -538,6 +538,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public IMesh UnitCube { get; set; }
          public IMesh UnitPlaneXY { get; set; }
+         public IMesh UnitSphere { get; set; }
 
          public static Direct3DMeshPresets Create(Direct3DGraphicsDevice device) {
             var presets = new Direct3DMeshPresets();
@@ -553,6 +554,12 @@ namespace Canvas3D.LowLevel.Direct3D {
                VertexBuffer = device.CreateVertexBuffer(
                   ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.PlaneXYVertices)),
                Vertices = HardcodedMeshPresets.PlaneXYVertices.Length,
+               VertexBufferOffset = 0
+            };
+
+            presets.UnitSphere = new Direct3DMesh {
+               VertexBuffer = device.CreateVertexBuffer(HardcodedMeshPresets.Sphere),
+               Vertices = HardcodedMeshPresets.Sphere.Length,
                VertexBufferOffset = 0
             };
 

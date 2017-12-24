@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace Canvas3D {
    public enum MeshPreset {
       UnitCube,
-      UnitPlaneXY
+      UnitPlaneXY,
+      UnitSphere,
    }
 }
