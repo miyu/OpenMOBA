@@ -1,13 +1,13 @@
 #include "registers.hlsl"
 
-float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight);
-bool testShadowMap(float4 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation);
+float3 computeSpotlightLighting(float3 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight);
+bool testShadowMap(float3 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation);
 
-float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight) {
+float3 computeSpotlightLighting(float3 objectWorld, float3 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight) {
    float shadowing = float(testShadowMap(objectWorld, shadowMap, spotlight.projView, spotlight.shadowMapLocation));
-   float d = distance(objectWorld.xyz, spotlight.origin);
+   float d = distance(objectWorld, spotlight.origin);
    float distanceAttenuation = clamp(1.0f / (spotlight.distanceAttenuationConstant + d * spotlight.distanceAttenuationLinear + d * d * spotlight.distanceAttenuationQuadratic), 0.0f, 1.0f);
-   float3 spotlightToObjectWorld = normalize(objectWorld.xyz - spotlight.origin);
+   float3 spotlightToObjectWorld = normalize(objectWorld - spotlight.origin);
    float dawt = dot(spotlightToObjectWorld, spotlight.direction);
    //float dawt = distance(objectWorld.xyz, float3(0, 0, 0)) / 10; //abs(dot(normalize(objectWorld.xyz), float3(0, -1, 0)));;
    float spotlightAttenuation = pow(max(dawt, 0), spotlight.spotlightAttenuationPower);
@@ -16,8 +16,8 @@ float3 computeSpotlightLighting(float4 objectWorld, float4 normalWorld, Texture2
 } 
 
 // Todo: Branching here is probably real bad
-bool testShadowMap(float4 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation) {
-    float4 lightPosition = mul(projView, objectWorld);
+bool testShadowMap(float3 objectWorld, Texture2DArray shadowMap, float4x4 projView, AtlasLocation shadowMapLocation) {
+    float4 lightPosition = mul(projView, float4(objectWorld, 1.0f));
     lightPosition.xyz /= lightPosition.w;
     
     if (lightPosition.x < -1.0f || lightPosition.x > 1.0f ||

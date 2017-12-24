@@ -98,6 +98,9 @@ void pbrMaterialDiffuseF0(float3 base, float metallic, out float3 diffuse, out f
    F0 = lerp(DIELECTRIC_SPECULAR, base, metallic);
 }
 
+void pbrPrecompute(float3 base, float metallic, out float3 diffuse, out float3 F0) {
+}
+
 float2 random2(float2 p) {
    float2 k1 = float2(57.72156649015328, 5.606512090824026);
    float2 k2 = float2(23.57111317192329, 16.06695152415291);
@@ -127,4 +130,46 @@ float3 cosineSampleHemisphere(float2 rand) {
    float2 d = concentricSampleDisk(rand);
    float z = sqrt(max(0.0f, 1.0f - d.x * d.x - d.y * d.y));
    return float3(d.x, d.y, z);
+}
+
+void pbrMaterialProperties(float3 pWorld, out float metallic, out float roughness) {
+   if (pWorld.y < 0.01f) {
+      metallic = 0.0f;
+      roughness = 0.04f;
+   }
+   else if (length(pWorld - float3(0, 0.5f, 0)) <= 0.8f) {
+      //metallic = 0.0f;
+      metallic = 1.0f;// 0.4f;
+      roughness = 0.04f; 
+      //roughness = 1.0f;
+   }
+   else {
+      metallic = 0.0f;// 0.4f;
+      roughness = 0.04f; // 1.0f; // 0.2f;// 0.8f;
+   }
+}
+
+void pbrPrecomputeDots(float3 pWorld, float3 nWorld, out float3 N, out float3 V, out float nDotV) {
+   N = normalize(nWorld);
+   V = normalize(cameraEye - pWorld);
+   nDotV = max(1E-5, dot(N, V));
+}
+
+float3 pbrComputeUnattenuatedLightContribution(float3 P, float3 N, float3 L, float3 V, float3 nDotV, float3 diffuse, float3 F0, float roughness) {
+   float3 H = normalize(L + V);
+   float vDotH = max(1E-5, dot(V, H)); // max avoids artifacts near 0
+   float nDotH = max(1E-5, dot(N, H));
+   float nDotL = max(1E-5, dot(N, L));
+   float3 ks = ctFresnelShlick3(F0, vDotH);
+   float3 diffuseFactor = diffuse * (1.0f - ks) * lambertianBrdf();
+   float3 specularFactor = cookTorranceBrdf(nDotH, nDotL, nDotV, roughness, ks);
+   return diffuseFactor + specularFactor;
+}
+
+float3 pbrComputeSpotlightDirectContribution(float3 P, float3 N, int spotlightIndex, float3 V, float3 nDotV, float3 diffuse, float3 F0, float roughness) {
+   float3 so = SpotlightDescriptions[spotlightIndex].origin;
+   float3 L = normalize(so - P);
+   float3 unattenuatedLightContribution = pbrComputeUnattenuatedLightContribution(P, N, L, V, nDotV, diffuse, F0, roughness);
+   float3 attenuation = computeSpotlightLighting(P, N, ShadowMaps, SpotlightDescriptions[spotlightIndex]);
+   return unattenuatedLightContribution * attenuation;
 }
