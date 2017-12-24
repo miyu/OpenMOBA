@@ -1,8 +1,6 @@
 ﻿#include "helpers/lighting.hlsl"
 #include "helpers/pbr.hlsl"
 
-#define PBR_ENABLED (1)
-
 struct PSInput {
    float3 positionObject : POSITION1;
    float3 positionWorld : POSITION2;
@@ -51,7 +49,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
 
    float3 colorAccumulator = 0;
 
-   [branch] if (PBR_ENABLED) {
+   [branch] if (pbrEnabled) {
       float metallic, roughness;
       pbrMaterialProperties(input.positionWorld, metallic, roughness);
 

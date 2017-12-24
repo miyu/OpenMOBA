@@ -52,7 +52,7 @@ namespace Canvas3D {
 
          _sceneBuffer = new Buffer(
             _d3d,
-            ((Utilities.SizeOf<Vector4>() + Utilities.SizeOf<Matrix>() + Utilities.SizeOf<bool>() + Utilities.SizeOf<int>()) / 16 + 1) * 16,
+            ((Utilities.SizeOf<Vector4>() + Utilities.SizeOf<Matrix>() + /*sz bool*/ 4 * 2 + Utilities.SizeOf<int>()) / 16 + 1) * 16,
             ResourceUsage.Dynamic, 
             BindFlags.ConstantBuffer, 
             CpuAccessFlags.Write, 
@@ -298,15 +298,15 @@ namespace Canvas3D {
          spotlightInfos.Add(info);
       }
 
-      private void UpdateSceneConstantBuffer(Vector4 cameraEye, Matrix projView, bool shadowTestEnabled, int numSpotlights) {
+      private void UpdateSceneConstantBuffer(Vector4 cameraEye, Matrix projView, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights) {
          var db = _d3d.ImmediateContext.MapSubresource(_sceneBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          var off = db.DataPointer;
          off = Utilities.WriteAndPosition(off, ref cameraEye);
          off = Utilities.WriteAndPosition(off, ref projView);
-         off = Utilities.WriteAndPosition(off, ref shadowTestEnabled); // renderdoc bugs out
-         off = Utilities.WriteAndPosition(off, ref shadowTestEnabled); // if endianness assumed
-         off = Utilities.WriteAndPosition(off, ref shadowTestEnabled);
-         off = Utilities.WriteAndPosition(off, ref shadowTestEnabled);
+         int pe = pbrEnabled ? 1 : 0;
+         off = Utilities.WriteAndPosition(off, ref pe); // renderdoc bugs out on bools
+         int se = shadowTestEnabled ? 1 : 0;
+         off = Utilities.WriteAndPosition(off, ref se); // renderdoc bugs out
          off = Utilities.WriteAndPosition(off, ref numSpotlights);
          _d3d.ImmediateContext.UnmapSubresource(_sceneBuffer, 0);
       }
@@ -323,6 +323,26 @@ namespace Canvas3D {
          var db = _d3d.ImmediateContext.MapSubresource(_objectBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          var off = db.DataPointer;
          off = Utilities.WriteAndPosition(off, ref diffuseSamplingMode);
+
+         int zero = 0;
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
+         off = Utilities.WriteAndPosition(off, ref zero);
          _d3d.ImmediateContext.UnmapSubresource(_objectBuffer, 0);
       }
 
@@ -370,7 +390,7 @@ namespace Canvas3D {
                2048 * spotlightDescription->AtlasLocation.Size.Y
             ));
 
-            UpdateSceneConstantBuffer(new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, false, 0);
+            UpdateSceneConstantBuffer(new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, false, false, 0);
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
@@ -382,6 +402,13 @@ namespace Canvas3D {
                   var mesh = kvp.Key;
                   var jobs = kvp.Value;
                   UpdateInstancingBuffer(jobs);
+
+                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(
+                     1,
+                     new VertexBufferBinding(
+                        _instancingBuffer,
+                        RenderJobDescription.Size,
+                        0));
                   mesh.Draw(renderContext, jobs.Count);
                }
             }
@@ -399,7 +426,7 @@ namespace Canvas3D {
          renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
-         UpdateSceneConstantBuffer(new Vector4(_cameraEye, 1.0f), _projView, true, spotlightInfos.Count);
+         UpdateSceneConstantBuffer(new Vector4(_cameraEye, 1.0f), _projView, true, true, spotlightInfos.Count);
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
 
@@ -432,13 +459,12 @@ namespace Canvas3D {
 
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
-            break;
             Techniques.Forward.BeginPass(renderContext, pass);
 
-            UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscale);
+            UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscaleDerivative);
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
-               UpdateSceneConstantBuffer(Vector4.Zero, orthoProj, false, 0);
+               UpdateSceneConstantBuffer(Vector4.Zero, orthoProj, false, false, 0);
 
                var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
                UpdateInstancingBuffer(new RenderJobDescription {
@@ -450,6 +476,14 @@ namespace Canvas3D {
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
                _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
+
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(
+                  1,
+                  new VertexBufferBinding(
+                     _instancingBuffer,
+                     RenderJobDescription.Size,
+                     0));
+
                _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext, 1);
             }
          }

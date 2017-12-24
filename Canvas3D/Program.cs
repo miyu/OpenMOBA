@@ -11,7 +11,7 @@ namespace Canvas3D {
 
       public static void Main(string[] args) {
          var start = DateTime.Now;
-         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, 0 * (int)InitFlags.DisableVerticalSync);
+         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync);
          while (graphicsLoop.IsRunning(out var renderer)) {
             renderer.ClearScene();
             renderer.SetCamera(cameraEye, projView);

@@ -12,7 +12,8 @@
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4 cameraEye;
    float4x4 projView;
-   bool shadowTestEnabled;
+   int pbrEnabled;
+   int shadowTestEnabled;
    int numSpotlights;
 }
 
@@ -84,7 +85,7 @@ bool SampleDiffuseMapSecondDerivative(Texture2D diffuseMap, float2 uv) {
       - 2 * diffuseMap.Sample(LinearSampler, uv + 2 * ox - 1 * oy)
       - 4 * diffuseMap.Sample(LinearSampler, uv + 1 * ox - 1 * oy)
       + center * 36;
-   return abs(d) > 2.7E-4f;
+   return abs(d) > 1E-3f;
 
 //   float tl = diffuseMap.Sample(DiffuseSampler, input.uv - ox - oy);
 //   float tc = diffuseMap.Sample(DiffuseSampler, input.uv - oy);
