@@ -139,8 +139,8 @@ void pbrMaterialProperties(float3 pWorld, out float metallic, out float roughnes
    }
    else if (length(pWorld - float3(0, 0.5f, 0)) <= 0.8f) {
       //metallic = 0.0f;
-      metallic = 1.0f;// 0.4f;
-      roughness = 0.04f; 
+      metallic = 0.0f;// 0.4f;
+      roughness = 0.9f; 
       //roughness = 1.0f;
    }
    else {
@@ -160,7 +160,7 @@ float3 pbrComputeUnattenuatedLightContribution(float3 P, float3 N, float3 L, flo
    float vDotH = max(1E-5, dot(V, H)); // max avoids artifacts near 0
    float nDotH = max(1E-5, dot(N, H));
    float nDotL = max(1E-5, dot(N, L));
-   float3 ks = ctFresnelShlick3(F0, vDotH);
+   float3 ks = saturate(ctFresnelShlick3(F0, vDotH));
    float3 diffuseFactor = diffuse * (1.0f - ks) * lambertianBrdf();
    float3 specularFactor = cookTorranceBrdf(nDotH, nDotL, nDotV, roughness, ks);
    return diffuseFactor + specularFactor;
@@ -172,4 +172,8 @@ float3 pbrComputeSpotlightDirectContribution(float3 P, float3 N, int spotlightIn
    float3 unattenuatedLightContribution = pbrComputeUnattenuatedLightContribution(P, N, L, V, nDotV, diffuse, F0, roughness);
    float3 attenuation = computeSpotlightLighting(P, N, ShadowMaps, SpotlightDescriptions[spotlightIndex]);
    return unattenuatedLightContribution * attenuation;
+}
+
+float3 pbrEvaluateScene() {
+
 }
