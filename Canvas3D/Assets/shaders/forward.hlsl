@@ -42,9 +42,10 @@ float4 PSMain(PSInput input) : SV_TARGET {
       metallic = 0.0f;
       roughness = 0.04f;
    } else if (length(input.positionWorld - float3(0, 0.5f, 0)) <= 0.7f) {
-      metallic = 1.0f;// 0.4f;
-      roughness = 0.01f; 
-      // roughness = 1.0f;
+      metallic = 0.0f;
+      //metallic = 1.0f;// 0.4f;
+      //roughness = 0.01f; 
+      roughness = 1.0f;
    } else {
       metallic = 0.0f;// 0.4f;
       roughness = 0.04f; // 1.0f; // 0.2f;// 0.8f;
@@ -140,6 +141,9 @@ float4 PSMain(PSInput input) : SV_TARGET {
    //   float3 specularFactor = 0; // cookTorranceBrdf(nDotH, nDotL, vDotN, roughness, ks);
    //   colorAccumulator += float4(lightFactor * (diffuseFactor + specularFactor), 0.0f);
    //}
+   // Monitor gamma decodes with x^2.2, so invert that here (gamma encoding/expansion)
+   // to achieve linear colorspace. Alternatively could use sRGB backbuffer colorspace.
+   // http://www.codinglabs.net/article_gamma_vs_linear.aspx
    return pow(colorAccumulator, 1.0f / 2.2f);
    /**/
 
