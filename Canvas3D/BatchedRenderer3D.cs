@@ -242,9 +242,11 @@ namespace Canvas3D {
          throw new ArgumentOutOfRangeException();
       }
 
-      private IBuffer<RenderJobDescription> PickAndUpdateInstancingBuffer(IRenderContext renderContext, StructArrayList<RenderJobDescription> jobDescriptions) {
+      private unsafe IBuffer<RenderJobDescription> PickAndUpdateInstancingBuffer(IRenderContext renderContext, StructArrayList<RenderJobDescription> jobDescriptions) {
          var instancingBuffer = PickInstancingBuffer(jobDescriptions.Count);
-         renderContext.Update(instancingBuffer, jobDescriptions.store, 0, jobDescriptions.size);
+         fixed (RenderJobDescription* p = jobDescriptions.store) {
+            renderContext.Update(instancingBuffer, (IntPtr)p, jobDescriptions.size);
+         }
          return instancingBuffer;
       }
 
@@ -298,9 +300,9 @@ namespace Canvas3D {
                   UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0);
                   var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
 
-                  renderContext.SetVertexBuffer(1, instancingBuffer);
+                  //renderContext.SetVertexBuffer(1, instancingBuffer);
                   batch.Mesh.Draw(renderContext, batch.Jobs.Count);
-                  renderContext.SetVertexBuffer(1, null);
+                  //renderContext.SetVertexBuffer(1, null);
                }
             }
          }
@@ -350,16 +352,15 @@ namespace Canvas3D {
                renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
                renderContext.SetShaderResource(0, _lightShaderResourceViews[i], RenderStage.Pixel);
 
-               renderContext.SetVertexBuffer(1, instancingBuffer);
+               //renderContext.SetVertexBuffer(1, instancingBuffer);
                _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext, 1);
-               renderContext.SetVertexBuffer(1, null);
+               //renderContext.SetVertexBuffer(1, null);
             }
          }
 
          var cl = ((Direct3DGraphicsDevice.DeferredRenderContext)renderContext).HackFinishCommandList();
          var device = ((Direct3DGraphicsDevice)_graphicsDevice).InternalD3DDevice;
          device.ImmediateContext.ExecuteCommandList(cl, false);
-
          _graphicsDevice.ImmediateContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          _graphicsDevice.ImmediateContext.Present();
       }

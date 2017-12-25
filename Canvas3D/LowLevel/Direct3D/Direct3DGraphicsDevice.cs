@@ -80,19 +80,16 @@ namespace Canvas3D.LowLevel.Direct3D {
          return new DeferredRenderContext(new DeviceContext(_device), _renderStates);
       }
 
-      private IBuffer<T> CreateBufferCommon<T>(int count) where T : struct {
+      public IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
-         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, ResourceOptionFlags.None, sizeOfT);
+         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, 0, sizeOfT);
          return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
       }
 
-
-      public IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct {
-         return CreateBufferCommon<T>(count);
-      }
-
       public IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct {
-         return CreateBufferCommon<T>(count);
+         var sizeOfT = Utilities.SizeOf<T>();
+         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.VertexBuffer, CpuAccessFlags.Write, 0, sizeOfT); ;
+         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
       }
 
       public IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct {
