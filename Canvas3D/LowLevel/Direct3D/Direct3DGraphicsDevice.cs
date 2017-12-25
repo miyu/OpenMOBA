@@ -12,11 +12,12 @@ using SharpDX.Windows;
 using Buffer = SharpDX.Direct3D11.Buffer;
 using Color = SharpDX.Color;
 using Device = SharpDX.Direct3D11.Device;
+using MapFlags = SharpDX.Direct3D11.MapFlags;
 using RectangleF = SharpDX.RectangleF;
 using Resource = SharpDX.Direct3D11.Resource;
 
 namespace Canvas3D.LowLevel.Direct3D {
-   public class Direct3DGraphicsDevice : IGraphicsDevice, IDisposable {
+   public class Direct3DGraphicsDevice : IGraphicsDevice {
       private const int BackBufferCount = 2;
 
       // Lifetime Resources
@@ -79,9 +80,106 @@ namespace Canvas3D.LowLevel.Direct3D {
          return new DeferredRenderContext(new DeviceContext(_device), _renderStates);
       }
 
-      public IVertexBuffer CreateVertexBuffer(VertexPositionNormalColorTexture[] vertices) {
-         var buffer = Buffer.Create(_device, BindFlags.VertexBuffer, vertices);
-         return new VertexBufferBox { Buffer = buffer, Stride = VertexPositionNormalColorTexture.Size };
+      private IBuffer<T> CreateBufferCommon<T>(int count) where T : struct {
+         var sizeOfT = Utilities.SizeOf<T>();
+         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, ResourceOptionFlags.None, sizeOfT);
+         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
+      }
+
+
+      public IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct {
+         return CreateBufferCommon<T>(count);
+      }
+
+      public IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct {
+         return CreateBufferCommon<T>(count);
+      }
+
+      public IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct {
+         var sizeOfT = Utilities.SizeOf<T>();
+         var buffer = Buffer.Create<T>(_device, BindFlags.VertexBuffer, content);
+         return new BufferBox<T> { Buffer = buffer, Count = content.Length, Stride = sizeOfT };
+      }
+
+      public (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct {
+         var sizeOfT = Utilities.SizeOf<T>();
+         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ShaderResource, CpuAccessFlags.Write, ResourceOptionFlags.BufferStructured, sizeOfT);
+         var bufferBox = new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
+         var srv = new ShaderResourceView(_device, buffer, 
+            new ShaderResourceViewDescription {
+               Dimension = ShaderResourceViewDimension.Buffer,
+               Format = Format.Unknown,
+               Buffer = {
+                  ElementCount = count,
+                  FirstElement = 0,
+                  ElementOffset = 0,
+                  ElementWidth = sizeOfT
+               }
+            });
+         var srvBox = new ShaderResourceViewBox { ShaderResourceView = srv };
+         return (bufferBox, srvBox);
+      }
+
+      public (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution) {
+         var texture = new Texture2D(_device,
+            new Texture2DDescription {
+               Format = Format.R16_Typeless,
+               ArraySize = levels,
+               MipLevels = 1,
+               Width = resolution.Width,
+               Height = resolution.Height,
+               SampleDescription = new SampleDescription(1, 0),
+               Usage = ResourceUsage.Default,
+               BindFlags = BindFlags.DepthStencil | BindFlags.ShaderResource,
+               CpuAccessFlags = CpuAccessFlags.None,
+               OptionFlags = ResourceOptionFlags.None
+            });
+         var dsvs = new IDepthStencilView[levels];
+         for (var i = 0; i < levels; i++) {
+            dsvs[i] = new DepthStencilViewBox {
+               DepthStencilView = new DepthStencilView(_device, texture,
+                  new DepthStencilViewDescription {
+                     Format = Format.D16_UNorm,
+                     Dimension = DepthStencilViewDimension.Texture2DArray,
+                     Texture2DArray = {
+                        ArraySize = 1,
+                        FirstArraySlice = i,
+                        MipSlice = 0
+                     }
+                  })
+            };
+         }
+         var srv = new ShaderResourceViewBox {
+            ShaderResourceView = new ShaderResourceView(_device, texture,
+               new ShaderResourceViewDescription {
+                  Format = Format.R16_UNorm,
+                  Dimension = ShaderResourceViewDimension.Texture2DArray,
+                  Texture2DArray = {
+                     MipLevels = 1,
+                     MostDetailedMip = 0,
+                     ArraySize = levels,
+                     FirstArraySlice = 0
+                  }
+               })
+         };
+
+         var srvs = new IShaderResourceView[levels];
+         for (var i = 0; i < levels; i++) {
+            srvs[i] = new ShaderResourceViewBox {
+               ShaderResourceView = new ShaderResourceView(_device, texture,
+                  new ShaderResourceViewDescription {
+                     Format = Format.R16_UNorm,
+                     Dimension = ShaderResourceViewDimension.Texture2DArray,
+                     Texture2DArray = {
+                        MipLevels = 1,
+                        MostDetailedMip = 0,
+                        ArraySize = 1,
+                        FirstArraySlice = i
+                     }
+                  })
+            };
+         }
+         return (texture, dsvs, srv, srvs);
       }
 
       private void ResizeBackBuffer(Size renderSize) {
@@ -251,6 +349,68 @@ namespace Canvas3D.LowLevel.Direct3D {
                stream.Dispose();
             }
          }
+
+
+         public (ITexture2D, IShaderResourceView) CreateSolidTexture(Color4 c) {
+            var _d3d = _graphicsDevice._device;
+            var texture = new Texture2D(_d3d, new Texture2DDescription {
+               Format = Format.R32G32B32A32_Float,
+               ArraySize = 1,
+               BindFlags = BindFlags.ShaderResource,
+               CpuAccessFlags = CpuAccessFlags.Write,
+               Height = 1,
+               Width = 1,
+               MipLevels = 1,
+               OptionFlags = ResourceOptionFlags.None,
+               SampleDescription = new SampleDescription(1, 0),
+               Usage = ResourceUsage.Dynamic
+            });
+
+            DataStream stream;
+            _d3d.ImmediateContext.MapSubresource(texture, 0, 0, MapMode.WriteDiscard, MapFlags.None, out stream);
+            stream.Write(c);
+            _d3d.ImmediateContext.UnmapSubresource(texture, 0);
+
+            var srv = new ShaderResourceView(_d3d, texture);
+            return (new Texture2DBox { Texture = texture }, new ShaderResourceViewBox { ShaderResourceView = srv });
+         }
+
+         public (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 c) {
+            return CreateSolidCubeTexture(c, c, c, c, c, c);
+         }
+
+         public unsafe (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz) {
+            DataBox Wrap(Color4* p) => new DataBox(new IntPtr(p), 4 * 4, 0);
+
+            var _d3d = _graphicsDevice._device;
+            var texture = new Texture2D(_d3d, new Texture2DDescription {
+               Format = Format.R32G32B32A32_Float,
+               ArraySize = 6,
+               BindFlags = BindFlags.ShaderResource,
+               CpuAccessFlags = CpuAccessFlags.Write,
+               Height = 1,
+               Width = 1,
+               MipLevels = 1,
+               OptionFlags = ResourceOptionFlags.TextureCube,
+               SampleDescription = new SampleDescription(1, 0),
+               Usage = ResourceUsage.Default
+            }, new[] { Wrap(&posx), Wrap(&negx), Wrap(&posy), Wrap(&negy), Wrap(&posz), Wrap(&negz) });
+
+            var srv = new ShaderResourceView(_d3d, texture);
+            return (new Texture2DBox { Texture = texture }, new ShaderResourceViewBox { ShaderResourceView = srv });
+         }
+      }
+
+      internal class DepthStencilViewBox : IDepthStencilView {
+         public DepthStencilView DepthStencilView;
+      }
+
+      private class RenderTargetViewBox : IRenderTargetView {
+         public RenderTargetView RenderTargetView;
+      }
+
+      private class ShaderResourceViewBox : IShaderResourceView {
+         public ShaderResourceView ShaderResourceView;
       }
 
       private class PixelShaderBox : IPixelShader {
@@ -262,17 +422,14 @@ namespace Canvas3D.LowLevel.Direct3D {
          public InputLayout InputLayout;
       }
 
-      internal class DepthStencilViewBox : IDepthStencilView {
-         public DepthStencilView DepthStencilView;
-      }
-
-      private class RenderTargetViewBox : IRenderTargetView {
-         public RenderTargetView RenderTargetView;
-      }
-
-      internal class VertexBufferBox : IVertexBuffer {
+      private class BufferBox<T> : IBuffer<T> where T : struct {
          public Buffer Buffer;
+         public int Count;
          public int Stride;
+      }
+
+      private class Texture2DBox : ITexture2D {
+         public Texture2D Texture;
       }
 
       public class BaseRenderContext : IRenderContext, IDisposable {
@@ -285,7 +442,6 @@ namespace Canvas3D.LowLevel.Direct3D {
          protected IDepthStencilView _currentDepthStencilView;
          protected IRenderTargetView _currentRenderTargetView;
          protected RectangleF _currentViewportRect;
-         protected IVertexBuffer _currentVertexBuffer;
 
 
          public BaseRenderContext(DeviceContext deviceContext, RenderStates renderStates) {
@@ -388,16 +544,35 @@ namespace Canvas3D.LowLevel.Direct3D {
             _deviceContext.InputAssembler.PrimitiveTopology = topology;
          }
 
-         public void SetVertexBuffer(IVertexBuffer vbBox) {
-            _currentVertexBuffer = vbBox;
-
-            var vertexBufferBox = (VertexBufferBox)vbBox;
+         public void SetVertexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct {
+            var box = (BufferBox<T>)buffer;
             _deviceContext.InputAssembler.SetVertexBuffers(
-               0,
-               new VertexBufferBinding(
-                  vertexBufferBox.Buffer,
-                  vertexBufferBox.Stride,
-                  0));
+               slot, 
+               new VertexBufferBinding(box.Buffer, box.Stride, 0));
+         }
+
+         public void SetVertexBuffer(int slot, int? @null) {
+            _deviceContext.InputAssembler.SetVertexBuffers(slot, new VertexBufferBinding());
+         }
+
+         public void SetConstantBuffer<T>(int slot, IBuffer<T> buffer, RenderStage stages) where T : struct {
+            var box = (BufferBox<T>)buffer;
+            if ((stages & RenderStage.Pixel) != 0) {
+               _deviceContext.PixelShader.SetConstantBuffer(slot, box.Buffer);
+            }
+            if ((stages & RenderStage.Vertex) != 0) {
+               _deviceContext.VertexShader.SetConstantBuffer(slot, box.Buffer);
+            }
+         }
+
+         public void SetShaderResource(int slot, IShaderResourceView view, RenderStage stages) {
+            var box = (ShaderResourceViewBox)view;
+            if ((stages & RenderStage.Pixel) != 0) {
+               _deviceContext.PixelShader.SetShaderResource(slot, box.ShaderResourceView);
+            }
+            if ((stages & RenderStage.Vertex) != 0) {
+               _deviceContext.VertexShader.SetShaderResource(slot, box.ShaderResourceView);
+            }
          }
 
          public void Draw(int vertices, int verticesOffset) {
@@ -406,6 +581,27 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void DrawInstanced(int vertices, int verticesOffset, int instances, int instancesOffset) {
             _deviceContext.DrawInstanced(vertices, instances, verticesOffset, instancesOffset);
+         }
+
+         public void Update<T>(IBuffer<T> buffer, T item) where T : struct {
+            var box = (BufferBox<T>)buffer;
+            var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
+            Utilities.Write(db.DataPointer, ref item);
+            _deviceContext.UnmapSubresource(box.Buffer, 0);
+         }
+
+         public void Update<T>(IBuffer<T> buffer, IntPtr data, int count) where T : struct {
+            var box = (BufferBox<T>)buffer;
+            var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
+            Utilities.CopyMemory(db.DataPointer, data, count * box.Stride);
+            _deviceContext.UnmapSubresource(box.Buffer, 0);
+         }
+
+         public void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct {
+            var box = (BufferBox<T>)buffer;
+            var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
+            Utilities.Write(db.DataPointer, arr, offset, count);
+            _deviceContext.UnmapSubresource(box.Buffer, 0);
          }
 
          public void Dispose() {
@@ -520,7 +716,7 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       internal class Direct3DMesh : IMesh {
-         public IVertexBuffer VertexBuffer;
+         public IBuffer<VertexPositionNormalColorTexture> VertexBuffer;
          public int Vertices;
          public int VertexBufferOffset;
 
@@ -528,7 +724,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void Draw(IRenderContext renderContext, int instances) {
             renderContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            renderContext.SetVertexBuffer(VertexBuffer);
+            renderContext.SetVertexBuffer(0, VertexBuffer);
             renderContext.DrawInstanced(Vertices, VertexBufferOffset, instances, 0);
          }
       }

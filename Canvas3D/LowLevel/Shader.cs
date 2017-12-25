@@ -1,11 +1,17 @@
 ﻿using System;
+using SharpDX;
 
 namespace Canvas3D.LowLevel {
    public interface IDepthStencilView { }
    public interface IRenderTargetView { }
+   public interface IShaderResourceView { }
 
    public interface IPixelShader { }
    public interface IVertexShader { }
+
+   public interface IBuffer<T> where T : struct { }
+
+   public interface ITexture2D { }
 
    public interface IMesh {
       VertexLayout VertexLayout { get; }
@@ -13,11 +19,13 @@ namespace Canvas3D.LowLevel {
       void Draw(IRenderContext renderContext, int instances);
    }
 
-   public interface IVertexBuffer { }
-
    public interface ILowLevelAssetManager {
       IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null);
       IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null);
+
+      (ITexture2D, IShaderResourceView) CreateSolidTexture(Color4 c);
+      (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 c);
+      (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz);
    }
 
    public interface ITechnique {

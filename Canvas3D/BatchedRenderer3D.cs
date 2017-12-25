@@ -35,155 +35,54 @@ namespace Canvas3D {
    }
 
    public class BatchedRenderer3D : IAssetManager, IRenderer3D {
-      private const int kMaxInstanceBufferPower = 14;
       private readonly Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
       private readonly List<RenderJobBatch> renderJobBatches = new List<RenderJobBatch>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
 
       private readonly IGraphicsDevice _graphicsDevice;
-      private readonly Device _d3d;
-      private readonly Buffer _sceneBuffer;
-      private readonly Buffer _batchBuffer;
-      private readonly Buffer[] _instancingBuffers; // size 1, 2, 4, 8...16384
-      private readonly Buffer _shadowMapEntriesBuffer;
-      private readonly ShaderResourceView _shadowMapEntriesBufferSrv;
-      private readonly Texture2D _lightDepthBuffer;
+      //private readonly Device _d3d;
+      private readonly IBuffer<SceneConstantBufferData> _sceneBuffer;
+      private readonly IBuffer<BatchConstantBufferData> _batchBuffer;
+      private readonly List<IBuffer<RenderJobDescription>> _instancingBuffers;
+      private readonly IBuffer<SpotlightDescription> _shadowMapEntriesBuffer;
+      private readonly IShaderResourceView _shadowMapEntriesBufferSrv;
+      private readonly IDisposable _lightDepthTexture;
       private readonly IDepthStencilView[] _lightDepthStencilViews;
-      private readonly ShaderResourceView _lightShaderResourceView;
-      private readonly ShaderResourceView[] _lightShaderResourceViews;
-      private readonly Texture2D _whiteTexture;
-      private readonly ShaderResourceView _whiteTextureShaderResourceView;
-      private readonly Texture2D _whiteCubeMap;
-      private readonly ShaderResourceView _whiteCubeMapShaderResourceView;
-      private readonly Texture2D _limeTexture;
-      private readonly ShaderResourceView _limeTextureShaderResourceView;
-      private readonly Texture2D _limeCubeMap;
-      private readonly ShaderResourceView _limeCubeMapShaderResourceView;
-      private readonly Texture2D _flatColoredCubeMap;
-      private readonly ShaderResourceView _flatColoredCubeMapShaderResourceView;
+      private readonly IShaderResourceView _lightShaderResourceView;
+      private readonly IShaderResourceView[] _lightShaderResourceViews;
+      private readonly ITexture2D _whiteTexture;
+      private readonly IShaderResourceView _whiteTextureShaderResourceView;
+      private readonly ITexture2D _whiteCubeMap;
+      private readonly IShaderResourceView _whiteCubeMapShaderResourceView;
+      private readonly ITexture2D _limeTexture;
+      private readonly IShaderResourceView _limeTextureShaderResourceView;
+      private readonly ITexture2D _limeCubeMap;
+      private readonly IShaderResourceView _limeCubeMapShaderResourceView;
+      private readonly ITexture2D _flatColoredCubeMap;
+      private readonly IShaderResourceView _flatColoredCubeMapShaderResourceView;
       private Vector3 _cameraEye;
       private Matrix _projView;
 
       public BatchedRenderer3D(IGraphicsDevice graphicsDevice) {
          _graphicsDevice = graphicsDevice;
-         _d3d = ((Direct3DGraphicsDevice)graphicsDevice).InternalD3DDevice;
+         _sceneBuffer = _graphicsDevice.CreateConstantBuffer<SceneConstantBufferData>(1);
+         _batchBuffer = _graphicsDevice.CreateConstantBuffer<BatchConstantBufferData>(1);
+         _instancingBuffers = new List<IBuffer<RenderJobDescription>>();
 
-         _sceneBuffer = new Buffer(
-            _d3d,
-            ((Utilities.SizeOf<Vector4>() + Utilities.SizeOf<Matrix>() + /*sz bool*/ 4 * 2 + Utilities.SizeOf<int>()) / 16 + 1) * 16,
-            ResourceUsage.Dynamic, 
-            BindFlags.ConstantBuffer, 
-            CpuAccessFlags.Write, 
-            ResourceOptionFlags.None,
-            0);
-
-         _batchBuffer = new Buffer(
-            _d3d,
-            ((Utilities.SizeOf<int>() + Utilities.SizeOf<Matrix>()) / 16 + 1) * 16,
-            ResourceUsage.Dynamic,
-            BindFlags.ConstantBuffer,
-            CpuAccessFlags.Write,
-            ResourceOptionFlags.None,
-            0);
-
-         _instancingBuffers = new Buffer[kMaxInstanceBufferPower + 1];
-         for (var i = 0; i <= kMaxInstanceBufferPower; i++) {
-            _instancingBuffers[i] = new Buffer(
-               _d3d,
-               (1 << i) * RenderJobDescription.Size,
-               ResourceUsage.Dynamic,
-               BindFlags.ConstantBuffer,
-               CpuAccessFlags.Write,
-               ResourceOptionFlags.None,
-               RenderJobDescription.Size
-            );
+         const int kMaxPreallocatedInstanceBufferPower = 14;
+         for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) {
+            _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
          }
 
-         var shadowMapEntriesBufferLength = 256;
-         _shadowMapEntriesBuffer = new Buffer(
-            _d3d,
-            shadowMapEntriesBufferLength * SpotlightDescription.Size,
-            ResourceUsage.Dynamic,
-            BindFlags.ShaderResource,
-            CpuAccessFlags.Write,
-            ResourceOptionFlags.BufferStructured,
-            SpotlightDescription.Size);
-         _shadowMapEntriesBufferSrv = new ShaderResourceView(
-            _d3d, 
-            _shadowMapEntriesBuffer,
-            new ShaderResourceViewDescription{
-               Dimension = ShaderResourceViewDimension.Buffer,
-               Format = Format.Unknown,
-               Buffer = {
-                  ElementCount = shadowMapEntriesBufferLength,
-                  FirstElement = 0,
-                  ElementOffset = 0,
-                  ElementWidth = SpotlightDescription.Size
-               }
-            });
+         (_shadowMapEntriesBuffer, _shadowMapEntriesBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<SpotlightDescription>(256);
+         (_lightDepthTexture, _lightDepthStencilViews, _lightShaderResourceView, _lightShaderResourceViews) = _graphicsDevice.CreateDepthTextureAndViews(10, new Size(2048, 2048));
 
-         var shadowMapResolution = new Size(2048, 2048);
-         var shadowMapBufferCount = 10;
-         _lightDepthBuffer = new Texture2D(_d3d,
-            new Texture2DDescription {
-               Format = Format.R16_Typeless,
-               ArraySize = shadowMapBufferCount,
-               MipLevels = 1,
-               Width = shadowMapResolution.Width,
-               Height = shadowMapResolution.Height,
-               SampleDescription = new SampleDescription(1, 0),
-               Usage = ResourceUsage.Default,
-               BindFlags = BindFlags.DepthStencil | BindFlags.ShaderResource,
-               CpuAccessFlags = CpuAccessFlags.None,
-               OptionFlags = ResourceOptionFlags.None
-            });
-         _lightDepthStencilViews = new IDepthStencilView[shadowMapBufferCount];
-         for (var i = 0; i < shadowMapBufferCount; i++) {
-            _lightDepthStencilViews[i] = new Direct3DGraphicsDevice.DepthStencilViewBox {
-               DepthStencilView = new DepthStencilView(_d3d, _lightDepthBuffer,
-                  new DepthStencilViewDescription {
-                     Format = Format.D16_UNorm,
-                     Dimension = DepthStencilViewDimension.Texture2DArray,
-                     Texture2DArray = {
-                        ArraySize = 1,
-                        FirstArraySlice = i,
-                        MipSlice = 0
-                     }
-                  })
-            };
-         }
-         _lightShaderResourceView = new ShaderResourceView(_d3d, _lightDepthBuffer,
-            new ShaderResourceViewDescription {
-               Format = Format.R16_UNorm,
-               Dimension = ShaderResourceViewDimension.Texture2DArray,
-               Texture2DArray = {
-                  MipLevels = 1,
-                  MostDetailedMip = 0,
-                  ArraySize = shadowMapBufferCount,
-                  FirstArraySlice = 0
-               }
-            });
-
-         _lightShaderResourceViews = new ShaderResourceView[shadowMapBufferCount];
-         for (var i = 0; i < shadowMapBufferCount; i++) {
-            _lightShaderResourceViews[i] = new ShaderResourceView(_d3d, _lightDepthBuffer,
-               new ShaderResourceViewDescription {
-                  Format = Format.R16_UNorm,
-                  Dimension = ShaderResourceViewDimension.Texture2DArray,
-                  Texture2DArray = {
-                     MipLevels = 1,
-                     MostDetailedMip = 0,
-                     ArraySize = 1,
-                     FirstArraySlice = i
-                  }
-               });
-         }
-
-         (_whiteTexture, _whiteTextureShaderResourceView) = CreateSolidColorTexture(Color4.White);
-         (_whiteCubeMap, _whiteCubeMapShaderResourceView) = CreateSolidColorCubeMapTexture(Color4.White);
-         (_limeTexture, _limeTextureShaderResourceView) = CreateSolidColorTexture(Color.Lime);
-         (_limeCubeMap, _limeCubeMapShaderResourceView) = CreateSolidColorCubeMapTexture(Color.Lime);
-         (_flatColoredCubeMap, _flatColoredCubeMapShaderResourceView) = CreateSolidColorCubeMapTexture(Color.Cyan, Color.Magenta, Color.Blue, Color.Yellow, Color.Red, Color.Lime);
+         var lowLevelAssetManager = _graphicsDevice.LowLevelAssetManager;
+         (_whiteTexture, _whiteTextureShaderResourceView) = lowLevelAssetManager.CreateSolidTexture(Color4.White);
+         (_whiteCubeMap, _whiteCubeMapShaderResourceView) = lowLevelAssetManager.CreateSolidCubeTexture(Color4.White);
+         (_limeTexture, _limeTextureShaderResourceView) = lowLevelAssetManager.CreateSolidTexture(Color.Lime);
+         (_limeCubeMap, _limeCubeMapShaderResourceView) = lowLevelAssetManager.CreateSolidCubeTexture(Color.Lime);
+         (_flatColoredCubeMap, _flatColoredCubeMapShaderResourceView) = lowLevelAssetManager.CreateSolidCubeTexture(Color.Cyan, Color.Magenta, Color.Blue, Color.Yellow, Color.Red, Color.Lime);
 
          Trace.Assert(Utilities.SizeOf<SpotlightInfo>() == SpotlightInfo.Size);
          Trace.Assert(Utilities.SizeOf<AtlasLocation>() == AtlasLocation.SIZE);
@@ -192,53 +91,6 @@ namespace Canvas3D {
       }
 
       public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
-
-      private (Texture2D, ShaderResourceView) CreateSolidColorTexture(Color4 c) {
-         var texture = new Texture2D(_d3d, new Texture2DDescription {
-            Format = Format.R32G32B32A32_Float,
-            ArraySize = 1,
-            BindFlags = BindFlags.ShaderResource,
-            CpuAccessFlags = CpuAccessFlags.Write,
-            Height = 1,
-            Width = 1,
-            MipLevels = 1,
-            OptionFlags = ResourceOptionFlags.None,
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Dynamic
-         });
-
-         DataStream stream;
-         _d3d.ImmediateContext.MapSubresource(texture, 0, 0, MapMode.WriteDiscard, MapFlags.None, out stream);
-         stream.Write(c);
-         _d3d.ImmediateContext.UnmapSubresource(texture, 0);
-
-         var srv = new ShaderResourceView(_d3d, texture);
-         return (texture, srv);
-      }
-
-      private (Texture2D, ShaderResourceView) CreateSolidColorCubeMapTexture(Color4 c) {
-         return CreateSolidColorCubeMapTexture(c, c, c, c, c, c);
-      }
-
-      private unsafe (Texture2D, ShaderResourceView) CreateSolidColorCubeMapTexture(Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz) {
-         DataBox Wrap(Color4* p) => new DataBox(new IntPtr(p), 4 * 4, 0);
-
-         var texture = new Texture2D(_d3d, new Texture2DDescription {
-            Format = Format.R32G32B32A32_Float,
-            ArraySize = 6,
-            BindFlags = BindFlags.ShaderResource,
-            CpuAccessFlags = CpuAccessFlags.Write,
-            Height = 1,
-            Width = 1,
-            MipLevels = 1,
-            OptionFlags = ResourceOptionFlags.TextureCube,
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Default
-         }, new[] { Wrap(&posx), Wrap(&negx), Wrap(&posy), Wrap(&negy), Wrap(&posz), Wrap(&negz) });
-
-         var srv = new ShaderResourceView(_d3d, texture);
-         return (texture, srv);
-      }
 
       public void ClearScene() {
          renderJobBatches.Clear();
@@ -331,17 +183,27 @@ namespace Canvas3D {
          spotlightInfos.Add(info);
       }
 
-      private void UpdateSceneConstantBuffer(Vector4 cameraEye, Matrix projView, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights) {
-         var db = _d3d.ImmediateContext.MapSubresource(_sceneBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         var off = db.DataPointer;
-         off = Utilities.WriteAndPosition(off, ref cameraEye);
-         off = Utilities.WriteAndPosition(off, ref projView);
-         int pe = pbrEnabled ? 1 : 0;
-         off = Utilities.WriteAndPosition(off, ref pe); // renderdoc bugs out on bools
-         int se = shadowTestEnabled ? 1 : 0;
-         off = Utilities.WriteAndPosition(off, ref se); // renderdoc bugs out
-         off = Utilities.WriteAndPosition(off, ref numSpotlights);
-         _d3d.ImmediateContext.UnmapSubresource(_sceneBuffer, 0);
+      [StructLayout(LayoutKind.Sequential, Pack = 1)]
+      private struct SceneConstantBufferData {
+         public Vector4 cameraEye;
+         public Matrix projView;
+         public int pbrEnabled;
+         public int shadowTestEnabled;
+         public int numSpotlights;
+         public int padding;
+
+         public const int Size = 16 + 64 + 4 * 3 + 4;
+      }
+
+      private void UpdateSceneConstantBuffer(IRenderContext renderContext, Vector4 cameraEye, Matrix projView, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights) {
+         renderContext.Update(_sceneBuffer, new SceneConstantBufferData {
+            cameraEye = cameraEye,
+            projView = projView,
+            pbrEnabled = pbrEnabled ? 1 : 0,
+            shadowTestEnabled = shadowTestEnabled ? 1 : 0,
+            numSpotlights = numSpotlights,
+            padding = 0,
+         });
       }
 
       public enum DiffuseTextureSamplingMode {
@@ -352,17 +214,27 @@ namespace Canvas3D {
          CubeNormal = 21,
       }
 
-      private void UpdateBatchConstantBuffer(Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode) {
-         var db = _d3d.ImmediateContext.MapSubresource(_batchBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         var off = db.DataPointer;
-         var dsm = (int)diffuseSamplingMode;
-         off = Utilities.WriteAndPosition(off, ref batchTransform);
-         off = Utilities.WriteAndPosition(off, ref dsm);
-         _d3d.ImmediateContext.UnmapSubresource(_batchBuffer, 0);
+      [StructLayout(LayoutKind.Sequential, Pack = 1)]
+      private struct BatchConstantBufferData {
+         public Matrix batchTransform;
+         public int diffuseSamplingMode;
+         public int padding0, padding1, padding2;
+
+         public const int Size = 64 + 4 + 12;
       }
 
-      private Buffer PickInstancingBuffer(int sz) {
-         for (var i = 0; i <= kMaxInstanceBufferPower; i++) {
+      private void UpdateBatchConstantBuffer(IRenderContext renderContext, Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode) {
+         renderContext.Update(_batchBuffer, new BatchConstantBufferData {
+            batchTransform = batchTransform,
+            diffuseSamplingMode = (int)diffuseSamplingMode,
+            padding0 = 0,
+            padding1 = 0,
+            padding2 = 0,
+         });
+      }
+
+      private IBuffer<RenderJobDescription> PickInstancingBuffer(int sz) {
+         for (var i = 0; i <= _instancingBuffers.Count; i++) {
             if (sz <= (1 << i)) {
                return _instancingBuffers[i];
             }
@@ -370,19 +242,15 @@ namespace Canvas3D {
          throw new ArgumentOutOfRangeException();
       }
 
-      private Buffer PickAndUpdateInstancingBuffer(StructArrayList<RenderJobDescription> jobDescriptions) {
+      private IBuffer<RenderJobDescription> PickAndUpdateInstancingBuffer(IRenderContext renderContext, StructArrayList<RenderJobDescription> jobDescriptions) {
          var instancingBuffer = PickInstancingBuffer(jobDescriptions.Count);
-         var db = _d3d.ImmediateContext.MapSubresource(instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         Utilities.Write(db.DataPointer, jobDescriptions.store, 0, jobDescriptions.size);
-         _d3d.ImmediateContext.UnmapSubresource(instancingBuffer, 0);
+         renderContext.Update(instancingBuffer, jobDescriptions.store, 0, jobDescriptions.size);
          return instancingBuffer;
       }
 
-      private Buffer PickAndUpdateInstancingBuffer(RenderJobDescription jobDescription) {
+      private IBuffer<RenderJobDescription> PickAndUpdateInstancingBuffer(IRenderContext renderContext, RenderJobDescription jobDescription) {
          var instancingBuffer = _instancingBuffers[0];
-         var db = _d3d.ImmediateContext.MapSubresource(instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         Utilities.Write(db.DataPointer, ref jobDescription);
-         _d3d.ImmediateContext.UnmapSubresource(instancingBuffer, 0);
+         renderContext.Update(instancingBuffer, jobDescription);
          return instancingBuffer;
       }
 
@@ -418,84 +286,71 @@ namespace Canvas3D {
                2048 * spotlightDescription->AtlasLocation.Size.Y
             ));
 
-            UpdateSceneConstantBuffer(new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, false, false, 0);
+            UpdateSceneConstantBuffer(renderContext, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, false, false, 0);
             for (var pass = 0; pass < Techniques.ForwardDepthOnly.Passes; pass++) {
                Techniques.ForwardDepthOnly.BeginPass(renderContext, pass);
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _batchBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _batchBuffer);
+               renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
+               renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
 
                foreach (var batch in renderJobBatches) {
-                  UpdateBatchConstantBuffer(batch.BatchTransform, 0);
-                  var instancingBuffer = PickAndUpdateInstancingBuffer(batch.Jobs);
+                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0);
+                  var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
 
-                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(instancingBuffer, RenderJobDescription.Size, 0));
+                  renderContext.SetVertexBuffer(1, instancingBuffer);
                   batch.Mesh.Draw(renderContext, batch.Jobs.Count);
-                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
+                  renderContext.SetVertexBuffer(1, null);
                }
             }
          }
 
          // Prepare for scene render
-         var box = _d3d.ImmediateContext.MapSubresource(_shadowMapEntriesBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         Utilities.CopyMemory(box.DataPointer, (IntPtr)spotlightDescriptions, spotlightInfos.Count * SpotlightDescription.Size);
-         _d3d.ImmediateContext.UnmapSubresource(_shadowMapEntriesBuffer, 0);
-         _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
-         _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
+         renderContext.Update(_shadowMapEntriesBuffer, (IntPtr)spotlightDescriptions, spotlightInfos.Count);
+         renderContext.SetShaderResource(11, _shadowMapEntriesBufferSrv, RenderStage.Pixel);
 
          // Draw Scene
          renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
-         UpdateSceneConstantBuffer(new Vector4(_cameraEye, 1.0f), _projView, true, true, spotlightInfos.Count);
+         UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, true, true, spotlightInfos.Count);
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
 
-            _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-            _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _batchBuffer);
-            _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-            _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _batchBuffer);
-            //_d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
-            //_d3d.ImmediateContext.PixelShader.SetShaderResource(0, _whiteTextureShaderResourceView);
-            _d3d.ImmediateContext.PixelShader.SetShaderResource(1, _whiteCubeMapShaderResourceView);
-            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _limeCubeMapShaderResourceView);
-            //_d3d.ImmediateContext.PixelShader.SetShaderResource(1, _flatColoredCubeMapShaderResourceView);
-            _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
-            _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
+            renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
+            renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
+            renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
+            renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+            renderContext.SetShaderResource(11, _shadowMapEntriesBufferSrv, RenderStage.Pixel);
             foreach (var batch in renderJobBatches) {
-               UpdateBatchConstantBuffer(batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal);
-               var instancingBuffer = PickAndUpdateInstancingBuffer(batch.Jobs);
+               UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal);
+               var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
 
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(instancingBuffer, RenderJobDescription.Size, 0));
+               renderContext.SetVertexBuffer(1, instancingBuffer);
                batch.Mesh.Draw(renderContext, batch.Jobs.Count);
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
+               renderContext.SetVertexBuffer(1, null);
             }
          }
 
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
-            UpdateBatchConstantBuffer(Matrix.Identity, DiffuseTextureSamplingMode.FlatGrayscaleDerivative);
+            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatGrayscaleDerivative);
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
-               UpdateSceneConstantBuffer(Vector4.Zero, orthoProj, false, false, 0);
+               UpdateSceneConstantBuffer(renderContext, Vector4.Zero, orthoProj, false, false, 0);
 
                var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
-               var instancingBuffer = PickAndUpdateInstancingBuffer(new RenderJobDescription {
+               var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, new RenderJobDescription {
                   WorldTransform = quadWorld
                });
 
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _batchBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
-               _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _batchBuffer);
-               _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
+               renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
+               renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
+               renderContext.SetShaderResource(0, _lightShaderResourceViews[i], RenderStage.Pixel);
 
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(instancingBuffer, RenderJobDescription.Size, 0));
+               renderContext.SetVertexBuffer(1, instancingBuffer);
                _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext, 1);
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
+               renderContext.SetVertexBuffer(1, null);
             }
          }
 
