@@ -35,6 +35,7 @@ namespace Canvas3D {
    }
 
    public class BatchedRenderer3D : IAssetManager, IRenderer3D {
+      private const int kMaxInstanceBufferPower = 14;
       private readonly Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
       private readonly List<RenderJobBatch> renderJobBatches = new List<RenderJobBatch>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
@@ -43,7 +44,7 @@ namespace Canvas3D {
       private readonly Device _d3d;
       private readonly Buffer _sceneBuffer;
       private readonly Buffer _batchBuffer;
-      private readonly Buffer _instancingBuffer;
+      private readonly Buffer[] _instancingBuffers; // size 1, 2, 4, 8...16384
       private readonly Buffer _shadowMapEntriesBuffer;
       private readonly ShaderResourceView _shadowMapEntriesBufferSrv;
       private readonly Texture2D _lightDepthBuffer;
@@ -85,15 +86,18 @@ namespace Canvas3D {
             ResourceOptionFlags.None,
             0);
 
-         _instancingBuffer = new Buffer(
-            _d3d,
-            1024 * 16 * RenderJobDescription.Size,
-            ResourceUsage.Dynamic,
-            BindFlags.ConstantBuffer,
-            CpuAccessFlags.Write,
-            ResourceOptionFlags.None,
-            RenderJobDescription.Size
-         );
+         _instancingBuffers = new Buffer[kMaxInstanceBufferPower + 1];
+         for (var i = 0; i <= kMaxInstanceBufferPower; i++) {
+            _instancingBuffers[i] = new Buffer(
+               _d3d,
+               (1 << i) * RenderJobDescription.Size,
+               ResourceUsage.Dynamic,
+               BindFlags.ConstantBuffer,
+               CpuAccessFlags.Write,
+               ResourceOptionFlags.None,
+               RenderJobDescription.Size
+            );
+         }
 
          var shadowMapEntriesBufferLength = 256;
          _shadowMapEntriesBuffer = new Buffer(
@@ -348,25 +352,38 @@ namespace Canvas3D {
          CubeNormal = 21,
       }
 
-      private void UpdateBatchConstantBuffer(DiffuseTextureSamplingMode diffuseSamplingMode, Matrix batchTransform) {
+      private void UpdateBatchConstantBuffer(Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode) {
          var db = _d3d.ImmediateContext.MapSubresource(_batchBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          var off = db.DataPointer;
          var dsm = (int)diffuseSamplingMode;
-         off = Utilities.WriteAndPosition(off, ref dsm);
          off = Utilities.WriteAndPosition(off, ref batchTransform);
+         off = Utilities.WriteAndPosition(off, ref dsm);
          _d3d.ImmediateContext.UnmapSubresource(_batchBuffer, 0);
       }
 
-      private void UpdateInstancingBuffer(StructArrayList<RenderJobDescription> jobDescriptions) {
-         var db = _d3d.ImmediateContext.MapSubresource(_instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         Utilities.Write(db.DataPointer, jobDescriptions.store, 0, jobDescriptions.size);
-         _d3d.ImmediateContext.UnmapSubresource(_instancingBuffer, 0);
+      private Buffer PickInstancingBuffer(int sz) {
+         for (var i = 0; i <= kMaxInstanceBufferPower; i++) {
+            if (sz <= (1 << i)) {
+               return _instancingBuffers[i];
+            }
+         }
+         throw new ArgumentOutOfRangeException();
       }
 
-      private void UpdateInstancingBuffer(RenderJobDescription jobDescription) {
-         var db = _d3d.ImmediateContext.MapSubresource(_instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
+      private Buffer PickAndUpdateInstancingBuffer(StructArrayList<RenderJobDescription> jobDescriptions) {
+         var instancingBuffer = PickInstancingBuffer(jobDescriptions.Count);
+         var db = _d3d.ImmediateContext.MapSubresource(instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
+         Utilities.Write(db.DataPointer, jobDescriptions.store, 0, jobDescriptions.size);
+         _d3d.ImmediateContext.UnmapSubresource(instancingBuffer, 0);
+         return instancingBuffer;
+      }
+
+      private Buffer PickAndUpdateInstancingBuffer(RenderJobDescription jobDescription) {
+         var instancingBuffer = _instancingBuffers[0];
+         var db = _d3d.ImmediateContext.MapSubresource(instancingBuffer, 0, MapMode.WriteDiscard, MapFlags.None);
          Utilities.Write(db.DataPointer, ref jobDescription);
-         _d3d.ImmediateContext.UnmapSubresource(_instancingBuffer, 0);
+         _d3d.ImmediateContext.UnmapSubresource(instancingBuffer, 0);
+         return instancingBuffer;
       }
 
       public unsafe void RenderScene() {
@@ -410,10 +427,10 @@ namespace Canvas3D {
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _batchBuffer);
 
                foreach (var batch in renderJobBatches) {
-                  UpdateBatchConstantBuffer(0, batch.BatchTransform);
-                  UpdateInstancingBuffer(batch.Jobs);
+                  UpdateBatchConstantBuffer(batch.BatchTransform, 0);
+                  var instancingBuffer = PickAndUpdateInstancingBuffer(batch.Jobs);
 
-                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(_instancingBuffer, RenderJobDescription.Size, 0));
+                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(instancingBuffer, RenderJobDescription.Size, 0));
                   batch.Mesh.Draw(renderContext, batch.Jobs.Count);
                   _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
                }
@@ -448,10 +465,10 @@ namespace Canvas3D {
             _d3d.ImmediateContext.PixelShader.SetShaderResource(10, _lightShaderResourceView);
             _d3d.ImmediateContext.PixelShader.SetShaderResource(11, _shadowMapEntriesBufferSrv);
             foreach (var batch in renderJobBatches) {
-               UpdateBatchConstantBuffer(DiffuseTextureSamplingMode.CubeNormal, batch.BatchTransform);
-               UpdateInstancingBuffer(batch.Jobs);
+               UpdateBatchConstantBuffer(batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal);
+               var instancingBuffer = PickAndUpdateInstancingBuffer(batch.Jobs);
 
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(_instancingBuffer, RenderJobDescription.Size, 0));
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(instancingBuffer, RenderJobDescription.Size, 0));
                batch.Mesh.Draw(renderContext, batch.Jobs.Count);
                _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
             }
@@ -460,13 +477,13 @@ namespace Canvas3D {
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
-            UpdateBatchConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscaleDerivative, Matrix.Identity);
+            UpdateBatchConstantBuffer(Matrix.Identity, DiffuseTextureSamplingMode.FlatGrayscaleDerivative);
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
                UpdateSceneConstantBuffer(Vector4.Zero, orthoProj, false, false, 0);
 
                var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
-               UpdateInstancingBuffer(new RenderJobDescription {
+               var instancingBuffer = PickAndUpdateInstancingBuffer(new RenderJobDescription {
                   WorldTransform = quadWorld
                });
 
@@ -476,7 +493,7 @@ namespace Canvas3D {
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _batchBuffer);
                _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
 
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(_instancingBuffer, RenderJobDescription.Size, 0));
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(instancingBuffer, RenderJobDescription.Size, 0));
                _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext, 1);
                _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
             }
