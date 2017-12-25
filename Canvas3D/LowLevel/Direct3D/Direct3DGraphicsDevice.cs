@@ -35,7 +35,7 @@ namespace Canvas3D.LowLevel.Direct3D {
       // Subsystems
       private readonly RenderStates _renderStates;
       private readonly ImmediateRenderContext _immediateContext;
-      private readonly Direct3DAssetManager _assetManager;
+      private readonly Direct3DLowLevelAssetManager _lowLevelAssetManager;
       private readonly Direct3DTechniqueCollection _techniqueCollection;
       private readonly Direct3DMeshPresets _meshPresets;
 
@@ -47,14 +47,14 @@ namespace Canvas3D.LowLevel.Direct3D {
          // code smell: init subsystems
          _renderStates = new RenderStates(_device);
          _immediateContext = new ImmediateRenderContext(_device.ImmediateContext, _renderStates, _swapChain);
-         _assetManager = new Direct3DAssetManager(this);
-         _techniqueCollection = Direct3DTechniqueCollection.Create(AssetManager);
+         _lowLevelAssetManager = new Direct3DLowLevelAssetManager(this);
+         _techniqueCollection = Direct3DTechniqueCollection.Create(LowLevelAssetManager);
          _meshPresets = Direct3DMeshPresets.Create(this);
       }
 
       internal Device InternalD3DDevice => _device;
       public IImmediateRenderContext ImmediateContext => _immediateContext;
-      public IAssetManager AssetManager => _assetManager;
+      public ILowLevelAssetManager LowLevelAssetManager => _lowLevelAssetManager;
       public ITechniqueCollection TechniqueCollection => _techniqueCollection;
       public IMeshPresets MeshPresets => _meshPresets;
 
@@ -168,10 +168,10 @@ namespace Canvas3D.LowLevel.Direct3D {
          };
       }
 
-      private class Direct3DAssetManager : IAssetManager {
+      private class Direct3DLowLevelAssetManager : ILowLevelAssetManager {
          private readonly Direct3DGraphicsDevice _graphicsDevice;
 
-         public Direct3DAssetManager(Direct3DGraphicsDevice graphicsDevice) {
+         public Direct3DLowLevelAssetManager(Direct3DGraphicsDevice graphicsDevice) {
             _graphicsDevice = graphicsDevice;
          }
 
@@ -482,17 +482,17 @@ namespace Canvas3D.LowLevel.Direct3D {
          public ITechnique ForwardDepthOnly { get; private set; }
          public ITechnique Derivative { get; private set; }
 
-         public static Direct3DTechniqueCollection Create(IAssetManager assetManager) {
+         public static Direct3DTechniqueCollection Create(ILowLevelAssetManager lowLevelAssetManager) {
             var collection = new Direct3DTechniqueCollection();
             collection.Forward = new Technique {
                Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
+               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
+               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
             collection.ForwardDepthOnly = new Technique {
                Passes = 1,
-               PixelShader = assetManager.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
-               VertexShader = assetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
+               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
+               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
             //collection.Derivative = new Technique {
             //   Passes = 1,

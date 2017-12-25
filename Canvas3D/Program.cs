@@ -28,6 +28,13 @@ namespace Canvas3D {
 
       public static void Main(string[] args) {
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+         var floatingCubesBatch = new RenderJobBatch();
+         floatingCubesBatch.Mesh = graphicsLoop.AssetManager.GetPresetMesh(MeshPreset.UnitCube);
+         foreach (var transform in cubeDefaultTransforms) {
+            floatingCubesBatch.Jobs.Add(new RenderJobDescription {
+               WorldTransform = transform
+            });
+         }
 
          for (var frame = 0; graphicsLoop.IsRunning(out var renderer); frame++) {
             var t = (float)graphicsLoop.Statistics.FrameTime.TotalSeconds;
@@ -42,10 +49,8 @@ namespace Canvas3D {
             renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
 
             // Draw floating cubes circling around center cube
-            var allCubesTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
-            for (var i = 0; i < cubeDefaultTransforms.Length; i++) {
-               renderer.AddRenderable(MeshPreset.UnitCube, allCubesTransform * cubeDefaultTransforms[i]);
-            }
+            floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
+            renderer.AddRenderJobBatch(floatingCubesBatch);
 
             // Add spotlights
             renderer.AddSpotlight(

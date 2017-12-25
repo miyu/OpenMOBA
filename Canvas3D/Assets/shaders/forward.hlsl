@@ -21,12 +21,14 @@ PSInput VSMain(
 ) {
    PSInput result;
 
+   float4x4 batchWorld = mul(batchTransform, world);
+
    result.positionObject = position;
-   result.positionWorld = mul(world, float4(position, 1)).xyz;
-   result.position = mul(mul(projView, world), float4(position, 1));
+   result.positionWorld = mul(batchWorld, float4(position, 1)).xyz;
+   result.position = mul(mul(projView, batchWorld), float4(position, 1));
    result.normalObject = normal;
    result.normalWorld = mul(world, float4(normal, 0)).xyz; // must normalize in PS
-   result.normal = normalize(mul(mul(projView, world), float4(normal, 0)));
+   result.normal = normalize(mul(mul(projView, batchWorld), float4(normal, 0)));
    result.color = color;
    result.uv = uv;
 

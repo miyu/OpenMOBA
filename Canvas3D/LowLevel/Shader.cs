@@ -15,7 +15,7 @@ namespace Canvas3D.LowLevel {
 
    public interface IVertexBuffer { }
 
-   public interface IAssetManager {
+   public interface ILowLevelAssetManager {
       IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null);
       IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null);
    }

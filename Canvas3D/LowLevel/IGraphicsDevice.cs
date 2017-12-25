@@ -1,7 +1,7 @@
 ﻿namespace Canvas3D.LowLevel {
    public interface IGraphicsDevice {
       IImmediateRenderContext ImmediateContext { get; }
-      IAssetManager AssetManager { get; }
+      ILowLevelAssetManager LowLevelAssetManager { get; }
       ITechniqueCollection TechniqueCollection { get; }
       IMeshPresets MeshPresets { get; }
 

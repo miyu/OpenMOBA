@@ -22,13 +22,14 @@ namespace Canvas3D {
       private Direct3DGraphicsDevice GraphicsDevice { get; }
       private BatchedRenderer3D Renderer { get; }
       private RenderLoop RenderLoop { get; }
+      public IAssetManager AssetManager => Renderer;
       public GraphicsLoopStatistics Statistics { get; }
 
-      public bool IsRunning(out BatchedRenderer3D renderer) {
+      public bool IsRunning(out IRenderer3D renderer) {
          if (RenderLoop.NextFrame()) {
             GraphicsDevice.DoEvents();
-            renderer = Renderer;
             Statistics.HandleFrameEnter(_initFlags.HasFlag(InitFlags.EnableDebugStats) ? Form : null);
+            renderer = Renderer;
             return true;
          }
          renderer = null;

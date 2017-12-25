@@ -17,8 +17,9 @@ cbuffer Scene : register(REG_SCENE_DATA) {
    int numSpotlights;
 }
 
-cbuffer Object : register(REG_OBJECT_DATA) {
+cbuffer Batch : register(REG_OBJECT_DATA) {
    int diffuseSamplingMode;
+   float4x4 batchTransform;
 }
 
 Texture2D DiffuseMap : register(REG_DIFFUSE_MAP);
