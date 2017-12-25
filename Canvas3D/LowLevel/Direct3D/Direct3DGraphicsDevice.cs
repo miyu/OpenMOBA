@@ -629,6 +629,10 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       public class DeferredRenderContext : BaseRenderContext, IDeferredRenderContext {
          public DeferredRenderContext(DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) { }
+
+         public CommandList HackFinishCommandList() {
+            return _deviceContext.FinishCommandList(false);
+         }
       }
 
       public class RenderStates : IDisposable {

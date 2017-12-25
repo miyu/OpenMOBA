@@ -255,14 +255,16 @@ namespace Canvas3D {
       }
 
       public unsafe void RenderScene() {
-         var renderContext = _graphicsDevice.ImmediateContext;
+         // Store backbuffer render targets for screen draw
+         _graphicsDevice.ImmediateContext.GetRenderTargets(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
+
+         //var renderContext = _graphicsDevice.ImmediateContext;
+         var renderContext = _graphicsDevice.CreateDeferredRenderContext();
+         renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          renderContext.ClearRenderTarget(Color.Gray);
          renderContext.ClearDepthBuffer(1.0f);
 
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
-
-         // Store backbuffer render targets for screen draw
-         renderContext.GetRenderTargets(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
 
          // Draw spotlights
          var spotlightDescriptions = stackalloc SpotlightDescription[spotlightInfos.Count];
@@ -354,7 +356,12 @@ namespace Canvas3D {
             }
          }
 
-         renderContext.Present();
+         var cl = ((Direct3DGraphicsDevice.DeferredRenderContext)renderContext).HackFinishCommandList();
+         var device = ((Direct3DGraphicsDevice)_graphicsDevice).InternalD3DDevice;
+         device.ImmediateContext.ExecuteCommandList(cl, false);
+
+         _graphicsDevice.ImmediateContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
+         _graphicsDevice.ImmediateContext.Present();
       }
 
       private unsafe void ComputeSpotlightDescriptions(SpotlightDescription* res) {
