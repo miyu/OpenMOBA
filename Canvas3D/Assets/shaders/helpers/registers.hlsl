@@ -43,17 +43,17 @@ StructuredBuffer<SpotlightDescription> SpotlightDescriptions : register(REG_SHAD
 bool SampleDiffuseMapSecondDerivative(Texture2D diffuseMap, float2 uv);
 
 float4 SampleDiffuseMap(float2 texuv, float3 dir, float3 normal) {
-   if (diffuseSamplingMode == 0) {
+   [branch] if (diffuseSamplingMode == 0) {
       return DiffuseMap.Sample(LinearSampler, texuv);
-   } else if (diffuseSamplingMode == 10) {
+   } else [branch] if (diffuseSamplingMode == 10) {
       float c = DiffuseMap.Sample(LinearSampler, texuv).x;
       return float4(c, c, c, 1);
-   } else if (diffuseSamplingMode == 11) {
+   } else [branch] if (diffuseSamplingMode == 11) {
       float c = float(SampleDiffuseMapSecondDerivative(DiffuseMap, texuv));
       return float4(c, c, c, 1);
-   } else if (diffuseSamplingMode == 20) {
+   } else [branch] if (diffuseSamplingMode == 20) {
       return DiffuseCubeMap.Sample(LinearSampler, dir);
-   } else if (diffuseSamplingMode == 21) {
+   } else [branch] if (diffuseSamplingMode == 21) {
       return DiffuseCubeMap.Sample(LinearSampler, normal);
    } else {
       return float4(1, 0, 1, 1);

@@ -34,7 +34,7 @@ namespace Canvas3D.LowLevel.Helpers {
                capacity <<= 1;
             }
             var buff = new T[capacity];
-            Buffer.BlockCopy(store, 0, buff, 0, size);
+            Array.Copy(store, 0, buff, 0, size);
             store = buff;
          }
       }

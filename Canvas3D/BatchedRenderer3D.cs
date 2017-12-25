@@ -70,7 +70,7 @@ namespace Canvas3D {
 
          _instancingBuffer = new Buffer(
             _d3d,
-            256 * RenderJobDescription.Size,
+            1024 * 16 * RenderJobDescription.Size,
             ResourceUsage.Dynamic,
             BindFlags.ConstantBuffer,
             CpuAccessFlags.Write,
@@ -391,8 +391,8 @@ namespace Canvas3D {
             ));
 
             UpdateSceneConstantBuffer(new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, false, false, 0);
-            for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
-               Techniques.Forward.BeginPass(renderContext, pass);
+            for (var pass = 0; pass < Techniques.ForwardDepthOnly.Passes; pass++) {
+               Techniques.ForwardDepthOnly.BeginPass(renderContext, pass);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(0, _sceneBuffer);
                _d3d.ImmediateContext.VertexShader.SetConstantBuffer(1, _objectBuffer);
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(0, _sceneBuffer);
@@ -403,13 +403,9 @@ namespace Canvas3D {
                   var jobs = kvp.Value;
                   UpdateInstancingBuffer(jobs);
 
-                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(
-                     1,
-                     new VertexBufferBinding(
-                        _instancingBuffer,
-                        RenderJobDescription.Size,
-                        0));
+                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(_instancingBuffer, RenderJobDescription.Size, 0));
                   mesh.Draw(renderContext, jobs.Count);
+                  _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
                }
             }
          }
@@ -446,21 +442,18 @@ namespace Canvas3D {
                var mesh = kvp.Key;
                var jobs = kvp.Value;
                UpdateInstancingBuffer(jobs);
+               break;
 
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(
-                  1,
-                  new VertexBufferBinding(
-                     _instancingBuffer,
-                     RenderJobDescription.Size,
-                     0));
+
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(_instancingBuffer, RenderJobDescription.Size, 0));
                mesh.Draw(renderContext, jobs.Count);
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
             }
          }
 
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
             Techniques.Forward.BeginPass(renderContext, pass);
-
             UpdateObjectConstantBuffer(DiffuseTextureSamplingMode.FlatGrayscaleDerivative);
             for (var i = 0; i < 2; i++) {
                var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
@@ -477,14 +470,9 @@ namespace Canvas3D {
                _d3d.ImmediateContext.PixelShader.SetConstantBuffer(1, _objectBuffer);
                _d3d.ImmediateContext.PixelShader.SetShaderResource(0, _lightShaderResourceViews[i]);
 
-               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(
-                  1,
-                  new VertexBufferBinding(
-                     _instancingBuffer,
-                     RenderJobDescription.Size,
-                     0));
-
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding(_instancingBuffer, RenderJobDescription.Size, 0));
                _graphicsDevice.MeshPresets.UnitPlaneXY.Draw(renderContext, 1);
+               _d3d.ImmediateContext.InputAssembler.SetVertexBuffers(1, new VertexBufferBinding());
             }
          }
 

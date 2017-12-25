@@ -1,26 +1,34 @@
 ﻿using System;
 using System.Drawing;
+using System.Linq;
 using Canvas3D.LowLevel.Direct3D;
 using SharpDX.Windows;
 
 namespace Canvas3D {
    public class GraphicsLoop {
-      private GraphicsLoop(RenderForm form, Direct3DGraphicsDevice graphicsDevice, BatchedRenderer3D renderer) {
+      private readonly InitFlags _initFlags;
+
+      private GraphicsLoop(InitFlags initFlags, RenderForm form, Direct3DGraphicsDevice graphicsDevice, BatchedRenderer3D renderer) {
+         _initFlags = initFlags;
+
          Form = form;
          GraphicsDevice = graphicsDevice;
          Renderer = renderer;
          RenderLoop = new RenderLoop(Form);
+         Statistics = new GraphicsLoopStatistics();
       }
 
       public RenderForm Form { get; }
       private Direct3DGraphicsDevice GraphicsDevice { get; }
       private BatchedRenderer3D Renderer { get; }
       private RenderLoop RenderLoop { get; }
+      public GraphicsLoopStatistics Statistics { get; }
 
       public bool IsRunning(out BatchedRenderer3D renderer) {
          if (RenderLoop.NextFrame()) {
             GraphicsDevice.DoEvents();
             renderer = Renderer;
+            Statistics.HandleFrameEnter(_initFlags.HasFlag(InitFlags.EnableDebugStats) ? Form : null);
             return true;
          }
          renderer = null;
@@ -43,7 +51,7 @@ namespace Canvas3D {
          graphicsDevice.ImmediateContext.SetVsyncEnabled(
             !flags.HasFlag(InitFlags.DisableVerticalSync));
 
-         return new GraphicsLoop(renderForm, graphicsDevice, renderer);
+         return new GraphicsLoop(flags, renderForm, graphicsDevice, renderer);
       }
    }
 
@@ -52,5 +60,52 @@ namespace Canvas3D {
       None = 0,
       DisableVerticalSync = 1 << 1,
       HiddenWindow = 1 << 2,
+      EnableDebugStats = 1 << 4,
+   }
+
+   public class GraphicsLoopStatistics {
+      private readonly TimeSpan[] frameIntervalBuffer = new TimeSpan[60];
+
+      public GraphicsLoopStatistics() {
+         StartTime = FrameWallClockTime = DateTime.Now;
+      }
+
+      public DateTime StartTime { get; }
+      public int Frame { get; private set; }
+      public DateTime FrameWallClockTime { get; private set; }
+      public TimeSpan FrameTime { get; private set; }
+      public TimeSpan FrameInterval { get; private set; }
+      public TimeSpan AveragedFrameInterval { get; private set; }
+
+      internal void HandleFrameEnter(RenderForm formOpt) {
+         Frame++;
+         var now = DateTime.Now;
+         FrameInterval = now - FrameWallClockTime;
+         FrameWallClockTime = now;
+         FrameTime = FrameWallClockTime - StartTime;
+         frameIntervalBuffer[Frame % frameIntervalBuffer.Length] = FrameInterval;
+
+         if (Frame % frameIntervalBuffer.Length == 0) {
+            var ticks = 0L;
+            foreach (var fi in frameIntervalBuffer) ticks += fi.Ticks;
+            AveragedFrameInterval = new TimeSpan(ticks / frameIntervalBuffer.Length);
+
+            if (formOpt != null) {
+               formOpt.Text = $"Frame: {Frame} | FDT {AveragedFrameInterval.TotalMilliseconds:F2} ms | FPS {1 / AveragedFrameInterval.TotalSeconds:F2}";
+            }
+         }
+      }
+
+      //var lastTime = start;
+      //var dts = new float[60];
+      //var t = (float)(now - start).TotalSeconds;
+      //var dt = (float)(now - lastTime).TotalSeconds;
+      //lastTime = now;
+      //dts[frame % dts.Length] = dt;
+      //if (frame % dts.Length == 0) {
+      //   float timeSums = 0;
+      //   foreach (var x in dts) timeSums += x;
+      //   graphicsLoop.Form.Text = $"Time: {t:F2} | FDT: {timeSums * 1000 / dts.Length:F2} ms | FPS: {dts.Length / timeSums:F2}";
+      //}
    }
 }

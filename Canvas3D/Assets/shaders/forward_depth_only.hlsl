@@ -5,9 +5,9 @@ struct PSInput {
 };
 
 PSInput VSMain(
-   float3 position : POSITION, 
-   float3 normal : NORMAL, 
-   float4 color : COLOR, 
+   float3 position : POSITION,
+   float3 normal : NORMAL,
+   float4 color : COLOR,
    float2 uv : TEXCOORD,
    float4x4 world : INSTANCE_TRANSFORM
 ) {
@@ -20,5 +20,5 @@ PSInput VSMain(
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-    return float4(1, 1, 1, 1);
+    return 0;
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using SharpDX;
 
 namespace Canvas3D {
@@ -9,10 +10,27 @@ namespace Canvas3D {
       private static readonly Matrix view = MatrixCM.LookAtRH(cameraEye, new Vector3(0, 0.5f, 0), new Vector3(0, 1, 0));
       private static readonly Matrix projView = proj * view;
 
+      private const int NUM_LAYERS = 100;
+      private const int CUBES_PER_LAYER = 100;
+      private static readonly Matrix[] cubeDefaultTransforms = (
+         from layer in Enumerable.Range(0, NUM_LAYERS)
+         from i in Enumerable.Range(0, CUBES_PER_LAYER)
+         select
+         MatrixCM.RotationY(
+            2 * (float)Math.PI * i / CUBES_PER_LAYER + layer * i + layer
+         ) *
+         MatrixCM.Translation(
+            0.8f + 0.2f * (float)Math.Pow(layer, 0.5f),
+            0.9f + 0.4f * (float)Math.Sin((8 + 7 * layer) * Math.PI * i / CUBES_PER_LAYER),
+            0) *
+         MatrixCM.Scaling(0.2f / (float)Math.Sqrt(NUM_LAYERS)) *
+         MatrixCM.RotationY(i)).ToArray();
+
       public static void Main(string[] args) {
-         var start = DateTime.Now;
-         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync);
-         while (graphicsLoop.IsRunning(out var renderer)) {
+         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+
+         for (var frame = 0; graphicsLoop.IsRunning(out var renderer); frame++) {
+            var t = (float)graphicsLoop.Statistics.FrameTime.TotalSeconds;
             renderer.ClearScene();
             renderer.SetCamera(cameraEye, projView);
 
@@ -24,15 +42,9 @@ namespace Canvas3D {
             renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
 
             // Draw floating cubes circling around center cube
-            var dt = (float)(DateTime.Now - start).TotalSeconds / 10;
-            for (var i = 0; i < 10; i++) {
-               renderer.AddRenderable(
-                  MeshPreset.UnitCube,
-                  MatrixCM.RotationY(2 * (float)Math.PI * i / 10.0f + dt * (float)Math.PI) * 
-                  MatrixCM.Translation(1.0f, 0.9f + 0.4f * (float)Math.Sin(8 * Math.PI * i / 10.0), 0) * 
-                  MatrixCM.Scaling(0.2f) * 
-                  MatrixCM.RotationY(i)
-               );
+            var allCubesTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
+            for (var i = 0; i < cubeDefaultTransforms.Length; i++) {
+               renderer.AddRenderable(MeshPreset.UnitCube, allCubesTransform * cubeDefaultTransforms[i]);
             }
 
             // Add spotlights
