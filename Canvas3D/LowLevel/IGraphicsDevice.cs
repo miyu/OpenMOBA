@@ -17,6 +17,9 @@ namespace Canvas3D.LowLevel {
       IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct;
       IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct;
       (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct;
+
+      (IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateScreenSizeRenderTarget(int levels);
+      (IDisposable, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution);
       (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution);
    }
 }

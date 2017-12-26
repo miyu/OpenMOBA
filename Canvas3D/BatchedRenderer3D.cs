@@ -37,31 +37,31 @@ namespace Canvas3D {
       }
 
       private const int kShadowMapWidthHeight = 256;
-      private readonly IBuffer<BatchConstantBufferData> _batchBuffer;
-      private readonly ITexture2D _flatColoredCubeMap;
-      private readonly IShaderResourceView _flatColoredCubeMapShaderResourceView;
 
+      //private readonly Device _d3d;
       private readonly IGraphicsDevice _graphicsDevice;
+      private readonly IBuffer<SceneConstantBufferData> _sceneBuffer;
+      private readonly IBuffer<BatchConstantBufferData> _batchBuffer;
       private readonly List<IBuffer<RenderJobDescription>> _instancingBuffers;
+      private readonly IRenderTargetView[] _gBufferRtvs;
+      private readonly IShaderResourceView _gBufferSrv;
+      private readonly IShaderResourceView[] _gBufferSrvs;
+      private readonly IBuffer<SpotlightDescription> _shadowMapEntriesBuffer;
+      private readonly IShaderResourceView _shadowMapEntriesBufferSrv;
       private readonly IDepthStencilView[] _lightDepthStencilViews;
       private readonly IDisposable _lightDepthTexture;
       private readonly IShaderResourceView _lightShaderResourceView;
       private readonly IShaderResourceView[] _lightShaderResourceViews;
-      private readonly ITexture2D _limeCubeMap;
-      private readonly IShaderResourceView _limeCubeMapShaderResourceView;
-      private readonly ITexture2D _limeTexture;
-
-      private readonly IShaderResourceView _limeTextureShaderResourceView;
-
-      //private readonly Device _d3d;
-      private readonly IBuffer<SceneConstantBufferData> _sceneBuffer;
-
-      private readonly IBuffer<SpotlightDescription> _shadowMapEntriesBuffer;
-      private readonly IShaderResourceView _shadowMapEntriesBufferSrv;
       private readonly ITexture2D _whiteCubeMap;
       private readonly IShaderResourceView _whiteCubeMapShaderResourceView;
       private readonly ITexture2D _whiteTexture;
       private readonly IShaderResourceView _whiteTextureShaderResourceView;
+      private readonly ITexture2D _limeCubeMap;
+      private readonly IShaderResourceView _limeCubeMapShaderResourceView;
+      private readonly ITexture2D _limeTexture;
+      private readonly IShaderResourceView _limeTextureShaderResourceView;
+      private readonly ITexture2D _flatColoredCubeMap;
+      private readonly IShaderResourceView _flatColoredCubeMapShaderResourceView;
       private readonly Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
       private readonly List<RenderJobBatch> renderJobBatches = new List<RenderJobBatch>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
@@ -75,8 +75,11 @@ namespace Canvas3D {
          _instancingBuffers = new List<IBuffer<RenderJobDescription>>();
 
          const int kMaxPreallocatedInstanceBufferPower = 18;
-         for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
+         for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) {
+            _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
+         }
 
+         (_gBufferRtvs, _gBufferSrv, _gBufferSrvs) = _graphicsDevice.CreateScreenSizeRenderTarget(2);
          (_shadowMapEntriesBuffer, _shadowMapEntriesBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<SpotlightDescription>(256);
          (_lightDepthTexture, _lightDepthStencilViews, _lightShaderResourceView, _lightShaderResourceViews) = _graphicsDevice.CreateDepthTextureAndViews(10, new Size(kShadowMapWidthHeight, kShadowMapWidthHeight));
 

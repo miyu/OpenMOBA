@@ -27,12 +27,13 @@ namespace Canvas3D.LowLevel.Direct3D {
       private readonly Device _device;
       private readonly SwapChain _swapChain;
 
-      // Swap Chain + Resizing
+      // Swap Chain + Screen-Size Buffers + Resizing
       private Size _renderSize;
       private Texture2D _backBufferRenderTargetTexture;
       private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox();
       private Texture2D _backBufferDepthTexture;
       private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox();
+      private readonly List<(Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])> _screenSizeRenderTargets = new List<(Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])>();
       private bool _isResizeTriggered;
 
       // Subsystems
@@ -77,7 +78,7 @@ namespace Canvas3D.LowLevel.Direct3D {
       public void DoEvents() {
          if (_isResizeTriggered) {
             _renderSize = _form.ClientSize;
-            ResizeBackBuffer(_renderSize);
+            ResizeScreenSizeBuffers(_renderSize);
             _isResizeTriggered = false;
          }
       }
@@ -135,69 +136,81 @@ namespace Canvas3D.LowLevel.Direct3D {
          return (bufferBox, srvBox);
       }
 
-      public void X() {
-//         var texture = new Texture2D(_device,
-//            new Texture2DDescription {
-//               Format = Format. 
-//               ArraySize = levels,
-//               MipLevels = 1,
-//               Width = resolution.Width,
-//               Height = resolution.Height,
-//               SampleDescription = new SampleDescription(1, 0),
-//               Usage = ResourceUsage.Default,
-//               BindFlags = BindFlags.DepthStencil | BindFlags.ShaderResource,
-//               CpuAccessFlags = CpuAccessFlags.None,
-//               OptionFlags = ResourceOptionFlags.None
-//            });
-//         var dsvs = new IDepthStencilView[levels];
-//         for (var i = 0; i < levels; i++) {
-//            dsvs[i] = new DepthStencilViewBox {
-//               DepthStencilView = new DepthStencilView(_device, texture,
-//                  new DepthStencilViewDescription {
-//                     Format = Format.D16_UNorm,
-//                     Dimension = DepthStencilViewDimension.Texture2DArray,
-//                     Texture2DArray = {
-//                        ArraySize = 1,
-//                        FirstArraySlice = i,
-//                        MipSlice = 0
-//                     }
-//                  }),
-//               Resolution = resolution
-//            };
-//         }
-//         var srv = new ShaderResourceViewBox {
-//            ShaderResourceView = new ShaderResourceView(_device, texture,
-//               new ShaderResourceViewDescription {
-//                  Format = Format.R16_UNorm,
-//                  Dimension = ShaderResourceViewDimension.Texture2DArray,
-//                  Texture2DArray = {
-//                     MipLevels = 1,
-//                     MostDetailedMip = 0,
-//                     ArraySize = levels,
-//                     FirstArraySlice = 0
-//                  }
-//               })
-//         };
-//
-//         var srvs = new IShaderResourceView[levels];
-//         for (var i = 0; i < levels; i++) {
-//            srvs[i] = new ShaderResourceViewBox {
-//               ShaderResourceView = new ShaderResourceView(_device, texture,
-//                  new ShaderResourceViewDescription {
-//                     Format = Format.R16_UNorm,
-//                     Dimension = ShaderResourceViewDimension.Texture2DArray,
-//                     Texture2DArray = {
-//                        MipLevels = 1,
-//                        MostDetailedMip = 0,
-//                        ArraySize = 1,
-//                        FirstArraySlice = i
-//                     }
-//                  })
-//            };
-//         }
-//         return (texture, dsvs, srv, srvs);
+      public (IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateScreenSizeRenderTarget(int levels) {
+         var (tex, rtvs, srv, srvs) = CreateRenderTargetInternal(levels, _backBufferRenderTargetView.Resolution);
+         _screenSizeRenderTargets.Add((tex, rtvs, srv, srvs));
+         // ReSharper disable CoVariantArrayConversion
+         return (rtvs, srv, srvs);
+         // ReSharper enable CoVariantArrayConversion
       }
 
+      public (IDisposable, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution) {
+         return CreateRenderTargetInternal(levels, resolution);
+      }
+
+      private (Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateRenderTargetInternal(int levels, Size resolution) {
+         var texture = new Texture2D(_device,
+            new Texture2DDescription {
+               Format = Format.R16G16B16A16_UNorm,
+               ArraySize = levels,
+               MipLevels = 1,
+               Width = resolution.Width,
+               Height = resolution.Height,
+               SampleDescription = new SampleDescription(1, 0),
+               Usage = ResourceUsage.Default,
+               BindFlags = BindFlags.RenderTarget | BindFlags.ShaderResource,
+               CpuAccessFlags = CpuAccessFlags.None,
+               OptionFlags = ResourceOptionFlags.None
+            });
+         var rtvs = new RenderTargetViewBox[levels];
+         for (var i = 0; i < levels; i++) {
+            rtvs[i] = new RenderTargetViewBox {
+               RenderTargetView = new RenderTargetView(_device, texture,
+                  new RenderTargetViewDescription {
+                     Format = Format.R16G16B16A16_UNorm,
+                     Dimension = RenderTargetViewDimension.Texture2DArray,
+                     Texture2DArray = {
+                        ArraySize = 1,
+                        FirstArraySlice = i,
+                        MipSlice = 0
+                     }
+                  }),
+               Resolution = resolution
+            };
+         }
+         var srv = new ShaderResourceViewBox {
+            ShaderResourceView = new ShaderResourceView(_device, texture,
+               new ShaderResourceViewDescription {
+                  Format = Format.R16G16B16A16_UNorm,
+                  Dimension = ShaderResourceViewDimension.Texture2DArray,
+                  Texture2DArray = {
+                     ArraySize = levels,
+                     FirstArraySlice = 0,
+                     MipLevels = 1,
+                     MostDetailedMip = 0
+                  }
+               })
+         };
+
+         var srvs = new ShaderResourceViewBox[levels];
+         for (var i = 0; i < levels; i++) {
+            srvs[i] = new ShaderResourceViewBox {
+               ShaderResourceView = new ShaderResourceView(_device, texture,
+                  new ShaderResourceViewDescription {
+                     Format = Format.R16G16B16A16_UNorm,
+                     Dimension = ShaderResourceViewDimension.Texture2DArray,
+                     Texture2DArray = {
+                        MipLevels = 1,
+                        MostDetailedMip = 0,
+                        ArraySize = 1,
+                        FirstArraySlice = i
+                     }
+                  })
+            };
+         }
+         return (texture, rtvs, srv, srvs);
+      }
+      
       public (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution) {
          var texture = new Texture2D(_device,
             new Texture2DDescription {
@@ -261,8 +274,8 @@ namespace Canvas3D.LowLevel.Direct3D {
          return (texture, dsvs, srv, srvs);
       }
 
-      private void ResizeBackBuffer(Size renderSize) {
-         DisposeBackBuffersAndViews();
+      private void ResizeScreenSizeBuffers(Size renderSize) {
+         DisposeScreenSizeBuffersAndViews();
 
          bool isFirstInitialize = _backBufferRenderTargetView.RenderTargetView == null;
 
@@ -273,22 +286,40 @@ namespace Canvas3D.LowLevel.Direct3D {
          _backBufferDepthTexture = new Texture2D(_device, CreateBackBufferDescription(renderSize));
          _backBufferDepthView.DepthStencilView = new DepthStencilView(_device, _backBufferDepthTexture);
          _backBufferDepthView.Resolution = renderSize;
+
          if (isFirstInitialize) {
             _immediateContext.SetRenderTargets(_backBufferDepthView, _backBufferRenderTargetView);
          } else {
             _immediateContext.HandleBackBufferResized(_backBufferRenderTargetView, _backBufferDepthView);
          }
+
+         for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
+            var (tex, rtvs, srv, srvs) = _screenSizeRenderTargets[i];
+            var (newTex, newRtvs, newSrv, newSrvs) = CreateRenderTargetInternal(rtvs.Length, renderSize);
+         }
       }
 
-      private void DisposeBackBuffersAndViews() {
-         Utilities.Dispose<Texture2D>(ref _backBufferRenderTargetTexture);
-         Utilities.Dispose<RenderTargetView>(ref _backBufferRenderTargetView.RenderTargetView);
-         Utilities.Dispose<Texture2D>(ref _backBufferDepthTexture);
-         Utilities.Dispose<DepthStencilView>(ref _backBufferDepthView.DepthStencilView);
+      private void DisposeScreenSizeBuffersAndViews() {
+         Utilities.Dispose(ref _backBufferRenderTargetTexture);
+         Utilities.Dispose(ref _backBufferRenderTargetView.RenderTargetView);
+         Utilities.Dispose(ref _backBufferDepthTexture);
+         Utilities.Dispose(ref _backBufferDepthView.DepthStencilView);
+
+         for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
+            var (tex, rtvs, srv, srvs) = _screenSizeRenderTargets[i];
+            Utilities.Dispose(ref tex);
+            foreach (var rtv in rtvs) {
+               Utilities.Dispose(ref rtv.RenderTargetView);
+            }
+            Utilities.Dispose(ref srv.ShaderResourceView);
+            foreach (var levelSrv in srvs) {
+               Utilities.Dispose(ref levelSrv.ShaderResourceView);
+            }
+         }
       }
 
       public void Dispose() {
-         DisposeBackBuffersAndViews();
+         DisposeScreenSizeBuffersAndViews();
 
          _device?.Dispose();
          _swapChain?.Dispose();

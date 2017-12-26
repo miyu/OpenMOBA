@@ -27,7 +27,7 @@ namespace Canvas3D {
          MatrixCM.RotationY(i)).ToArray();
 
       public static void Main(string[] args) {
-         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => {
             UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          };
