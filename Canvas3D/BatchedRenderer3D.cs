@@ -270,10 +270,10 @@ namespace Canvas3D {
             Techniques.Forward.BeginPass(renderContext, pass);
             UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatGrayscaleDerivative);
             for (var i = 0; i < 2; i++) {
-               var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, 1280.0f, 720.0f, 0.0f, 0.1f, 100.0f); // top-left origin
+               var orthoProj = MatrixCM.OrthoOffCenterRH(0.0f, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height, 0.0f, 0.1f, 100.0f); // top-left origin
                UpdateSceneConstantBuffer(renderContext, Vector4.Zero, orthoProj, false, false, 0);
 
-               var quadWorld = MatrixCM.Scaling(256, 256, 0) * MatrixCM.Translation(0.5f + i, 0.5f, 0.0f);
+               var quadWorld = MatrixCM.Scaling(256, 256, 1) * MatrixCM.Translation(0.5f + i, 0.5f, -1.0f);
                var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, new RenderJobDescription {
                   WorldTransform = quadWorld
                });
