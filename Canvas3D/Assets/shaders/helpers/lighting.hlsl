@@ -1,3 +1,6 @@
+#ifndef __LIGHTING_HLSL__
+#define __LIGHTING_HLSL__
+
 #include "registers.hlsl"
 
 float3 computeSpotlightLighting(float3 objectWorld, float4 normalWorld, Texture2DArray shadowMap, SpotlightDescription spotlight);
@@ -51,3 +54,5 @@ bool testShadowMap(float3 objectWorld, Texture2DArray shadowMap, float4x4 projVi
     
     return true;
 }
+
+#endif // __LIGHTING_HLSL__

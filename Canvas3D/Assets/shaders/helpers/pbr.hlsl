@@ -1,3 +1,6 @@
+#ifndef __PBR_HLSL__
+#define __PBR_HLSL__
+
 //-------------------------------------------------------------------------------------------------
 // See https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md
 //     http://www.codinglabs.net/article_physically_based_rendering_cook_torrance.aspx
@@ -174,6 +177,25 @@ float3 pbrComputeSpotlightDirectContribution(float3 P, float3 N, int spotlightIn
    return unattenuatedLightContribution * attenuation;
 }
 
+// currently unused, though really just general-purpose packing.
+const float pbrPackResolution = 512;
+float pbrDeferredPackMaterial(float metallic, float roughness) {
+   float m = floor(metallic * (pbrPackResolution - 1));
+   float r = floor(roughness * (pbrPackResolution - 1));
+   return (m * pbrPackResolution + r) / (pbrPackResolution * pbrPackResolution);
+}
+
+void pbrDeferredUnpackMaterial(float material, float metallic, float roughness) {
+   float expanded = material * pbrPackResolution * pbrPackResolution;
+   float r = fmod(expanded, pbrPackResolution);
+   float m = (expanded - r) / pbrPackResolution;
+   metallic = saturate(m / (pbrPackResolution - 1));
+   roughness = saturate(r / (pbrPackResolution - 1));
+}
+
+
 float3 pbrEvaluateScene() {
 
 }
+
+#endif // __PBR_HLSL__

@@ -1,3 +1,6 @@
+#ifndef __REGISTERS_HLSL__
+#define __REGISTERS_HLSL__
+
 #include "input_typedefs.hlsl"
 
 #define REG_SCENE_DATA b0
@@ -102,3 +105,5 @@ bool SampleDiffuseMapSecondDerivative(Texture2D diffuseMap, float2 uv) {
 //   float score2 = abs(tl + tr + bl + br - cl - cr - tc - bc);
 //   return max(score1, score2) > 5.0E-6f;
 }
+
+#endif // __REGISTERS_HLSL__

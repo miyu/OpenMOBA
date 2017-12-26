@@ -135,6 +135,69 @@ namespace Canvas3D.LowLevel.Direct3D {
          return (bufferBox, srvBox);
       }
 
+      public void X() {
+//         var texture = new Texture2D(_device,
+//            new Texture2DDescription {
+//               Format = Format. 
+//               ArraySize = levels,
+//               MipLevels = 1,
+//               Width = resolution.Width,
+//               Height = resolution.Height,
+//               SampleDescription = new SampleDescription(1, 0),
+//               Usage = ResourceUsage.Default,
+//               BindFlags = BindFlags.DepthStencil | BindFlags.ShaderResource,
+//               CpuAccessFlags = CpuAccessFlags.None,
+//               OptionFlags = ResourceOptionFlags.None
+//            });
+//         var dsvs = new IDepthStencilView[levels];
+//         for (var i = 0; i < levels; i++) {
+//            dsvs[i] = new DepthStencilViewBox {
+//               DepthStencilView = new DepthStencilView(_device, texture,
+//                  new DepthStencilViewDescription {
+//                     Format = Format.D16_UNorm,
+//                     Dimension = DepthStencilViewDimension.Texture2DArray,
+//                     Texture2DArray = {
+//                        ArraySize = 1,
+//                        FirstArraySlice = i,
+//                        MipSlice = 0
+//                     }
+//                  }),
+//               Resolution = resolution
+//            };
+//         }
+//         var srv = new ShaderResourceViewBox {
+//            ShaderResourceView = new ShaderResourceView(_device, texture,
+//               new ShaderResourceViewDescription {
+//                  Format = Format.R16_UNorm,
+//                  Dimension = ShaderResourceViewDimension.Texture2DArray,
+//                  Texture2DArray = {
+//                     MipLevels = 1,
+//                     MostDetailedMip = 0,
+//                     ArraySize = levels,
+//                     FirstArraySlice = 0
+//                  }
+//               })
+//         };
+//
+//         var srvs = new IShaderResourceView[levels];
+//         for (var i = 0; i < levels; i++) {
+//            srvs[i] = new ShaderResourceViewBox {
+//               ShaderResourceView = new ShaderResourceView(_device, texture,
+//                  new ShaderResourceViewDescription {
+//                     Format = Format.R16_UNorm,
+//                     Dimension = ShaderResourceViewDimension.Texture2DArray,
+//                     Texture2DArray = {
+//                        MipLevels = 1,
+//                        MostDetailedMip = 0,
+//                        ArraySize = 1,
+//                        FirstArraySlice = i
+//                     }
+//                  })
+//            };
+//         }
+//         return (texture, dsvs, srv, srvs);
+      }
+
       public (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution) {
          var texture = new Texture2D(_device,
             new Texture2DDescription {
