@@ -238,7 +238,7 @@ namespace Canvas3D {
 
          // Draw Scene
          renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
-         renderContext.SetViewportRect(new RectangleF(0, 0, 1280, 720));
+         renderContext.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
          UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, true, true, spotlightInfos.Count);

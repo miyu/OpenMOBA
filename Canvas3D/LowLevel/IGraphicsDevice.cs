@@ -10,6 +10,7 @@ namespace Canvas3D.LowLevel {
       IMeshPresets MeshPresets { get; }
 
       void DoEvents();
+
       IDeferredRenderContext CreateDeferredRenderContext();
 
       IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct;

@@ -93,5 +93,8 @@ float4 PSMain(PSInput input) : SV_TARGET {
       }
    }
    
-   return float4(pow(colorAccumulator, 1.0f / 2.2f), transparency);
+   return float4(colorAccumulator, transparency);
+
+   // Below applies gamma encode if render target is not srgb
+   // return float4(pow(colorAccumulator, 1.0f / 2.2f), transparency);
 }

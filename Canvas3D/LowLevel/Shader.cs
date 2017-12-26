@@ -1,9 +1,15 @@
 ﻿using System;
+using System.Drawing;
 using SharpDX;
 
 namespace Canvas3D.LowLevel {
-   public interface IDepthStencilView { }
-   public interface IRenderTargetView { }
+   public interface IDepthStencilView {
+      Size Resolution { get; }
+   }
+
+   public interface IRenderTargetView {
+      Size Resolution { get; }
+   }
    public interface IShaderResourceView { }
 
    public interface IPixelShader { }

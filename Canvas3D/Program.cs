@@ -1,14 +1,14 @@
 ﻿using System;
+using System.Drawing;
 using System.Linq;
 using SharpDX;
+using Color = SharpDX.Color;
 
 namespace Canvas3D {
    internal static class Program {
-      private static readonly Matrix proj = MatrixCM.PerspectiveFovRH((float)Math.PI / 4.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
       private static readonly Vector3 cameraEye = new Vector3(3, 2.5f, 5);
-      //private static readonly Vector3 cameraEye = new Vector3(1, 4.5f, 1);
       private static readonly Matrix view = MatrixCM.LookAtRH(cameraEye, new Vector3(0, 0.5f, 0), new Vector3(0, 1, 0));
-      private static readonly Matrix projView = proj * view;
+      private static Matrix projView;
 
       private const int NUM_LAYERS = 100;
       private const int CUBES_PER_LAYER = 100;
@@ -28,6 +28,11 @@ namespace Canvas3D {
 
       public static void Main(string[] args) {
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+         graphicsLoop.Form.Resize += (s, e) => {
+            UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
+         };
+         UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
+
          var floatingCubesBatch = new RenderJobBatch();
          floatingCubesBatch.Mesh = graphicsLoop.AssetManager.GetPresetMesh(MeshPreset.UnitCube);
          foreach (var transform in cubeDefaultTransforms) {
@@ -63,6 +68,13 @@ namespace Canvas3D {
             // Draw the scene
             renderer.RenderScene();
          }
+      }
+
+      private static void UpdateProjViewMatrix(Size clientSize) {
+         var verticalFov = (float)Math.PI / 4;
+         var aspect = clientSize.Width / (float)clientSize.Height;
+         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 0.1f, 100.0f);
+         projView = proj * view;
       }
    }
 }

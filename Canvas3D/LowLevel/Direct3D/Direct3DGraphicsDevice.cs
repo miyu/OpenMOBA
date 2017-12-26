@@ -161,7 +161,8 @@ namespace Canvas3D.LowLevel.Direct3D {
                         FirstArraySlice = i,
                         MipSlice = 0
                      }
-                  })
+                  }),
+               Resolution = resolution
             };
          }
          var srv = new ShaderResourceViewBox {
@@ -205,9 +206,10 @@ namespace Canvas3D.LowLevel.Direct3D {
          _swapChain.ResizeBuffers(BackBufferCount, renderSize.Width, renderSize.Height, Format.Unknown, SwapChainFlags.None);
          _backBufferRenderTargetTexture = Resource.FromSwapChain<Texture2D>(_swapChain, 0);
          _backBufferRenderTargetView.RenderTargetView = new RenderTargetView(_device, _backBufferRenderTargetTexture);
+         _backBufferRenderTargetView.Resolution = renderSize;
          _backBufferDepthTexture = new Texture2D(_device, CreateBackBufferDescription(renderSize));
          _backBufferDepthView.DepthStencilView = new DepthStencilView(_device, _backBufferDepthTexture);
-         
+         _backBufferDepthView.Resolution = renderSize;
          if (isFirstInitialize) {
             _immediateContext.SetRenderTargets(_backBufferDepthView, _backBufferRenderTargetView);
          } else {
@@ -256,8 +258,8 @@ namespace Canvas3D.LowLevel.Direct3D {
             ModeDescription = new ModeDescription(
                form.ClientSize.Width,
                form.ClientSize.Height,
-               new Rational(60, 1),
-               Format.R8G8B8A8_UNorm),
+               new Rational(300, 1), // doesn't matter
+               Format.R8G8B8A8_UNorm_SRgb),
             IsWindowed = true,
             OutputHandle = form.Handle,
             SampleDescription = new SampleDescription(1, 0),
@@ -268,7 +270,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       private static Texture2DDescription CreateBackBufferDescription(Size clientSize) {
          return new Texture2DDescription {
-            Format = Format.D32_Float_S8X24_UInt,
+            Format = Format.D16_UNorm,
             ArraySize = 1,
             MipLevels = 1,
             Width = clientSize.Width,
@@ -416,12 +418,14 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      internal class DepthStencilViewBox : IDepthStencilView {
+      private class DepthStencilViewBox : IDepthStencilView {
          public DepthStencilView DepthStencilView;
+         public Size Resolution { get; set; }
       }
 
       private class RenderTargetViewBox : IRenderTargetView {
          public RenderTargetView RenderTargetView;
+         public Size Resolution { get; set; }
       }
 
       private class ShaderResourceViewBox : IShaderResourceView {
