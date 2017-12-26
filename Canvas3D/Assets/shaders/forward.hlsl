@@ -42,30 +42,30 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float3 P = input.positionWorld;
    float3 N = normalize(input.normalWorld);
    float3 V = normalize(cameraEye - P);
-
+   
    // Sample input raw material color (albedo)
    float4 baseAndTransparency = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
    float3 base = baseAndTransparency.xyz;
    float transparency = baseAndTransparency.w;
-
+   
    float3 colorAccumulator = 0;
-
+   
    [branch] if (pbrEnabled) {
       float metallic, roughness;
       pbrMaterialProperties(input.positionWorld, metallic, roughness);
-
+   
       float3 diffuse, F0;
       pbrMaterialDiffuseF0(base, metallic, diffuse, F0);
-
+   
       // metallic doesn't diffuse.
-
+   
       /**/
       float nDotV = dot(N, V);
-
+   
       for (uint i = 0; i != numSpotlights; i++) {
          colorAccumulator += pbrComputeSpotlightDirectContribution(P, N, i, V, nDotV, diffuse, F0, roughness);
       }
-
+   
       // environment lighting
       [branch] if (false)
       {
@@ -74,10 +74,10 @@ float4 PSMain(PSInput input) : SV_TARGET {
          float3 unattenuatedLightContribution = pbrComputeUnattenuatedLightContribution(P, N, L, V, nDotV, diffuse, F0, roughness);
          colorAccumulator += unattenuatedLightContribution * 0.05f;
       }
-
+   
       // Don't support variable exposure yet, so just hardcoded this.
       colorAccumulator *= 4.0f;
-
+   
       // Monitor gamma decodes with x^2.2, so invert that here (gamma encoding/expansion)
       // to achieve linear colorspace. Alternatively could use sRGB backbuffer colorspace.
       // http://www.codinglabs.net/article_gamma_vs_linear.aspx
@@ -92,6 +92,6 @@ float4 PSMain(PSInput input) : SV_TARGET {
          }
       }
    }
-
+   
    return float4(pow(colorAccumulator, 1.0f / 2.2f), transparency);
 }

@@ -288,8 +288,9 @@ namespace Canvas3D {
             }
          }
 
-         var commandList = renderContext.FinishCommandListAndFree();
-         _graphicsDevice.ImmediateContext.ExecuteCommandList(commandList);
+         using (var commandList = renderContext.FinishCommandListAndFree()) {
+            _graphicsDevice.ImmediateContext.ExecuteCommandList(commandList);
+         }
          _graphicsDevice.ImmediateContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
 
          _graphicsDevice.ImmediateContext.Present();

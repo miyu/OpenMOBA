@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Threading;
 using System.Windows.Forms;
 using SharpDX;
 using SharpDX.D3DCompiler;
@@ -87,6 +88,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                return deferredRenderContextPool.Pop();
             }
          }
+         Console.WriteLine("Alloc DRC");
          return new DeferredRenderContext(this, new DeviceContext(_device), _renderStates);
       }
 
@@ -659,7 +661,30 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       private class CommandListBox : ICommandList {
+         private static int instanceCount = 0;
+         private int disposed = 0;
          public CommandList CommandList;
+
+         public CommandListBox() {
+            if (Interlocked.Increment(ref instanceCount) > 512) {
+               Console.Error.WriteLine("Warning: Make sure CommandListBox is being disposed! (>512 unfreed instances)");
+            }
+            //Console.WriteLine(instanceCount);
+         }
+
+         ~CommandListBox() {
+            if (CommandList != null) {
+               Console.Error.WriteLine("Warning: Finalizer called on undisposed command list. This will leak memory (SharpDX lacks a finalizer on CommandList).");
+            }
+            Dispose();
+         }
+
+         public void Dispose() {
+            if (Interlocked.CompareExchange(ref disposed, 1, 0) == 0) {
+               Utilities.Dispose(ref CommandList);
+               Interlocked.Decrement(ref instanceCount);
+            }
+         }
       }
 
       public class RenderStates : IDisposable {
