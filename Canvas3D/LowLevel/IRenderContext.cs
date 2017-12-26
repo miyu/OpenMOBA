@@ -43,8 +43,10 @@ namespace Canvas3D.LowLevel {
 
    public interface IImmediateRenderContext : IRenderContext {
       void Present();
+      void ExecuteCommandList(ICommandList commandList);
    }
 
    public interface IDeferredRenderContext : IRenderContext {
+      ICommandList FinishCommandListAndFree();
    }
 }

@@ -22,13 +22,15 @@ PSInput VSMain(
    PSInput result;
 
    float4x4 batchWorld = mul(batchTransform, world);
+   float4 positionWorld = mul(batchWorld, float4(position, 1));
+   float4 normalWorld = mul(batchWorld, float4(normal, 0));
 
    result.positionObject = position;
-   result.positionWorld = mul(batchWorld, float4(position, 1)).xyz;
-   result.position = mul(mul(projView, batchWorld), float4(position, 1));
+   result.positionWorld = positionWorld.xyz;
+   result.position = mul(projView, positionWorld);
    result.normalObject = normal;
-   result.normalWorld = mul(world, float4(normal, 0)).xyz; // must normalize in PS
-   result.normal = normalize(mul(mul(projView, batchWorld), float4(normal, 0)));
+   result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
+   result.normal = normalize(mul(projView, normalWorld)); // must normalize in PS
    result.color = color;
    result.uv = uv;
 
@@ -36,9 +38,6 @@ PSInput VSMain(
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-   uint numStructs, structStride;
-   SpotlightDescriptions.GetDimensions(numStructs, structStride);
-   
    // Extract input vert info
    float3 P = input.positionWorld;
    float3 N = normalize(input.normalWorld);
@@ -68,7 +67,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
       }
 
       // environment lighting
-      if (false)
+      [branch] if (false)
       {
          // L is V reflection based on normal.
          float3 L = -V + 2.0f * dot(V, N) * N;

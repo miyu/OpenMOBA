@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -40,6 +41,10 @@ namespace Canvas3D.LowLevel.Direct3D {
       private readonly Direct3DTechniqueCollection _techniqueCollection;
       private readonly Direct3DMeshPresets _meshPresets;
 
+      // Deferred render context pool
+      private readonly object deferredRenderContextPoolLock = new object();
+      private readonly Stack<DeferredRenderContext> deferredRenderContextPool = new Stack<DeferredRenderContext>();
+
       private Direct3DGraphicsDevice(RenderForm form, Device device, SwapChain swapChain, DeviceContext deviceImmediateContext) {
          _form = form;
          _device = device;
@@ -77,7 +82,18 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       public IDeferredRenderContext CreateDeferredRenderContext() {
-         return new DeferredRenderContext(new DeviceContext(_device), _renderStates);
+         lock (deferredRenderContextPoolLock) {
+            if (deferredRenderContextPool.Count > 0) {
+               return deferredRenderContextPool.Pop();
+            }
+         }
+         return new DeferredRenderContext(this, new DeviceContext(_device), _renderStates);
+      }
+
+      private void ReturnDeferredContext(DeferredRenderContext deferredRenderContext) {
+         lock (deferredRenderContextPoolLock) {
+            deferredRenderContextPool.Push(deferredRenderContext);
+         }
       }
 
       public IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct {
@@ -622,14 +638,28 @@ namespace Canvas3D.LowLevel.Direct3D {
          public void Present() {
             _swapChain.Present(GetVsyncEnabled() ? 1 : 0, PresentFlags.None);
          }
+
+         public void ExecuteCommandList(ICommandList commandList) {
+            _deviceContext.ExecuteCommandList(((CommandListBox)commandList).CommandList, false);
+         }
       }
 
       public class DeferredRenderContext : BaseRenderContext, IDeferredRenderContext {
-         public DeferredRenderContext(DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) { }
+         private readonly Direct3DGraphicsDevice _graphicsDevice;
 
-         public CommandList HackFinishCommandList() {
-            return _deviceContext.FinishCommandList(false);
+         public DeferredRenderContext(Direct3DGraphicsDevice graphicsDevice, DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) {
+            _graphicsDevice = graphicsDevice;
          }
+
+         public ICommandList FinishCommandListAndFree() {
+            var box = new CommandListBox { CommandList = _deviceContext.FinishCommandList(false) };
+            _graphicsDevice.ReturnDeferredContext(this);
+            return box;
+         }
+      }
+
+      private class CommandListBox : ICommandList {
+         public CommandList CommandList;
       }
 
       public class RenderStates : IDisposable {

@@ -66,7 +66,7 @@ namespace Canvas3D.LowLevel {
          new VertexPositionNormalColorTexture(0.5f * new Vector3(1.0f, -1.0f, 0.0f), new Vector3(0, 0, -1), Color.White, new Vector2(1, 0))
       };
 
-      public static VertexPositionNormalColorTexture[] Sphere { get; } = ComputeUnitSphere(16);
+      public static VertexPositionNormalColorTexture[] Sphere { get; } = ComputeUnitSphere(12);
 
       private static VertexPositionNormalColorTexture[] ComputeUnitSphere(int lod) {
          if (lod < 4) throw new ArgumentOutOfRangeException();

@@ -45,6 +45,8 @@ namespace Canvas3D.LowLevel {
       IMesh UnitSphere { get; }
    }
 
+   public interface ICommandList { }
+
    public enum DepthConfiguration {
       Uninitialized = 0,
 
