@@ -151,9 +151,10 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       private (Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateRenderTargetInternal(int levels, Size resolution) {
+         var format = Format.R16G16B16A16_UNorm;
          var texture = new Texture2D(_device,
             new Texture2DDescription {
-               Format = Format.R16G16B16A16_UNorm,
+               Format = format,
                ArraySize = levels,
                MipLevels = 1,
                Width = resolution.Width,
@@ -169,7 +170,7 @@ namespace Canvas3D.LowLevel.Direct3D {
             rtvs[i] = new RenderTargetViewBox {
                RenderTargetView = new RenderTargetView(_device, texture,
                   new RenderTargetViewDescription {
-                     Format = Format.R16G16B16A16_UNorm,
+                     Format = format,
                      Dimension = RenderTargetViewDimension.Texture2DArray,
                      Texture2DArray = {
                         ArraySize = 1,
@@ -183,7 +184,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          var srv = new ShaderResourceViewBox {
             ShaderResourceView = new ShaderResourceView(_device, texture,
                new ShaderResourceViewDescription {
-                  Format = Format.R16G16B16A16_UNorm,
+                  Format = format,
                   Dimension = ShaderResourceViewDimension.Texture2DArray,
                   Texture2DArray = {
                      ArraySize = levels,
@@ -199,7 +200,7 @@ namespace Canvas3D.LowLevel.Direct3D {
             srvs[i] = new ShaderResourceViewBox {
                ShaderResourceView = new ShaderResourceView(_device, texture,
                   new ShaderResourceViewDescription {
-                     Format = Format.R16G16B16A16_UNorm,
+                     Format = format,
                      Dimension = ShaderResourceViewDimension.Texture2DArray,
                      Texture2DArray = {
                         MipLevels = 1,
@@ -225,9 +226,14 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       private (Texture2D, DepthStencilViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateDepthTextureAndViewsInternal(int levels, Size resolution) {
+         var hq = true;
+         var textureFormat = hq ? Format.R32_Typeless : Format.R16_Typeless;
+         var dsvFormat = hq ? Format.D32_Float : Format.D16_UNorm;
+         var srvFormat = hq ? Format.R32_Float : Format.R16_UNorm;
+
          var texture = new Texture2D(_device,
             new Texture2DDescription {
-               Format = Format.R32_Typeless,
+               Format = textureFormat,
                ArraySize = levels,
                MipLevels = 1,
                Width = resolution.Width,
@@ -243,7 +249,7 @@ namespace Canvas3D.LowLevel.Direct3D {
             dsvs[i] = new DepthStencilViewBox {
                DepthStencilView = new DepthStencilView(_device, texture,
                   new DepthStencilViewDescription {
-                     Format = Format.D32_Float,
+                     Format = dsvFormat,
                      Dimension = DepthStencilViewDimension.Texture2DArray,
                      Texture2DArray = {
                         ArraySize = 1,
@@ -257,7 +263,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          var srv = new ShaderResourceViewBox {
             ShaderResourceView = new ShaderResourceView(_device, texture,
                new ShaderResourceViewDescription {
-                  Format = Format.R32_Float,
+                  Format = srvFormat,
                   Dimension = ShaderResourceViewDimension.Texture2DArray,
                   Texture2DArray = {
                      MipLevels = 1,
@@ -273,7 +279,7 @@ namespace Canvas3D.LowLevel.Direct3D {
             srvs[i] = new ShaderResourceViewBox {
                ShaderResourceView = new ShaderResourceView(_device, texture,
                   new ShaderResourceViewDescription {
-                     Format = Format.R32_Float,
+                     Format = srvFormat,
                      Dimension = ShaderResourceViewDimension.Texture2DArray,
                      Texture2DArray = {
                         MipLevels = 1,
@@ -611,6 +617,19 @@ namespace Canvas3D.LowLevel.Direct3D {
          public BaseRenderContext(DeviceContext deviceContext, RenderStates renderStates) {
             _deviceContext = deviceContext;
             _renderStates = renderStates;
+
+            ResetToUninitializedState(); // should be a no-op.
+         }
+
+         protected void ResetToUninitializedState() {
+            _currentDepthConfiguration = DepthConfiguration.Uninitialized;
+            _currentRasterizerConfiguration = RasterizerConfiguration.Uninitialized;
+            _currentDepthStencilView = null;
+            for (var i = 0; i < _currentRenderTargetViews.Length; i++) {
+               _currentRenderTargetViews[i] = null;
+               _preallocatedRtvArray[i] = null;
+            }
+            _currentViewportRect = RectangleF.Empty;
          }
 
          public void SetVsyncEnabled(bool val) => _isVsyncEnabled = val;
@@ -824,6 +843,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void ExecuteCommandList(ICommandList commandList) {
             _deviceContext.ExecuteCommandList(((CommandListBox)commandList).CommandList, false);
+            ResetToUninitializedState();
          }
       }
 
@@ -836,6 +856,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public ICommandList FinishCommandListAndFree() {
             var box = new CommandListBox { CommandList = _deviceContext.FinishCommandList(false) };
+            ResetToUninitializedState();
             _graphicsDevice.ReturnDeferredContext(this);
             return box;
          }
@@ -904,7 +925,9 @@ namespace Canvas3D.LowLevel.Direct3D {
          private static RasterizerStateDescription RasterizerDesc(bool frontFacesElseBackFace) => new RasterizerStateDescription {
             CullMode = frontFacesElseBackFace ? CullMode.Back : CullMode.Front,
             FillMode = FillMode.Solid,
-            IsDepthClipEnabled = false
+            IsDepthClipEnabled = false,
+            IsAntialiasedLineEnabled = false,
+            IsMultisampleEnabled = false
          };
       }
 

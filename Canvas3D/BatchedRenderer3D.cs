@@ -204,6 +204,7 @@ namespace Canvas3D {
          renderContext.ClearRenderTarget(Color.Gray);
          renderContext.ClearDepthBuffer(1.0f);
 
+         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
 
          // Draw spotlights
@@ -237,7 +238,7 @@ namespace Canvas3D {
                foreach (var batch in renderJobBatches) {
                   UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0);
                   var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
-
+                  
                   renderContext.SetVertexBuffer(1, instancingBuffer);
                   batch.Mesh.Draw(renderContext, batch.Jobs.Count);
                   renderContext.SetVertexBuffer(1, null);
@@ -247,10 +248,9 @@ namespace Canvas3D {
 
          // Prepare for scene render
          renderContext.Update(_shadowMapEntriesBuffer, (IntPtr)spotlightDescriptions, spotlightInfos.Count);
-         renderContext.SetShaderResource(11, _shadowMapEntriesBufferSrv, RenderStage.Pixel);
 
          // Draw Scene
-         bool forward = true;
+         bool forward = false;
          if (forward) {
             renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
             renderContext.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
@@ -413,7 +413,12 @@ namespace Canvas3D {
       }
 
       private IBuffer<RenderJobDescription> PickInstancingBuffer(int sz) {
-         for (var i = 0; i <= _instancingBuffers.Count; i++) if (sz <= 1 << i) return _instancingBuffers[i];
+         for (var i = 0; i <= _instancingBuffers.Count; i++) {
+            var capacity = 1 << i;
+            if (sz <= capacity) {
+               return _instancingBuffers[i];
+            }
+         }
          throw new ArgumentOutOfRangeException();
       }
 

@@ -36,10 +36,9 @@ float4 commonComputeFragmentOutput(float3 P, float3 N, float3 base, float transp
    }
    else {
       // Traditional diffuse lighting (diffuse is base)
-      if (!shadowTestEnabled) {
+      [branch] if (!shadowTestEnabled) {
          colorAccumulator = base;
-      }
-      else {
+      } else {
          for (uint i = 0; i != numSpotlights; i++) {
             float3 lighting = computeSpotlightLighting(P, N, ShadowMaps, SpotlightDescriptions[i]);
             colorAccumulator += base * lighting;

@@ -11,7 +11,6 @@ struct PSInput {
    float4 position : SV_Position;
    float3 normalObject : NORMAL1;
    float3 normalWorld : NORMAL2;
-   float4 normal : NORMAL3;
    float4 color : COLOR;
    float2 uv : TEXCOORD;
 };
@@ -34,7 +33,6 @@ PSInput VSMain(
    result.position = mul(projView, positionWorld);
    result.normalObject = normal;
    result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
-   result.normal = normalize(mul(projView, normalWorld)); // must normalize in PS
    result.color = color;
    result.uv = uv;
 
@@ -48,10 +46,10 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float4 baseAndTransparency = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
    float3 base = baseAndTransparency.xyz;
    float transparency = baseAndTransparency.w;
-
+   
    float metallic, roughness;
    pbrMaterialProperties(input.positionWorld, metallic, roughness);
-
+   
    return commonComputeFragmentOutput(P, N, base, transparency, metallic, roughness);
 }
 

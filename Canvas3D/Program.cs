@@ -21,13 +21,13 @@ namespace Canvas3D {
          ) *
          MatrixCM.Translation(
             0.8f + 0.02f * layer,
-            0.9f + 0.4f * (float)Math.Sin((8 + 7 * layer) * Math.PI * i / CUBES_PER_LAYER),
+            0.5f + 0.3f * (float)Math.Sin((8 + 7 * layer) * Math.PI * i / CUBES_PER_LAYER),
             0) *
          MatrixCM.Scaling(0.2f / (float)Math.Sqrt(NUM_LAYERS)) *
          MatrixCM.RotationY(i)).ToArray();
 
       public static void Main(string[] args) {
-         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1920, 1080, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => {
             UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          };
@@ -50,8 +50,8 @@ namespace Canvas3D {
             renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI));
 
             // Draw center cube / sphere
-            renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Translation(0, 0.5f, 0));
-            //renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
+            //renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Translation(0, 0.5f, 0));
+            renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
@@ -74,7 +74,7 @@ namespace Canvas3D {
       private static void UpdateProjViewMatrix(Size clientSize) {
          var verticalFov = (float)Math.PI / 4;
          var aspect = clientSize.Width / (float)clientSize.Height;
-         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 0.1f, 100.0f);
+         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 1.0f, 100.0f);
          projView = proj * view;
 
          if (zfirst) {
