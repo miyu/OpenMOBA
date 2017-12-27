@@ -2,6 +2,7 @@
 #define __REGISTERS_HLSL__
 
 #include "input_typedefs.hlsl"
+#include "pbr_material_pack.hlsl"
 
 #define REG_SCENE_DATA b0
 #define REG_OBJECT_DATA b1
@@ -15,6 +16,7 @@
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4 cameraEye;
    float4x4 projView;
+   float4x4 projViewInv;
    int pbrEnabled;
    int shadowTestEnabled;
    int numSpotlights;
@@ -55,6 +57,13 @@ float4 SampleDiffuseMap(float2 texuv, float3 dir, float3 normal) {
    } else [branch] if (diffuseSamplingMode == 11) {
       float c = float(SampleDiffuseMapSecondDerivative(DiffuseMap, texuv));
       return float4(c, c, c, 1);
+   } else [branch] if (diffuseSamplingMode == 12) {
+      return float4(DiffuseMap.Sample(LinearSampler, texuv).xyz, 1.0f);
+   } else [branch] if (diffuseSamplingMode == 13) {
+      float material = DiffuseMap.Sample(LinearSampler, texuv).w;
+      float metallic, roughness;
+      pbrDeferredUnpackMaterial(material, metallic, roughness);
+      return float4(metallic, roughness, 0.0f, 1.0f);
    } else [branch] if (diffuseSamplingMode == 20) {
       return DiffuseCubeMap.Sample(LinearSampler, dir);
    } else [branch] if (diffuseSamplingMode == 21) {

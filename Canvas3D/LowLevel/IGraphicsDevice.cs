@@ -20,6 +20,7 @@ namespace Canvas3D.LowLevel {
 
       (IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateScreenSizeRenderTarget(int levels);
       (IDisposable, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution);
+      (IDepthStencilView, IShaderResourceView) CreateScreenSizeDepthTarget();
       (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution);
    }
 }

@@ -52,9 +52,6 @@
      <None Update="Assets\shaders\forward.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
-     <None Update="Assets\shaders\derivative.hlsl">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-     </None>
    </ItemGroup>
 
 </Project>

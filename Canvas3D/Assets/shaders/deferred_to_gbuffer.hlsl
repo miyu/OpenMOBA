@@ -35,17 +35,24 @@ PSInput VSMain(
    return result;
 }
 
-float4 PSMain_BaseColor(PSInput input) : SV_TARGET {
+struct PSOutput {
+   float4 baseColor : SV_TARGET0;
+   float4 normalMaterial : SV_TARGET1;
+};
+
+PSOutput PSMain(PSInput input) {
+   PSOutput result;
+
    // Color assumed to not have alpha (deferred can't do it well)
    float3 base = input.color.xyz * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz).xyz;
-   return float4(base, 1.0f);
-}
+   result.baseColor = float4(base, 1.0f);
 
-float4 PSMain_NormalAndMaterial(PSInput input) : SV_TARGET {
    float metallic, roughness;
    pbrMaterialProperties(input.positionWorld, metallic, roughness);
 
    float3 normal = normalize(input.normalWorld);
    float material = pbrDeferredPackMaterial(metallic, roughness);
-   return float4(normal, material);
+   result.normalMaterial = float4(normal, material);
+   
+   return result;
 }

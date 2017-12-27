@@ -42,7 +42,8 @@ namespace Canvas3D.LowLevel {
    public interface ITechniqueCollection {
       ITechnique Forward { get; }
       ITechnique ForwardDepthOnly { get; }
-      ITechnique Derivative { get; }
+      ITechnique DeferredToGBuffer { get; }
+      ITechnique DeferredFromGBuffer { get; }
    }
 
    public interface IMeshPresets {

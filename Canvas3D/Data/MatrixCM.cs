@@ -62,5 +62,14 @@ namespace Canvas3D {
          matrix.Transpose();
          return matrix;
       }
+
+      public static Matrix Invert(Matrix input) {
+         Matrix inverse;
+         input.Transpose();
+         Matrix.Invert(ref input, out inverse);
+         input.Transpose();
+         inverse.Transpose();
+         return inverse;
+      }
    }
 }

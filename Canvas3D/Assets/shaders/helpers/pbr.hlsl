@@ -1,6 +1,8 @@
 #ifndef __PBR_HLSL__
 #define __PBR_HLSL__
 
+#include "pbr_material_pack.hlsl"
+
 //-------------------------------------------------------------------------------------------------
 // See https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md
 //     http://www.codinglabs.net/article_physically_based_rendering_cook_torrance.aspx
@@ -139,10 +141,9 @@ void pbrMaterialProperties(float3 pWorld, out float metallic, out float roughnes
    if (pWorld.y < 0.01f) {
       metallic = 0.0f;
       roughness = 0.04f;
-   }
-   else if (length(pWorld - float3(0, 0.5f, 0)) <= 0.8f) {
+   } else if (length(pWorld - float3(0, 0.5f, 0)) <= 0.72f) {
       //metallic = 0.0f;
-      metallic = 0.0f;// 0.4f;
+      metallic = 1.0f;// 0.4f;
       roughness = 0.9f; 
       //roughness = 1.0f;
    }
@@ -176,23 +177,6 @@ float3 pbrComputeSpotlightDirectContribution(float3 P, float3 N, int spotlightIn
    float3 attenuation = computeSpotlightLighting(P, N, ShadowMaps, SpotlightDescriptions[spotlightIndex]);
    return unattenuatedLightContribution * attenuation;
 }
-
-// currently unused, though really just general-purpose packing.
-const float pbrPackResolution = 512;
-float pbrDeferredPackMaterial(float metallic, float roughness) {
-   float m = floor(metallic * (pbrPackResolution - 1));
-   float r = floor(roughness * (pbrPackResolution - 1));
-   return (m * pbrPackResolution + r) / (pbrPackResolution * pbrPackResolution);
-}
-
-void pbrDeferredUnpackMaterial(float material, float metallic, float roughness) {
-   float expanded = material * pbrPackResolution * pbrPackResolution;
-   float r = fmod(expanded, pbrPackResolution);
-   float m = (expanded - r) / pbrPackResolution;
-   metallic = saturate(m / (pbrPackResolution - 1));
-   roughness = saturate(r / (pbrPackResolution - 1));
-}
-
 
 float3 pbrEvaluateScene() {
 

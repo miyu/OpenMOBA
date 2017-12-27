@@ -11,23 +11,23 @@ namespace Canvas3D {
       private static Matrix projView;
 
       private const int NUM_LAYERS = 100;
-      private const int CUBES_PER_LAYER = 100;
+      private const int CUBES_PER_LAYER = 1000;
       private static readonly Matrix[] cubeDefaultTransforms = (
          from layer in Enumerable.Range(0, NUM_LAYERS)
          from i in Enumerable.Range(0, CUBES_PER_LAYER)
          select
          MatrixCM.RotationY(
-            2 * (float)Math.PI * i / CUBES_PER_LAYER + layer * i + layer
+            2 * (float)Math.PI * i / CUBES_PER_LAYER + (layer + 1) * i + layer
          ) *
          MatrixCM.Translation(
-            0.8f + 0.2f * (float)Math.Pow(layer, 0.5f),
+            0.8f + 0.02f * layer,
             0.9f + 0.4f * (float)Math.Sin((8 + 7 * layer) * Math.PI * i / CUBES_PER_LAYER),
             0) *
          MatrixCM.Scaling(0.2f / (float)Math.Sqrt(NUM_LAYERS)) *
          MatrixCM.RotationY(i)).ToArray();
 
       public static void Main(string[] args) {
-         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.EnableDebugStats);
+         var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1920, 1080, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => {
             UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          };
@@ -50,8 +50,8 @@ namespace Canvas3D {
             renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI));
 
             // Draw center cube / sphere
-            //renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Translation(0, 0.5f, 0));
-            renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
+            renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Translation(0, 0.5f, 0));
+            //renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
@@ -70,11 +70,37 @@ namespace Canvas3D {
          }
       }
 
+      private static bool zfirst = true;
       private static void UpdateProjViewMatrix(Size clientSize) {
          var verticalFov = (float)Math.PI / 4;
          var aspect = clientSize.Width / (float)clientSize.Height;
          var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 0.1f, 100.0f);
          projView = proj * view;
+
+         if (zfirst) {
+            zfirst = false;
+            var lookat = new Vector3(0, 0.5f, 0);
+            //var pos = new Vector4(lookat + 0.1f * (cameraEye - lookat), 1);//new Vector4(1, 2, 3, 1);
+            var pos = new Vector4(0.5f, 1.0f, 0.5f, 1);
+            var projViewRm = projView;
+            projViewRm.Transpose();
+            var homogeneous = Vector4.Transform(pos, projViewRm);
+            Console.WriteLine("pos: " + pos);
+            Console.WriteLine("posh: " + homogeneous);
+            homogeneous /= homogeneous.W;
+            Console.WriteLine("poshn: " + homogeneous);
+            var projViewRmInv = projViewRm;
+            projViewRmInv.Invert();
+            Console.WriteLine();
+            Console.WriteLine(projViewRmInv * projViewRm);
+            Console.WriteLine();
+            Console.WriteLine(projViewRm * projViewRmInv);
+            Console.WriteLine();
+            var x = Vector4.Transform(homogeneous, projViewRmInv);
+            Console.WriteLine(x);
+            x /= x.W;
+            Console.WriteLine(x);
+         }
       }
    }
 }

@@ -21,6 +21,7 @@ using Resource = SharpDX.Direct3D11.Resource;
 namespace Canvas3D.LowLevel.Direct3D {
    public class Direct3DGraphicsDevice : IGraphicsDevice {
       private const int BackBufferCount = 2;
+      private static readonly Size kUninitializedBackBufferSize = new Size(16, 16);
 
       // Lifetime Resources
       private readonly RenderForm _form; // don't dispose
@@ -30,10 +31,11 @@ namespace Canvas3D.LowLevel.Direct3D {
       // Swap Chain + Screen-Size Buffers + Resizing
       private Size _renderSize;
       private Texture2D _backBufferRenderTargetTexture;
-      private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox();
+      private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox { Resolution = kUninitializedBackBufferSize };
       private Texture2D _backBufferDepthTexture;
-      private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox();
+      private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox { Resolution = kUninitializedBackBufferSize };
       private readonly List<(Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])> _screenSizeRenderTargets = new List<(Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])>();
+      private readonly List<(Texture2D, DepthStencilViewBox, ShaderResourceViewBox)> _screenSizeDepthStencilTargets = new List<(Texture2D, DepthStencilViewBox, ShaderResourceViewBox)>();
       private bool _isResizeTriggered;
 
       // Subsystems
@@ -210,11 +212,22 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
          return (texture, rtvs, srv, srvs);
       }
-      
+
+      public (IDepthStencilView, IShaderResourceView) CreateScreenSizeDepthTarget() {
+         var (texture, dsvs, srv, srvs) = CreateDepthTextureAndViewsInternal(1, _backBufferDepthView.Resolution);
+         srv.ShaderResourceView.Dispose();
+         _screenSizeDepthStencilTargets.Add((texture, dsvs[0], srvs[0]));
+         return (dsvs[0], srvs[0]);
+      }
+
       public (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution) {
+         return CreateDepthTextureAndViewsInternal(levels, resolution);
+      }
+
+      private (Texture2D, DepthStencilViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateDepthTextureAndViewsInternal(int levels, Size resolution) {
          var texture = new Texture2D(_device,
             new Texture2DDescription {
-               Format = Format.R16_Typeless,
+               Format = Format.R32_Typeless,
                ArraySize = levels,
                MipLevels = 1,
                Width = resolution.Width,
@@ -225,12 +238,12 @@ namespace Canvas3D.LowLevel.Direct3D {
                CpuAccessFlags = CpuAccessFlags.None,
                OptionFlags = ResourceOptionFlags.None
             });
-         var dsvs = new IDepthStencilView[levels];
+         var dsvs = new DepthStencilViewBox[levels];
          for (var i = 0; i < levels; i++) {
             dsvs[i] = new DepthStencilViewBox {
                DepthStencilView = new DepthStencilView(_device, texture,
                   new DepthStencilViewDescription {
-                     Format = Format.D16_UNorm,
+                     Format = Format.D32_Float,
                      Dimension = DepthStencilViewDimension.Texture2DArray,
                      Texture2DArray = {
                         ArraySize = 1,
@@ -244,7 +257,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          var srv = new ShaderResourceViewBox {
             ShaderResourceView = new ShaderResourceView(_device, texture,
                new ShaderResourceViewDescription {
-                  Format = Format.R16_UNorm,
+                  Format = Format.R32_Float,
                   Dimension = ShaderResourceViewDimension.Texture2DArray,
                   Texture2DArray = {
                      MipLevels = 1,
@@ -255,12 +268,12 @@ namespace Canvas3D.LowLevel.Direct3D {
                })
          };
 
-         var srvs = new IShaderResourceView[levels];
+         var srvs = new ShaderResourceViewBox[levels];
          for (var i = 0; i < levels; i++) {
             srvs[i] = new ShaderResourceViewBox {
                ShaderResourceView = new ShaderResourceView(_device, texture,
                   new ShaderResourceViewDescription {
-                     Format = Format.R16_UNorm,
+                     Format = Format.R32_Float,
                      Dimension = ShaderResourceViewDimension.Texture2DArray,
                      Texture2DArray = {
                         MipLevels = 1,
@@ -289,13 +302,29 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          if (isFirstInitialize) {
             _immediateContext.SetRenderTargets(_backBufferDepthView, _backBufferRenderTargetView);
-         } else {
-            _immediateContext.HandleBackBufferResized(_backBufferRenderTargetView, _backBufferDepthView);
          }
+         _immediateContext.HandleBackBufferResized(_backBufferDepthView, _backBufferRenderTargetView);
 
          for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
             var (tex, rtvs, srv, srvs) = _screenSizeRenderTargets[i];
             var (newTex, newRtvs, newSrv, newSrvs) = CreateRenderTargetInternal(rtvs.Length, renderSize);
+            Utilities.Dispose(ref tex);
+            for (var layer = 0; layer < rtvs.Length; layer++) {
+               rtvs[layer].MoveAssignFrom(newRtvs[layer]);
+               srvs[layer].MoveAssignFrom(newSrvs[layer]);
+            }
+            srv.MoveAssignFrom(newSrv);
+            _screenSizeRenderTargets[i] = (newTex, rtvs, srv, srvs);
+         }
+
+         for (var i = 0; i < _screenSizeDepthStencilTargets.Count; i++) {
+            var (tex, dsv, srv) = _screenSizeDepthStencilTargets[i];
+            var (newTex, newDsvs, newSrv, newSrvs) = CreateDepthTextureAndViewsInternal(1, renderSize);
+            Utilities.Dispose(ref tex);
+            Utilities.Dispose(ref newSrv.ShaderResourceView);
+            dsv.MoveAssignFrom(newDsvs[0]);
+            srv.MoveAssignFrom(newSrvs[0]);
+            _screenSizeDepthStencilTargets[i] = (newTex, dsv, srv);
          }
       }
 
@@ -512,18 +541,40 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      private class DepthStencilViewBox : IDepthStencilView {
+      internal class DepthStencilViewBox : IDepthStencilView {
          public DepthStencilView DepthStencilView;
          public Size Resolution { get; set; }
+
+         public void MoveAssignFrom(DepthStencilViewBox other) {
+            Utilities.Dispose(ref DepthStencilView);
+            DepthStencilView = other.DepthStencilView;
+            other.DepthStencilView = null;
+            Resolution = other.Resolution;
+            other.Resolution = new Size(-1, -1);
+         }
       }
 
-      private class RenderTargetViewBox : IRenderTargetView {
+      internal class RenderTargetViewBox : IRenderTargetView {
          public RenderTargetView RenderTargetView;
          public Size Resolution { get; set; }
+
+         public void MoveAssignFrom(RenderTargetViewBox other) {
+            Utilities.Dispose(ref RenderTargetView);
+            RenderTargetView = other.RenderTargetView;
+            other.RenderTargetView = null;
+            Resolution = other.Resolution;
+            other.Resolution = new Size(-1, -1);
+         }
       }
 
       private class ShaderResourceViewBox : IShaderResourceView {
          public ShaderResourceView ShaderResourceView;
+
+         public void MoveAssignFrom(ShaderResourceViewBox other) {
+            Utilities.Dispose(ref ShaderResourceView);
+            ShaderResourceView = other.ShaderResourceView;
+            other.ShaderResourceView = null;
+         }
       }
 
       private class PixelShaderBox : IPixelShader {
@@ -545,17 +596,17 @@ namespace Canvas3D.LowLevel.Direct3D {
          public Texture2D Texture;
       }
 
-      public class BaseRenderContext : IRenderContext, IDisposable {
+      internal class BaseRenderContext : IRenderContext, IDisposable {
          protected DeviceContext _deviceContext;
          protected RenderStates _renderStates;
 
          protected bool _isVsyncEnabled = true;
          protected DepthConfiguration _currentDepthConfiguration;
          protected RasterizerConfiguration _currentRasterizerConfiguration;
-         protected IDepthStencilView _currentDepthStencilView;
-         protected IRenderTargetView _currentRenderTargetView;
+         protected DepthStencilViewBox _currentDepthStencilView;
+         protected RenderTargetViewBox[] _currentRenderTargetViews = new RenderTargetViewBox[4];
+         protected RenderTargetView[] _preallocatedRtvArray = new RenderTargetView[4];
          protected RectangleF _currentViewportRect;
-
 
          public BaseRenderContext(DeviceContext deviceContext, RenderStates renderStates) {
             _deviceContext = deviceContext;
@@ -603,31 +654,49 @@ namespace Canvas3D.LowLevel.Direct3D {
             }
          }
 
-         public void GetRenderTargets(out IDepthStencilView dsv, out IRenderTargetView rtv) {
-            dsv = _currentDepthStencilView;
-            rtv = _currentRenderTargetView;
-         }
+         public void SetRenderTargets(IDepthStencilView depthStencilView, IRenderTargetView renderTargetView0, IRenderTargetView renderTargetView1 = null, IRenderTargetView renderTargetView2 = null, IRenderTargetView renderTargetView3 = null) {
+            var dsv = (DepthStencilViewBox)depthStencilView;
+            var rtv0 = (RenderTargetViewBox)renderTargetView0;
+            var rtv1 = (RenderTargetViewBox)renderTargetView1;
+            var rtv2 = (RenderTargetViewBox)renderTargetView2;
+            var rtv3 = (RenderTargetViewBox)renderTargetView3;
 
-         public void SetRenderTargets(IDepthStencilView dsvBox, IRenderTargetView rtvBox) {
-            if (_currentDepthStencilView == dsvBox && _currentRenderTargetView == rtvBox) {
+            if (_currentDepthStencilView == dsv &&
+                _currentRenderTargetViews[0] == rtv0 &&
+                _currentRenderTargetViews[1] == rtv1 &&
+                _currentRenderTargetViews[2] == rtv2 &&
+                _currentRenderTargetViews[3] == rtv3) {
                return;
             }
 
-            _currentDepthStencilView = dsvBox;
-            _currentRenderTargetView = rtvBox;
+            _currentDepthStencilView = dsv;
+            _currentRenderTargetViews[0] = rtv0;
+            _currentRenderTargetViews[1] = rtv1;
+            _currentRenderTargetViews[2] = rtv2;
+            _currentRenderTargetViews[3] = rtv3;
 
             UpdateRenderTargetsInternal();
          }
 
          protected void UpdateRenderTargetsInternal() {
-            var depthStencilView = ((DepthStencilViewBox)_currentDepthStencilView)?.DepthStencilView;
-            var renderTargetView = ((RenderTargetViewBox)_currentRenderTargetView)?.RenderTargetView;
-            _deviceContext.OutputMerger.SetRenderTargets(depthStencilView, renderTargetView);
+            var depthStencilView = _currentDepthStencilView?.DepthStencilView;
+            _preallocatedRtvArray[0] = _currentRenderTargetViews[0]?.RenderTargetView;
+            _preallocatedRtvArray[1] = _currentRenderTargetViews[1]?.RenderTargetView;
+            _preallocatedRtvArray[2] = _currentRenderTargetViews[2]?.RenderTargetView;
+            _preallocatedRtvArray[3] = _currentRenderTargetViews[3]?.RenderTargetView;
+            _deviceContext.OutputMerger.SetRenderTargets(depthStencilView, _preallocatedRtvArray);
          }
 
-         public void ClearRenderTarget(Color color) {
-            var renderTargetView = ((RenderTargetViewBox)_currentRenderTargetView).RenderTargetView;
+         public void ClearRenderTarget(Color4 color) {
+            var renderTargetView = _currentRenderTargetViews[0].RenderTargetView;
             _deviceContext.ClearRenderTargetView(renderTargetView, color);
+         }
+
+         public void ClearRenderTargets(Color4? c0 = null, Color4? c1 = null, Color4? c2 = null, Color4? c3 = null) {
+            if (c0.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[0].RenderTargetView, c0.Value);
+            if (c1.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[1].RenderTargetView, c1.Value);
+            if (c2.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[2].RenderTargetView, c2.Value);
+            if (c3.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[3].RenderTargetView, c3.Value);
          }
 
          public void ClearDepthBuffer(float depth) {
@@ -681,10 +750,10 @@ namespace Canvas3D.LowLevel.Direct3D {
          public void SetShaderResource(int slot, IShaderResourceView view, RenderStage stages) {
             var box = (ShaderResourceViewBox)view;
             if ((stages & RenderStage.Pixel) != 0) {
-               _deviceContext.PixelShader.SetShaderResource(slot, box.ShaderResourceView);
+               _deviceContext.PixelShader.SetShaderResource(slot, box?.ShaderResourceView);
             }
             if ((stages & RenderStage.Vertex) != 0) {
-               _deviceContext.VertexShader.SetShaderResource(slot, box.ShaderResourceView);
+               _deviceContext.VertexShader.SetShaderResource(slot, box?.ShaderResourceView);
             }
          }
 
@@ -724,13 +793,27 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       private class ImmediateRenderContext : BaseRenderContext, IImmediateRenderContext {
          private readonly SwapChain _swapChain;
+         private DepthStencilViewBox _backBufferDepthView;
+         private RenderTargetViewBox _backBufferRenderTargetView;
 
          public ImmediateRenderContext(DeviceContext deviceContext, RenderStates renderStates, SwapChain swapChain) : base(deviceContext, renderStates) {
             _swapChain = swapChain;
          }
 
-         public void HandleBackBufferResized(RenderTargetViewBox backBufferRenderTargetView, DepthStencilViewBox backBufferDepthView) {
-            if (_currentRenderTargetView == backBufferRenderTargetView || _currentDepthStencilView == backBufferDepthView) {
+         public void GetBackBufferViews(out IDepthStencilView dsv, out IRenderTargetView rtv) {
+            dsv = _backBufferDepthView;
+            rtv = _backBufferRenderTargetView;
+         }
+
+         public void HandleBackBufferResized(DepthStencilViewBox backBufferDepthView, RenderTargetViewBox backBufferRenderTargetView) {
+            _backBufferRenderTargetView = backBufferRenderTargetView;
+            _backBufferDepthView = backBufferDepthView;
+
+            if (_currentRenderTargetViews[0] == backBufferRenderTargetView ||
+                _currentRenderTargetViews[1] == backBufferRenderTargetView ||
+                _currentRenderTargetViews[2] == backBufferRenderTargetView ||
+                _currentRenderTargetViews[3] == backBufferRenderTargetView ||
+                _currentDepthStencilView == backBufferDepthView) {
                UpdateRenderTargetsInternal();
             }
          }
@@ -744,7 +827,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      public class DeferredRenderContext : BaseRenderContext, IDeferredRenderContext {
+      private class DeferredRenderContext : BaseRenderContext, IDeferredRenderContext {
          private readonly Direct3DGraphicsDevice _graphicsDevice;
 
          public DeferredRenderContext(Direct3DGraphicsDevice graphicsDevice, DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) {
@@ -830,7 +913,8 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public ITechnique Forward { get; private set; }
          public ITechnique ForwardDepthOnly { get; private set; }
-         public ITechnique Derivative { get; private set; }
+         public ITechnique DeferredToGBuffer { get; private set; }
+         public ITechnique DeferredFromGBuffer { get; private set; }
 
          public static Direct3DTechniqueCollection Create(ILowLevelAssetManager lowLevelAssetManager) {
             var collection = new Direct3DTechniqueCollection();
@@ -844,11 +928,16 @@ namespace Canvas3D.LowLevel.Direct3D {
                PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
                VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
-            //collection.Derivative = new Technique {
-            //   Passes = 1,
-            //   PixelShader = assetManager.LoadPixelShaderFromFile("shaders/derivative", "PSMain"),
-            //   VertexShader = assetManager.LoadVertexShaderFromFile("shaders/derivative", InputLayoutType.PositionNormalColorTexture, "VSMain")
-            //};
+            collection.DeferredToGBuffer = new Technique {
+               Passes = 1,
+               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/deferred_to_gbuffer", "PSMain"),
+               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/deferred_to_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
+            };
+            collection.DeferredFromGBuffer = new Technique {
+               Passes = 1,
+               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/deferred_from_gbuffer", "PSMain"),
+               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/deferred_from_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
+            };
             return collection;
          }
 
