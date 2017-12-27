@@ -141,7 +141,7 @@ void pbrMaterialProperties(float3 pWorld, out float metallic, out float roughnes
    if (pWorld.y < 0.01f) {
       metallic = 0.0f;
       roughness = 0.04f;
-   } else if (length(pWorld - float3(0, 0.5f, 0)) <= 0.72f) {
+   } else if (length(pWorld - float3(0, 0.5f, 0)) <= 0.73f) {
       //metallic = 0.0f;
       metallic = 1.0f;// 0.4f;
       roughness = 0.9f; 

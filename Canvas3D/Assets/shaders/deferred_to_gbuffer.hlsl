@@ -50,7 +50,7 @@ PSOutput PSMain(PSInput input) {
    float metallic, roughness;
    pbrMaterialProperties(input.positionWorld, metallic, roughness);
 
-   float3 normal = normalize(input.normalWorld);
+   float3 normal = (normalize(input.normalWorld) + 1) / 2; // could compress normalized vector by omitting one component
    float material = pbrDeferredPackMaterial(metallic, roughness);
    result.normalMaterial = float4(normal, material);
    

@@ -46,9 +46,15 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float3 base = BaseColorMap.Sample(PointSampler, input.uv).xyz;
    float transparency = 1.0f;
    float4 normalAndMaterial = NormalMaterialMap.Sample(PointSampler, input.uv);
-   float3 N = normalAndMaterial.xyz;
-   float metallic, roughness;
-   pbrDeferredUnpackMaterial(normalAndMaterial.w, metallic, roughness);
+   float3 N = (normalAndMaterial.xyz * 2) - 1;
    
-   return depth > 0.998f ? float4(0.2, 0.2, 0.2, 1) : commonComputeFragmentOutput(P, N, base, transparency, metallic, roughness);
+   float metallic, roughness;
+   //pbrDeferredUnpackMaterial(normalAndMaterial.w, metallic, roughness);
+   pbrMaterialProperties(P, metallic, roughness);
+   //if (length(P - float3(0, 0.5f, 0)) <= 0.73f) {
+   //   //N = normalize(P - float3(0, 0.5f, 0));
+   //}
+   //return float4(metallic, roughness, 0, 1);
+   
+   return depth > 0.999f ? float4(0.2, 0.2, 0.2, 1) : commonComputeFragmentOutput(P, N, base, transparency, metallic, roughness);
 }
