@@ -151,7 +151,8 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       private (Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateRenderTargetInternal(int levels, Size resolution) {
-         var format = Format.R16G16B16A16_UNorm;
+         bool hq = false;
+         var format = hq ? Format.R32G32B32A32_Float : Format.R16G16B16A16_UNorm;
          var texture = new Texture2D(_device,
             new Texture2DDescription {
                Format = format,
@@ -446,6 +447,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                   new InputElement("INSTANCE_TRANSFORM", 1, Format.R32G32B32A32_Float, 16, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_TRANSFORM", 2, Format.R32G32B32A32_Float, 32, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_TRANSFORM", 3, Format.R32G32B32A32_Float, 48, 1, InputClassification.PerInstanceData, 1),
+                  new InputElement("INSTANCE_MATERIAL_INDEX", 0, Format.R32_SInt, 64, 1, InputClassification.PerInstanceData, 1)
                });
             }
             throw new NotSupportedException("Unsupported Input Layout: " + vertexLayout);

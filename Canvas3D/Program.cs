@@ -11,7 +11,7 @@ namespace Canvas3D {
       private static Matrix projView;
 
       private const int NUM_LAYERS = 100;
-      private const int CUBES_PER_LAYER = 1000;
+      private const int CUBES_PER_LAYER = 10 ;
       private static readonly Matrix[] cubeDefaultTransforms = (
          from layer in Enumerable.Range(0, NUM_LAYERS)
          from i in Enumerable.Range(0, CUBES_PER_LAYER)
@@ -37,7 +37,8 @@ namespace Canvas3D {
          floatingCubesBatch.Mesh = graphicsLoop.AssetManager.GetPresetMesh(MeshPreset.UnitCube);
          foreach (var transform in cubeDefaultTransforms) {
             floatingCubesBatch.Jobs.Add(new RenderJobDescription {
-               WorldTransform = transform
+               WorldTransform = transform,
+               MaterialIndex = -1
             });
          }
 
@@ -47,14 +48,23 @@ namespace Canvas3D {
             renderer.SetCamera(cameraEye, projView);
 
             // Draw floor
-            renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI));
+            renderer.AddRenderable(
+               MeshPreset.UnitCube,
+               MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
+               new MaterialDescription { Metallic = 0.0f, Roughness = 0.04f });
 
             // Draw center cube / sphere
-            //renderer.AddRenderable(MeshPreset.UnitCube, MatrixCM.Translation(0, 0.5f, 0));
-            renderer.AddRenderable(MeshPreset.UnitSphere, MatrixCM.Translation(0, 0.5f, 0) * MatrixCM.Scaling(0.5f));
+            renderer.AddRenderable(
+               false ? MeshPreset.UnitCube : MeshPreset.UnitSphere, 
+               MatrixCM.Translation(0, 0.5f, 0),
+               new MaterialDescription { Metallic = 1.0f, Roughness = 0.8f });
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
+            floatingCubesBatch.MaterialIndexOverride = renderer.AddMaterial(new MaterialDescription {
+               Metallic = 0.0f,
+               Roughness = 0.04f
+            });
             renderer.AddRenderJobBatch(floatingCubesBatch);
 
             // Add spotlights

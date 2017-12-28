@@ -1,5 +1,6 @@
 ﻿#include "helpers/lighting.hlsl"
 #include "helpers/pbr.hlsl"
+#include "helpers/material_pack.hlsl"
 #include "common.hlsl"
 
 Texture2D BaseColorMap : register(t0);
@@ -16,7 +17,8 @@ PSInput VSMain(
    float3 normal : NORMAL,
    float4 color : COLOR,
    float2 uv : TEXCOORD,
-   float4x4 world : INSTANCE_TRANSFORM
+   float4x4 world : INSTANCE_TRANSFORM,
+   int material : INSTANCE_MATERIAL_INDEX
 ) {
    PSInput result;
 
@@ -40,7 +42,7 @@ float3 computeWorldFromUvAndZ(float2 uv, float z) {
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-   float depth = DepthMap.Sample(PointSampler, input.uv).x - 0.0005f;
+   float depth = DepthMap.Sample(PointSampler, input.uv).x - 0.00005f;
    float3 P = computeWorldFromUvAndZ(input.uv, depth);
 
    float3 base = BaseColorMap.Sample(PointSampler, input.uv).xyz;
@@ -48,9 +50,12 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float4 normalAndMaterial = NormalMaterialMap.Sample(PointSampler, input.uv);
    float3 N = (normalAndMaterial.xyz * 2) - 1;
    
-   float metallic, roughness;
-   //pbrDeferredUnpackMaterial(normalAndMaterial.w, metallic, roughness);
-   pbrMaterialProperties(P, metallic, roughness);
+   int materialIndex = floor(normalAndMaterial.w * 1024);
+   float metallic = MaterialDescriptions[materialIndex].metallic;
+   float roughness = MaterialDescriptions[materialIndex].roughness;
+   //float metallic, roughness;
+   //unpackMaterial(normalAndMaterial.w, metallic, roughness);
+   //pbrMaterialProperties(P, metallic, roughness);
    //if (length(P - float3(0, 0.5f, 0)) <= 0.73f) {
    //   //N = normalize(P - float3(0, 0.5f, 0));
    //}

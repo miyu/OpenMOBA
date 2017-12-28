@@ -9,7 +9,8 @@ PSInput VSMain(
    float3 normal : NORMAL,
    float4 color : COLOR,
    float2 uv : TEXCOORD,
-   float4x4 world : INSTANCE_TRANSFORM
+   float4x4 world : INSTANCE_TRANSFORM,
+   int material : INSTANCE_MATERIAL_INDEX
 ) {
    PSInput result;
 

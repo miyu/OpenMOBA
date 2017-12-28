@@ -20,8 +20,11 @@ namespace Canvas3D {
    public interface IRenderer3D {
       void ClearScene();
       void SetCamera(Vector3 cameraEye, Matrix projView);
-      void AddRenderable(MeshPreset preset, Matrix worldCm);
-      void AddRenderable(IMesh mesh, Matrix worldCm);
+      int AddMaterial(MaterialDescription desc);
+      void AddRenderable(MeshPreset preset, Matrix worldCm, int materialIndex);
+      void AddRenderable(MeshPreset preset, Matrix worldCm, MaterialDescription materialDescription);
+      void AddRenderable(IMesh mesh, Matrix worldCm, int materialIndex);
+      void AddRenderable(IMesh mesh, Matrix worldCm, MaterialDescription materialDescription);
       void AddRenderable(IMesh mesh, RenderJobDescription info);
       void AddRenderJobBatch(RenderJobBatch batch);
       void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f);
@@ -40,6 +43,8 @@ namespace Canvas3D {
       }
 
       private const int kShadowMapWidthHeight = 256;
+      private const int kMaterialLimit = 16384;
+      private const int kBatchNoMaterialIndexOverride = -1;
 
       private readonly Device _d3d;
       private readonly IGraphicsDevice _graphicsDevice;
@@ -51,8 +56,12 @@ namespace Canvas3D {
       private readonly IShaderResourceView[] _gBufferSrvs;
       private readonly IDepthStencilView _gBufferDsv;
       private readonly IShaderResourceView _gBufferDepthSrv;
-      private readonly IBuffer<SpotlightDescription> _shadowMapEntriesBuffer;
-      private readonly IShaderResourceView _shadowMapEntriesBufferSrv;
+
+      private readonly IBuffer<SpotlightDescription> _spotlightDescriptionsBuffer;
+      private readonly IShaderResourceView _spotlightDescriptionsBufferSrv;
+      private readonly IBuffer<MaterialDescription> _materialDescriptionsBuffer;
+      private readonly IShaderResourceView _materialDescriptionsBufferSrv;
+
       private readonly IDepthStencilView[] _lightDepthStencilViews;
       private readonly IDisposable _lightDepthTexture;
       private readonly IShaderResourceView _lightShaderResourceView;
@@ -67,9 +76,12 @@ namespace Canvas3D {
       private readonly IShaderResourceView _limeTextureShaderResourceView;
       private readonly ITexture2D _flatColoredCubeMap;
       private readonly IShaderResourceView _flatColoredCubeMapShaderResourceView;
+
+      private readonly StructArrayList<MaterialDescription> materials = new StructArrayList<MaterialDescription>();
       private readonly Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
       private readonly List<RenderJobBatch> renderJobBatches = new List<RenderJobBatch>();
       private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
+
       private Vector3 _cameraEye;
       private Matrix _projView, _projViewInv;
 
@@ -84,10 +96,11 @@ namespace Canvas3D {
          for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) {
             _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
          }
-
+         
          (_gBufferRtvs, _gBufferSrv, _gBufferSrvs) = _graphicsDevice.CreateScreenSizeRenderTarget(2);
          (_gBufferDsv, _gBufferDepthSrv) = _graphicsDevice.CreateScreenSizeDepthTarget();
-         (_shadowMapEntriesBuffer, _shadowMapEntriesBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<SpotlightDescription>(256);
+         (_spotlightDescriptionsBuffer, _spotlightDescriptionsBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<SpotlightDescription>(256);
+         (_materialDescriptionsBuffer, _materialDescriptionsBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<MaterialDescription>(kMaterialLimit);
          (_lightDepthTexture, _lightDepthStencilViews, _lightShaderResourceView, _lightShaderResourceViews) = _graphicsDevice.CreateDepthTextureAndViews(10, new Size(kShadowMapWidthHeight, kShadowMapWidthHeight));
 
          var lowLevelAssetManager = _graphicsDevice.LowLevelAssetManager;
@@ -113,6 +126,7 @@ namespace Canvas3D {
       }
 
       public void ClearScene() {
+         materials.Clear();
          renderJobBatches.Clear();
          foreach (var kvp in defaultRenderJobBatchesByMesh) {
             kvp.Value.Jobs.Clear();
@@ -127,14 +141,28 @@ namespace Canvas3D {
          _projViewInv = Matrix.Invert(projView);
       }
 
-      public void AddRenderable(MeshPreset preset, Matrix worldCm) {
-         AddRenderable(GetPresetMesh(preset), worldCm);
+      public int AddMaterial(MaterialDescription desc) {
+         materials.Add(desc);
+         return materials.Count - 1;
       }
 
-      public void AddRenderable(IMesh mesh, Matrix worldCm) {
+      public void AddRenderable(MeshPreset preset, Matrix worldCm, int materialIndex) {
+         AddRenderable(GetPresetMesh(preset), worldCm, materialIndex);
+      }
+
+      public void AddRenderable(MeshPreset preset, Matrix worldCm, MaterialDescription material) {
+         AddRenderable(GetPresetMesh(preset), worldCm, AddMaterial(material));
+      }
+
+      public void AddRenderable(IMesh mesh, Matrix worldCm, int materialIndex) {
          AddRenderable(mesh, new RenderJobDescription {
-            WorldTransform = worldCm
+            WorldTransform = worldCm,
+            MaterialIndex = materialIndex,
          });
+      }
+
+      public void AddRenderable(IMesh mesh, Matrix worldCm, MaterialDescription material) {
+         AddRenderable(mesh, worldCm, AddMaterial(material));
       }
 
       public void AddRenderable(IMesh mesh, RenderJobDescription info) {
@@ -236,7 +264,7 @@ namespace Canvas3D {
                renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
 
                foreach (var batch in renderJobBatches) {
-                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0);
+                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0, batch.MaterialIndexOverride);
                   var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
                   
                   renderContext.SetVertexBuffer(1, instancingBuffer);
@@ -247,7 +275,8 @@ namespace Canvas3D {
          }
 
          // Prepare for scene render
-         renderContext.Update(_shadowMapEntriesBuffer, (IntPtr)spotlightDescriptions, spotlightInfos.Count);
+         renderContext.Update(_materialDescriptionsBuffer, materials.store, 0, materials.Count);
+         renderContext.Update(_spotlightDescriptionsBuffer, (IntPtr)spotlightDescriptions, spotlightInfos.Count);
 
          // Draw Scene
          bool forward = false;
@@ -264,14 +293,15 @@ namespace Canvas3D {
                renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
                renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
                renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(11, _shadowMapEntriesBufferSrv, RenderStage.Pixel);
+               renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+               renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
                foreach (var batch in renderJobBatches) {
                   if (batch.Jobs.Count > 100)
                      renderContext.SetShaderResource(1, _flatColoredCubeMapShaderResourceView, RenderStage.Pixel);
                   else
                      renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
 
-                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal);
+                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal, batch.MaterialIndexOverride);
                   var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
 
                   renderContext.SetVertexBuffer(1, instancingBuffer);
@@ -296,14 +326,15 @@ namespace Canvas3D {
                renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
                renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
                renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(11, _shadowMapEntriesBufferSrv, RenderStage.Pixel);
+               renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+               renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
                foreach (var batch in renderJobBatches) {
                   if (batch.Jobs.Count > 100)
                      renderContext.SetShaderResource(1, _flatColoredCubeMapShaderResourceView, RenderStage.Pixel);
                   else
                      renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
 
-                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal);
+                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal, batch.MaterialIndexOverride);
                   var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
 
                   renderContext.SetVertexBuffer(1, instancingBuffer);
@@ -319,19 +350,24 @@ namespace Canvas3D {
 
             for (var pass = 0; pass < Techniques.DeferredFromGBuffer.Passes; pass++) {
                Techniques.DeferredFromGBuffer.BeginPass(renderContext, pass);
+
+               renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+               renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+               renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
+
                var (proj, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, 0, backBufferDepthStencilView.Resolution.Width, backBufferDepthStencilView.Resolution.Height, -2.0f);
                UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
-               UpdateBatchConstantBuffer(renderContext, proj, 0);
+               UpdateBatchConstantBuffer(renderContext, proj, 0, kBatchNoMaterialIndexOverride);
                DrawScreenQuad(renderContext, world, _gBufferSrvs[0], _gBufferSrvs[1], _gBufferDepthSrv);
             }
          }
 
          // draw depth texture
          for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
-            break;
             const int pipScale = 128; // height
             Techniques.Forward.BeginPass(renderContext, pass);
-            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVGrayscaleDerivative);
+
+            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVGrayscaleDerivative, kBatchNoMaterialIndexOverride);
             Matrix projView, world;
             for (var i = 0; i < 2; i++) {
                (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, pipScale * i, 0, pipScale, pipScale);
@@ -341,22 +377,22 @@ namespace Canvas3D {
 
             var pipGBufferWidth = pipScale * backBufferRenderTargetView.Resolution.Width / backBufferRenderTargetView.Resolution.Height;
 
-            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha);
+            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, pipScale, pipGBufferWidth, pipScale);
             UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferSrvs[0]);
 
-            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha);
+            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, pipGBufferWidth, pipScale, pipGBufferWidth, pipScale);
             UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferSrvs[1]);
 
-            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVUnpackMaterialW);
+            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVUnpackMaterialW, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, pipScale * 2, pipGBufferWidth, pipScale);
             UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferSrvs[1]);
 
-            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVGrayscaleDerivative);
+            UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVGrayscaleDerivative, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, pipGBufferWidth, pipScale * 2, pipGBufferWidth, pipScale);
             UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferDepthSrv);
@@ -402,13 +438,13 @@ namespace Canvas3D {
          });
       }
 
-      private void UpdateBatchConstantBuffer(IRenderContext renderContext, Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode) {
+      private void UpdateBatchConstantBuffer(IRenderContext renderContext, Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode, int batchMaterialIndexOverride) {
          renderContext.Update(_batchBuffer, new BatchConstantBufferData {
             batchTransform = batchTransform,
             diffuseSamplingMode = (int)diffuseSamplingMode,
+            batchMaterialIndexOverride = batchMaterialIndexOverride,
             padding0 = 0,
             padding1 = 0,
-            padding2 = 0
          });
       }
 
@@ -463,7 +499,8 @@ namespace Canvas3D {
       private struct BatchConstantBufferData {
          public Matrix batchTransform;
          public int diffuseSamplingMode;
-         public int padding0, padding1, padding2;
+         public int batchMaterialIndexOverride; // -1 default
+         public int padding0, padding1;
 
          public const int Size = 64 + 4 + 12;
       }
@@ -505,18 +542,22 @@ namespace Canvas3D {
       public Matrix BatchTransform = Matrix.Identity;
       public StructArrayList<RenderJobDescription> Jobs = new StructArrayList<RenderJobDescription>();
       public IMesh Mesh;
+      public int MaterialIndexOverride = -1;
    }
 
    [StructLayout(LayoutKind.Sequential, Pack = 4)]
    public struct RenderJobDescription {
       public Matrix WorldTransform;
-      //public MaterialDescription Material;
+      public int MaterialIndex;
 
-      public const int Size = 4 * 4 * 4 * 1 + MaterialDescription.Size;
+      public const int Size = 4 * 4 * 4 * 1 + 4;
    }
 
    [StructLayout(LayoutKind.Sequential, Pack = 4)]
    public struct MaterialDescription {
-      public const int Size = 0;
+      public float Metallic;
+      public float Roughness;
+
+      public const int Size = 4 * 2;
    }
 }

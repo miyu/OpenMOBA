@@ -2,7 +2,7 @@
 #define __REGISTERS_HLSL__
 
 #include "input_typedefs.hlsl"
-#include "pbr_material_pack.hlsl"
+#include "material_pack.hlsl"
 
 #define REG_SCENE_DATA b0
 #define REG_OBJECT_DATA b1
@@ -10,8 +10,11 @@
 #define REG_DIFFUSE_MAP t0
 #define REG_DIFFUSE_CUBE_MAP t1
 #define REG_ENVIRONMENT_CUBE_MAP t8
+
 #define REG_SHADOW_MAPS t10
-#define REG_SHADOW_MAPS_ENTRIES t11
+#define REG_SPOTLIGHT_DESCRIPTIONS t11
+#define REG_MATERIAL_DESCRIPTIONS t12
+
 
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4 cameraEye;
@@ -25,6 +28,7 @@ cbuffer Scene : register(REG_SCENE_DATA) {
 cbuffer Batch : register(REG_OBJECT_DATA) {
    float4x4 batchTransform;
    int diffuseSamplingMode;
+   int batchMaterialIndexOverride;
 }
 
 Texture2D DiffuseMap : register(REG_DIFFUSE_MAP);
@@ -44,7 +48,8 @@ SamplerState LinearSampler {
 };
 
 Texture2DArray ShadowMaps : register(REG_SHADOW_MAPS);
-StructuredBuffer<SpotlightDescription> SpotlightDescriptions : register(REG_SHADOW_MAPS_ENTRIES);
+StructuredBuffer<SpotlightDescription> SpotlightDescriptions : register(REG_SPOTLIGHT_DESCRIPTIONS);
+StructuredBuffer<MaterialDescription> MaterialDescriptions : register(REG_MATERIAL_DESCRIPTIONS);
 
 bool SampleDiffuseMapSecondDerivative(Texture2D diffuseMap, float2 uv);
 
@@ -62,7 +67,7 @@ float4 SampleDiffuseMap(float2 texuv, float3 dir, float3 normal) {
    } else [branch] if (diffuseSamplingMode == 13) {
       float material = DiffuseMap.Sample(LinearSampler, texuv).w;
       float metallic, roughness;
-      pbrDeferredUnpackMaterial(material, metallic, roughness);
+      unpackMaterial(material, metallic, roughness);
       return float4(metallic, roughness, 0.0f, 1.0f);
    } else [branch] if (diffuseSamplingMode == 20) {
       return DiffuseCubeMap.Sample(LinearSampler, dir);

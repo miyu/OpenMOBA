@@ -66,11 +66,11 @@ namespace Canvas3D.LowLevel {
          new VertexPositionNormalColorTexture(0.5f * new Vector3(1.0f, -1.0f, 0.0f), new Vector3(0, 0, -1), Color.White, new Vector2(1, 0))
       };
 
-      public static VertexPositionNormalColorTexture[] Sphere { get; } = ComputeUnitSphere(12);
+      public static VertexPositionNormalColorTexture[] Sphere { get; } = ComputeSphere(12, 0.5f);
 
-      private static VertexPositionNormalColorTexture[] ComputeUnitSphere(int lod) {
+      private static VertexPositionNormalColorTexture[] ComputeSphere(int lod, float radius) {
          if (lod < 4) throw new ArgumentOutOfRangeException();
-         var r = new Vector3(0, 1, 0);
+         var r = new Vector3(0, radius, 0);
          var transform = Matrix.RotationZ(-(float)Math.PI / lod);
          var vs = new float[lod + 1];
          var points = new Vector3[lod + 1];

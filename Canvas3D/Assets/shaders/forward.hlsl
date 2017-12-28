@@ -13,6 +13,7 @@ struct PSInput {
    float3 normalWorld : NORMAL2;
    float4 color : COLOR;
    float2 uv : TEXCOORD;
+   int materialIndex : MATERIAL_INDEX;
 };
 
 PSInput VSMain(
@@ -20,7 +21,8 @@ PSInput VSMain(
    float3 normal : NORMAL, 
    float4 color : COLOR, 
    float2 uv : TEXCOORD,
-   float4x4 world : INSTANCE_TRANSFORM
+   float4x4 world : INSTANCE_TRANSFORM,
+   int materialIndex : INSTANCE_MATERIAL_INDEX
 ) {
    PSInput result;
 
@@ -35,6 +37,7 @@ PSInput VSMain(
    result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
    result.color = color;
    result.uv = uv;
+   result.materialIndex = materialIndex;
 
    return result;
 }
@@ -47,8 +50,9 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float3 base = baseAndTransparency.xyz;
    float transparency = baseAndTransparency.w;
    
-   float metallic, roughness;
-   pbrMaterialProperties(input.positionWorld, metallic, roughness);
+   int materialIndex = batchMaterialIndexOverride != -1 ? batchMaterialIndexOverride : input.materialIndex;
+   float metallic = MaterialDescriptions[materialIndex].metallic;
+   float roughness = MaterialDescriptions[materialIndex].roughness;
    
    return commonComputeFragmentOutput(P, N, base, transparency, metallic, roughness);
 }

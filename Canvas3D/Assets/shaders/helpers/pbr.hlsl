@@ -1,8 +1,6 @@
 #ifndef __PBR_HLSL__
 #define __PBR_HLSL__
 
-#include "pbr_material_pack.hlsl"
-
 //-------------------------------------------------------------------------------------------------
 // See https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md
 //     http://www.codinglabs.net/article_physically_based_rendering_cook_torrance.aspx
