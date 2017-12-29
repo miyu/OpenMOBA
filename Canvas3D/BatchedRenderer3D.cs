@@ -63,7 +63,7 @@ namespace Canvas3D {
       private readonly IShaderResourceView _materialDescriptionsBufferSrv;
 
       private readonly IDepthStencilView[] _lightDepthStencilViews;
-      private readonly IDisposable _lightDepthTexture;
+      private readonly ITexture2D _lightDepthTexture;
       private readonly IShaderResourceView _lightShaderResourceView;
       private readonly IShaderResourceView[] _lightShaderResourceViews;
       private readonly ITexture2D _whiteCubeMap;

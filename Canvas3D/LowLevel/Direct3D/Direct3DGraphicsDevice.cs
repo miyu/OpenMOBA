@@ -34,8 +34,8 @@ namespace Canvas3D.LowLevel.Direct3D {
       private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox { Resolution = kUninitializedBackBufferSize };
       private Texture2D _backBufferDepthTexture;
       private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox { Resolution = kUninitializedBackBufferSize };
-      private readonly List<(Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])> _screenSizeRenderTargets = new List<(Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])>();
-      private readonly List<(Texture2D, DepthStencilViewBox, ShaderResourceViewBox)> _screenSizeDepthStencilTargets = new List<(Texture2D, DepthStencilViewBox, ShaderResourceViewBox)>();
+      private readonly List<(Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])> _screenSizeRenderTargets = new List<(Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])>();
+      private readonly List<(Texture2DBox, DepthStencilViewBox, ShaderResourceViewBox)> _screenSizeDepthStencilTargets = new List<(Texture2DBox, DepthStencilViewBox, ShaderResourceViewBox)>();
       private bool _isResizeTriggered;
 
       // Subsystems
@@ -146,11 +146,11 @@ namespace Canvas3D.LowLevel.Direct3D {
          // ReSharper enable CoVariantArrayConversion
       }
 
-      public (IDisposable, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution) {
+      public (ITexture2D, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution) {
          return CreateRenderTargetInternal(levels, resolution);
       }
 
-      private (Texture2D, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateRenderTargetInternal(int levels, Size resolution) {
+      private (Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateRenderTargetInternal(int levels, Size resolution) {
          bool hq = false;
          var format = hq ? Format.R32G32B32A32_Float : Format.R16G16B16A16_UNorm;
          var texture = new Texture2D(_device,
@@ -166,6 +166,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                CpuAccessFlags = CpuAccessFlags.None,
                OptionFlags = ResourceOptionFlags.None
             });
+         var textureBox = new Texture2DBox { Texture = texture };
          var rtvs = new RenderTargetViewBox[levels];
          for (var i = 0; i < levels; i++) {
             rtvs[i] = new RenderTargetViewBox {
@@ -212,7 +213,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                   })
             };
          }
-         return (texture, rtvs, srv, srvs);
+         return (textureBox, rtvs, srv, srvs);
       }
 
       public (IDepthStencilView, IShaderResourceView) CreateScreenSizeDepthTarget() {
@@ -222,11 +223,11 @@ namespace Canvas3D.LowLevel.Direct3D {
          return (dsvs[0], srvs[0]);
       }
 
-      public (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution) {
+      public (ITexture2D, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution) {
          return CreateDepthTextureAndViewsInternal(levels, resolution);
       }
 
-      private (Texture2D, DepthStencilViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateDepthTextureAndViewsInternal(int levels, Size resolution) {
+      private (Texture2DBox, DepthStencilViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateDepthTextureAndViewsInternal(int levels, Size resolution) {
          var hq = true;
          var textureFormat = hq ? Format.R32_Typeless : Format.R16_Typeless;
          var dsvFormat = hq ? Format.D32_Float : Format.D16_UNorm;
@@ -245,6 +246,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                CpuAccessFlags = CpuAccessFlags.None,
                OptionFlags = ResourceOptionFlags.None
             });
+         var textureBox = new Texture2DBox { Texture = texture };
          var dsvs = new DepthStencilViewBox[levels];
          for (var i = 0; i < levels; i++) {
             dsvs[i] = new DepthStencilViewBox {
@@ -291,7 +293,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                   })
             };
          }
-         return (texture, dsvs, srv, srvs);
+         return (textureBox, dsvs, srv, srvs);
       }
 
       private void ResizeScreenSizeBuffers(Size renderSize) {
@@ -315,7 +317,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
             var (tex, rtvs, srv, srvs) = _screenSizeRenderTargets[i];
             var (newTex, newRtvs, newSrv, newSrvs) = CreateRenderTargetInternal(rtvs.Length, renderSize);
-            Utilities.Dispose(ref tex);
+            Utilities.Dispose(ref tex.Texture);
             for (var layer = 0; layer < rtvs.Length; layer++) {
                rtvs[layer].MoveAssignFrom(newRtvs[layer]);
                srvs[layer].MoveAssignFrom(newSrvs[layer]);
@@ -327,7 +329,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          for (var i = 0; i < _screenSizeDepthStencilTargets.Count; i++) {
             var (tex, dsv, srv) = _screenSizeDepthStencilTargets[i];
             var (newTex, newDsvs, newSrv, newSrvs) = CreateDepthTextureAndViewsInternal(1, renderSize);
-            Utilities.Dispose(ref tex);
+            Utilities.Dispose(ref tex.Texture);
             Utilities.Dispose(ref newSrv.ShaderResourceView);
             dsv.MoveAssignFrom(newDsvs[0]);
             srv.MoveAssignFrom(newSrvs[0]);
@@ -343,7 +345,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
             var (tex, rtvs, srv, srvs) = _screenSizeRenderTargets[i];
-            Utilities.Dispose(ref tex);
+            Utilities.Dispose(ref tex.Texture);
             foreach (var rtv in rtvs) {
                Utilities.Dispose(ref rtv.RenderTargetView);
             }

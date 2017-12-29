@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Drawing;
-using SharpDX.Direct3D11;
 
 namespace Canvas3D.LowLevel {
    public interface IGraphicsDevice : IDisposable {
@@ -19,8 +18,8 @@ namespace Canvas3D.LowLevel {
       (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct;
 
       (IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateScreenSizeRenderTarget(int levels);
-      (IDisposable, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution);
+      (ITexture2D, IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateRenderTarget(int levels, Size resolution);
       (IDepthStencilView, IShaderResourceView) CreateScreenSizeDepthTarget();
-      (IDisposable, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution);
+      (ITexture2D, IDepthStencilView[], IShaderResourceView, IShaderResourceView[]) CreateDepthTextureAndViews(int levels, Size resolution);
    }
 }
