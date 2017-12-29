@@ -11,26 +11,24 @@ namespace Canvas3D {
       private static Matrix projView;
 
       private const int NUM_LAYERS = 100;
-      private const int CUBES_PER_LAYER = 10 ;
+      private const int CUBES_PER_LAYER = 2;
       private static readonly Matrix[] cubeDefaultTransforms = (
          from layer in Enumerable.Range(0, NUM_LAYERS)
          from i in Enumerable.Range(0, CUBES_PER_LAYER)
          select
          MatrixCM.RotationY(
-            2 * (float)Math.PI * i / CUBES_PER_LAYER + (layer + 1) * i + layer
+            2 * (float)Math.PI * i / CUBES_PER_LAYER + (layer + 1) * i + (layer + 1)
          ) *
          MatrixCM.Translation(
             0.8f + 0.02f * layer,
-            0.5f + 0.3f * (float)Math.Sin((8 + 7 * layer) * Math.PI * i / CUBES_PER_LAYER),
+            0.5f + 0.3f * (float)Math.Sin((8 + 7 * layer / (float)NUM_LAYERS) * 2 * Math.PI * (i + 1) / CUBES_PER_LAYER),
             0) *
-         MatrixCM.Scaling(0.2f / (float)Math.Sqrt(NUM_LAYERS)) *
-         MatrixCM.RotationY(i)).ToArray();
+         MatrixCM.Scaling(0.5f / (float)Math.Sqrt(NUM_LAYERS)) *
+         MatrixCM.RotationY(i)).ToArray();   
 
       public static void Main(string[] args) {
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
-         graphicsLoop.Form.Resize += (s, e) => {
-            UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
-         };
+         graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
 
          var floatingCubesBatch = new RenderJobBatch();

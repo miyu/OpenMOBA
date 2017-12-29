@@ -228,40 +228,34 @@ namespace Canvas3D {
 
          //var renderContext = _graphicsDevice.ImmediateContext;
          var renderContext = _graphicsDevice.CreateDeferredRenderContext();
-         renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
-         renderContext.ClearRenderTarget(Color.Gray);
-         renderContext.ClearDepthBuffer(1.0f);
 
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
+
+         renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
+         renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
 
          // Draw spotlights
          var spotlightDescriptions = stackalloc SpotlightDescription[spotlightInfos.Count];
          ComputeSpotlightDescriptions(spotlightDescriptions);
 
-         for (var i = 0; i < _lightDepthStencilViews.Length; i++) {
-            var ldsv = _lightDepthStencilViews[i];
-            renderContext.SetRenderTargets(ldsv, null);
+         var lightDepthStencilViewCleared = stackalloc bool[_lightDepthStencilViews.Length];
+         for (var i = 0; i < spotlightInfos.Count; i++) {
+            var ldsvIndex = (int)spotlightDescriptions[i].AtlasLocation.Position.Z;
+            if (lightDepthStencilViewCleared[ldsvIndex]) continue;
+            lightDepthStencilViewCleared[ldsvIndex] = true;
+            renderContext.SetRenderTargets(_lightDepthStencilViews[ldsvIndex], null);
             renderContext.ClearDepthBuffer(1.0f);
          }
 
-         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          for (var spotlightIndex = 0; spotlightIndex < spotlightInfos.Count; spotlightIndex++) {
             var spotlightDescription = &spotlightDescriptions[spotlightIndex];
             renderContext.SetRenderTargets(_lightDepthStencilViews[(int)spotlightDescription->AtlasLocation.Position.Z], null);
-
-            renderContext.SetViewportRect(new RectangleF(
-               spotlightDescription->AtlasLocation.Position.X,
-               spotlightDescription->AtlasLocation.Position.Y,
-               kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size.X,
-               kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size.Y
-            ));
+            renderContext.SetViewportRect((Vector2)spotlightDescription->AtlasLocation.Position, kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size);
 
             UpdateSceneConstantBuffer(renderContext, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, Matrix.Zero, false, false, 0);
             for (var pass = 0; pass < Techniques.ForwardDepthOnly.Passes; pass++) {
                Techniques.ForwardDepthOnly.BeginPass(renderContext, pass);
-               renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
-               renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
 
                foreach (var batch in renderJobBatches) {
                   UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0, batch.MaterialIndexOverride);
@@ -279,24 +273,26 @@ namespace Canvas3D {
          renderContext.Update(_spotlightDescriptionsBuffer, (IntPtr)spotlightDescriptions, spotlightInfos.Count);
 
          // Draw Scene
-         bool forward = false;
+         bool forward = true;
          if (forward) {
             renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
             renderContext.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
             renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
+            renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+            renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+            renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
+
+            renderContext.ClearRenderTarget(Color.Gray);
+            renderContext.ClearDepthBuffer(1.0f);
+
             UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
 
-               renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
-               renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
                renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
-               renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
                foreach (var batch in renderJobBatches) {
-                  if (batch.Jobs.Count > 100)
+                  if (batch.Jobs.Count > 1000)
                      renderContext.SetShaderResource(1, _flatColoredCubeMapShaderResourceView, RenderStage.Pixel);
                   else
                      renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
@@ -315,19 +311,19 @@ namespace Canvas3D {
             renderContext.SetRenderTargets(_gBufferDsv, baseAndMaterialRtv, normalRtv);
             renderContext.SetViewportRect(new RectangleF(0, 0, baseAndMaterialRtv.Resolution.Width, baseAndMaterialRtv.Resolution.Height));
             renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
+
+            renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+            renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+            renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
+
             renderContext.ClearRenderTargets(Color.Transparent, Color.Transparent);
             renderContext.ClearDepthBuffer(1.0f);
 
             UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
             for (var pass = 0; pass < Techniques.DeferredToGBuffer.Passes; pass++) {
-               Techniques.DeferredToGBuffer.BeginPass(renderContext, pass);
-
-               renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
-               renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
                renderContext.SetShaderResource(1, _whiteCubeMapShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
-               renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
+
+               Techniques.DeferredToGBuffer.BeginPass(renderContext, pass);
                foreach (var batch in renderJobBatches) {
                   if (batch.Jobs.Count > 100)
                      renderContext.SetShaderResource(1, _flatColoredCubeMapShaderResourceView, RenderStage.Pixel);
@@ -345,15 +341,12 @@ namespace Canvas3D {
 
             // Restore render targets, merge gbuffers
             renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
+            renderContext.ClearDepthBuffer(1.0f);
             renderContext.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
             renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
 
             for (var pass = 0; pass < Techniques.DeferredFromGBuffer.Passes; pass++) {
                Techniques.DeferredFromGBuffer.BeginPass(renderContext, pass);
-
-               renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
-               renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
-               renderContext.SetShaderResource(12, _materialDescriptionsBufferSrv, RenderStage.Pixel);
 
                var (proj, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, 0, backBufferDepthStencilView.Resolution.Width, backBufferDepthStencilView.Resolution.Height, -2.0f);
                UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
@@ -375,8 +368,8 @@ namespace Canvas3D {
                DrawScreenQuad(renderContext, world, _lightShaderResourceViews[i]);
             }
 
+            if (forward) continue;
             var pipGBufferWidth = pipScale * backBufferRenderTargetView.Resolution.Width / backBufferRenderTargetView.Resolution.Height;
-
             UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, pipScale, pipGBufferWidth, pipScale);
             UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
@@ -414,9 +407,7 @@ namespace Canvas3D {
 
       private void DrawScreenQuad(IRenderContext renderContext, Matrix world, IShaderResourceView textureSrv0, IShaderResourceView textureSrv1 = null, IShaderResourceView textureSrv2 = null) {
          var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, new RenderJobDescription { WorldTransform = world });
-
-         renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
-         renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
+         
          renderContext.SetShaderResource(0, textureSrv0, RenderStage.Pixel);
          renderContext.SetShaderResource(1, textureSrv1, RenderStage.Pixel);
          renderContext.SetShaderResource(2, textureSrv2, RenderStage.Pixel);

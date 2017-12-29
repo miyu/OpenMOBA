@@ -16,12 +16,14 @@ namespace Canvas3D.LowLevel {
       void SetDepthConfiguration(DepthConfiguration config);
       void SetRasterizerConfiguration(RasterizerConfiguration config);
 
+      // Unbinds subresources (side-effect of OMSetRenderTargets)
       void SetRenderTargets(IDepthStencilView depthStencilView, IRenderTargetView renderTargetView0, IRenderTargetView renderTargetView1 = null, IRenderTargetView renderTargetView2 = null, IRenderTargetView renderTargetView3 = null);
 
       void ClearRenderTarget(Color4 color);
       void ClearRenderTargets(Color4? c0 = null, Color4? c1 = null, Color4? c2 = null, Color4? c3 = null);
       void ClearDepthBuffer(float depth);
 
+      void SetViewportRect(Vector2 position, Vector2 size);
       void SetViewportRect(RectangleF rectangle);
 
       void SetPixelShader(IPixelShader shader);

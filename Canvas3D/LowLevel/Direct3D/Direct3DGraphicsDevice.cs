@@ -725,6 +725,10 @@ namespace Canvas3D.LowLevel.Direct3D {
             _deviceContext.ClearDepthStencilView(depthStencilView, DepthStencilClearFlags.Depth, depth, 0);
          }
 
+         public void SetViewportRect(Vector2 position, Vector2 size) {
+            SetViewportRect(new RectangleF(position.X, position.Y, size.X, size.Y));
+         }
+
          public void SetViewportRect(RectangleF rectangle) {
             if (_currentViewportRect != rectangle) {
                _currentViewportRect = rectangle;
