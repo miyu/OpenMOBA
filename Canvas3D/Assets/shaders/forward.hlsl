@@ -1,4 +1,4 @@
-﻿#ifndef __FORWARD_HLSL__
+#ifndef __FORWARD_HLSL__
 #define __FORWARD_HLSL__
 
 #include "helpers/lighting.hlsl"
@@ -13,7 +13,9 @@ struct PSInput {
    float3 normalWorld : NORMAL2;
    float4 color : COLOR;
    float2 uv : TEXCOORD;
-   int materialIndex : MATERIAL_INDEX;
+   float metallic : MATERIAL_METALLIC;
+   float roughness : MATERIAL_ROUGHNESS;
+   int materialResourcesIndex : MATERIAL_INDEX;
 };
 
 PSInput VSMain(
@@ -22,7 +24,9 @@ PSInput VSMain(
    float4 color : COLOR, 
    float2 uv : TEXCOORD,
    float4x4 world : INSTANCE_TRANSFORM,
-   int materialIndex : INSTANCE_MATERIAL_INDEX
+   float metallic : INSTANCE_METALLIC,
+   float roughness : INSTANCE_ROUGHNESS,
+   int materialResourcesIndex : INSTANCE_MATERIAL_RESOURCES_INDEX
 ) {
    PSInput result;
 
@@ -37,7 +41,9 @@ PSInput VSMain(
    result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
    result.color = color;
    result.uv = uv;
-   result.materialIndex = materialIndex;
+   result.metallic = metallic;
+   result.roughness = roughness;
+   result.materialResourcesIndex = materialResourcesIndex;
 
    return result;
 }
@@ -46,13 +52,16 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float3 P = input.positionWorld;
    float3 N = normalize(input.normalWorld);
    
-   float4 baseAndTransparency = input.color * SampleDiffuseMap(input.uv, input.positionObject.xyz, input.normalObject.xyz);
+   int materialResourcesIndex = batchMaterialResourcesIndexOverride != -1 ? batchMaterialResourcesIndexOverride : input.materialResourcesIndex;
+   MaterialResourceDescription materialResources = MaterialResourceDescriptions[materialResourcesIndex];
+   float4 materialSampledColor = materialResources.baseColor * SampleTexture(materialResources.baseTextureIndex, input);
+
+   float4 baseAndTransparency = input.color * materialSampledColor;
    float3 base = baseAndTransparency.xyz;
    float transparency = baseAndTransparency.w;
    
-   int materialIndex = batchMaterialIndexOverride != -1 ? batchMaterialIndexOverride : input.materialIndex;
-   float metallic = MaterialDescriptions[materialIndex].metallic;
-   float roughness = MaterialDescriptions[materialIndex].roughness;
+   float metallic = input.metallic;
+   float roughness = input.roughness;
    
    return commonComputeFragmentOutput(P, N, base, transparency, metallic, roughness);
 }

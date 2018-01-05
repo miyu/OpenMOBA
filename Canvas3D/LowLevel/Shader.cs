@@ -17,21 +17,23 @@ namespace Canvas3D.LowLevel {
 
    public interface IBuffer<T> where T : struct { }
 
+   public interface IBufferUpdater<T> : IDisposable where T : struct {
+      void Write(T val);
+      void Write(ref T val);
+      void Write(T[] vals);
+      void Write(T[] vals, int offset, int count);
+      void UpdateAndReset();
+      void UpdateAndClose();
+      void UpdateCloseAndDispose();
+      void Reopen();
+   }
+
    public interface ITexture2D { }
 
    public interface IMesh {
       VertexLayout VertexLayout { get; }
 
       void Draw(IRenderContext renderContext, int instances);
-   }
-
-   public interface ILowLevelAssetManager {
-      IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null);
-      IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null);
-
-      (ITexture2D, IShaderResourceView) CreateSolidTexture(Color4 c);
-      (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 c);
-      (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz);
    }
 
    public interface ITechnique {
@@ -46,10 +48,23 @@ namespace Canvas3D.LowLevel {
       ITechnique DeferredFromGBuffer { get; }
    }
 
-   public interface IMeshPresets {
+   public interface IPresetCollection1<K, V> {
+      V this[K key] { get; }
+   }
+
+   public interface IPresetCollection1And6<K, V> : IPresetCollection1<K, V> {
+      V this[Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz] { get; }
+   }
+
+   public interface IPresetsStore {
       IMesh UnitCube { get; }
       IMesh UnitPlaneXY { get; }
       IMesh UnitSphere { get; }
+
+      IMesh GetPresetMesh(MeshPreset preset);
+
+      IPresetCollection1<Color4, IShaderResourceView> SolidTextures { get; }
+      IPresetCollection1And6<Color4, IShaderResourceView> SolidCubeTextures { get; }
    }
 
    public interface ICommandList : IDisposable { }

@@ -20,9 +20,10 @@ struct SpotlightDescription {
    AtlasLocation shadowMapLocation;
 };
 
-struct MaterialDescription {
-   float metallic;
-   float roughness;
+struct MaterialResourceDescription {
+   int baseTextureIndex;
+   int padding0, padding1, padding2;
+   float4 baseColor;
 };
 
 #endif // __INPUT_TYPEDEFS_HLSL__

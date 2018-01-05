@@ -6,15 +6,12 @@
 
 #define REG_SCENE_DATA b0
 #define REG_OBJECT_DATA b1
-
-#define REG_DIFFUSE_MAP t0
-#define REG_DIFFUSE_CUBE_MAP t1
-#define REG_ENVIRONMENT_CUBE_MAP t8
+#define REG_TEXTURE_DATA b2
 
 #define REG_SHADOW_MAPS t10
 #define REG_SPOTLIGHT_DESCRIPTIONS t11
-#define REG_MATERIAL_DESCRIPTIONS t12
-
+#define REG_MATERIAL_RESOURCE_DESCRIPTIONS t12
+#define REG_TEXTURE_DESCRIPTIONS t13
 
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4 cameraEye;
@@ -28,12 +25,18 @@ cbuffer Scene : register(REG_SCENE_DATA) {
 cbuffer Batch : register(REG_OBJECT_DATA) {
    float4x4 batchTransform;
    int diffuseSamplingMode;
-   int batchMaterialIndexOverride;
+   int batchMaterialResourcesIndexOverride;
 }
 
-Texture2D DiffuseMap : register(REG_DIFFUSE_MAP);
-TextureCube<float4> DiffuseCubeMap : register(REG_DIFFUSE_CUBE_MAP);
-TextureCube<float4> EnvironmentCubeMap : register(REG_ENVIRONMENT_CUBE_MAP);
+#define FOREACH_BODY(SLOT_NUM) \
+   Texture2D TEX_##SLOT_NUM##_2D : register(t##SLOT_NUM);
+
+#include "foreach_texture_2d.hlsl"
+
+#define FOREACH_BODY(SLOT_NUM) \
+   TextureCube<float4> TEX_##SLOT_NUM##_CUBE : register(t##SLOT_NUM);
+
+#include "foreach_texture_cube.hlsl"
 
 SamplerState PointSampler {
    Filter = MIN_MAG_MIP_POINT;
@@ -49,75 +52,103 @@ SamplerState LinearSampler {
 
 Texture2DArray ShadowMaps : register(REG_SHADOW_MAPS);
 StructuredBuffer<SpotlightDescription> SpotlightDescriptions : register(REG_SPOTLIGHT_DESCRIPTIONS);
-StructuredBuffer<MaterialDescription> MaterialDescriptions : register(REG_MATERIAL_DESCRIPTIONS);
+StructuredBuffer<MaterialResourceDescription> MaterialResourceDescriptions : register(REG_MATERIAL_RESOURCE_DESCRIPTIONS);
 
-bool SampleDiffuseMapSecondDerivative(Texture2D diffuseMap, float2 uv);
+bool SampleDiffuseMapSecondDerivative(const Texture2D tex, float2 uv);
 
-float4 SampleDiffuseMap(float2 texuv, float3 dir, float3 normal) {
-   [branch] if (diffuseSamplingMode == 0) {
-      return DiffuseMap.Sample(LinearSampler, texuv);
-   } else [branch] if (diffuseSamplingMode == 10) {
-      float c = DiffuseMap.Sample(LinearSampler, texuv).x;
-      return float4(c, c, c, 1);
-   } else [branch] if (diffuseSamplingMode == 11) {
-      float c = float(SampleDiffuseMapSecondDerivative(DiffuseMap, texuv));
-      return float4(c, c, c, 1);
-   } else [branch] if (diffuseSamplingMode == 12) {
-      return float4(DiffuseMap.Sample(LinearSampler, texuv).xyz, 1.0f);
-   } else [branch] if (diffuseSamplingMode == 13) {
-      float material = DiffuseMap.Sample(LinearSampler, texuv).w;
-      float metallic, roughness;
-      unpackMaterial(material, metallic, roughness);
-      return float4(metallic, roughness, 0.0f, 1.0f);
-   } else [branch] if (diffuseSamplingMode == 20) {
-      return DiffuseCubeMap.Sample(LinearSampler, dir);
-   } else [branch] if (diffuseSamplingMode == 21) {
-      return DiffuseCubeMap.Sample(LinearSampler, normal);
-   } else {
+float4 SampleTextureInternal_2D(const Texture2D tex, const float2 uv) {
+   float4 samp = tex.Sample(LinearSampler, uv);
+   [forcecase] switch (diffuseSamplingMode) {
+      case 0:
+         return samp;
+      case 10: {
+         float c = samp.x;
+         return float4(c, c, c, 1);
+      }
+      //case 11: {
+      //   float c = float(SampleDiffuseMapSecondDerivative(tex, uv));
+      //   return float4(c, c, c, 1);
+      //}
+      case 12:
+         return float4(samp.xyz, 1.0f);
+      case 13: {
+         float material = samp.w;
+         float metallic, roughness;
+         unpackMaterial(material, metallic, roughness);
+         return float4(metallic, roughness, 0.0f, 1.0f);
+      }
+      default:
+         return float4(1, 0, 1, 1);
+   }
+}
+
+float4 SampleTextureInternal_Cube(const TextureCube<float4> tex, float3 dir, float3 normal) {
+   [forcecase] switch (diffuseSamplingMode) {
+   case 20:
+      return tex.Sample(LinearSampler, dir);
+   case 21:
+      return tex.Sample(LinearSampler, normal);
+   default:
       return float4(1, 0, 1, 1);
    }
 }
 
-// derivatives are now binary l0l
-bool SampleDiffuseMapSecondDerivative(Texture2D diffuseMap, float2 uv) {
-   float w, h;
-   diffuseMap.GetDimensions(w, h);
+float4 SampleTextureInternal(int slot, float2 uv, float3 dir, float3 normal) {
+   //return SampleTextureInternal_2D(TEX_48_2D, uv);
+   //return SampleTextureInternal_Cube(TEX_88_CUBE, dir, normal);
+   return 1;
 
-   float ox = float2(1.0f / w, 0.0f);
-   float oy = float2(0.0f, 1.0f / h);
-   float center = diffuseMap.Sample(LinearSampler, uv);
-   float d = -diffuseMap.Sample(LinearSampler, uv - 2 * ox - 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv - 1 * ox - 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv - 2 * ox - 1 * oy)
-      - 4 * diffuseMap.Sample(LinearSampler, uv - 1 * ox - 1 * oy)
-      - 1 * diffuseMap.Sample(LinearSampler, uv + 2 * ox + 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv + 1 * ox + 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv + 2 * ox + 1 * oy)
-      - 4 * diffuseMap.Sample(LinearSampler, uv + 1 * ox + 1 * oy)
-      - 1 * diffuseMap.Sample(LinearSampler, uv - 2 * ox + 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv - 1 * ox + 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv - 2 * ox + 1 * oy)
-      - 4 * diffuseMap.Sample(LinearSampler, uv - 1 * ox + 1 * oy)
-      - 1 * diffuseMap.Sample(LinearSampler, uv + 2 * ox - 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv + 1 * ox - 2 * oy)
-      - 2 * diffuseMap.Sample(LinearSampler, uv + 2 * ox - 1 * oy)
-      - 4 * diffuseMap.Sample(LinearSampler, uv + 1 * ox - 1 * oy)
+   [branch] if (slot == -1) {
+      return float4(1, 1, 1, 1);
+   }
+
+   [forcecase] switch (slot) {
+      #define FOREACH_BODY(SLOT_NUM) \
+         case SLOT_NUM : \
+            return SampleTextureInternal_2D(TEX_##SLOT_NUM##_2D, uv);\
+
+      #include "foreach_texture_2d.hlsl"
+      
+      #define FOREACH_BODY(SLOT_NUM) \
+         case SLOT_NUM : \
+            return SampleTextureInternal_Cube(TEX_##SLOT_NUM##_CUBE, dir, normal);\
+
+      #include "foreach_texture_cube.hlsl"
+
+      default:
+         return float4(0, 1, 1, 1);
+   }
+}
+
+#define SampleTexture(slot, input) \
+   SampleTextureInternal(slot, input##.uv, input##.positionObject.xyz, input##.normalObject.xyz)
+
+// derivatives are now binary l0l
+bool SampleDiffuseMapSecondDerivative(const Texture2D tex, float2 uv) {
+   float w, h;
+   tex.GetDimensions(w, h);
+
+   float2 ox = float2(1.0f / w, 0.0f);
+   float2 oy = float2(0.0f, 1.0f / h);
+   float center = tex.Sample(LinearSampler, uv).x;
+   float d = -tex.Sample(LinearSampler, uv - 2 * ox - 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv - 1 * ox - 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv - 2 * ox - 1 * oy).x
+      - 4 * tex.Sample(LinearSampler, uv - 1 * ox - 1 * oy).x
+      - 1 * tex.Sample(LinearSampler, uv + 2 * ox + 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv + 1 * ox + 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv + 2 * ox + 1 * oy).x
+      - 4 * tex.Sample(LinearSampler, uv + 1 * ox + 1 * oy).x
+      - 1 * tex.Sample(LinearSampler, uv - 2 * ox + 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv - 1 * ox + 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv - 2 * ox + 1 * oy).x
+      - 4 * tex.Sample(LinearSampler, uv - 1 * ox + 1 * oy).x
+      - 1 * tex.Sample(LinearSampler, uv + 2 * ox - 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv + 1 * ox - 2 * oy).x
+      - 2 * tex.Sample(LinearSampler, uv + 2 * ox - 1 * oy).x
+      - 4 * tex.Sample(LinearSampler, uv + 1 * ox - 1 * oy).x
       + center * 36;
    return abs(d) > 1E-3f;
-
-//   float tl = diffuseMap.Sample(DiffuseSampler, input.uv - ox - oy);
-//   float tc = diffuseMap.Sample(DiffuseSampler, input.uv - oy);
-//   float tr = diffuseMap.Sample(DiffuseSampler, input.uv + ox - oy);
-//   float cl = diffuseMap.Sample(DiffuseSampler, input.uv - ox);
-//   float cc = diffuseMap.Sample(DiffuseSampler, input.uv);
-//   float cr = diffuseMap.Sample(DiffuseSampler, input.uv + ox);
-//   float bl = diffuseMap.Sample(DiffuseSampler, input.uv - ox + oy);
-//   float bc = diffuseMap.Sample(DiffuseSampler, input.uv + oy);
-//   float br = diffuseMap.Sample(DiffuseSampler, input.uv + ox + oy);
-//
-//   float score1 = abs(4 * cc - cl - cr - tc - bc);
-//   float score2 = abs(tl + tr + bl + br - cl - cr - tc - bc);
-//   return max(score1, score2) > 5.0E-6f;
 }
 
 #endif // __REGISTERS_HLSL__

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Linq;
+using Canvas3D.LowLevel;
 using Canvas3D.LowLevel.Direct3D;
 using SharpDX.Windows;
 
@@ -8,7 +9,7 @@ namespace Canvas3D {
    public class GraphicsLoop {
       private readonly InitFlags _initFlags;
 
-      private GraphicsLoop(InitFlags initFlags, RenderForm form, Direct3DGraphicsDevice graphicsDevice, BatchedRenderer3D renderer) {
+      private GraphicsLoop(InitFlags initFlags, RenderForm form, IGraphicsDevice graphicsDevice, BatchedRenderer3D renderer) {
          _initFlags = initFlags;
 
          Form = form;
@@ -19,10 +20,10 @@ namespace Canvas3D {
       }
 
       public RenderForm Form { get; }
-      private Direct3DGraphicsDevice GraphicsDevice { get; }
+      public IGraphicsDevice GraphicsDevice { get; }
       private BatchedRenderer3D Renderer { get; }
       private RenderLoop RenderLoop { get; }
-      public IAssetManager AssetManager => Renderer;
+      public IPresetsStore Presets => GraphicsDevice.PresetsStore;
       public GraphicsLoopStatistics Statistics { get; }
 
       public bool IsRunning(out IRenderer3D renderer) {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Linq;
+using Canvas3D.LowLevel;
 using SharpDX;
 using Color = SharpDX.Color;
 
@@ -30,13 +31,13 @@ namespace Canvas3D {
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
-
-         var floatingCubesBatch = new RenderJobBatch();
-         floatingCubesBatch.Mesh = graphicsLoop.AssetManager.GetPresetMesh(MeshPreset.UnitCube);
+         
+         var floatingCubesBatch = RenderJobBatch.Create(graphicsLoop.Presets.GetPresetMesh(MeshPreset.UnitCube));
          foreach (var transform in cubeDefaultTransforms) {
             floatingCubesBatch.Jobs.Add(new RenderJobDescription {
                WorldTransform = transform,
-               MaterialIndex = -1
+               MaterialProperties = { Metallic = 0.0f, Roughness = 0.0f },
+               MaterialResourcesIndex = -1
             });
          }
 
@@ -47,22 +48,34 @@ namespace Canvas3D {
 
             // Draw floor
             renderer.AddRenderable(
-               MeshPreset.UnitCube,
+               graphicsLoop.Presets.UnitCube,
                MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
-               new MaterialDescription { Metallic = 0.0f, Roughness = 0.04f });
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } });
 
             // Draw center cube / sphere
             renderer.AddRenderable(
-               false ? MeshPreset.UnitCube : MeshPreset.UnitSphere, 
+               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
                MatrixCM.Translation(0, 0.5f, 0),
-               new MaterialDescription { Metallic = 1.0f, Roughness = 0.8f });
+               new MaterialDescription {
+                  Properties = { Metallic = 1.0f, Roughness = 0.8f },
+                  Resources = {
+                     BaseTexture = graphicsLoop.Presets.SolidCubeTextures[Color4.White]
+                  }
+               });
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
-            floatingCubesBatch.MaterialIndexOverride = renderer.AddMaterial(new MaterialDescription {
-               Metallic = 0.0f,
-               Roughness = 0.04f
+            floatingCubesBatch.MaterialResourcesIndexOverride = renderer.AddMaterialResources(new MaterialResourcesDescription {
+               BaseTexture = graphicsLoop.Presets.SolidCubeTextures[Color.Red]
             });
+            if (false) {
+               floatingCubesBatch.MaterialResourcesIndexOverride = -1;
+               for (var i = 0; i < floatingCubesBatch.Jobs.Count; i++) {
+                  floatingCubesBatch.Jobs.store[i].MaterialResourcesIndex = renderer.AddMaterialResources(new MaterialResourcesDescription {
+                     BaseTexture = graphicsLoop.Presets.SolidCubeTextures[new Color4(i / (float)(floatingCubesBatch.Jobs.Count - 1), 0, 0, 1)]
+                  });
+               }
+            }
             renderer.AddRenderJobBatch(floatingCubesBatch);
 
             // Add spotlights

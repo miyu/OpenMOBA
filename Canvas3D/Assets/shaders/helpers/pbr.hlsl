@@ -60,7 +60,7 @@ float ctFresnelShlick(float f0, float vDotH) {
    return f0 + (1.0f - f0) * pow(1.0f - vDotH, 5.0f);
 }
 
-float ctFresnelShlick3(float3 f0, float vDotH) {
+float3 ctFresnelShlick3(float3 f0, float vDotH) {
    return float3(
       ctFresnelShlick(f0.x, vDotH),
       ctFresnelShlick(f0.y, vDotH),

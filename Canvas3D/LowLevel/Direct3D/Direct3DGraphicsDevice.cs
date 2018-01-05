@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
+using Canvas3D.LowLevel.Helpers;
 using SharpDX;
 using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
@@ -41,9 +42,9 @@ namespace Canvas3D.LowLevel.Direct3D {
       // Subsystems
       private readonly RenderStates _renderStates;
       private readonly ImmediateRenderContext _immediateContext;
-      private readonly Direct3DLowLevelAssetManager _lowLevelAssetManager;
+      private readonly Direct3DInternalAssetLoader _internalAssetLoader;
       private readonly Direct3DTechniqueCollection _techniqueCollection;
-      private readonly Direct3DMeshPresets _meshPresets;
+      private readonly Direct3DPresetsStore _presetsStore;
 
       // Deferred render context pool
       private readonly object deferredRenderContextPoolLock = new object();
@@ -57,16 +58,15 @@ namespace Canvas3D.LowLevel.Direct3D {
          // code smell: init subsystems
          _renderStates = new RenderStates(_device);
          _immediateContext = new ImmediateRenderContext(_device.ImmediateContext, _renderStates, _swapChain);
-         _lowLevelAssetManager = new Direct3DLowLevelAssetManager(this);
-         _techniqueCollection = Direct3DTechniqueCollection.Create(LowLevelAssetManager);
-         _meshPresets = Direct3DMeshPresets.Create(this);
+         _internalAssetLoader = new Direct3DInternalAssetLoader(_device);
+         _techniqueCollection = Direct3DTechniqueCollection.Create(_internalAssetLoader);
+         _presetsStore = Direct3DPresetsStore.Create(this);
       }
 
       internal Device InternalD3DDevice => _device;
       public IImmediateRenderContext ImmediateContext => _immediateContext;
-      public ILowLevelAssetManager LowLevelAssetManager => _lowLevelAssetManager;
       public ITechniqueCollection TechniqueCollection => _techniqueCollection;
-      public IMeshPresets MeshPresets => _meshPresets;
+      public IPresetsStore PresetsStore => _presetsStore;
 
       private void Initialize() {
          // On first frame, must alloc backbuffers and renderview. Same after form resize.
@@ -415,24 +415,24 @@ namespace Canvas3D.LowLevel.Direct3D {
          };
       }
 
-      private class Direct3DLowLevelAssetManager : ILowLevelAssetManager {
-         private readonly Direct3DGraphicsDevice _graphicsDevice;
+      internal class Direct3DInternalAssetLoader {
+         private readonly Device _device;
 
-         public Direct3DLowLevelAssetManager(Direct3DGraphicsDevice graphicsDevice) {
-            _graphicsDevice = graphicsDevice;
+         public Direct3DInternalAssetLoader(Device device) {
+            _device = device;
          }
 
          public string BasePath => @"C:\my-repositories\miyu\derp\Canvas3D\Assets";
 
          public IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null) {
             var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_0");
-            var shader = new PixelShader(_graphicsDevice.InternalD3DDevice, bytecode);
+            var shader = new PixelShader(_device, bytecode);
             return new PixelShaderBox { Shader = shader };
          }
 
          public IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null) {
             var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_0");
-            var shader = new VertexShader(_graphicsDevice.InternalD3DDevice, bytecode);
+            var shader = new VertexShader(_device, bytecode);
             var signature = ShaderSignature.GetInputSignature(bytecode);
             var inputLayout = CreateInputLayout(vertexLayout, signature);
             return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
@@ -440,7 +440,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          private InputLayout CreateInputLayout(VertexLayout vertexLayout, ShaderSignature signature) {
             if (vertexLayout == VertexLayout.PositionNormalColorTexture) {
-               return new InputLayout(_graphicsDevice.InternalD3DDevice, signature, new[] {
+               return new InputLayout(_device, signature, new[] {
                   new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
                   new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
                   new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
@@ -449,7 +449,9 @@ namespace Canvas3D.LowLevel.Direct3D {
                   new InputElement("INSTANCE_TRANSFORM", 1, Format.R32G32B32A32_Float, 16, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_TRANSFORM", 2, Format.R32G32B32A32_Float, 32, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_TRANSFORM", 3, Format.R32G32B32A32_Float, 48, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_MATERIAL_INDEX", 0, Format.R32_SInt, 64, 1, InputClassification.PerInstanceData, 1)
+                  new InputElement("INSTANCE_METALLIC", 0, Format.R32_Float, 64, 1, InputClassification.PerInstanceData, 1),
+                  new InputElement("INSTANCE_ROUGHNESS", 0, Format.R32_Float, 68, 1, InputClassification.PerInstanceData, 1),
+                  new InputElement("INSTANCE_MATERIAL_RESOURCES_INDEX", 0, Format.R32_SInt, 72, 1, InputClassification.PerInstanceData, 1)
                });
             }
             throw new NotSupportedException("Unsupported Input Layout: " + vertexLayout);
@@ -502,8 +504,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
 
          public (ITexture2D, IShaderResourceView) CreateSolidTexture(Color4 c) {
-            var _d3d = _graphicsDevice._device;
-            var texture = new Texture2D(_d3d, new Texture2DDescription {
+            var texture = new Texture2D(_device, new Texture2DDescription {
                Format = Format.R32G32B32A32_Float,
                ArraySize = 1,
                BindFlags = BindFlags.ShaderResource,
@@ -517,11 +518,11 @@ namespace Canvas3D.LowLevel.Direct3D {
             });
 
             DataStream stream;
-            _d3d.ImmediateContext.MapSubresource(texture, 0, 0, MapMode.WriteDiscard, MapFlags.None, out stream);
+            _device.ImmediateContext.MapSubresource(texture, 0, 0, MapMode.WriteDiscard, MapFlags.None, out stream);
             stream.Write(c);
-            _d3d.ImmediateContext.UnmapSubresource(texture, 0);
+            _device.ImmediateContext.UnmapSubresource(texture, 0);
 
-            var srv = new ShaderResourceView(_d3d, texture);
+            var srv = new ShaderResourceView(_device, texture);
             return (new Texture2DBox { Texture = texture }, new ShaderResourceViewBox { ShaderResourceView = srv });
          }
 
@@ -531,9 +532,8 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public unsafe (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz) {
             DataBox Wrap(Color4* p) => new DataBox(new IntPtr(p), 4 * 4, 0);
-
-            var _d3d = _graphicsDevice._device;
-            var texture = new Texture2D(_d3d, new Texture2DDescription {
+            
+            var texture = new Texture2D(_device, new Texture2DDescription {
                Format = Format.R32G32B32A32_Float,
                ArraySize = 6,
                BindFlags = BindFlags.ShaderResource,
@@ -546,7 +546,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                Usage = ResourceUsage.Default
             }, new[] { Wrap(&posx), Wrap(&negx), Wrap(&posy), Wrap(&negy), Wrap(&posz), Wrap(&negz) });
 
-            var srv = new ShaderResourceView(_d3d, texture);
+            var srv = new ShaderResourceView(_device, texture);
             return (new Texture2DBox { Texture = texture }, new ShaderResourceViewBox { ShaderResourceView = srv });
          }
       }
@@ -792,6 +792,10 @@ namespace Canvas3D.LowLevel.Direct3D {
             _deviceContext.DrawInstanced(vertices, instances, verticesOffset, instancesOffset);
          }
 
+         public IBufferUpdater<T> TakeUpdater<T>(IBuffer<T> buffer) where T : struct {
+            return BufferUpdaterPool<T>.Take(_deviceContext, (BufferBox<T>)buffer);
+         }
+
          public void Update<T>(IBuffer<T> buffer, T item) where T : struct {
             var box = (BufferBox<T>)buffer;
             var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
@@ -815,6 +819,84 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void Dispose() {
             Utilities.Dispose<DeviceContext>(ref _deviceContext);
+         }
+
+         private static class BufferUpdaterPool<T> where T : struct {
+            private static readonly object synchronization = new object();
+            private static readonly Stack<BufferUpdater> store = new Stack<BufferUpdater>();
+
+            public static IBufferUpdater<T> Take(DeviceContext deviceContext, BufferBox<T> bufferBox) {
+               BufferUpdater TakeUninitialized() {
+                  lock (synchronization) {
+                     if (store.Count > 0) return store.Pop();
+                  }
+                  return new BufferUpdater();
+               }
+
+               var updater = TakeUninitialized();
+               updater.Initialize(deviceContext, bufferBox);
+               return updater;
+            }
+
+            private class BufferUpdater : IBufferUpdater<T> {
+               private DeviceContext deviceContext;
+               private BufferBox<T> bufferBox;
+               private IntPtr currentBufferPointer;
+
+               internal void Initialize(DeviceContext deviceContext, BufferBox<T> bufferBox) {
+                  this.deviceContext = deviceContext;
+                  this.bufferBox = bufferBox;
+                  this.currentBufferPointer = deviceContext.MapSubresource(bufferBox.Buffer, 0, MapMode.WriteDiscard, MapFlags.None).DataPointer;
+               }
+
+               public void Write(T val) {
+                  currentBufferPointer = Utilities.WriteAndPosition(currentBufferPointer, ref val);
+               }
+
+               public void Write(ref T val) {
+                  currentBufferPointer = Utilities.WriteAndPosition(currentBufferPointer, ref val);
+               }
+
+               public void Write(T[] vals) {
+                  Write(vals, 0, vals.Length);
+               }
+
+               public void Write(T[] vals, int offset, int count) {
+                  Utilities.Write(currentBufferPointer, vals, 0, count);
+                  currentBufferPointer += Utilities.SizeOf<T>() * count;
+               }
+
+               public void UpdateAndReset() {
+                  UpdateAndClose();
+                  Reopen();
+               }
+
+               public void Reopen() {
+                  this.currentBufferPointer = deviceContext.MapSubresource(bufferBox.Buffer, 0, MapMode.WriteDiscard, MapFlags.None).DataPointer;
+               }
+
+               public void UpdateAndClose() {
+                  deviceContext.UnmapSubresource(bufferBox.Buffer, 0);
+                  currentBufferPointer = default(IntPtr);
+               }
+
+               public void UpdateCloseAndDispose() {
+                  UpdateAndClose();
+                  Dispose();
+               }
+
+               public void Dispose() {
+                  // Zero self
+                  deviceContext = null;
+                  bufferBox = null;
+                  currentBufferPointer = default(IntPtr);
+
+                  // return to pool
+                  lock (synchronization) {
+                     store.Push(this);
+                  }
+               }
+            }
          }
       }
 
@@ -947,28 +1029,28 @@ namespace Canvas3D.LowLevel.Direct3D {
          public ITechnique DeferredToGBuffer { get; private set; }
          public ITechnique DeferredFromGBuffer { get; private set; }
 
-         public static Direct3DTechniqueCollection Create(ILowLevelAssetManager lowLevelAssetManager) {
+         internal static Direct3DTechniqueCollection Create(Direct3DInternalAssetLoader internalAssetLoader) {
             var collection = new Direct3DTechniqueCollection();
             collection.Forward = new Technique {
                Passes = 1,
-               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
-               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
+               PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
+               VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
             collection.ForwardDepthOnly = new Technique {
                Passes = 1,
-               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
-               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
+               PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
+               VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
             };
-            collection.DeferredToGBuffer = new Technique {
-               Passes = 1,
-               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/deferred_to_gbuffer", "PSMain"),
-               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/deferred_to_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
-            };
-            collection.DeferredFromGBuffer = new Technique {
-               Passes = 1,
-               PixelShader = lowLevelAssetManager.LoadPixelShaderFromFile("shaders/deferred_from_gbuffer", "PSMain"),
-               VertexShader = lowLevelAssetManager.LoadVertexShaderFromFile("shaders/deferred_from_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
-            };
+            //collection.DeferredToGBuffer = new Technique {
+            //   Passes = 1,
+            //   PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/deferred_to_gbuffer", "PSMain"),
+            //   VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/deferred_to_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
+            //};
+            //collection.DeferredFromGBuffer = new Technique {
+            //   Passes = 1,
+            //   PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/deferred_from_gbuffer", "PSMain"),
+            //   VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/deferred_from_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
+            //};
             return collection;
          }
 
@@ -1003,15 +1085,77 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      private class Direct3DMeshPresets : IMeshPresets {
-         private Direct3DMeshPresets() { }
+      private class Direct3DPresetsStore : IPresetsStore {
+         private Direct3DPresetsStore(Direct3DGraphicsDevice device) {
+            SolidTextures = new SolidTexturesPresetCollection(device._internalAssetLoader);
+            SolidCubeTextures = new SolidCubeTexturesPresetCollection(device._internalAssetLoader);
+         }
 
-         public IMesh UnitCube { get; set; }
-         public IMesh UnitPlaneXY { get; set; }
-         public IMesh UnitSphere { get; set; }
+         public IMesh UnitCube { get; private set; }
+         public IMesh UnitPlaneXY { get; private set; }
+         public IMesh UnitSphere { get; private set; }
 
-         public static Direct3DMeshPresets Create(Direct3DGraphicsDevice device) {
-            var presets = new Direct3DMeshPresets();
+         public IMesh GetPresetMesh(MeshPreset preset) {
+            if (preset == MeshPreset.UnitCube) return UnitCube;
+            else if (preset == MeshPreset.UnitPlaneXY) return UnitPlaneXY;
+            else if (preset == MeshPreset.UnitSphere) return UnitSphere;
+            else throw new NotSupportedException();
+         }
+
+         public IPresetCollection1<Color4, IShaderResourceView> SolidTextures { get; }
+         public IPresetCollection1And6<Color4, IShaderResourceView> SolidCubeTextures { get; }
+         
+         private abstract class PresetCollectionBase<K, V> : IPresetCollection1<K, V> {
+            private readonly CopyOnAddDictionary<K, V> store = new CopyOnAddDictionary<K, V>();
+            private readonly Func<K, V> constructFunc;
+
+            protected PresetCollectionBase() {
+               constructFunc = Construct; // avoid delegate alloc
+            }
+
+            protected abstract V Construct(K key);
+
+            public V this[K key] => store.GetOrAdd(key, constructFunc);
+         }
+
+         private class SolidTexturesPresetCollection : PresetCollectionBase<Color4, IShaderResourceView> {
+            private readonly Direct3DInternalAssetLoader _internalAssetLoader;
+
+            public SolidTexturesPresetCollection(Direct3DInternalAssetLoader internalAssetLoader) {
+               _internalAssetLoader = internalAssetLoader;
+            }
+
+            protected override IShaderResourceView Construct(Color4 key) {
+               // TODO: Texture leak.
+               var (tex, srv) = _internalAssetLoader.CreateSolidTexture(key);
+               return srv;
+            }
+         }
+
+         private class SolidCubeTexturesPresetCollection 
+            : PresetCollectionBase<(Color4, Color4, Color4, Color4, Color4, Color4), IShaderResourceView>,
+               IPresetCollection1And6<Color4, IShaderResourceView> {
+            private readonly Direct3DInternalAssetLoader _internalAssetLoader;
+
+            public SolidCubeTexturesPresetCollection(Direct3DInternalAssetLoader internalAssetLoader) {
+               _internalAssetLoader = internalAssetLoader;
+            }
+
+            protected override IShaderResourceView Construct((Color4, Color4, Color4, Color4, Color4, Color4) key) {
+               // TODO: Texture leak.
+               var (tex, srv) = _internalAssetLoader.CreateSolidCubeTexture(key.Item1, key.Item2, key.Item3, key.Item4, key.Item5, key.Item6);
+               return srv;
+            }
+
+            IShaderResourceView IPresetCollection1<Color4, IShaderResourceView>.this[Color4 key]
+               => this[(key, key, key, key, key, key)];
+
+            IShaderResourceView IPresetCollection1And6<Color4, IShaderResourceView>.this[Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz]
+               => this[(posx, negx, posy, negy, posz, negz)];
+         }
+
+         public static Direct3DPresetsStore Create(Direct3DGraphicsDevice device) {
+            var presets = new Direct3DPresetsStore(device);
 
             presets.UnitCube = new Direct3DMesh {
                VertexBuffer = device.CreateVertexBuffer(

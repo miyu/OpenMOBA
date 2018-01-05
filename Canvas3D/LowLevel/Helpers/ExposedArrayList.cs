@@ -6,11 +6,12 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Canvas3D.LowLevel.Helpers {
-   public class StructArrayList<T> : IList<T> where T : struct {
+   // Doesn't zero free/cleared slots, exposes internal storage.
+   public class ExposedArrayList<T> : IList<T> {
       public int size = 0;
       public T[] store;
 
-      public StructArrayList(int capacity = 16) {
+      public ExposedArrayList(int capacity = 16) {
          store = new T[capacity];
       }
 

@@ -38,6 +38,7 @@ namespace Canvas3D.LowLevel {
       void Draw(int vertices, int verticesOffset);
       void DrawInstanced(int vertices, int verticesOffset, int instances, int instancesOffset);
 
+      IBufferUpdater<T> TakeUpdater<T>(IBuffer<T> buffer) where T : struct;
       void Update<T>(IBuffer<T> buffer, T item) where T : struct;
       void Update<T>(IBuffer<T> buffer, IntPtr data, int count) where T : struct;
       void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct;

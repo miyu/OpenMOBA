@@ -18,7 +18,9 @@ PSInput VSMain(
    float4 color : COLOR,
    float2 uv : TEXCOORD,
    float4x4 world : INSTANCE_TRANSFORM,
-   int material : INSTANCE_MATERIAL_INDEX
+   float metallic : INSTANCE_METALLIC,
+   float roughness : INSTANCE_ROUGHNESS,
+   int materialResourcesIndex : INSTANCE_MATERIAL_RESOURCES_INDEX
 ) {
    PSInput result;
 
