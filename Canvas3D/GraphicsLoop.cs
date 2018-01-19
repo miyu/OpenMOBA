@@ -9,7 +9,7 @@ namespace Canvas3D {
    public class GraphicsLoop {
       private readonly InitFlags _initFlags;
 
-      private GraphicsLoop(InitFlags initFlags, RenderForm form, IGraphicsDevice graphicsDevice, BatchedRenderer3D renderer) {
+      private GraphicsLoop(InitFlags initFlags, RenderForm form, IGraphicsDevice graphicsDevice, RenderContext renderer) {
          _initFlags = initFlags;
 
          Form = form;
@@ -21,12 +21,12 @@ namespace Canvas3D {
 
       public RenderForm Form { get; }
       public IGraphicsDevice GraphicsDevice { get; }
-      private BatchedRenderer3D Renderer { get; }
+      private RenderContext Renderer { get; }
       private RenderLoop RenderLoop { get; }
       public IPresetsStore Presets => GraphicsDevice.PresetsStore;
       public GraphicsLoopStatistics Statistics { get; }
 
-      public bool IsRunning(out IRenderer3D renderer) {
+      public bool IsRunning(out IRenderContext renderer) {
          if (RenderLoop.NextFrame()) {
             GraphicsDevice.DoEvents();
             Statistics.HandleFrameEnter(_initFlags.HasFlag(InitFlags.EnableDebugStats) ? Form : null);
@@ -44,7 +44,7 @@ namespace Canvas3D {
       public static GraphicsLoop CreateWithNewWindow(Size clientSize, InitFlags flags = 0) {
          var renderForm = new RenderForm { ClientSize = clientSize };
          var graphicsDevice = Direct3DGraphicsDevice.Create(renderForm);
-         var renderer = new BatchedRenderer3D(graphicsDevice);
+         var renderer = new RenderContext(graphicsDevice);
 
          if (!flags.HasFlag(InitFlags.HiddenWindow)) {
             renderForm.Show();

@@ -41,14 +41,14 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       // Subsystems
       private readonly RenderStates _renderStates;
-      private readonly ImmediateRenderContext _immediateContext;
+      private readonly ImmediateDeviceContext _immediateContext;
       private readonly Direct3DInternalAssetLoader _internalAssetLoader;
       private readonly Direct3DTechniqueCollection _techniqueCollection;
       private readonly Direct3DPresetsStore _presetsStore;
 
       // Deferred render context pool
       private readonly object deferredRenderContextPoolLock = new object();
-      private readonly Stack<DeferredRenderContext> deferredRenderContextPool = new Stack<DeferredRenderContext>();
+      private readonly Stack<DeferredDeviceContext> deferredRenderContextPool = new Stack<DeferredDeviceContext>();
 
       private Direct3DGraphicsDevice(RenderForm form, Device device, SwapChain swapChain, DeviceContext deviceImmediateContext) {
          _form = form;
@@ -57,14 +57,14 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          // code smell: init subsystems
          _renderStates = new RenderStates(_device);
-         _immediateContext = new ImmediateRenderContext(_device.ImmediateContext, _renderStates, _swapChain);
+         _immediateContext = new ImmediateDeviceContext(_device.ImmediateContext, _renderStates, _swapChain);
          _internalAssetLoader = new Direct3DInternalAssetLoader(_device);
          _techniqueCollection = Direct3DTechniqueCollection.Create(_internalAssetLoader);
          _presetsStore = Direct3DPresetsStore.Create(this);
       }
 
       internal Device InternalD3DDevice => _device;
-      public IImmediateRenderContext ImmediateContext => _immediateContext;
+      public IImmediateDeviceContext ImmediateContext => _immediateContext;
       public ITechniqueCollection TechniqueCollection => _techniqueCollection;
       public IPresetsStore PresetsStore => _presetsStore;
 
@@ -85,19 +85,19 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      public IDeferredRenderContext CreateDeferredRenderContext() {
+      public IDeferredDeviceContext CreateDeferredRenderContext() {
          lock (deferredRenderContextPoolLock) {
             if (deferredRenderContextPool.Count > 0) {
                return deferredRenderContextPool.Pop();
             }
          }
          Console.WriteLine("Alloc DRC");
-         return new DeferredRenderContext(this, new DeviceContext(_device), _renderStates);
+         return new DeferredDeviceContext(this, new DeviceContext(_device), _renderStates);
       }
 
-      private void ReturnDeferredContext(DeferredRenderContext deferredRenderContext) {
+      private void ReturnDeferredContext(DeferredDeviceContext deferredDeviceContext) {
          lock (deferredRenderContextPoolLock) {
-            deferredRenderContextPool.Push(deferredRenderContext);
+            deferredRenderContextPool.Push(deferredDeviceContext);
          }
       }
 
@@ -128,11 +128,11 @@ namespace Canvas3D.LowLevel.Direct3D {
                Dimension = ShaderResourceViewDimension.Buffer,
                Format = Format.Unknown,
                Buffer = {
-                  ElementCount = count,
                   FirstElement = 0,
                   ElementOffset = 0,
-                  ElementWidth = sizeOfT
-               }
+                  ElementCount = sizeOfT, // WTF: This works if I flip ElementCount/Width as done here...
+                  ElementWidth = count    // Otherwise runtime + renderdoc think there are sizeOfT elements in buffer?
+               },
             });
          var srvBox = new ShaderResourceViewBox { ShaderResourceView = srv };
          return (bufferBox, srvBox);
@@ -606,7 +606,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          public Texture2D Texture;
       }
 
-      internal class BaseRenderContext : IRenderContext, IDisposable {
+      internal class BaseDeviceContext : IDeviceContext, IDisposable {
          protected DeviceContext _deviceContext;
          protected RenderStates _renderStates;
 
@@ -618,7 +618,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          protected RenderTargetView[] _preallocatedRtvArray = new RenderTargetView[4];
          protected RectangleF _currentViewportRect;
 
-         public BaseRenderContext(DeviceContext deviceContext, RenderStates renderStates) {
+         public BaseDeviceContext(DeviceContext deviceContext, RenderStates renderStates) {
             _deviceContext = deviceContext;
             _renderStates = renderStates;
 
@@ -798,6 +798,9 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void Update<T>(IBuffer<T> buffer, T item) where T : struct {
             var box = (BufferBox<T>)buffer;
+            if (box.Count < 1) {
+               throw new ArgumentOutOfRangeException();
+            }
             var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             Utilities.Write(db.DataPointer, ref item);
             _deviceContext.UnmapSubresource(box.Buffer, 0);
@@ -805,6 +808,9 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void Update<T>(IBuffer<T> buffer, IntPtr data, int count) where T : struct {
             var box = (BufferBox<T>)buffer;
+            if (count > box.Count) {
+               throw new ArgumentOutOfRangeException();
+            }
             var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             Utilities.CopyMemory(db.DataPointer, data, count * box.Stride);
             _deviceContext.UnmapSubresource(box.Buffer, 0);
@@ -812,6 +818,9 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct {
             var box = (BufferBox<T>)buffer;
+            if (count > box.Count) {
+               throw new ArgumentOutOfRangeException();
+            }
             var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             Utilities.Write(db.DataPointer, arr, offset, count);
             _deviceContext.UnmapSubresource(box.Buffer, 0);
@@ -842,18 +851,22 @@ namespace Canvas3D.LowLevel.Direct3D {
                private DeviceContext deviceContext;
                private BufferBox<T> bufferBox;
                private IntPtr currentBufferPointer;
+               private int remaining;
 
                internal void Initialize(DeviceContext deviceContext, BufferBox<T> bufferBox) {
                   this.deviceContext = deviceContext;
                   this.bufferBox = bufferBox;
                   this.currentBufferPointer = deviceContext.MapSubresource(bufferBox.Buffer, 0, MapMode.WriteDiscard, MapFlags.None).DataPointer;
+                  this.remaining = bufferBox.Count;
                }
 
                public void Write(T val) {
+                  if (--remaining < 0) throw new InternalBufferOverflowException();
                   currentBufferPointer = Utilities.WriteAndPosition(currentBufferPointer, ref val);
                }
 
                public void Write(ref T val) {
+                  if (--remaining < 0) throw new InternalBufferOverflowException();
                   currentBufferPointer = Utilities.WriteAndPosition(currentBufferPointer, ref val);
                }
 
@@ -862,6 +875,8 @@ namespace Canvas3D.LowLevel.Direct3D {
                }
 
                public void Write(T[] vals, int offset, int count) {
+                  remaining -= count;
+                  if (remaining < 0) throw new InternalBufferOverflowException();
                   Utilities.Write(currentBufferPointer, vals, 0, count);
                   currentBufferPointer += Utilities.SizeOf<T>() * count;
                }
@@ -873,11 +888,13 @@ namespace Canvas3D.LowLevel.Direct3D {
 
                public void Reopen() {
                   this.currentBufferPointer = deviceContext.MapSubresource(bufferBox.Buffer, 0, MapMode.WriteDiscard, MapFlags.None).DataPointer;
+                  this.remaining = bufferBox.Count;
                }
 
                public void UpdateAndClose() {
                   deviceContext.UnmapSubresource(bufferBox.Buffer, 0);
                   currentBufferPointer = default(IntPtr);
+                  remaining = 0;
                }
 
                public void UpdateCloseAndDispose() {
@@ -890,6 +907,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                   deviceContext = null;
                   bufferBox = null;
                   currentBufferPointer = default(IntPtr);
+                  remaining = 0;
 
                   // return to pool
                   lock (synchronization) {
@@ -900,12 +918,12 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      private class ImmediateRenderContext : BaseRenderContext, IImmediateRenderContext {
+      private class ImmediateDeviceContext : BaseDeviceContext, IImmediateDeviceContext {
          private readonly SwapChain _swapChain;
          private DepthStencilViewBox _backBufferDepthView;
          private RenderTargetViewBox _backBufferRenderTargetView;
 
-         public ImmediateRenderContext(DeviceContext deviceContext, RenderStates renderStates, SwapChain swapChain) : base(deviceContext, renderStates) {
+         public ImmediateDeviceContext(DeviceContext deviceContext, RenderStates renderStates, SwapChain swapChain) : base(deviceContext, renderStates) {
             _swapChain = swapChain;
          }
 
@@ -937,10 +955,10 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      private class DeferredRenderContext : BaseRenderContext, IDeferredRenderContext {
+      private class DeferredDeviceContext : BaseDeviceContext, IDeferredDeviceContext {
          private readonly Direct3DGraphicsDevice _graphicsDevice;
 
-         public DeferredRenderContext(Direct3DGraphicsDevice graphicsDevice, DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) {
+         public DeferredDeviceContext(Direct3DGraphicsDevice graphicsDevice, DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) {
             _graphicsDevice = graphicsDevice;
          }
 
@@ -1060,13 +1078,13 @@ namespace Canvas3D.LowLevel.Direct3D {
 
             public int Passes { get; set; }
 
-            public void BeginPass(IRenderContext renderContext, int pass) {
+            public void BeginPass(IDeviceContext deviceContext, int pass) {
                if (pass != 0) {
                   throw new ArgumentOutOfRangeException();
                }
 
-               renderContext.SetPixelShader(PixelShader);
-               renderContext.SetVertexShader(VertexShader);
+               deviceContext.SetPixelShader(PixelShader);
+               deviceContext.SetVertexShader(VertexShader);
             }
          }
       }
@@ -1078,10 +1096,10 @@ namespace Canvas3D.LowLevel.Direct3D {
 
          public VertexLayout VertexLayout { get; internal set; }
 
-         public void Draw(IRenderContext renderContext, int instances) {
-            renderContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            renderContext.SetVertexBuffer(0, VertexBuffer);
-            renderContext.DrawInstanced(Vertices, VertexBufferOffset, instances, 0);
+         public void Draw(IDeviceContext deviceContext, int instances) {
+            deviceContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
+            deviceContext.SetVertexBuffer(0, VertexBuffer);
+            deviceContext.DrawInstanced(Vertices, VertexBufferOffset, instances, 0);
          }
       }
 

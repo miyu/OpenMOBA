@@ -33,12 +33,12 @@ namespace Canvas3D.LowLevel {
    public interface IMesh {
       VertexLayout VertexLayout { get; }
 
-      void Draw(IRenderContext renderContext, int instances);
+      void Draw(IDeviceContext deviceContext, int instances);
    }
 
    public interface ITechnique {
       int Passes { get; set; }
-      void BeginPass(IRenderContext renderContext, int pass);
+      void BeginPass(IDeviceContext deviceContext, int pass);
    }
 
    public interface ITechniqueCollection {

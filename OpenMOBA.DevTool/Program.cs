@@ -18,6 +18,7 @@ namespace OpenMOBA.DevTool {
       public static void Main(string[] args) {
          var gameFactory = new GameFactory();
          gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
+         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
          OpenMOBA.Program.Main(gameFactory);
       }
    }
@@ -107,7 +108,6 @@ namespace OpenMOBA.DevTool {
          terrainOverlayNetwork.Initialize();
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
-
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
             //            var vp = new VisibilityPolygon(new DoubleVector2(300, 300));
@@ -118,7 +118,7 @@ namespace OpenMOBA.DevTool {
             //            return;
 
             debugCanvas.Transform = Matrix4x4.Identity;
-            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            //DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
@@ -383,6 +383,11 @@ namespace OpenMOBA.DevTool {
             displaySize,
             new Point(100, 100),
             projector);
+         AttachTo(game, debugMultiCanvasHost);
+      }
+
+      public static void AttachToWithHardwareRendering(Game game) {
+         var debugMultiCanvasHost = Canvas3DDebugMultiCanvasHost.CreateAndShowCanvas(new Size(1280, 720));
          AttachTo(game, debugMultiCanvasHost);
       }
 

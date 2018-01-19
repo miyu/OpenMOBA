@@ -11,6 +11,11 @@ namespace Canvas3D.LowLevel.Helpers {
       public int Count => list.Count;
       public T this[int idx] => list[idx];
 
+      public int TryAdd(T val) {
+         TryAdd(val, out int x);
+         return x;
+      }
+
       public bool TryAdd(T val, out int index) {
          if (dict.TryGetValue(val, out index)) return false;
          dict[val] = index = list.Count;

@@ -11,7 +11,6 @@
 #define REG_SHADOW_MAPS t10
 #define REG_SPOTLIGHT_DESCRIPTIONS t11
 #define REG_MATERIAL_RESOURCE_DESCRIPTIONS t12
-#define REG_TEXTURE_DESCRIPTIONS t13
 
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4 cameraEye;

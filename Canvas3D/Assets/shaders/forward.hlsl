@@ -54,7 +54,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
    
    int materialResourcesIndex = batchMaterialResourcesIndexOverride != -1 ? batchMaterialResourcesIndexOverride : input.materialResourcesIndex;
    MaterialResourceDescription materialResources = MaterialResourceDescriptions[materialResourcesIndex];
-   float4 materialSampledColor = materialResources.baseColor * SampleTexture(materialResources.baseTextureIndex, input);
+   float4 materialSampledColor = materialResources.baseColor;// *SampleTexture(materialResources.baseTextureIndex, input);
 
    float4 baseAndTransparency = input.color * materialSampledColor;
    float3 base = baseAndTransparency.xyz;

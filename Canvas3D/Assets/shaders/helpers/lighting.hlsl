@@ -44,7 +44,7 @@ bool testShadowMap(float3 objectWorld, Texture2DArray shadowMap, float4x4 projVi
     //transform from texture coords to where it is in atlas
     float3 sampleLocation = shadowMapLocation.position + float3(lightPosition.xy * shadowMapLocation.size, 0);
     float shadowMapDepth = shadowMap.Sample(LinearSampler, sampleLocation).r;
-    shadowMapDepth += 0.00003; // depth bias
+    shadowMapDepth += 0.0003; // depth bias
 
     //if clip space z value greater than shadow map value then pixel is in shadow
     if (shadowMapDepth < lightPosition.z)

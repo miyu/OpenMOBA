@@ -3,13 +3,13 @@ using System.Drawing;
 
 namespace Canvas3D.LowLevel {
    public interface IGraphicsDevice : IDisposable {
-      IImmediateRenderContext ImmediateContext { get; }
+      IImmediateDeviceContext ImmediateContext { get; }
       ITechniqueCollection TechniqueCollection { get; }
       IPresetsStore PresetsStore { get; }
 
       void DoEvents();
 
-      IDeferredRenderContext CreateDeferredRenderContext();
+      IDeferredDeviceContext CreateDeferredRenderContext();
 
       IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct;
       IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct;

@@ -3,10 +3,21 @@
 namespace Canvas3D {
    // column-major matrices
    public static class MatrixCM {
-      public static Matrix LookAtRH(Vector3 eye, Vector3 target, Vector3 up) {
+      // Matrix that orients rest of scene to fit the given lookat params.
+      // Use RotationLookAtRH to rotate objects to point to locations.
+      public static Matrix ViewLookAtRH(Vector3 eye, Vector3 target, Vector3 up) {
          var matrix = Matrix.LookAtRH(eye, target, up);
          matrix.Transpose();
          return matrix;
+      }
+
+      // Matrix that transforms reference frame to orient y+/z+ in a certain way.
+      // In contrast, LookAtRH is a matrix for transforming everyone else to fit these constraints.
+      // That is the inverse of this behavior.
+      public static Matrix RotationLookAtRH(Vector3 directionAkaDesiredYplus, Vector3 upAkaDesiredZPlus) {
+         var orien = Quaternion.RotationLookAtRH(-upAkaDesiredZPlus, directionAkaDesiredYplus);
+         var matrix = Matrix.RotationQuaternion(orien);
+         return matrix; // no transpose; orthogonal matrix, want inverse so transpose twice.
       }
 
       public static Matrix PerspectiveFovRH(float fov, float aspect, float znear, float zfar) {

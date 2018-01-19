@@ -11,7 +11,7 @@ namespace Canvas3D.LowLevel {
       PixelVertex = Pixel | Vertex
    }
 
-   public interface IRenderContext {
+   public interface IDeviceContext {
       void SetVsyncEnabled(bool val);
       void SetDepthConfiguration(DepthConfiguration config);
       void SetRasterizerConfiguration(RasterizerConfiguration config);
@@ -44,13 +44,13 @@ namespace Canvas3D.LowLevel {
       void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct;
    }
 
-   public interface IImmediateRenderContext : IRenderContext {
+   public interface IImmediateDeviceContext : IDeviceContext {
       void GetBackBufferViews(out IDepthStencilView depthStencilView, out IRenderTargetView renderTargetView);
       void Present();
       void ExecuteCommandList(ICommandList commandList);
    }
 
-   public interface IDeferredRenderContext : IRenderContext {
+   public interface IDeferredDeviceContext : IDeviceContext {
       ICommandList FinishCommandListAndFree();
    }
 }

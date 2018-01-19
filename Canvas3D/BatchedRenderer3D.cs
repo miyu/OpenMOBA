@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Canvas3D.LowLevel;
 using Canvas3D.LowLevel.Direct3D;
@@ -9,96 +10,48 @@ using Canvas3D.LowLevel.Helpers;
 using SharpDX;
 using SharpDX.Direct3D11;
 using Color = SharpDX.Color;
+using IDeviceContext = Canvas3D.LowLevel.IDeviceContext;
 using RectangleF = SharpDX.RectangleF;
 
 namespace Canvas3D {
-   public interface IRenderer3D {
-      void ClearScene();
+   public interface IScene {
+      void Clear();
       void SetCamera(Vector3 cameraEye, Matrix projView);
       int AddMaterialResources(MaterialResourcesDescription desc);
       void AddRenderable(IMesh mesh, Matrix worldCm, MaterialDescription material);
       void AddRenderable(IMesh mesh, Matrix worldCm, MaterialProperties materialProperties, int materialResourcesIndex);
       void AddRenderable(IMesh mesh, RenderJobDescription info);
       void AddRenderJobBatch(RenderJobBatch batch);
-      void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f);
-      void RenderScene();
+      void AddSpotlight(Vector3 position, Vector3 lookat, Vector3 up, float theta, Color color, float near, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f);
+      ISceneSnapshot ExportSnapshot();
+      void ExportSnapshot(ISceneSnapshot snapshot);
    }
 
-   public class BatchedRenderer3D : IRenderer3D {
-      public enum DiffuseTextureSamplingMode {
-         FlatUV = 0,
-         FlatUVGrayscale = 10,
-         FlatUVGrayscaleDerivative = 11,
-         FlatUVNoAlpha = 12,
-         FlatUVUnpackMaterialW = 13,
-         CubeObjectRelative = 20,
-         CubeNormal = 21
-      }
+   public interface IRenderContext {
+      void RenderScene(ISceneSnapshot snapshot);
+   }
 
-      private const int kShadowMapWidthHeight = 256;
-      private const int kBatchNoMaterialIndexOverride = -1;
-      private const int kBaseTextureSlotId = 48;
-      private const int kTextureBindLimit = 80; // Slots [48, 127)
+   public enum DiffuseTextureSamplingMode {
+      FlatUV = 0,
+      FlatUVGrayscale = 10,
+      FlatUVGrayscaleDerivative = 11,
+      FlatUVNoAlpha = 12,
+      FlatUVUnpackMaterialW = 13,
+      CubeObjectRelative = 20,
+      CubeNormal = 21
+   }
 
-      private readonly Device _d3d;
-      private readonly IGraphicsDevice _graphicsDevice;
-      private readonly IBuffer<SceneConstantBufferData> _sceneBuffer;
-      private readonly IBuffer<BatchConstantBufferData> _batchBuffer;
-      private readonly IBuffer<TextureDescriptorConstantBufferData> _textureDescriptorBuffer;
-      private readonly List<IBuffer<RenderJobDescription>> _instancingBuffers;
-      private readonly IRenderTargetView[] _gBufferRtvs;
-      private readonly IShaderResourceView _gBufferSrv;
-      private readonly IShaderResourceView[] _gBufferSrvs;
-      private readonly IDepthStencilView _gBufferDsv;
-      private readonly IShaderResourceView _gBufferDepthSrv;
-
-      private readonly IBuffer<SpotlightDescription> _spotlightDescriptionsBuffer;
-      private readonly IShaderResourceView _spotlightDescriptionsBufferSrv;
-      private readonly IBuffer<InternalMaterialResourcesDescription> _materialResourcesBuffer;
-      private readonly IShaderResourceView _materialResourcesBufferSrv;
-
-      private readonly IDepthStencilView[] _lightDepthStencilViews;
-      private readonly ITexture2D _lightDepthTexture;
-      private readonly IShaderResourceView _lightShaderResourceView;
-      private readonly IShaderResourceView[] _lightShaderResourceViews;
-
-      private readonly AddOnlyOrderedHashSet<IShaderResourceView> textures = new AddOnlyOrderedHashSet<IShaderResourceView>();
-      private readonly ExposedArrayList<InternalMaterialResourcesDescription> materials = new ExposedArrayList<InternalMaterialResourcesDescription>();
-      private readonly Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
-      private readonly List<RenderJobBatch> renderJobBatches = new List<RenderJobBatch>();
-      private readonly List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
+   public class Scene : IScene {
+      private AddOnlyOrderedHashSet<IShaderResourceView> textures = new AddOnlyOrderedHashSet<IShaderResourceView>();
+      private ExposedArrayList<InternalMaterialResourcesDescription> materials = new ExposedArrayList<InternalMaterialResourcesDescription>();
+      private Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
+      private List<RenderJobBatch> renderJobBatches = new List<RenderJobBatch>();
+      private List<SpotlightInfo> spotlightInfos = new List<SpotlightInfo>();
 
       private Vector3 _cameraEye;
       private Matrix _projView, _projViewInv;
 
-      public BatchedRenderer3D(IGraphicsDevice graphicsDevice) {
-         _d3d = (graphicsDevice as Direct3DGraphicsDevice).InternalD3DDevice;
-         _graphicsDevice = graphicsDevice;
-         _sceneBuffer = _graphicsDevice.CreateConstantBuffer<SceneConstantBufferData>(1);
-         _batchBuffer = _graphicsDevice.CreateConstantBuffer<BatchConstantBufferData>(1);
-         _textureDescriptorBuffer = _graphicsDevice.CreateConstantBuffer<TextureDescriptorConstantBufferData>(kBaseTextureSlotId + kTextureBindLimit);
-         _instancingBuffers = new List<IBuffer<RenderJobDescription>>();
-
-         const int kMaxPreallocatedInstanceBufferPower = 18;
-         for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) {
-            _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
-         }
-         
-         (_gBufferRtvs, _gBufferSrv, _gBufferSrvs) = _graphicsDevice.CreateScreenSizeRenderTarget(2);
-         (_gBufferDsv, _gBufferDepthSrv) = _graphicsDevice.CreateScreenSizeDepthTarget();
-         (_spotlightDescriptionsBuffer, _spotlightDescriptionsBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<SpotlightDescription>(256);
-         (_materialResourcesBuffer, _materialResourcesBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<InternalMaterialResourcesDescription>(256);
-         (_lightDepthTexture, _lightDepthStencilViews, _lightShaderResourceView, _lightShaderResourceViews) = _graphicsDevice.CreateDepthTextureAndViews(10, new Size(kShadowMapWidthHeight, kShadowMapWidthHeight));
-
-         Trace.Assert(Utilities.SizeOf<SpotlightInfo>() == SpotlightInfo.Size);
-         Trace.Assert(Utilities.SizeOf<AtlasLocation>() == AtlasLocation.SIZE);
-         Trace.Assert(Utilities.SizeOf<SpotlightDescription>() == SpotlightDescription.Size);
-         Trace.Assert(Utilities.SizeOf<RenderJobDescription>() == RenderJobDescription.Size);
-      }
-
-      public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
-
-      public void ClearScene() {
+      public void Clear() {
          textures.Clear();
          materials.Clear();
          renderJobBatches.Clear();
@@ -119,7 +72,7 @@ namespace Canvas3D {
 
       private int GetOrAddTextureIndex(IShaderResourceView textureSrv) {
          if (textureSrv == null) {
-            textureSrv = _graphicsDevice.PresetsStore.SolidTextures[Color4.White];
+            return -1;
          }
          textures.TryAdd(textureSrv, out int baseTextureIndex);
          return baseTextureIndex;
@@ -154,11 +107,10 @@ namespace Canvas3D {
          renderJobBatches.Add(batch);
       }
 
-      public void AddSpotlight(Vector3 position, Vector3 lookat, float theta, Color color, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f) {
-         var projCm = MatrixCM.PerspectiveFovRH(theta, 1.0f, 0.1f, far);
+      public void AddSpotlight(Vector3 position, Vector3 lookat, Vector3 up, float theta, Color color, float near, float far, float daRatioConstant, float daRatioLinear, float daRatioQuadratic, float edgeSpotlightAttenuationPercent = 1.0f / 256.0f) {
+         var projCm = MatrixCM.PerspectiveFovRH(theta, 1.0f, near, far);
 
-         var up = Vector3.Up; // todo: handle degenerate
-         var viewCm = MatrixCM.LookAtRH(position, lookat, up);
+         var viewCm = MatrixCM.ViewLookAtRH(position, lookat, up);
 
          // solve distance attenuation constants: 1/256 = atten = 1 / (x * darc + far * x * darl + far * far * x * darq)
          // 256 = x * darc + far * x * darl + far * far * x * darq
@@ -198,12 +150,103 @@ namespace Canvas3D {
          spotlightInfos.Add(info);
       }
 
-      public unsafe void RenderScene() {
+      public ISceneSnapshot ExportSnapshot() {
+         var snapshot = new SceneSnapshot();
+         ExportSnapshot(snapshot);
+         return snapshot;
+      }
+
+      public void ExportSnapshot(ISceneSnapshot s) {
+         var snapshot = (SceneSnapshot)s;
+         snapshot.Textures.Clear();
+         foreach (var tex in textures) snapshot.Textures.TryAdd(tex);
+
+         snapshot.Materials.Clear();
+         foreach (var mat in materials) snapshot.Materials.Add(mat);
+
+         snapshot.RenderJobBatches.Clear();
+         foreach (var batch in renderJobBatches) snapshot.RenderJobBatches.Add(batch);
+
+         snapshot.SpotlightInfos.Clear();
+         foreach (var spotlightInfo in spotlightInfos) snapshot.SpotlightInfos.Add(spotlightInfo);
+
+         snapshot.CameraEye = _cameraEye;
+         snapshot.ProjView = _projView;
+         snapshot.ProjViewInv = _projViewInv;
+
+         foreach (var batch in snapshot.RenderJobBatches)
+            if (batch.MaterialResourcesIndexOverride != -1)
+               foreach (var job in batch.Jobs)
+                  if (job.MaterialResourcesIndex >= snapshot.Materials.Count)
+                     throw new InvalidOperationException();
+      }
+   }
+
+   internal class RenderContext : IRenderContext {
+      private const int kShadowMapWidthHeight = 256;
+      private const int kBatchNoMaterialIndexOverride = -1;
+      private const int kBaseTextureSlotId = 48;
+      private const int kTextureBindLimit = 80; // Slots [48, 127)
+      private const int kMaterialBufferCount = 256; // Slots [48, 127)
+
+      private readonly Device _d3d;
+      private readonly IGraphicsDevice _graphicsDevice;
+      private readonly IBuffer<SceneConstantBufferData> _sceneBuffer;
+      private readonly IBuffer<BatchConstantBufferData> _batchBuffer;
+      private readonly IBuffer<TextureDescriptorConstantBufferData> _textureDescriptorBuffer;
+      private readonly List<IBuffer<RenderJobDescription>> _instancingBuffers;
+      private readonly IRenderTargetView[] _gBufferRtvs;
+      private readonly IShaderResourceView _gBufferSrv;
+      private readonly IShaderResourceView[] _gBufferSrvs;
+      private readonly IDepthStencilView _gBufferDsv;
+      private readonly IShaderResourceView _gBufferDepthSrv;
+
+      private readonly IBuffer<SpotlightDescription> _spotlightDescriptionsBuffer;
+      private readonly IShaderResourceView _spotlightDescriptionsBufferSrv;
+      private readonly IBuffer<InternalMaterialResourcesDescription> _materialResourcesBuffer;
+      private readonly IShaderResourceView _materialResourcesBufferSrv;
+
+      private readonly IDepthStencilView[] _lightDepthStencilViews;
+      private readonly ITexture2D _lightDepthTexture;
+      private readonly IShaderResourceView _lightShaderResourceView;
+      private readonly IShaderResourceView[] _lightShaderResourceViews;
+
+      internal RenderContext(IGraphicsDevice graphicsDevice) {
+         _d3d = (graphicsDevice as Direct3DGraphicsDevice).InternalD3DDevice;
+         _graphicsDevice = graphicsDevice;
+         _sceneBuffer = _graphicsDevice.CreateConstantBuffer<SceneConstantBufferData>(1);
+         _batchBuffer = _graphicsDevice.CreateConstantBuffer<BatchConstantBufferData>(1);
+         _textureDescriptorBuffer = _graphicsDevice.CreateConstantBuffer<TextureDescriptorConstantBufferData>(kBaseTextureSlotId + kTextureBindLimit);
+         _instancingBuffers = new List<IBuffer<RenderJobDescription>>();
+
+         const int kMaxPreallocatedInstanceBufferPower = 18;
+         for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) {
+            _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
+         }
+
+         (_gBufferRtvs, _gBufferSrv, _gBufferSrvs) = _graphicsDevice.CreateScreenSizeRenderTarget(2);
+         (_gBufferDsv, _gBufferDepthSrv) = _graphicsDevice.CreateScreenSizeDepthTarget();
+         (_spotlightDescriptionsBuffer, _spotlightDescriptionsBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<SpotlightDescription>(256);
+         (_materialResourcesBuffer, _materialResourcesBufferSrv) = _graphicsDevice.CreateStructuredBufferAndView<InternalMaterialResourcesDescription>(kMaterialBufferCount);
+         (_lightDepthTexture, _lightDepthStencilViews, _lightShaderResourceView, _lightShaderResourceViews) = _graphicsDevice.CreateDepthTextureAndViews(10, new Size(kShadowMapWidthHeight, kShadowMapWidthHeight));
+
+         Trace.Assert(Utilities.SizeOf<SpotlightInfo>() == SpotlightInfo.Size);
+         Trace.Assert(Utilities.SizeOf<AtlasLocation>() == AtlasLocation.SIZE);
+         Trace.Assert(Utilities.SizeOf<SpotlightDescription>() == SpotlightDescription.Size);
+         Trace.Assert(Utilities.SizeOf<RenderJobDescription>() == RenderJobDescription.Size);
+         Trace.Assert(Utilities.SizeOf<InternalMaterialResourcesDescription>() == InternalMaterialResourcesDescription.Size);
+      }
+
+      public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
+
+      public unsafe void RenderScene(ISceneSnapshot s) {
+         var snapshot = (SceneSnapshot)s;
+
          // Store backbuffer render targets for screen draw
          _graphicsDevice.ImmediateContext.GetBackBufferViews(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
 
-         //var renderContext = _graphicsDevice.ImmediateContext;
-         var renderContext = _graphicsDevice.CreateDeferredRenderContext();
+         var renderContext = _graphicsDevice.ImmediateContext;
+         //var renderContext = _graphicsDevice.CreateDeferredRenderContext();
 
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
@@ -213,11 +256,12 @@ namespace Canvas3D {
          renderContext.SetConstantBuffer(2, _textureDescriptorBuffer, RenderStage.PixelVertex);
 
          // Draw spotlights
-         var spotlightDescriptions = stackalloc SpotlightDescription[spotlightInfos.Count];
-         ComputeSpotlightDescriptions(spotlightDescriptions);
+         var spotlightDescriptions = stackalloc SpotlightDescription[snapshot.SpotlightInfos.Count];
+         ComputeSpotlightDescriptions(snapshot, spotlightDescriptions);
 
-         var lightDepthStencilViewCleared = stackalloc bool[_lightDepthStencilViews.Length];
-         for (var i = 0; i < spotlightInfos.Count; i++) {
+         //var lightDepthStencilViewCleared = stackalloc bool[_lightDepthStencilViews.Length];
+         var lightDepthStencilViewCleared = new bool[_lightDepthStencilViews.Length];
+         for (var i = 0; i < snapshot.SpotlightInfos.Count; i++) {
             var ldsvIndex = (int)spotlightDescriptions[i].AtlasLocation.Position.Z;
             if (lightDepthStencilViewCleared[ldsvIndex]) continue;
             lightDepthStencilViewCleared[ldsvIndex] = true;
@@ -225,7 +269,7 @@ namespace Canvas3D {
             renderContext.ClearDepthBuffer(1.0f);
          }
 
-         for (var spotlightIndex = 0; spotlightIndex < spotlightInfos.Count; spotlightIndex++) {
+         for (var spotlightIndex = 0; spotlightIndex < snapshot.SpotlightInfos.Count; spotlightIndex++) {
             var spotlightDescription = &spotlightDescriptions[spotlightIndex];
             renderContext.SetRenderTargets(_lightDepthStencilViews[(int)spotlightDescription->AtlasLocation.Position.Z], null);
             renderContext.SetViewportRect((Vector2)spotlightDescription->AtlasLocation.Position, kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size);
@@ -234,11 +278,11 @@ namespace Canvas3D {
             for (var pass = 0; pass < Techniques.ForwardDepthOnly.Passes; pass++) {
                Techniques.ForwardDepthOnly.BeginPass(renderContext, pass);
 
-               foreach (var batch in renderJobBatches) {
+               foreach (var batch in snapshot.RenderJobBatches) {
                   UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, 0, batch.MaterialResourcesIndexOverride);
                   var instancingBuffer = PickInstancingBuffer(batch.Jobs.Count);
                   renderContext.Update(instancingBuffer, batch.Jobs.store, 0, batch.Jobs.Count);
-                  
+
                   renderContext.SetVertexBuffer(1, instancingBuffer);
                   batch.Mesh.Draw(renderContext, batch.Jobs.Count);
                   renderContext.SetVertexBuffer(1, null);
@@ -247,7 +291,7 @@ namespace Canvas3D {
          }
 
          // Prepare for scene render
-         renderContext.Update(_spotlightDescriptionsBuffer, (IntPtr)spotlightDescriptions, spotlightInfos.Count);
+         renderContext.Update(_spotlightDescriptionsBuffer, (IntPtr)spotlightDescriptions, snapshot.SpotlightInfos.Count);
 
          // Draw Scene
          bool forward = true;
@@ -263,19 +307,21 @@ namespace Canvas3D {
             renderContext.ClearRenderTarget(Color.Gray);
             renderContext.ClearDepthBuffer(1.0f);
 
-            UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
+            UpdateSceneConstantBuffer(renderContext, new Vector4(snapshot.CameraEye, 1.0f), snapshot.ProjView, snapshot.ProjViewInv, true, true, snapshot.SpotlightInfos.Count);
             for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
                Techniques.Forward.BeginPass(renderContext, pass);
 
-               foreach (var batch in renderJobBatches) {
+               foreach (var batch in snapshot.RenderJobBatches) {
                   if (batch.MaterialResourcesIndexOverride == -1) {
-                     int* boundTextureSlotByTextureIndex = stackalloc int[textures.Count];
-                     for (var i = 0; i < textures.Count; i++) {
+                     //int* boundTextureSlotByTextureIndex = stackalloc int[snapshot.Textures.Count];
+                     int[] boundTextureSlotByTextureIndex = new int[snapshot.Textures.Count];
+                     for (var i = 0; i < snapshot.Textures.Count; i++) {
                         boundTextureSlotByTextureIndex[i] = -1;
                      }
 
-                     int* mriBound = stackalloc int[materials.Count];
-                     for (var i = 0; i < materials.Count; i++) {
+                     //int* mriBound = stackalloc int[snapshot.Materials.Count];
+                     int[] mriBound = new int[snapshot.Materials.Count];
+                     for (var i = 0; i < snapshot.Materials.Count; i++) {
                         mriBound[i] = -1;
                      }
 
@@ -283,19 +329,27 @@ namespace Canvas3D {
                      int boundMaterialResourceDescriptions = 0;
 
                      var tdbUpdater = renderContext.TakeUpdater(_textureDescriptorBuffer);
+
                      var mrbUpdater = renderContext.TakeUpdater(_materialResourcesBuffer);
                      var instancingBuffer = PickInstancingBuffer(batch.Jobs.Count);
                      var instancingBufferUpdater = renderContext.TakeUpdater(instancingBuffer);
 
                      int instancesToRender = 0;
 
+                     var whiteDefaultTextureBound = -1;
+
                      for (var i = 0; i < batch.Jobs.Count; i++) {
                         var materialResourcesIndex = batch.Jobs[i].MaterialResourcesIndex;
                         if (mriBound[materialResourcesIndex] == -1) {
-                           if (boundTextures > kTextureBindLimit - 4) {
+                           if (boundMaterialResourceDescriptions + 1 == kMaterialBufferCount || boundTextures > kTextureBindLimit - 4) {
                               instancingBufferUpdater.UpdateAndClose();
                               tdbUpdater.UpdateAndClose();
                               mrbUpdater.UpdateAndClose();
+
+                              // shouldnt be necessary
+                              renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+                              renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+                              renderContext.SetShaderResource(12, _materialResourcesBufferSrv, RenderStage.Pixel);
 
                               // Prepare draw
                               UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal, -1);
@@ -306,11 +360,11 @@ namespace Canvas3D {
                               renderContext.SetVertexBuffer(1, null);
 
                               // Reset state
-                              for (var j = 0; j < textures.Count; j++) {
+                              for (var j = 0; j < snapshot.Textures.Count; j++) {
                                  boundTextureSlotByTextureIndex[j] = -1;
                               }
 
-                              for (var j = 0; j < materials.Count; j++) {
+                              for (var j = 0; j < snapshot.Materials.Count; j++) {
                                  mriBound[j] = -1;
                               }
 
@@ -318,27 +372,48 @@ namespace Canvas3D {
                               boundMaterialResourceDescriptions = 0;
                               instancesToRender = 0;
 
+                              whiteDefaultTextureBound = -1;
+
                               instancingBufferUpdater.Reopen();
                               tdbUpdater.Reopen();
                               mrbUpdater.Reopen();
                            }
 
-                           ref var material = ref materials.store[materialResourcesIndex];
+                           ref var material = ref snapshot.Materials.store[materialResourcesIndex];
 
                            // Ensure base texture bound
-                           if (boundTextureSlotByTextureIndex[material.BaseTextureIndex] == -1) {
+                           var isTextureBound = material.BaseTextureIndex == -1
+                              ? whiteDefaultTextureBound != -1
+                              : boundTextureSlotByTextureIndex[material.BaseTextureIndex] != -1;
+                           if (!isTextureBound) {
                               var textureSlot = boundTextures + kBaseTextureSlotId;
-                              renderContext.SetShaderResource(textureSlot, textures[material.BaseTextureIndex], RenderStage.Pixel);
-                              boundTextureSlotByTextureIndex[material.BaseTextureIndex] = textureSlot;
+                              if (material.BaseTextureIndex == -1) {
+                                 var textureSrv = _graphicsDevice.PresetsStore.SolidCubeTextures[Color4.White];
+                                 renderContext.SetShaderResource(textureSlot, textureSrv, RenderStage.Pixel);
+                                 whiteDefaultTextureBound = textureSlot;
+                              } else {
+                                 var textureSrv = snapshot.Textures[material.BaseTextureIndex];
+                                 renderContext.SetShaderResource(textureSlot, textureSrv, RenderStage.Pixel);
+                                 boundTextureSlotByTextureIndex[material.BaseTextureIndex] = textureSlot;
+
+                                 if (material.BaseTextureIndex >= snapshot.Textures.Count) {
+                                    throw new IndexOutOfRangeException();
+                                 }
+                              }
                               boundTextures++;
 
                               tdbUpdater.Write(new TextureDescriptorConstantBufferData { isCubeMap = 1 });
                            }
 
                            mrbUpdater.Write(material.Resolve(
-                              boundTextureSlotByTextureIndex[material.BaseTextureIndex]
+                              material.BaseTextureIndex == -1
+                                 ? whiteDefaultTextureBound
+                                 : boundTextureSlotByTextureIndex[material.BaseTextureIndex]
                            ));
 
+                           if (materialResourcesIndex >= snapshot.Materials.Count) {
+                              throw new IndexOutOfRangeException();
+                           }
                            mriBound[materialResourcesIndex] = boundMaterialResourceDescriptions;
                            boundMaterialResourceDescriptions++;
                         }
@@ -352,21 +427,30 @@ namespace Canvas3D {
                      // Prepare draw
                      UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal, -1);
 
+                     // shouldnt be necessary
+                     renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+                     renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+                     renderContext.SetShaderResource(12, _materialResourcesBufferSrv, RenderStage.Pixel);
+
                      // Set instance buffer, draw.
                      renderContext.SetVertexBuffer(1, instancingBuffer);
                      batch.Mesh.Draw(renderContext, instancesToRender);
                      renderContext.SetVertexBuffer(1, null);
                   } else {
-                     ref var material = ref materials.store[batch.MaterialResourcesIndexOverride];
-                     
+                     ref var material = ref snapshot.Materials.store[batch.MaterialResourcesIndexOverride];
+
+                     // shouldnt be necessary
+                     renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+                     renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+                     renderContext.SetShaderResource(12, _materialResourcesBufferSrv, RenderStage.Pixel);
+
                      // Bind textures
-                     renderContext.SetShaderResource(30, textures[material.BaseTextureIndex], RenderStage.Pixel);
+                     renderContext.SetShaderResource(30, snapshot.Textures[material.BaseTextureIndex], RenderStage.Pixel);
 
                      // Write to material resource index 0
-                     //var mrbu = renderContext.TakeUpdater(_materialResourcesBuffer);
-                     //mrbu.Write(material.Resolve(31));
-                     //mrbu.Write(material.Resolve(32));
-                     //mrbu.UpdateCloseAndDispose();
+                     var mrbu = renderContext.TakeUpdater(_materialResourcesBuffer);
+                     mrbu.Write(material.Resolve(30));
+                     mrbu.UpdateCloseAndDispose();
                      renderContext.Update(_materialResourcesBuffer, material.Resolve(30));
 
                      // Prepare draw
@@ -384,49 +468,49 @@ namespace Canvas3D {
                }
             }
          } else {
-//            var baseAndMaterialRtv = _gBufferRtvs[0];
-//            var normalRtv = _gBufferRtvs[1];
-//            renderContext.SetRenderTargets(_gBufferDsv, baseAndMaterialRtv, normalRtv);
-//            renderContext.SetViewportRect(new RectangleF(0, 0, baseAndMaterialRtv.Resolution.Width, baseAndMaterialRtv.Resolution.Height));
-//            renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
-//
-//            renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
-//            renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
-//            renderContext.SetShaderResource(12, _materialResourcesBufferSrv, RenderStage.Pixel);
-//
-//            renderContext.ClearRenderTargets(Color.Transparent, Color.Transparent);
-//            renderContext.ClearDepthBuffer(1.0f);
-//
-//            UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
-//            for (var pass = 0; pass < Techniques.DeferredToGBuffer.Passes; pass++) {
-//
-//               Techniques.DeferredToGBuffer.BeginPass(renderContext, pass);
-//               foreach (var batch in renderJobBatches) {
-//                  renderContext.SetShaderResource(1, batch.BaseTexture, RenderStage.Pixel);
-//
-//                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal, batch.MaterialTexturesIndexOverride);
-//                  var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
-//
-//                  renderContext.SetVertexBuffer(1, instancingBuffer);
-//                  batch.Mesh.Draw(renderContext, batch.Jobs.Count);
-//                  renderContext.SetVertexBuffer(1, null);
-//               }
-//            }
-//
-//            // Restore render targets, merge gbuffers
-//            renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
-//            renderContext.ClearDepthBuffer(1.0f);
-//            renderContext.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
-//            renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
-//
-//            for (var pass = 0; pass < Techniques.DeferredFromGBuffer.Passes; pass++) {
-//               Techniques.DeferredFromGBuffer.BeginPass(renderContext, pass);
-//
-//               var (proj, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, 0, backBufferDepthStencilView.Resolution.Width, backBufferDepthStencilView.Resolution.Height, -2.0f);
-//               UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
-//               UpdateBatchConstantBuffer(renderContext, proj, 0, kBatchNoMaterialIndexOverride);
-//               DrawScreenQuad(renderContext, world, _gBufferSrvs[0], _gBufferSrvs[1], _gBufferDepthSrv);
-//            }
+            //            var baseAndMaterialRtv = _gBufferRtvs[0];
+            //            var normalRtv = _gBufferRtvs[1];
+            //            renderContext.SetRenderTargets(_gBufferDsv, baseAndMaterialRtv, normalRtv);
+            //            renderContext.SetViewportRect(new RectangleF(0, 0, baseAndMaterialRtv.Resolution.Width, baseAndMaterialRtv.Resolution.Height));
+            //            renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
+            //
+            //            renderContext.SetShaderResource(10, _lightShaderResourceView, RenderStage.Pixel);
+            //            renderContext.SetShaderResource(11, _spotlightDescriptionsBufferSrv, RenderStage.Pixel);
+            //            renderContext.SetShaderResource(12, _materialResourcesBufferSrv, RenderStage.Pixel);
+            //
+            //            renderContext.ClearRenderTargets(Color.Transparent, Color.Transparent);
+            //            renderContext.ClearDepthBuffer(1.0f);
+            //
+            //            UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
+            //            for (var pass = 0; pass < Techniques.DeferredToGBuffer.Passes; pass++) {
+            //
+            //               Techniques.DeferredToGBuffer.BeginPass(renderContext, pass);
+            //               foreach (var batch in renderJobBatches) {
+            //                  renderContext.SetShaderResource(1, batch.BaseTexture, RenderStage.Pixel);
+            //
+            //                  UpdateBatchConstantBuffer(renderContext, batch.BatchTransform, DiffuseTextureSamplingMode.CubeNormal, batch.MaterialTexturesIndexOverride);
+            //                  var instancingBuffer = PickAndUpdateInstancingBuffer(renderContext, batch.Jobs);
+            //
+            //                  renderContext.SetVertexBuffer(1, instancingBuffer);
+            //                  batch.Mesh.Draw(renderContext, batch.Jobs.Count);
+            //                  renderContext.SetVertexBuffer(1, null);
+            //               }
+            //            }
+            //
+            //            // Restore render targets, merge gbuffers
+            //            renderContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
+            //            renderContext.ClearDepthBuffer(1.0f);
+            //            renderContext.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
+            //            renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
+            //
+            //            for (var pass = 0; pass < Techniques.DeferredFromGBuffer.Passes; pass++) {
+            //               Techniques.DeferredFromGBuffer.BeginPass(renderContext, pass);
+            //
+            //               var (proj, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, 0, backBufferDepthStencilView.Resolution.Width, backBufferDepthStencilView.Resolution.Height, -2.0f);
+            //               UpdateSceneConstantBuffer(renderContext, new Vector4(_cameraEye, 1.0f), _projView, _projViewInv, true, true, spotlightInfos.Count);
+            //               UpdateBatchConstantBuffer(renderContext, proj, 0, kBatchNoMaterialIndexOverride);
+            //               DrawScreenQuad(renderContext, world, _gBufferSrvs[0], _gBufferSrvs[1], _gBufferDepthSrv);
+            //            }
          }
 
          // draw depth texture
@@ -446,28 +530,28 @@ namespace Canvas3D {
             var pipGBufferWidth = pipScale * backBufferRenderTargetView.Resolution.Width / backBufferRenderTargetView.Resolution.Height;
             UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, pipScale, pipGBufferWidth, pipScale);
-            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
+            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, snapshot.ProjViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferSrvs[0]);
 
             UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVNoAlpha, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, pipGBufferWidth, pipScale, pipGBufferWidth, pipScale);
-            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
+            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, snapshot.ProjViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferSrvs[1]);
 
             UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVUnpackMaterialW, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, 0, pipScale * 2, pipGBufferWidth, pipScale);
-            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
+            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, snapshot.ProjViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferSrvs[1]);
 
             UpdateBatchConstantBuffer(renderContext, Matrix.Identity, DiffuseTextureSamplingMode.FlatUVGrayscaleDerivative, kBatchNoMaterialIndexOverride);
             (projView, world) = ComputeSceneQuadProjWorld(backBufferDepthStencilView.Resolution, pipGBufferWidth, pipScale * 2, pipGBufferWidth, pipScale);
-            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, _projViewInv, false, false, 0);
+            UpdateSceneConstantBuffer(renderContext, Vector4.Zero, projView, snapshot.ProjViewInv, false, false, 0);
             DrawScreenQuad(renderContext, world, _gBufferDepthSrv);
          }
 
-         using (var commandList = renderContext.FinishCommandListAndFree()) {
-            _graphicsDevice.ImmediateContext.ExecuteCommandList(commandList);
-         }
+         //using (var commandList = renderContext.FinishCommandListAndFree()) {
+         //   _graphicsDevice.ImmediateContext.ExecuteCommandList(commandList);
+         //}
          _graphicsDevice.ImmediateContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
 
          _graphicsDevice.ImmediateContext.Present();
@@ -479,21 +563,21 @@ namespace Canvas3D {
          return (orthoProj, quadWorld);
       }
 
-      private void DrawScreenQuad(IRenderContext renderContext, Matrix world, IShaderResourceView textureSrv0, IShaderResourceView textureSrv1 = null, IShaderResourceView textureSrv2 = null) {
+      private void DrawScreenQuad(IDeviceContext deviceContext, Matrix world, IShaderResourceView textureSrv0, IShaderResourceView textureSrv1 = null, IShaderResourceView textureSrv2 = null) {
          var instancingBuffer = PickInstancingBuffer(1);
-         renderContext.Update(instancingBuffer, new RenderJobDescription { WorldTransform = world });
-         
-         renderContext.SetShaderResource(0, textureSrv0, RenderStage.Pixel);
-         renderContext.SetShaderResource(1, textureSrv1, RenderStage.Pixel);
-         renderContext.SetShaderResource(2, textureSrv2, RenderStage.Pixel);
+         deviceContext.Update(instancingBuffer, new RenderJobDescription { WorldTransform = world });
 
-         renderContext.SetVertexBuffer(1, instancingBuffer);
-         _graphicsDevice.PresetsStore.UnitPlaneXY.Draw(renderContext, 1);
-         renderContext.SetVertexBuffer(1, null);
+         deviceContext.SetShaderResource(0, textureSrv0, RenderStage.Pixel);
+         deviceContext.SetShaderResource(1, textureSrv1, RenderStage.Pixel);
+         deviceContext.SetShaderResource(2, textureSrv2, RenderStage.Pixel);
+
+         deviceContext.SetVertexBuffer(1, instancingBuffer);
+         _graphicsDevice.PresetsStore.UnitPlaneXY.Draw(deviceContext, 1);
+         deviceContext.SetVertexBuffer(1, null);
       }
 
-      private void UpdateSceneConstantBuffer(IRenderContext renderContext, Vector4 cameraEye, Matrix projView, Matrix projViewInv, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights) {
-         renderContext.Update(_sceneBuffer, new SceneConstantBufferData {
+      private void UpdateSceneConstantBuffer(IDeviceContext deviceContext, Vector4 cameraEye, Matrix projView, Matrix projViewInv, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights) {
+         deviceContext.Update(_sceneBuffer, new SceneConstantBufferData {
             cameraEye = cameraEye,
             projView = projView,
             projViewInv = projViewInv,
@@ -504,8 +588,8 @@ namespace Canvas3D {
          });
       }
 
-      private void UpdateBatchConstantBuffer(IRenderContext renderContext, Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode, int batchMaterialIndexOverride) {
-         renderContext.Update(_batchBuffer, new BatchConstantBufferData {
+      private void UpdateBatchConstantBuffer(IDeviceContext deviceContext, Matrix batchTransform, DiffuseTextureSamplingMode diffuseSamplingMode, int batchMaterialIndexOverride) {
+         deviceContext.Update(_batchBuffer, new BatchConstantBufferData {
             batchTransform = batchTransform,
             diffuseSamplingMode = (int)diffuseSamplingMode,
             batchMaterialIndexOverride = batchMaterialIndexOverride,
@@ -524,13 +608,13 @@ namespace Canvas3D {
          throw new ArgumentOutOfRangeException();
       }
 
-      private unsafe void ComputeSpotlightDescriptions(SpotlightDescription* res) {
-         for (var i = 0; i < spotlightInfos.Count; i++) {
+      private unsafe void ComputeSpotlightDescriptions(SceneSnapshot snapshot, SpotlightDescription* res) {
+         for (var i = 0; i < snapshot.SpotlightInfos.Count; i++) {
             res[i].AtlasLocation = new AtlasLocation {
                Position = new Vector3(0, 0, i),
                Size = new Vector2(1, 1)
             };
-            res[i].SpotlightInfo = spotlightInfos[i];
+            res[i].SpotlightInfo = snapshot.SpotlightInfos[i];
          }
       }
 
@@ -579,22 +663,36 @@ namespace Canvas3D {
 
          public const int Size = AtlasLocation.SIZE + SpotlightInfo.Size;
       }
+   }
 
-      [StructLayout(LayoutKind.Sequential, Pack = 1)]
-      public struct SpotlightInfo {
-         public Vector3 Origin;
-         public Vector3 Direction;
+   public interface ISceneSnapshot { }
 
-         public Color4 Color;
-         public float DistanceAttenuationConstant;
-         public float DistanceAttenuationLinear;
-         public float DistanceAttenuationQuadratic;
-         public float SpotlightAttenuationPower;
+   internal class SceneSnapshot : ISceneSnapshot {
+      public AddOnlyOrderedHashSet<IShaderResourceView> Textures = new AddOnlyOrderedHashSet<IShaderResourceView>();
+      public ExposedArrayList<InternalMaterialResourcesDescription> Materials = new ExposedArrayList<InternalMaterialResourcesDescription>();
+      // public Dictionary<IMesh, RenderJobBatch> DefaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
+      public List<RenderJobBatch> RenderJobBatches = new List<RenderJobBatch>();
+      public List<SpotlightInfo> SpotlightInfos = new List<SpotlightInfo>();
 
-         public Matrix ProjViewCM;
+      public Vector3 CameraEye;
+      public Matrix ProjView;
+      public Matrix ProjViewInv;
+   }
 
-         public const int Size = 3 * 4 * 2 + 4 * 4 * 1 + 4 * 4 + 64 * 1;
-      }
+   [StructLayout(LayoutKind.Sequential, Pack = 1)]
+   public struct SpotlightInfo {
+      public Vector3 Origin;
+      public Vector3 Direction;
+
+      public Color4 Color;
+      public float DistanceAttenuationConstant;
+      public float DistanceAttenuationLinear;
+      public float DistanceAttenuationQuadratic;
+      public float SpotlightAttenuationPower;
+
+      public Matrix ProjViewCM;
+
+      public const int Size = 3 * 4 * 2 + 4 * 4 * 1 + 4 * 4 + 64 * 1;
    }
 
    [StructLayout(LayoutKind.Sequential, Pack = 4)]
@@ -610,6 +708,8 @@ namespace Canvas3D {
       public int BaseTextureIndex;
       public int padding0, padding1, padding2;
       public Color4 BaseColor;
+
+      public const int Size = 4 * 4 + 4 * 4;
 
       public InternalMaterialResourcesDescription Resolve(int resolvedBaseTextureIndex) {
          return new InternalMaterialResourcesDescription {
