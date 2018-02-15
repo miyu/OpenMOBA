@@ -211,8 +211,10 @@ namespace OpenMOBA.DevTool.Debugging {
          this.up = up;
          this.width = width;
          this.height = height;
-         this.worldToCamera = Matrix4x4.CreateTranslation(ToNumerics3(-1.0 * position)) *
-            Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up));
+         this.worldToCamera = 
+            Matrix4x4.CreateTranslation(ToNumerics3(-1.0 * position)) *
+            Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up)) * 
+            Matrix4x4.CreateScale(-1, 1, 1);
          this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI * 2 / 4, (float)(width / height), 1f, 10000f);
 //          this.cameraToView = Matrix4x4.CreatePerspectiveOffCenter(0, (float)width, (float)height, 0, 1.0f, 1000.0f);
          transform = cameraToView * worldToCamera;

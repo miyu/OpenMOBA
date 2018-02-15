@@ -110,15 +110,8 @@ namespace OpenMOBA.DevTool {
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
-            //            var vp = new VisibilityPolygon(new DoubleVector2(300, 300));
-            //            vp.Insert(new IntLineSegment2(new IntVector2(500, 100), new IntVector2(500, 500)));
-            //            vp.ClearBeyond(new IntLineSegment2(new IntVector2(490, 200), new IntVector2(490, 400)));
-            //            vp.Insert(new IntLineSegment2(new IntVector2(800, -700), new IntVector2(800, 1300)));
-            //            debugCanvas.DrawLineOfSight(vp);
-            //            return;
-
             debugCanvas.Transform = Matrix4x4.Identity;
-            //DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
@@ -137,26 +130,27 @@ namespace OpenMOBA.DevTool {
 
                debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
 
-               if (!sectorNodeDescription.EnableDebugHighlight) continue;
+               //if (!sectorNodeDescription.EnableDebugHighlight) continue;
 
-               var outboundEdges = terrainNode.OutboundEdgeGroups.SelectMany(kvp => kvp.Value).ToList();
-               if (outboundEdges.Count >= 4) {
-                  var g1 = outboundEdges.First();
-                  var g2 = outboundEdges.Skip(3).First();
-                  var e1 = g1.Edges[g1.Edges.Length * 3 / 4];
-                  var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
-                  var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
-                  var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
-                  if (linkEnter.PriorIndex == PathLink.DirectPathIndex) {
-                     debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke2);
-                  } else {
-                     debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
-                     debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
-                  }
-               }
+               //var outboundEdges = terrainNode.OutboundEdgeGroups.SelectMany(kvp => kvp.Value).ToList();
+               //if (outboundEdges.Count >= 4) {
+               //   var g1 = outboundEdges.First();
+               //   var g2 = outboundEdges.Skip(3).First();
+               //   var e1 = g1.Edges[g1.Edges.Length * 3 / 4];
+               //   var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
+               //   var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
+               //   var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
+               //   if (linkEnter.PriorIndex == PathLink.DirectPathIndex) {
+               //      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke2);
+               //   } else {
+               //      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
+               //      debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
+               //   }
+               //}
+               //foreach (var g in outboundEdges) foreach (var e in g.Edges) debugCanvas.DrawPoint(crossoverPointManager.CrossoverPoints[e.SourceCrossoverIndex], new StrokeStyle(Color.White, 3));
 
-               var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.ContourBvh;
-               if (bvh != null) debugCanvas.DrawBvh(bvh);
+               //var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.ContourBvh;
+               //if (bvh != null) debugCanvas.DrawBvh(bvh);
 
                //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)));
                //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 190), new DoubleVector2(0, 410)));
@@ -171,7 +165,6 @@ namespace OpenMOBA.DevTool {
 
                foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
 
-               foreach (var g in outboundEdges) foreach (var e in g.Edges) debugCanvas.DrawPoint(crossoverPointManager.CrossoverPoints[e.SourceCrossoverIndex], new StrokeStyle(Color.White, 3));
 
                //               terrainNode.CrossoverPointManager.CrossoverPoints
 
@@ -315,7 +308,7 @@ namespace OpenMOBA.DevTool {
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
-            Tuple.Create(new DoubleVector3(-600, 700, 0), new DoubleVector3(1500, 500, 0))
+            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
             //            Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
@@ -367,14 +360,14 @@ namespace OpenMOBA.DevTool {
       }
 
       public static void AttachToWithSoftwareRendering(Game game) {
-         var rotation = 80 * Math.PI / 180.0;
+         var rotation = 100 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
          var center = new DoubleVector3(1500, 500, 0);
          var projector = new PerspectiveProjector(
             center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
             center,
-            DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation + Math.PI / 2),
+            DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
             displaySize.Width,
             displaySize.Height);
          //         projector = null;

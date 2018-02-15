@@ -27,17 +27,17 @@ namespace OpenMOBA.Foundation {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new[] {
-            Polygon2.CreateRect(100, 100, 300, 300),
-            Polygon2.CreateRect(400, 200, 100, 100),
-            Polygon2.CreateRect(200, -50, 100, 150),
-            Polygon2.CreateRect(600, 600, 300, 300),
-            Polygon2.CreateRect(700, 500, 100, 100),
-            Polygon2.CreateRect(200, 700, 100, 100),
-            Polygon2.CreateRect(600, 100, 300, 50),
-            Polygon2.CreateRect(600, 150, 50, 200),
-            Polygon2.CreateRect(850, 150, 50, 200),
-            Polygon2.CreateRect(600, 350, 300, 50),
-            Polygon2.CreateRect(700, 200, 100, 100)
+            Polygon2.CreateRect(100, 600, 300, 300),
+            Polygon2.CreateRect(400, 700, 100, 100),
+            Polygon2.CreateRect(200, 900, 100, 150),
+            Polygon2.CreateRect(600, 100, 300, 300),
+            Polygon2.CreateRect(700, 400, 100, 100),
+            Polygon2.CreateRect(200, 200, 100, 100),
+            Polygon2.CreateRect(600, 850, 300, 50),
+            Polygon2.CreateRect(600, 650, 50, 200),
+            Polygon2.CreateRect(850, 650, 50, 200),
+            Polygon2.CreateRect(600, 600, 300, 50),
+            Polygon2.CreateRect(700, 700, 100, 100)
          }
       };
 
@@ -157,7 +157,7 @@ namespace OpenMOBA.Foundation {
          for (var y = 0; y < sectorSpanHeight; y++) {
             var rng = new Random(y);
             for (var x = 0; x < sectorSpanWidth; x++) {
-               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
+               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
                sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(x * 1000, y * 1000, 0));
