@@ -1,4 +1,4 @@
-﻿#include "helpers/registers.hlsl"
+#include "helpers/registers.hlsl"
 
 struct PSInput {
    float4 position : SV_Position;

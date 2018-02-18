@@ -190,8 +190,11 @@ namespace Canvas3D {
       private const int kTextureBindLimit = 80; // Slots [48, 127)
       private const int kMaterialBufferCount = 256; // Slots [48, 127)
 
-      private readonly Device _d3d;
+      private readonly IGraphicsFacade _graphicsFacade;
       private readonly IGraphicsDevice _graphicsDevice;
+      private readonly ITechniqueCollection _techniques;
+      private readonly IPresetsStore _presets;
+
       private readonly IBuffer<SceneConstantBufferData> _sceneBuffer;
       private readonly IBuffer<BatchConstantBufferData> _batchBuffer;
       private readonly IBuffer<TextureDescriptorConstantBufferData> _textureDescriptorBuffer;
@@ -212,9 +215,12 @@ namespace Canvas3D {
       private readonly IShaderResourceView _lightShaderResourceView;
       private readonly IShaderResourceView[] _lightShaderResourceViews;
 
-      internal RenderContext(IGraphicsDevice graphicsDevice) {
-         _d3d = (graphicsDevice as Direct3DGraphicsDevice).InternalD3DDevice;
-         _graphicsDevice = graphicsDevice;
+      internal RenderContext(IGraphicsFacade graphicsFacade) {
+         _graphicsFacade = graphicsFacade;
+         _graphicsDevice = graphicsFacade.Device;
+         _techniques = graphicsFacade.Techniques;
+         _presets = graphicsFacade.Presets;
+
          _sceneBuffer = _graphicsDevice.CreateConstantBuffer<SceneConstantBufferData>(1);
          _batchBuffer = _graphicsDevice.CreateConstantBuffer<BatchConstantBufferData>(1);
          _textureDescriptorBuffer = _graphicsDevice.CreateConstantBuffer<TextureDescriptorConstantBufferData>(kBaseTextureSlotId + kTextureBindLimit);
@@ -237,8 +243,6 @@ namespace Canvas3D {
          Trace.Assert(Utilities.SizeOf<RenderJobDescription>() == RenderJobDescription.Size);
          Trace.Assert(Utilities.SizeOf<InternalMaterialResourcesDescription>() == InternalMaterialResourcesDescription.Size);
       }
-
-      public ITechniqueCollection Techniques => _graphicsDevice.TechniqueCollection;
 
       public unsafe void RenderScene(ISceneSnapshot scene) {
          _graphicsDevice.ImmediateContext.GetBackBufferViews(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
@@ -275,8 +279,8 @@ namespace Canvas3D {
          BindCommonShaderResourceViews(context);
 
          // Forward render pass
-         for (var pass = 0; pass < Techniques.Forward.Passes; pass++) {
-            Techniques.Forward.BeginPass(context, pass);
+         for (var pass = 0; pass < _techniques.Forward.Passes; pass++) {
+            _techniques.Forward.BeginPass(context, pass);
 
             foreach (var batch in scene.RenderJobBatches) {
                RenderBatch(context, scene, batch);
@@ -399,7 +403,7 @@ namespace Canvas3D {
                if (!isTextureBound) {
                   var textureSlot = boundTextures + kBaseTextureSlotId;
                   if (material.BaseTextureIndex == -1) {
-                     var textureSrv = _graphicsDevice.PresetsStore.SolidCubeTextures[Color4.White];
+                     var textureSrv = _presets.SolidCubeTextures[Color4.White];
                      context.SetShaderResource(textureSlot, textureSrv, RenderStage.Pixel);
                      whiteDefaultTextureBound = textureSlot;
                   } else {
@@ -480,8 +484,8 @@ namespace Canvas3D {
             context.SetViewportRect((Vector2)spotlightDescription->AtlasLocation.Position, kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size);
 
             UpdateSceneConstantBuffer(context, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, Matrix.Zero, false, false, 0);
-            for (var pass = 0; pass < Techniques.ForwardDepthOnly.Passes; pass++) {
-               Techniques.ForwardDepthOnly.BeginPass(context, pass);
+            for (var pass = 0; pass < _techniques.ForwardDepthOnly.Passes; pass++) {
+               _techniques.ForwardDepthOnly.BeginPass(context, pass);
 
                foreach (var batch in scene.RenderJobBatches) {
                   UpdateBatchConstantBuffer(context, batch.BatchTransform, 0, batch.MaterialResourcesIndexOverride);
@@ -517,7 +521,7 @@ namespace Canvas3D {
          deviceContext.SetShaderResource(2, textureSrv2, RenderStage.Pixel);
 
          deviceContext.SetVertexBuffer(1, instancingBuffer);
-         _graphicsDevice.PresetsStore.UnitPlaneXY.Draw(deviceContext, 1);
+         _presets.UnitPlaneXY.Draw(deviceContext, 1);
          deviceContext.SetVertexBuffer(1, null);
       }
 

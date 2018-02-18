@@ -9,26 +9,26 @@ namespace Canvas3D {
    public class GraphicsLoop {
       private readonly InitFlags _initFlags;
 
-      private GraphicsLoop(InitFlags initFlags, RenderForm form, IGraphicsDevice graphicsDevice, RenderContext renderer) {
+      private GraphicsLoop(InitFlags initFlags, RenderForm form, IGraphicsFacade graphicsFacade, RenderContext renderer) {
          _initFlags = initFlags;
 
          Form = form;
-         GraphicsDevice = graphicsDevice;
+         GraphicsFacade = graphicsFacade;
          Renderer = renderer;
          RenderLoop = new RenderLoop(Form);
          Statistics = new GraphicsLoopStatistics();
       }
 
       public RenderForm Form { get; }
-      public IGraphicsDevice GraphicsDevice { get; }
+      public IGraphicsFacade GraphicsFacade { get; }
       private RenderContext Renderer { get; }
       private RenderLoop RenderLoop { get; }
-      public IPresetsStore Presets => GraphicsDevice.PresetsStore;
+      public IPresetsStore Presets => GraphicsFacade.Presets;
       public GraphicsLoopStatistics Statistics { get; }
 
       public bool IsRunning(out IRenderContext renderer) {
          if (RenderLoop.NextFrame()) {
-            GraphicsDevice.DoEvents();
+            GraphicsFacade.Device.DoEvents();
             Statistics.HandleFrameEnter(_initFlags.HasFlag(InitFlags.EnableDebugStats) ? Form : null);
             renderer = Renderer;
             return true;
@@ -43,17 +43,17 @@ namespace Canvas3D {
 
       public static GraphicsLoop CreateWithNewWindow(Size clientSize, InitFlags flags = 0) {
          var renderForm = new RenderForm { ClientSize = clientSize };
-         var graphicsDevice = Direct3DGraphicsDevice.Create(renderForm);
-         var renderer = new RenderContext(graphicsDevice);
+         var graphicsFacade = Direct3DGraphicsFacade.Create(renderForm);
+         var renderer = new RenderContext(graphicsFacade);
 
          if (!flags.HasFlag(InitFlags.HiddenWindow)) {
             renderForm.Show();
          }
 
-         graphicsDevice.ImmediateContext.SetVsyncEnabled(
+         graphicsFacade.Device.ImmediateContext.SetVsyncEnabled(
             !flags.HasFlag(InitFlags.DisableVerticalSync));
 
-         return new GraphicsLoop(flags, renderForm, graphicsDevice, renderer);
+         return new GraphicsLoop(flags, renderForm, graphicsFacade, renderer);
       }
    }
 

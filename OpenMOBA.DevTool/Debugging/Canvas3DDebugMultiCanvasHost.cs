@@ -41,7 +41,7 @@ namespace OpenMOBA.DevTool.Debugging {
          IPresetsStore presets = null;
          var initLatch = new ManualResetEvent(false);
          var thread = new Thread(() => {
-            var graphicsLoop = GraphicsLoop.CreateWithNewWindow(size);
+            var graphicsLoop = GraphicsLoop.CreateWithNewWindow(size, InitFlags.EnableDebugStats);
             presets = graphicsLoop.Presets;
             initLatch.Set();
 
@@ -189,8 +189,9 @@ namespace OpenMOBA.DevTool.Debugging {
                scene.AddRenderable(
                   presets.UnitCube,
                   Matrix.Multiply(offset, Matrix.Multiply(lookat, scale)),
-                  new MaterialProperties { Metallic = 0, Roughness = 1.00f },
-                  -1,
+                  new MaterialDescription{
+                     Properties = new MaterialProperties { Metallic = 0, Roughness = 1.00f }
+                  },
                   Color.FromBgra(strokeStyle.Color.ToArgb()));
             }
          }

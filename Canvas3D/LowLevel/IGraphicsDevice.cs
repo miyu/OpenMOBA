@@ -4,8 +4,6 @@ using System.Drawing;
 namespace Canvas3D.LowLevel {
    public interface IGraphicsDevice : IDisposable {
       IImmediateDeviceContext ImmediateContext { get; }
-      ITechniqueCollection TechniqueCollection { get; }
-      IPresetsStore PresetsStore { get; }
 
       void DoEvents();
 

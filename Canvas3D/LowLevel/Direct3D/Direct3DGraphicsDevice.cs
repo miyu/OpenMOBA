@@ -1,81 +1,48 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
-using System.IO;
-using System.Threading;
 using System.Windows.Forms;
-using Canvas3D.LowLevel.Helpers;
 using SharpDX;
-using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
 using SharpDX.Windows;
 using Buffer = SharpDX.Direct3D11.Buffer;
-using Color = SharpDX.Color;
 using Device = SharpDX.Direct3D11.Device;
-using MapFlags = SharpDX.Direct3D11.MapFlags;
-using RectangleF = SharpDX.RectangleF;
 using Resource = SharpDX.Direct3D11.Resource;
 
 namespace Canvas3D.LowLevel.Direct3D {
    public class Direct3DGraphicsDevice : IGraphicsDevice {
-      private const int BackBufferCount = 2;
+      public const int BackBufferCount = 2;
       private static readonly Size kUninitializedBackBufferSize = new Size(16, 16);
-
-      // Lifetime Resources
-      private readonly RenderForm _form; // don't dispose
-      private readonly Device _device;
-      private readonly SwapChain _swapChain;
-
-      // Swap Chain + Screen-Size Buffers + Resizing
-      private Size _renderSize;
-      private Texture2D _backBufferRenderTargetTexture;
-      private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox { Resolution = kUninitializedBackBufferSize };
-      private Texture2D _backBufferDepthTexture;
       private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox { Resolution = kUninitializedBackBufferSize };
-      private readonly List<(Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])> _screenSizeRenderTargets = new List<(Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])>();
-      private readonly List<(Texture2DBox, DepthStencilViewBox, ShaderResourceViewBox)> _screenSizeDepthStencilTargets = new List<(Texture2DBox, DepthStencilViewBox, ShaderResourceViewBox)>();
-      private bool _isResizeTriggered;
-
-      // Subsystems
-      private readonly RenderStates _renderStates;
+      private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox { Resolution = kUninitializedBackBufferSize };
+      private readonly RenderForm _form; // don't dispose
       private readonly ImmediateDeviceContext _immediateContext;
-      private readonly Direct3DInternalAssetLoader _internalAssetLoader;
-      private readonly Direct3DTechniqueCollection _techniqueCollection;
-      private readonly Direct3DPresetsStore _presetsStore;
-
-      // Deferred render context pool
-      private readonly object deferredRenderContextPoolLock = new object();
+      private readonly RenderStates _renderStates;
+      private readonly List<(Texture2DBox, DepthStencilViewBox, ShaderResourceViewBox)> _screenSizeDepthStencilTargets = new List<(Texture2DBox, DepthStencilViewBox, ShaderResourceViewBox)>();
+      private readonly List<(Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])> _screenSizeRenderTargets = new List<(Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[])>();
+      private readonly SwapChain _swapChain;
       private readonly Stack<DeferredDeviceContext> deferredRenderContextPool = new Stack<DeferredDeviceContext>();
+      private readonly object deferredRenderContextPoolLock = new object();
+      private Texture2D _backBufferDepthTexture;
+      private Texture2D _backBufferRenderTargetTexture;
+      private bool _isResizeTriggered;
+      private Size _renderSize;
 
-      private Direct3DGraphicsDevice(RenderForm form, Device device, SwapChain swapChain, DeviceContext deviceImmediateContext) {
+      internal Direct3DGraphicsDevice(RenderForm form, Device device, SwapChain swapChain) {
          _form = form;
-         _device = device;
+         InternalD3DDevice = device;
          _swapChain = swapChain;
 
          // code smell: init subsystems
-         _renderStates = new RenderStates(_device);
-         _immediateContext = new ImmediateDeviceContext(_device.ImmediateContext, _renderStates, _swapChain);
-         _internalAssetLoader = new Direct3DInternalAssetLoader(_device);
-         _techniqueCollection = Direct3DTechniqueCollection.Create(_internalAssetLoader);
-         _presetsStore = Direct3DPresetsStore.Create(this);
+         _renderStates = new RenderStates(InternalD3DDevice);
+         _immediateContext = new ImmediateDeviceContext(InternalD3DDevice.ImmediateContext, _renderStates, _swapChain);
       }
 
-      internal Device InternalD3DDevice => _device;
+      internal Device InternalD3DDevice { get; }
+
       public IImmediateDeviceContext ImmediateContext => _immediateContext;
-      public ITechniqueCollection TechniqueCollection => _techniqueCollection;
-      public IPresetsStore PresetsStore => _presetsStore;
-
-      private void Initialize() {
-         // On first frame, must alloc backbuffers and renderview. Same after form resize.
-         _isResizeTriggered = true;
-         _form.UserResized += (s, e) => _isResizeTriggered = true;
-         
-         _immediateContext.SetDepthConfiguration(DepthConfiguration.Enabled);
-         _immediateContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
-      }
 
       public void DoEvents() {
          if (_isResizeTriggered) {
@@ -87,43 +54,36 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       public IDeferredDeviceContext CreateDeferredRenderContext() {
          lock (deferredRenderContextPoolLock) {
-            if (deferredRenderContextPool.Count > 0) {
-               return deferredRenderContextPool.Pop();
-            }
+            if (deferredRenderContextPool.Count > 0) return deferredRenderContextPool.Pop();
          }
          Console.WriteLine("Alloc DRC");
-         return new DeferredDeviceContext(this, new DeviceContext(_device), _renderStates);
-      }
-
-      private void ReturnDeferredContext(DeferredDeviceContext deferredDeviceContext) {
-         lock (deferredRenderContextPoolLock) {
-            deferredRenderContextPool.Push(deferredDeviceContext);
-         }
+         return new DeferredDeviceContext(this, new DeviceContext(InternalD3DDevice), _renderStates);
       }
 
       public IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
-         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, 0, sizeOfT);
+         var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, 0, sizeOfT);
          return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
       }
 
       public IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
-         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.VertexBuffer, CpuAccessFlags.Write, 0, sizeOfT); ;
+         var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.VertexBuffer, CpuAccessFlags.Write, 0, sizeOfT);
+         ;
          return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
       }
 
       public IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
-         var buffer = Buffer.Create<T>(_device, BindFlags.VertexBuffer, content);
+         var buffer = Buffer.Create(InternalD3DDevice, BindFlags.VertexBuffer, content);
          return new BufferBox<T> { Buffer = buffer, Count = content.Length, Stride = sizeOfT };
       }
 
       public (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
-         var buffer = new Buffer(_device, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ShaderResource, CpuAccessFlags.Write, ResourceOptionFlags.BufferStructured, sizeOfT);
+         var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ShaderResource, CpuAccessFlags.Write, ResourceOptionFlags.BufferStructured, sizeOfT);
          var bufferBox = new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
-         var srv = new ShaderResourceView(_device, buffer, 
+         var srv = new ShaderResourceView(InternalD3DDevice, buffer,
             new ShaderResourceViewDescription {
                Dimension = ShaderResourceViewDimension.Buffer,
                Format = Format.Unknown,
@@ -131,13 +91,35 @@ namespace Canvas3D.LowLevel.Direct3D {
                   FirstElement = 0,
                   ElementOffset = 0,
                   ElementCount = sizeOfT, // WTF: This works if I flip ElementCount/Width as done here...
-                  ElementWidth = count    // Otherwise runtime + renderdoc think there are sizeOfT elements in buffer?
-               },
+                  ElementWidth = count // Otherwise runtime + renderdoc think there are sizeOfT elements in buffer?
+               }
             });
          var srvBox = new ShaderResourceViewBox { ShaderResourceView = srv };
          return (bufferBox, srvBox);
       }
 
+      internal void Initialize() {
+         // On first frame, must alloc backbuffers and renderview. Same after form resize.
+         _isResizeTriggered = true;
+         _form.UserResized += (s, e) => _isResizeTriggered = true;
+
+         _immediateContext.SetDepthConfiguration(DepthConfiguration.Enabled);
+         _immediateContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
+      }
+
+      internal void ReturnDeferredContext(DeferredDeviceContext deferredDeviceContext) {
+         lock (deferredRenderContextPoolLock) {
+            deferredRenderContextPool.Push(deferredDeviceContext);
+         }
+      }
+
+      // Lifetime Resources
+
+      // Swap Chain + Screen-Size Buffers + Resizing
+
+      // Subsystems
+
+      // Deferred render context pool
       public (IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateScreenSizeRenderTarget(int levels) {
          var (tex, rtvs, srv, srvs) = CreateRenderTargetInternal(levels, _backBufferRenderTargetView.Resolution);
          _screenSizeRenderTargets.Add((tex, rtvs, srv, srvs));
@@ -151,9 +133,9 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       private (Texture2DBox, RenderTargetViewBox[], ShaderResourceViewBox, ShaderResourceViewBox[]) CreateRenderTargetInternal(int levels, Size resolution) {
-         bool hq = false;
+         var hq = false;
          var format = hq ? Format.R32G32B32A32_Float : Format.R16G16B16A16_UNorm;
-         var texture = new Texture2D(_device,
+         var texture = new Texture2D(InternalD3DDevice,
             new Texture2DDescription {
                Format = format,
                ArraySize = levels,
@@ -168,9 +150,9 @@ namespace Canvas3D.LowLevel.Direct3D {
             });
          var textureBox = new Texture2DBox { Texture = texture };
          var rtvs = new RenderTargetViewBox[levels];
-         for (var i = 0; i < levels; i++) {
+         for (var i = 0; i < levels; i++)
             rtvs[i] = new RenderTargetViewBox {
-               RenderTargetView = new RenderTargetView(_device, texture,
+               RenderTargetView = new RenderTargetView(InternalD3DDevice, texture,
                   new RenderTargetViewDescription {
                      Format = format,
                      Dimension = RenderTargetViewDimension.Texture2DArray,
@@ -182,9 +164,8 @@ namespace Canvas3D.LowLevel.Direct3D {
                   }),
                Resolution = resolution
             };
-         }
          var srv = new ShaderResourceViewBox {
-            ShaderResourceView = new ShaderResourceView(_device, texture,
+            ShaderResourceView = new ShaderResourceView(InternalD3DDevice, texture,
                new ShaderResourceViewDescription {
                   Format = format,
                   Dimension = ShaderResourceViewDimension.Texture2DArray,
@@ -198,9 +179,9 @@ namespace Canvas3D.LowLevel.Direct3D {
          };
 
          var srvs = new ShaderResourceViewBox[levels];
-         for (var i = 0; i < levels; i++) {
+         for (var i = 0; i < levels; i++)
             srvs[i] = new ShaderResourceViewBox {
-               ShaderResourceView = new ShaderResourceView(_device, texture,
+               ShaderResourceView = new ShaderResourceView(InternalD3DDevice, texture,
                   new ShaderResourceViewDescription {
                      Format = format,
                      Dimension = ShaderResourceViewDimension.Texture2DArray,
@@ -212,7 +193,6 @@ namespace Canvas3D.LowLevel.Direct3D {
                      }
                   })
             };
-         }
          return (textureBox, rtvs, srv, srvs);
       }
 
@@ -233,7 +213,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          var dsvFormat = hq ? Format.D32_Float : Format.D16_UNorm;
          var srvFormat = hq ? Format.R32_Float : Format.R16_UNorm;
 
-         var texture = new Texture2D(_device,
+         var texture = new Texture2D(InternalD3DDevice,
             new Texture2DDescription {
                Format = textureFormat,
                ArraySize = levels,
@@ -248,9 +228,9 @@ namespace Canvas3D.LowLevel.Direct3D {
             });
          var textureBox = new Texture2DBox { Texture = texture };
          var dsvs = new DepthStencilViewBox[levels];
-         for (var i = 0; i < levels; i++) {
+         for (var i = 0; i < levels; i++)
             dsvs[i] = new DepthStencilViewBox {
-               DepthStencilView = new DepthStencilView(_device, texture,
+               DepthStencilView = new DepthStencilView(InternalD3DDevice, texture,
                   new DepthStencilViewDescription {
                      Format = dsvFormat,
                      Dimension = DepthStencilViewDimension.Texture2DArray,
@@ -262,9 +242,8 @@ namespace Canvas3D.LowLevel.Direct3D {
                   }),
                Resolution = resolution
             };
-         }
          var srv = new ShaderResourceViewBox {
-            ShaderResourceView = new ShaderResourceView(_device, texture,
+            ShaderResourceView = new ShaderResourceView(InternalD3DDevice, texture,
                new ShaderResourceViewDescription {
                   Format = srvFormat,
                   Dimension = ShaderResourceViewDimension.Texture2DArray,
@@ -278,9 +257,9 @@ namespace Canvas3D.LowLevel.Direct3D {
          };
 
          var srvs = new ShaderResourceViewBox[levels];
-         for (var i = 0; i < levels; i++) {
+         for (var i = 0; i < levels; i++)
             srvs[i] = new ShaderResourceViewBox {
-               ShaderResourceView = new ShaderResourceView(_device, texture,
+               ShaderResourceView = new ShaderResourceView(InternalD3DDevice, texture,
                   new ShaderResourceViewDescription {
                      Format = srvFormat,
                      Dimension = ShaderResourceViewDimension.Texture2DArray,
@@ -292,26 +271,23 @@ namespace Canvas3D.LowLevel.Direct3D {
                      }
                   })
             };
-         }
          return (textureBox, dsvs, srv, srvs);
       }
 
       private void ResizeScreenSizeBuffers(Size renderSize) {
          DisposeScreenSizeBuffersAndViews();
 
-         bool isFirstInitialize = _backBufferRenderTargetView.RenderTargetView == null;
+         var isFirstInitialize = _backBufferRenderTargetView.RenderTargetView == null;
 
          _swapChain.ResizeBuffers(BackBufferCount, renderSize.Width, renderSize.Height, Format.Unknown, SwapChainFlags.None);
          _backBufferRenderTargetTexture = Resource.FromSwapChain<Texture2D>(_swapChain, 0);
-         _backBufferRenderTargetView.RenderTargetView = new RenderTargetView(_device, _backBufferRenderTargetTexture);
+         _backBufferRenderTargetView.RenderTargetView = new RenderTargetView(InternalD3DDevice, _backBufferRenderTargetTexture);
          _backBufferRenderTargetView.Resolution = renderSize;
-         _backBufferDepthTexture = new Texture2D(_device, CreateBackBufferDescription(renderSize));
-         _backBufferDepthView.DepthStencilView = new DepthStencilView(_device, _backBufferDepthTexture);
+         _backBufferDepthTexture = new Texture2D(InternalD3DDevice, CreateBackBufferDescription(renderSize));
+         _backBufferDepthView.DepthStencilView = new DepthStencilView(InternalD3DDevice, _backBufferDepthTexture);
          _backBufferDepthView.Resolution = renderSize;
 
-         if (isFirstInitialize) {
-            _immediateContext.SetRenderTargets(_backBufferDepthView, _backBufferRenderTargetView);
-         }
+         if (isFirstInitialize) _immediateContext.SetRenderTargets(_backBufferDepthView, _backBufferRenderTargetView);
          _immediateContext.HandleBackBufferResized(_backBufferDepthView, _backBufferRenderTargetView);
 
          for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
@@ -346,58 +322,19 @@ namespace Canvas3D.LowLevel.Direct3D {
          for (var i = 0; i < _screenSizeRenderTargets.Count; i++) {
             var (tex, rtvs, srv, srvs) = _screenSizeRenderTargets[i];
             Utilities.Dispose(ref tex.Texture);
-            foreach (var rtv in rtvs) {
-               Utilities.Dispose(ref rtv.RenderTargetView);
-            }
+            foreach (var rtv in rtvs) Utilities.Dispose(ref rtv.RenderTargetView);
             Utilities.Dispose(ref srv.ShaderResourceView);
-            foreach (var levelSrv in srvs) {
-               Utilities.Dispose(ref levelSrv.ShaderResourceView);
-            }
+            foreach (var levelSrv in srvs) Utilities.Dispose(ref levelSrv.ShaderResourceView);
          }
       }
 
       public void Dispose() {
          DisposeScreenSizeBuffersAndViews();
 
-         _device?.Dispose();
+         InternalD3DDevice?.Dispose();
          _swapChain?.Dispose();
          _renderStates?.Dispose();
          _immediateContext?.Dispose();
-      }
-
-      public static Direct3DGraphicsDevice Create(RenderForm form) {
-         var swapChainDescription = CreateSwapChainDescription(form);
-
-         // Init device, swapchain
-         var deviceCreationFlags = DeviceCreationFlags.Debug;
-         Device device;
-         SwapChain swapChain;
-         Device.CreateWithSwapChain(DriverType.Hardware, deviceCreationFlags, swapChainDescription, out device, out swapChain);
-         var immediateContext = device.ImmediateContext;
-
-         // DXGI ignores window events
-         var factory = swapChain.GetParent<Factory>();
-         factory.MakeWindowAssociation(form.Handle, WindowAssociationFlags.IgnoreAll);
-
-         var graphicsDeviceManager = new Direct3DGraphicsDevice(form, device, swapChain, immediateContext);
-         graphicsDeviceManager.Initialize();
-         return graphicsDeviceManager;
-      }
-
-      private static SwapChainDescription CreateSwapChainDescription(Control form) {
-         return new SwapChainDescription {
-            BufferCount = BackBufferCount,
-            ModeDescription = new ModeDescription(
-               form.ClientSize.Width,
-               form.ClientSize.Height,
-               new Rational(300, 1), // doesn't matter
-               Format.R8G8B8A8_UNorm_SRgb),
-            IsWindowed = true,
-            OutputHandle = form.Handle,
-            SampleDescription = new SampleDescription(1, 0),
-            SwapEffect = SwapEffect.Discard,
-            Usage = Usage.RenderTargetOutput
-         };
       }
 
       private static Texture2DDescription CreateBackBufferDescription(Size clientSize) {
@@ -415,808 +352,41 @@ namespace Canvas3D.LowLevel.Direct3D {
          };
       }
 
-      internal class Direct3DInternalAssetLoader {
-         private readonly Device _device;
-
-         public Direct3DInternalAssetLoader(Device device) {
-            _device = device;
-         }
-
-         public string BasePath => @"C:\my-repositories\miyu\derp\Canvas3D\Assets";
-
-         public IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null) {
-            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_1");
-            var shader = new PixelShader(_device, bytecode);
-            return new PixelShaderBox { Shader = shader };
-         }
-
-         public IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null) {
-            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_1");
-            var shader = new VertexShader(_device, bytecode);
-            var signature = ShaderSignature.GetInputSignature(bytecode);
-            var inputLayout = CreateInputLayout(vertexLayout, signature);
-            return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
-         }
-
-         private InputLayout CreateInputLayout(VertexLayout vertexLayout, ShaderSignature signature) {
-            if (vertexLayout == VertexLayout.PositionNormalColorTexture) {
-               return new InputLayout(_device, signature, new[] {
-                  new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
-                  new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
-                  new InputElement("VERTEX_COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
-                  new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0, InputClassification.PerVertexData, 0),
-                  new InputElement("INSTANCE_TRANSFORM", 0, Format.R32G32B32A32_Float, 0, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_TRANSFORM", 1, Format.R32G32B32A32_Float, 16, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_TRANSFORM", 2, Format.R32G32B32A32_Float, 32, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_TRANSFORM", 3, Format.R32G32B32A32_Float, 48, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_METALLIC", 0, Format.R32_Float, 64, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_ROUGHNESS", 0, Format.R32_Float, 68, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_MATERIAL_RESOURCES_INDEX", 0, Format.R32_SInt, 72, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_COLOR", 0, Format.R8G8B8A8_UNorm, 76, 1, InputClassification.PerInstanceData, 1)
-               });
-            }
-            throw new NotSupportedException("Unsupported Input Layout: " + vertexLayout);
-         }
-
-         private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {
-            // D3D expects row-major matrices but defaults to sending column-major matrices to GPU, so it'll do
-            // a transpose. This tells it to keep the row-major-ness. This is because our code actually works
-            // in column-major, so the extra transpose is the opposite of what we want.
-            ShaderFlags D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES = (ShaderFlags)(1 << 20);
-            var shaderFlags = ShaderFlags.PackMatrixRowMajor | D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
-            using (var include = new IncludeImpl(path)) {
-               var compilationResult = ShaderBytecode.CompileFromFile(path, entryPoint, profile, shaderFlags, include: include);
-               if (compilationResult.Bytecode == null || compilationResult.HasErrors) {
-                  throw new ShaderCompilationException(compilationResult.ResultCode.Code, compilationResult.Message);
-               }
-               return compilationResult.Bytecode;
-            }
-         }
-
-         private class IncludeImpl : Include {
-            private readonly string _firstShaderPath;
-
-            public IncludeImpl(string firstShaderPath) {
-               _firstShaderPath = firstShaderPath;
-            }
-
-            public IDisposable Shadow { get; set; }
-
-            public void Dispose() {
-               Shadow?.Dispose();
-            }
-
-            public Stream Open(IncludeType type, string fileName, Stream parentStream) {
-               Trace.Assert(type == IncludeType.Local);
-               var sourcerPath = parentStream is FileStream ? ((FileStream)parentStream).Name : _firstShaderPath;
-               var resolvedPath = Path.Combine(new FileInfo(sourcerPath).DirectoryName, fileName);
-               if (!File.Exists(resolvedPath)) {
-                  Console.WriteLine("Shader resolution failed");
-                  Console.WriteLine($"FileName: {fileName}");
-                  Console.WriteLine($"Sourcer: {sourcerPath}");
-                  Console.WriteLine($"Resolved: {resolvedPath}");
-               }
-               return File.OpenRead(resolvedPath);
-            }
-
-            public void Close(Stream stream) {
-               stream.Dispose();
-            }
-         }
-
-
-         public (ITexture2D, IShaderResourceView) CreateSolidTexture(Color4 c) {
-            var texture = new Texture2D(_device, new Texture2DDescription {
-               Format = Format.R32G32B32A32_Float,
-               ArraySize = 1,
-               BindFlags = BindFlags.ShaderResource,
-               CpuAccessFlags = CpuAccessFlags.Write,
-               Height = 1,
-               Width = 1,
-               MipLevels = 1,
-               OptionFlags = ResourceOptionFlags.None,
-               SampleDescription = new SampleDescription(1, 0),
-               Usage = ResourceUsage.Dynamic
-            });
-
-            DataStream stream;
-            _device.ImmediateContext.MapSubresource(texture, 0, 0, MapMode.WriteDiscard, MapFlags.None, out stream);
-            stream.Write(c);
-            _device.ImmediateContext.UnmapSubresource(texture, 0);
-
-            var srv = new ShaderResourceView(_device, texture);
-            return (new Texture2DBox { Texture = texture }, new ShaderResourceViewBox { ShaderResourceView = srv });
-         }
-
-         public (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 c) {
-            return CreateSolidCubeTexture(c, c, c, c, c, c);
-         }
-
-         public unsafe (ITexture2D, IShaderResourceView) CreateSolidCubeTexture(Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz) {
-            DataBox Wrap(Color4* p) => new DataBox(new IntPtr(p), 4 * 4, 0);
-            
-            var texture = new Texture2D(_device, new Texture2DDescription {
-               Format = Format.R32G32B32A32_Float,
-               ArraySize = 6,
-               BindFlags = BindFlags.ShaderResource,
-               CpuAccessFlags = CpuAccessFlags.Write,
-               Height = 1,
-               Width = 1,
-               MipLevels = 1,
-               OptionFlags = ResourceOptionFlags.TextureCube,
-               SampleDescription = new SampleDescription(1, 0),
-               Usage = ResourceUsage.Default
-            }, new[] { Wrap(&posx), Wrap(&negx), Wrap(&posy), Wrap(&negy), Wrap(&posz), Wrap(&negz) });
-
-            var srv = new ShaderResourceView(_device, texture);
-            return (new Texture2DBox { Texture = texture }, new ShaderResourceViewBox { ShaderResourceView = srv });
-         }
-      }
-
-      internal class DepthStencilViewBox : IDepthStencilView {
-         public DepthStencilView DepthStencilView;
-         public Size Resolution { get; set; }
-
-         public void MoveAssignFrom(DepthStencilViewBox other) {
-            Utilities.Dispose(ref DepthStencilView);
-            DepthStencilView = other.DepthStencilView;
-            other.DepthStencilView = null;
-            Resolution = other.Resolution;
-            other.Resolution = new Size(-1, -1);
-         }
-      }
-
-      internal class RenderTargetViewBox : IRenderTargetView {
-         public RenderTargetView RenderTargetView;
-         public Size Resolution { get; set; }
-
-         public void MoveAssignFrom(RenderTargetViewBox other) {
-            Utilities.Dispose(ref RenderTargetView);
-            RenderTargetView = other.RenderTargetView;
-            other.RenderTargetView = null;
-            Resolution = other.Resolution;
-            other.Resolution = new Size(-1, -1);
-         }
-      }
-
-      private class ShaderResourceViewBox : IShaderResourceView {
-         public ShaderResourceView ShaderResourceView;
-
-         public void MoveAssignFrom(ShaderResourceViewBox other) {
-            Utilities.Dispose(ref ShaderResourceView);
-            ShaderResourceView = other.ShaderResourceView;
-            other.ShaderResourceView = null;
-         }
-      }
-
-      private class PixelShaderBox : IPixelShader {
-         public PixelShader Shader;
-      }
-
-      private class VertexShaderBox : IVertexShader {
-         public VertexShader Shader;
-         public InputLayout InputLayout;
-      }
-
-      private class BufferBox<T> : IBuffer<T> where T : struct {
-         public Buffer Buffer;
-         public int Count;
-         public int Stride;
-      }
-
-      private class Texture2DBox : ITexture2D {
-         public Texture2D Texture;
-      }
-
-      internal class BaseDeviceContext : IDeviceContext, IDisposable {
-         protected DeviceContext _deviceContext;
-         protected RenderStates _renderStates;
-
-         protected bool _isVsyncEnabled = true;
-         protected DepthConfiguration _currentDepthConfiguration;
-         protected RasterizerConfiguration _currentRasterizerConfiguration;
-         protected DepthStencilViewBox _currentDepthStencilView;
-         protected RenderTargetViewBox[] _currentRenderTargetViews = new RenderTargetViewBox[4];
-         protected RenderTargetView[] _preallocatedRtvArray = new RenderTargetView[4];
-         protected RectangleF _currentViewportRect;
-
-         public BaseDeviceContext(DeviceContext deviceContext, RenderStates renderStates) {
-            _deviceContext = deviceContext;
-            _renderStates = renderStates;
-
-            ResetToUninitializedState(); // should be a no-op.
-         }
-
-         protected void ResetToUninitializedState() {
-            _currentDepthConfiguration = DepthConfiguration.Uninitialized;
-            _currentRasterizerConfiguration = RasterizerConfiguration.Uninitialized;
-            _currentDepthStencilView = null;
-            for (var i = 0; i < _currentRenderTargetViews.Length; i++) {
-               _currentRenderTargetViews[i] = null;
-               _preallocatedRtvArray[i] = null;
-            }
-            _currentViewportRect = RectangleF.Empty;
-         }
-
-         public void SetVsyncEnabled(bool val) => _isVsyncEnabled = val;
-         public bool GetVsyncEnabled() => _isVsyncEnabled;
-
-         public void SetDepthConfiguration(DepthConfiguration config) {
-            if (config != _currentDepthConfiguration) {
-               _currentDepthConfiguration = config;
-
-               // Console.WriteLine("Set Depth Configuration: " + config);
-
-               switch (config) {
-                  case DepthConfiguration.Disabled:
-                     _deviceContext.OutputMerger.DepthStencilState = _renderStates.DepthDisable;
-                     break;
-                  case DepthConfiguration.Enabled:
-                     _deviceContext.OutputMerger.DepthStencilState = _renderStates.DepthEnable;
-                     break;
-                  default:
-                     throw new ArgumentException($"Unknown Depth Configuration '{config}'");
-               }
-            }
-         }
-
-         public void SetRasterizerConfiguration(RasterizerConfiguration config) {
-            if (config != _currentRasterizerConfiguration) {
-               _currentRasterizerConfiguration = config;
-
-               // Console.WriteLine("Set Rasterizer Configuration: " + config);
-
-               switch (config) {
-                  case RasterizerConfiguration.FillFront:
-                     _deviceContext.Rasterizer.State = _renderStates.RasterizerFillFront;
-                     break;
-                  case RasterizerConfiguration.FillBack:
-                     _deviceContext.Rasterizer.State = _renderStates.RasterizerFillBack;
-                     break;
-                  default:
-                     throw new ArgumentException($"Unknown Rasterizer Configuration '{config}'");
-               }
-            }
-         }
-
-         public void SetRenderTargets(IDepthStencilView depthStencilView, IRenderTargetView renderTargetView0, IRenderTargetView renderTargetView1 = null, IRenderTargetView renderTargetView2 = null, IRenderTargetView renderTargetView3 = null) {
-            var dsv = (DepthStencilViewBox)depthStencilView;
-            var rtv0 = (RenderTargetViewBox)renderTargetView0;
-            var rtv1 = (RenderTargetViewBox)renderTargetView1;
-            var rtv2 = (RenderTargetViewBox)renderTargetView2;
-            var rtv3 = (RenderTargetViewBox)renderTargetView3;
-
-            if (_currentDepthStencilView == dsv &&
-                _currentRenderTargetViews[0] == rtv0 &&
-                _currentRenderTargetViews[1] == rtv1 &&
-                _currentRenderTargetViews[2] == rtv2 &&
-                _currentRenderTargetViews[3] == rtv3) {
-               return;
-            }
-
-            _currentDepthStencilView = dsv;
-            _currentRenderTargetViews[0] = rtv0;
-            _currentRenderTargetViews[1] = rtv1;
-            _currentRenderTargetViews[2] = rtv2;
-            _currentRenderTargetViews[3] = rtv3;
-
-            UpdateRenderTargetsInternal();
-         }
-
-         protected void UpdateRenderTargetsInternal() {
-            var depthStencilView = _currentDepthStencilView?.DepthStencilView;
-            _preallocatedRtvArray[0] = _currentRenderTargetViews[0]?.RenderTargetView;
-            _preallocatedRtvArray[1] = _currentRenderTargetViews[1]?.RenderTargetView;
-            _preallocatedRtvArray[2] = _currentRenderTargetViews[2]?.RenderTargetView;
-            _preallocatedRtvArray[3] = _currentRenderTargetViews[3]?.RenderTargetView;
-            _deviceContext.OutputMerger.SetRenderTargets(depthStencilView, _preallocatedRtvArray);
-         }
-
-         public void ClearRenderTarget(Color4 color) {
-            var renderTargetView = _currentRenderTargetViews[0].RenderTargetView;
-            _deviceContext.ClearRenderTargetView(renderTargetView, color);
-         }
-
-         public void ClearRenderTargets(Color4? c0 = null, Color4? c1 = null, Color4? c2 = null, Color4? c3 = null) {
-            if (c0.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[0].RenderTargetView, c0.Value);
-            if (c1.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[1].RenderTargetView, c1.Value);
-            if (c2.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[2].RenderTargetView, c2.Value);
-            if (c3.HasValue) _deviceContext.ClearRenderTargetView(_currentRenderTargetViews[3].RenderTargetView, c3.Value);
-         }
-
-         public void ClearDepthBuffer(float depth) {
-            var depthStencilView = ((DepthStencilViewBox)_currentDepthStencilView).DepthStencilView;
-            _deviceContext.ClearDepthStencilView(depthStencilView, DepthStencilClearFlags.Depth, depth, 0);
-         }
-
-         public void SetViewportRect(Vector2 position, Vector2 size) {
-            SetViewportRect(new RectangleF(position.X, position.Y, size.X, size.Y));
-         }
-
-         public void SetViewportRect(RectangleF rectangle) {
-            if (_currentViewportRect != rectangle) {
-               _currentViewportRect = rectangle;
-
-               _deviceContext.Rasterizer.SetViewport(new ViewportF(rectangle));
-            }
-         }
-
-         public void SetPixelShader(IPixelShader shader) {
-            _deviceContext.PixelShader.Set(((PixelShaderBox)shader).Shader);
-         }
-
-         public void SetVertexShader(IVertexShader shader) {
-            var box = (VertexShaderBox)shader;
-            _deviceContext.VertexShader.Set(box.Shader);
-            _deviceContext.InputAssembler.InputLayout = box.InputLayout;
-         }
-
-         public void SetPrimitiveTopology(PrimitiveTopology topology) {
-            _deviceContext.InputAssembler.PrimitiveTopology = topology;
-         }
-
-         public void SetVertexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct {
-            var box = (BufferBox<T>)buffer;
-            _deviceContext.InputAssembler.SetVertexBuffers(
-               slot, 
-               new VertexBufferBinding(box.Buffer, box.Stride, 0));
-         }
-
-         public void SetVertexBuffer(int slot, int? @null) {
-            _deviceContext.InputAssembler.SetVertexBuffers(slot, new VertexBufferBinding());
-         }
-
-         public void SetConstantBuffer<T>(int slot, IBuffer<T> buffer, RenderStage stages) where T : struct {
-            var box = (BufferBox<T>)buffer;
-            if ((stages & RenderStage.Pixel) != 0) {
-               _deviceContext.PixelShader.SetConstantBuffer(slot, box.Buffer);
-            }
-            if ((stages & RenderStage.Vertex) != 0) {
-               _deviceContext.VertexShader.SetConstantBuffer(slot, box.Buffer);
-            }
-         }
-
-         public void SetShaderResource(int slot, IShaderResourceView view, RenderStage stages) {
-            var box = (ShaderResourceViewBox)view;
-            if ((stages & RenderStage.Pixel) != 0) {
-               _deviceContext.PixelShader.SetShaderResource(slot, box?.ShaderResourceView);
-            }
-            if ((stages & RenderStage.Vertex) != 0) {
-               _deviceContext.VertexShader.SetShaderResource(slot, box?.ShaderResourceView);
-            }
-         }
-
-         public void Draw(int vertices, int verticesOffset) {
-            _deviceContext.Draw(vertices, verticesOffset);
-         }
-
-         public void DrawInstanced(int vertices, int verticesOffset, int instances, int instancesOffset) {
-            _deviceContext.DrawInstanced(vertices, instances, verticesOffset, instancesOffset);
-         }
-
-         public IBufferUpdater<T> TakeUpdater<T>(IBuffer<T> buffer) where T : struct {
-            return BufferUpdaterPool<T>.Take(_deviceContext, (BufferBox<T>)buffer);
-         }
-
-         public void Update<T>(IBuffer<T> buffer, T item) where T : struct {
-            var box = (BufferBox<T>)buffer;
-            if (box.Count < 1) {
-               throw new ArgumentOutOfRangeException();
-            }
-            var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
-            Utilities.Write(db.DataPointer, ref item);
-            _deviceContext.UnmapSubresource(box.Buffer, 0);
-         }
-
-         public void Update<T>(IBuffer<T> buffer, IntPtr data, int count) where T : struct {
-            var box = (BufferBox<T>)buffer;
-            if (count > box.Count) {
-               throw new ArgumentOutOfRangeException();
-            }
-            var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
-            Utilities.CopyMemory(db.DataPointer, data, count * box.Stride);
-            _deviceContext.UnmapSubresource(box.Buffer, 0);
-         }
-
-         public void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct {
-            var box = (BufferBox<T>)buffer;
-            if (count > box.Count) {
-               throw new ArgumentOutOfRangeException();
-            }
-            var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
-            Utilities.Write(db.DataPointer, arr, offset, count);
-            _deviceContext.UnmapSubresource(box.Buffer, 0);
-         }
-
-         public void Dispose() {
-            Utilities.Dispose<DeviceContext>(ref _deviceContext);
-         }
-
-         private static class BufferUpdaterPool<T> where T : struct {
-            private static readonly object synchronization = new object();
-            private static readonly Stack<BufferUpdater> store = new Stack<BufferUpdater>();
-
-            public static IBufferUpdater<T> Take(DeviceContext deviceContext, BufferBox<T> bufferBox) {
-               BufferUpdater TakeUninitialized() {
-                  lock (synchronization) {
-                     if (store.Count > 0) return store.Pop();
-                  }
-                  return new BufferUpdater();
-               }
-
-               var updater = TakeUninitialized();
-               updater.Initialize(deviceContext, bufferBox);
-               return updater;
-            }
-
-            private class BufferUpdater : IBufferUpdater<T> {
-               private DeviceContext deviceContext;
-               private BufferBox<T> bufferBox;
-               private IntPtr currentBufferPointer;
-               private int remaining;
-
-               internal void Initialize(DeviceContext deviceContext, BufferBox<T> bufferBox) {
-                  this.deviceContext = deviceContext;
-                  this.bufferBox = bufferBox;
-                  this.currentBufferPointer = deviceContext.MapSubresource(bufferBox.Buffer, 0, MapMode.WriteDiscard, MapFlags.None).DataPointer;
-                  this.remaining = bufferBox.Count;
-               }
-
-               public void Write(T val) {
-                  if (--remaining < 0) throw new InternalBufferOverflowException();
-                  currentBufferPointer = Utilities.WriteAndPosition(currentBufferPointer, ref val);
-               }
-
-               public void Write(ref T val) {
-                  if (--remaining < 0) throw new InternalBufferOverflowException();
-                  currentBufferPointer = Utilities.WriteAndPosition(currentBufferPointer, ref val);
-               }
-
-               public void Write(T[] vals) {
-                  Write(vals, 0, vals.Length);
-               }
-
-               public void Write(T[] vals, int offset, int count) {
-                  remaining -= count;
-                  if (remaining < 0) throw new InternalBufferOverflowException();
-                  Utilities.Write(currentBufferPointer, vals, 0, count);
-                  currentBufferPointer += Utilities.SizeOf<T>() * count;
-               }
-
-               public void UpdateAndReset() {
-                  UpdateAndClose();
-                  Reopen();
-               }
-
-               public void Reopen() {
-                  this.currentBufferPointer = deviceContext.MapSubresource(bufferBox.Buffer, 0, MapMode.WriteDiscard, MapFlags.None).DataPointer;
-                  this.remaining = bufferBox.Count;
-               }
-
-               public void UpdateAndClose() {
-                  deviceContext.UnmapSubresource(bufferBox.Buffer, 0);
-                  currentBufferPointer = default(IntPtr);
-                  remaining = 0;
-               }
-
-               public void UpdateCloseAndDispose() {
-                  UpdateAndClose();
-                  Dispose();
-               }
-
-               public void Dispose() {
-                  // Zero self
-                  deviceContext = null;
-                  bufferBox = null;
-                  currentBufferPointer = default(IntPtr);
-                  remaining = 0;
-
-                  // return to pool
-                  lock (synchronization) {
-                     store.Push(this);
-                  }
-               }
-            }
-         }
-      }
-
-      private class ImmediateDeviceContext : BaseDeviceContext, IImmediateDeviceContext {
-         private readonly SwapChain _swapChain;
-         private DepthStencilViewBox _backBufferDepthView;
-         private RenderTargetViewBox _backBufferRenderTargetView;
-
-         public ImmediateDeviceContext(DeviceContext deviceContext, RenderStates renderStates, SwapChain swapChain) : base(deviceContext, renderStates) {
-            _swapChain = swapChain;
-         }
-
-         public void GetBackBufferViews(out IDepthStencilView dsv, out IRenderTargetView rtv) {
-            dsv = _backBufferDepthView;
-            rtv = _backBufferRenderTargetView;
-         }
-
-         public void HandleBackBufferResized(DepthStencilViewBox backBufferDepthView, RenderTargetViewBox backBufferRenderTargetView) {
-            _backBufferRenderTargetView = backBufferRenderTargetView;
-            _backBufferDepthView = backBufferDepthView;
-
-            if (_currentRenderTargetViews[0] == backBufferRenderTargetView ||
-                _currentRenderTargetViews[1] == backBufferRenderTargetView ||
-                _currentRenderTargetViews[2] == backBufferRenderTargetView ||
-                _currentRenderTargetViews[3] == backBufferRenderTargetView ||
-                _currentDepthStencilView == backBufferDepthView) {
-               UpdateRenderTargetsInternal();
-            }
-         }
-
-         public void Present() {
-            _swapChain.Present(GetVsyncEnabled() ? 1 : 0, PresentFlags.None);
-         }
-
-         public void ExecuteCommandList(ICommandList commandList) {
-            _deviceContext.ExecuteCommandList(((CommandListBox)commandList).CommandList, false);
-            ResetToUninitializedState();
-         }
-      }
-
-      private class DeferredDeviceContext : BaseDeviceContext, IDeferredDeviceContext {
-         private readonly Direct3DGraphicsDevice _graphicsDevice;
-
-         public DeferredDeviceContext(Direct3DGraphicsDevice graphicsDevice, DeviceContext deviceContext, RenderStates renderStates) : base(deviceContext, renderStates) {
-            _graphicsDevice = graphicsDevice;
-         }
-
-         public ICommandList FinishCommandListAndFree() {
-            var box = new CommandListBox { CommandList = _deviceContext.FinishCommandList(false) };
-            ResetToUninitializedState();
-            _graphicsDevice.ReturnDeferredContext(this);
-            return box;
-         }
-      }
-
-      private class CommandListBox : ICommandList {
-         private static int instanceCount = 0;
-         private int disposed = 0;
-         public CommandList CommandList;
-
-         public CommandListBox() {
-            if (Interlocked.Increment(ref instanceCount) > 512) {
-               Console.Error.WriteLine("Warning: Make sure CommandListBox is being disposed! (>512 unfreed instances)");
-            }
-            //Console.WriteLine(instanceCount);
-         }
-
-         ~CommandListBox() {
-            if (CommandList != null) {
-               Console.Error.WriteLine("Warning: Finalizer called on undisposed command list. This will leak memory (SharpDX lacks a finalizer on CommandList).");
-            }
-            Dispose();
-         }
-
-         public void Dispose() {
-            if (Interlocked.CompareExchange(ref disposed, 1, 0) == 0) {
-               Utilities.Dispose(ref CommandList);
-               Interlocked.Decrement(ref instanceCount);
-            }
-         }
-      }
-
-      public class RenderStates : IDisposable {
-         private DepthStencilState _depthEnable;
-         private DepthStencilState _depthDisable;
-         private RasterizerState _rasterizerFillFront;
-         private RasterizerState _rasterizerFillBack;
-
-         public RenderStates(Device device) {
-            _depthEnable = new DepthStencilState(device, DepthStencilDesc(true));
-            _depthDisable = new DepthStencilState(device, DepthStencilDesc(false));
-            _rasterizerFillFront = new RasterizerState(device, RasterizerDesc(true));
-            _rasterizerFillBack = new RasterizerState(device, RasterizerDesc(false));
-         }
-
-         public DepthStencilState DepthDisable => _depthDisable;
-         public DepthStencilState DepthEnable => _depthEnable;
-         public RasterizerState RasterizerFillFront => _rasterizerFillFront;
-         public RasterizerState RasterizerFillBack => _rasterizerFillBack;
-
-         public void Dispose() {
-            Utilities.Dispose<DepthStencilState>(ref _depthDisable);
-            Utilities.Dispose<DepthStencilState>(ref _depthEnable);
-            Utilities.Dispose<RasterizerState>(ref _rasterizerFillFront);
-         }
-
-         private static DepthStencilStateDescription DepthStencilDesc(bool enableDepth) => new DepthStencilStateDescription {
-            IsDepthEnabled = enableDepth,
-            DepthComparison = Comparison.Less,
-            DepthWriteMask = DepthWriteMask.All,
-            IsStencilEnabled = false,
-            StencilReadMask = 0xff,
-            StencilWriteMask = 0xff
-         };
-
-         private static RasterizerStateDescription RasterizerDesc(bool frontFacesElseBackFace) => new RasterizerStateDescription {
-            CullMode = frontFacesElseBackFace ? CullMode.Back : CullMode.Front,
-            FillMode = FillMode.Solid,
-            IsDepthClipEnabled = false,
-            IsAntialiasedLineEnabled = false,
-            IsMultisampleEnabled = false
+      private static SwapChainDescription CreateSwapChainDescription(Control form) {
+         return new SwapChainDescription {
+            BufferCount = Direct3DGraphicsDevice.BackBufferCount,
+            ModeDescription = new ModeDescription(
+               form.ClientSize.Width,
+               form.ClientSize.Height,
+               new Rational(300, 1), // doesn't matter
+               Format.R8G8B8A8_UNorm_SRgb),
+            IsWindowed = true,
+            OutputHandle = form.Handle,
+            SampleDescription = new SampleDescription(1, 0),
+            SwapEffect = SwapEffect.Discard,
+            Usage = Usage.RenderTargetOutput
          };
       }
 
-      public class Direct3DTechniqueCollection : ITechniqueCollection {
-         private Direct3DTechniqueCollection() { }
+      internal static Direct3DGraphicsDevice Create(RenderForm form) {
+         var swapChainDescription = CreateSwapChainDescription(form);
 
-         public ITechnique Forward { get; private set; }
-         public ITechnique ForwardDepthOnly { get; private set; }
-         public ITechnique DeferredToGBuffer { get; private set; }
-         public ITechnique DeferredFromGBuffer { get; private set; }
+         // Init device, swapchain
+         var deviceCreationFlags = DeviceCreationFlags.Debug;
+         Device device;
+         SwapChain swapChain;
+         FeatureLevel[] featureLevels = { FeatureLevel.Level_12_1 };
+         Device.CreateWithSwapChain(DriverType.Hardware, deviceCreationFlags, featureLevels, swapChainDescription, out device, out swapChain);
+         Console.WriteLine("Created device with feature level: " + device.FeatureLevel);
+         var immediateContext = device.ImmediateContext;
 
-         internal static Direct3DTechniqueCollection Create(Direct3DInternalAssetLoader internalAssetLoader) {
-            var collection = new Direct3DTechniqueCollection();
-            collection.Forward = new Technique {
-               Passes = 1,
-               PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
-               VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
-            };
-            collection.ForwardDepthOnly = new Technique {
-               Passes = 1,
-               PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
-               VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
-            };
-            //collection.DeferredToGBuffer = new Technique {
-            //   Passes = 1,
-            //   PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/deferred_to_gbuffer", "PSMain"),
-            //   VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/deferred_to_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
-            //};
-            //collection.DeferredFromGBuffer = new Technique {
-            //   Passes = 1,
-            //   PixelShader = internalAssetLoader.LoadPixelShaderFromFile("shaders/deferred_from_gbuffer", "PSMain"),
-            //   VertexShader = internalAssetLoader.LoadVertexShaderFromFile("shaders/deferred_from_gbuffer", VertexLayout.PositionNormalColorTexture, "VSMain")
-            //};
-            return collection;
-         }
+         // DXGI ignores window events
+         var factory = swapChain.GetParent<Factory>();
+         factory.MakeWindowAssociation(form.Handle, WindowAssociationFlags.IgnoreAll);
 
-         private class Technique : ITechnique {
-            public IPixelShader PixelShader { get; set; }
-            public IVertexShader VertexShader { get; set; }
-
-            public int Passes { get; set; }
-
-            public void BeginPass(IDeviceContext deviceContext, int pass) {
-               if (pass != 0) {
-                  throw new ArgumentOutOfRangeException();
-               }
-
-               deviceContext.SetPixelShader(PixelShader);
-               deviceContext.SetVertexShader(VertexShader);
-            }
-         }
-      }
-
-      internal class Direct3DMesh : IMesh {
-         public IBuffer<VertexPositionNormalColorTexture> VertexBuffer;
-         public int Vertices;
-         public int VertexBufferOffset;
-
-         public VertexLayout VertexLayout { get; internal set; }
-
-         public void Draw(IDeviceContext deviceContext, int instances) {
-            deviceContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            deviceContext.SetVertexBuffer(0, VertexBuffer);
-            deviceContext.DrawInstanced(Vertices, VertexBufferOffset, instances, 0);
-         }
-      }
-
-      private class Direct3DPresetsStore : IPresetsStore {
-         private Direct3DPresetsStore(Direct3DGraphicsDevice device) {
-            SolidTextures = new SolidTexturesPresetCollection(device._internalAssetLoader);
-            SolidCubeTextures = new SolidCubeTexturesPresetCollection(device._internalAssetLoader);
-         }
-
-         public IMesh UnitCube { get; private set; }
-         public IMesh UnitPlaneXY { get; private set; }
-         public IMesh UnitSphere { get; private set; }
-
-         public IMesh GetPresetMesh(MeshPreset preset) {
-            if (preset == MeshPreset.UnitCube) return UnitCube;
-            else if (preset == MeshPreset.UnitPlaneXY) return UnitPlaneXY;
-            else if (preset == MeshPreset.UnitSphere) return UnitSphere;
-            else throw new NotSupportedException();
-         }
-
-         public IPresetCollection1<Color4, IShaderResourceView> SolidTextures { get; }
-         public IPresetCollection1And6<Color4, IShaderResourceView> SolidCubeTextures { get; }
-         
-         private abstract class PresetCollectionBase<K, V> : IPresetCollection1<K, V> {
-            private readonly CopyOnAddDictionary<K, V> store = new CopyOnAddDictionary<K, V>();
-            private readonly Func<K, V> constructFunc;
-
-            protected PresetCollectionBase() {
-               constructFunc = Construct; // avoid delegate alloc
-            }
-
-            protected abstract V Construct(K key);
-
-            public V this[K key] => store.GetOrAdd(key, constructFunc);
-         }
-
-         private class SolidTexturesPresetCollection : PresetCollectionBase<Color4, IShaderResourceView> {
-            private readonly Direct3DInternalAssetLoader _internalAssetLoader;
-
-            public SolidTexturesPresetCollection(Direct3DInternalAssetLoader internalAssetLoader) {
-               _internalAssetLoader = internalAssetLoader;
-            }
-
-            protected override IShaderResourceView Construct(Color4 key) {
-               // TODO: Texture leak.
-               var (tex, srv) = _internalAssetLoader.CreateSolidTexture(key);
-               return srv;
-            }
-         }
-
-         private class SolidCubeTexturesPresetCollection 
-            : PresetCollectionBase<(Color4, Color4, Color4, Color4, Color4, Color4), IShaderResourceView>,
-               IPresetCollection1And6<Color4, IShaderResourceView> {
-            private readonly Direct3DInternalAssetLoader _internalAssetLoader;
-
-            public SolidCubeTexturesPresetCollection(Direct3DInternalAssetLoader internalAssetLoader) {
-               _internalAssetLoader = internalAssetLoader;
-            }
-
-            protected override IShaderResourceView Construct((Color4, Color4, Color4, Color4, Color4, Color4) key) {
-               // TODO: Texture leak.
-               var (tex, srv) = _internalAssetLoader.CreateSolidCubeTexture(key.Item1, key.Item2, key.Item3, key.Item4, key.Item5, key.Item6);
-               return srv;
-            }
-
-            IShaderResourceView IPresetCollection1<Color4, IShaderResourceView>.this[Color4 key]
-               => this[(key, key, key, key, key, key)];
-
-            IShaderResourceView IPresetCollection1And6<Color4, IShaderResourceView>.this[Color4 posx, Color4 negx, Color4 posy, Color4 negy, Color4 posz, Color4 negz]
-               => this[(posx, negx, posy, negy, posz, negz)];
-         }
-
-         public static Direct3DPresetsStore Create(Direct3DGraphicsDevice device) {
-            var presets = new Direct3DPresetsStore(device);
-
-            presets.UnitCube = new Direct3DMesh {
-               VertexBuffer = device.CreateVertexBuffer(
-                  ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.ColoredCubeVertices)),
-               Vertices = HardcodedMeshPresets.ColoredCubeVertices.Length,
-               VertexBufferOffset = 0
-            };
-
-            presets.UnitPlaneXY = new Direct3DMesh {
-               VertexBuffer = device.CreateVertexBuffer(
-                  ConvertLeftHandToRightHandTriangleList(HardcodedMeshPresets.PlaneXYVertices)),
-               Vertices = HardcodedMeshPresets.PlaneXYVertices.Length,
-               VertexBufferOffset = 0
-            };
-
-            presets.UnitSphere = new Direct3DMesh {
-               VertexBuffer = device.CreateVertexBuffer(HardcodedMeshPresets.Sphere),
-               Vertices = HardcodedMeshPresets.Sphere.Length,
-               VertexBufferOffset = 0
-            };
-
-            return presets;
-         }
-
-         private static VertexPositionNormalColorTexture[] ConvertLeftHandToRightHandTriangleList(VertexPositionNormalColorTexture[] vertices) {
-            var results = new VertexPositionNormalColorTexture[vertices.Length];
-            for (var i = 0; i < vertices.Length; i++) {
-               results[i] = new VertexPositionNormalColorTexture(
-                  new Vector3(
-                     vertices[i].Position.X,
-                     vertices[i].Position.Y,
-                     -vertices[i].Position.Z),
-                  new Vector3(
-                     vertices[i].Normal.X,
-                     vertices[i].Normal.Y,
-                     -vertices[i].Normal.Z),
-                  vertices[i].Color,
-                  vertices[i].UV);
-            }
-            return results;
-         }
+         var graphicsDevice = new Direct3DGraphicsDevice(form, device, swapChain);
+         graphicsDevice.Initialize();
+         return graphicsDevice;
       }
    }
 }

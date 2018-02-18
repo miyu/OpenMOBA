@@ -36,6 +36,10 @@ namespace Canvas3D.LowLevel {
       void Draw(IDeviceContext deviceContext, int instances);
    }
 
+   public interface IMesh<TVertex> : IMesh where TVertex : struct {
+      IBuffer<TVertex> GetBuffer();
+   }
+
    public interface ITechnique {
       int Passes { get; set; }
       void BeginPass(IDeviceContext deviceContext, int pass);
