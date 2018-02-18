@@ -425,13 +425,13 @@ namespace Canvas3D.LowLevel.Direct3D {
          public string BasePath => @"C:\my-repositories\miyu\derp\Canvas3D\Assets";
 
          public IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null) {
-            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_0");
+            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_1");
             var shader = new PixelShader(_device, bytecode);
             return new PixelShaderBox { Shader = shader };
          }
 
          public IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null) {
-            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_0");
+            var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_1");
             var shader = new VertexShader(_device, bytecode);
             var signature = ShaderSignature.GetInputSignature(bytecode);
             var inputLayout = CreateInputLayout(vertexLayout, signature);
@@ -443,7 +443,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                return new InputLayout(_device, signature, new[] {
                   new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
                   new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
-                  new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
+                  new InputElement("VERTEX_COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0, InputClassification.PerVertexData, 0),
                   new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0, InputClassification.PerVertexData, 0),
                   new InputElement("INSTANCE_TRANSFORM", 0, Format.R32G32B32A32_Float, 0, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_TRANSFORM", 1, Format.R32G32B32A32_Float, 16, 1, InputClassification.PerInstanceData, 1),
@@ -451,7 +451,8 @@ namespace Canvas3D.LowLevel.Direct3D {
                   new InputElement("INSTANCE_TRANSFORM", 3, Format.R32G32B32A32_Float, 48, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_METALLIC", 0, Format.R32_Float, 64, 1, InputClassification.PerInstanceData, 1),
                   new InputElement("INSTANCE_ROUGHNESS", 0, Format.R32_Float, 68, 1, InputClassification.PerInstanceData, 1),
-                  new InputElement("INSTANCE_MATERIAL_RESOURCES_INDEX", 0, Format.R32_SInt, 72, 1, InputClassification.PerInstanceData, 1)
+                  new InputElement("INSTANCE_MATERIAL_RESOURCES_INDEX", 0, Format.R32_SInt, 72, 1, InputClassification.PerInstanceData, 1),
+                  new InputElement("INSTANCE_COLOR", 0, Format.R8G8B8A8_UNorm, 76, 1, InputClassification.PerInstanceData, 1)
                });
             }
             throw new NotSupportedException("Unsupported Input Layout: " + vertexLayout);
@@ -461,7 +462,8 @@ namespace Canvas3D.LowLevel.Direct3D {
             // D3D expects row-major matrices but defaults to sending column-major matrices to GPU, so it'll do
             // a transpose. This tells it to keep the row-major-ness. This is because our code actually works
             // in column-major, so the extra transpose is the opposite of what we want.
-            var shaderFlags = ShaderFlags.PackMatrixRowMajor;
+            ShaderFlags D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES = (ShaderFlags)(1 << 20);
+            var shaderFlags = ShaderFlags.PackMatrixRowMajor | D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
             using (var include = new IncludeImpl(path)) {
                var compilationResult = ShaderBytecode.CompileFromFile(path, entryPoint, profile, shaderFlags, include: include);
                if (compilationResult.Bytecode == null || compilationResult.HasErrors) {

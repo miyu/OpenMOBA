@@ -21,12 +21,13 @@ struct PSInput {
 PSInput VSMain(
    float3 position : POSITION, 
    float3 normal : NORMAL, 
-   float4 color : COLOR, 
+   float4 vertexColor : VERTEX_COLOR, 
    float2 uv : TEXCOORD,
    float4x4 world : INSTANCE_TRANSFORM,
    float metallic : INSTANCE_METALLIC,
    float roughness : INSTANCE_ROUGHNESS,
-   int materialResourcesIndex : INSTANCE_MATERIAL_RESOURCES_INDEX
+   int materialResourcesIndex : INSTANCE_MATERIAL_RESOURCES_INDEX,
+   float4 instanceColor : INSTANCE_COLOR
 ) {
    PSInput result;
 
@@ -39,7 +40,7 @@ PSInput VSMain(
    result.position = mul(projView, positionWorld);
    result.normalObject = normal;
    result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
-   result.color = color;
+   result.color = vertexColor * instanceColor;
    result.uv = uv;
    result.metallic = metallic;
    result.roughness = roughness;
@@ -54,15 +55,13 @@ float4 PSMain(PSInput input) : SV_TARGET {
    
    int materialResourcesIndex = batchMaterialResourcesIndexOverride != -1 ? batchMaterialResourcesIndexOverride : input.materialResourcesIndex;
    MaterialResourceDescription materialResources = MaterialResourceDescriptions[materialResourcesIndex];
-   float4 materialSampledColor = materialResources.baseColor;// *SampleTexture(materialResources.baseTextureIndex, input);
-
+   float4 materialSampledColor = materialResources.baseColor * SampleTexture(materialResources.baseTextureIndex, input);
    float4 baseAndTransparency = input.color * materialSampledColor;
    float3 base = baseAndTransparency.xyz;
    float transparency = baseAndTransparency.w;
    
    float metallic = input.metallic;
    float roughness = input.roughness;
-   
    return commonComputeFragmentOutput(P, N, base, transparency, metallic, roughness);
 }
 

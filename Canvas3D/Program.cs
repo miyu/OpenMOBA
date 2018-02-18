@@ -37,7 +37,8 @@ namespace Canvas3D {
             floatingCubesBatch.Jobs.Add(new RenderJobDescription {
                WorldTransform = transform,
                MaterialProperties = { Metallic = 0.0f, Roughness = 0.0f },
-               MaterialResourcesIndex = -1
+               MaterialResourcesIndex = -1,
+               Color = Color.White
             });
          }
 
@@ -51,23 +52,20 @@ namespace Canvas3D {
             scene.AddRenderable(
                graphicsLoop.Presets.UnitCube,
                MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
-               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } });
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.White);
 
             // Draw center cube / sphere
             scene.AddRenderable(
                false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
                MatrixCM.Translation(0, 0.5f, 0),
-               new MaterialDescription {
-                  Properties = { Metallic = 1.0f, Roughness = 0.8f },
-                  Resources = {
-                     BaseTexture = graphicsLoop.Presets.SolidCubeTextures[Color4.White]
-                  }
-               });
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.White);
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
             floatingCubesBatch.MaterialResourcesIndexOverride = scene.AddMaterialResources(new MaterialResourcesDescription {
-               BaseTexture = graphicsLoop.Presets.SolidCubeTextures[Color.Red]
+               BaseTexture = graphicsLoop.Presets.SolidCubeTextures[Color.Red, Color.Cyan, Color.Lime, Color.Magenta, Color.Blue, Color.Yellow]
             });
             if (false) {
                floatingCubesBatch.MaterialResourcesIndexOverride = -1;

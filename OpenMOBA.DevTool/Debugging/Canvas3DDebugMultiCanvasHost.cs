@@ -182,9 +182,6 @@ namespace OpenMOBA.DevTool.Debugging {
             var to = (Vector3)Vector4.Transform(new Vector4(ToV3(p2), 1), transformSharpDx);
 
             lock (scene) {
-               var strokeMri = scene.AddMaterialResources(new MaterialResourcesDescription {
-                  BaseColor = Color.FromBgra(strokeStyle.Color.ToArgb()),
-               });
                var thicknessMult = 4;
                var scale = MatrixCM.Scaling((float)strokeStyle.Thickness * thicknessMult, (from - to).Length(), (float)strokeStyle.Thickness * thicknessMult);
                var lookat = MatrixCM.RotationLookAtRH(to - from, Vector3.UnitZ);
@@ -193,7 +190,8 @@ namespace OpenMOBA.DevTool.Debugging {
                   presets.UnitCube,
                   Matrix.Multiply(offset, Matrix.Multiply(lookat, scale)),
                   new MaterialProperties { Metallic = 0, Roughness = 1.00f },
-                  strokeMri);
+                  -1,
+                  Color.FromBgra(strokeStyle.Color.ToArgb()));
             }
          }
 
