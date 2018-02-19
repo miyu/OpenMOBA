@@ -286,10 +286,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          // Cost from p to other crossoverPoints...
          var optimalLinkToCrossovers = new List<PathLink>(128);
          optimalLinkToCrossovers.Resize(crossoverPoints.Count);
-         optimalLinkToCrossovers[crossoverPoints.Count - 1] = new PathLink {
-            PriorIndex = PathLink.DirectPathIndex,
-            TotalCost = 0
-         };
 
          void ProcessCpi(int cpi, IntLineSegment2[] candidateBarriers) {
             Interlocked.Increment(ref ProcessCpiInvocationCount);
@@ -349,7 +345,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
          if (candidateBarriersByDestinationSegment == null) {
             Console.WriteLine("Warning: candidateBarriersByDestinationSegment null?");
-            for (var cpi = 0; cpi < crossoverPoints.Count - 1; cpi++) {
+            for (var cpi = 0; cpi < crossoverPoints.Count; cpi++) {
                ProcessCpi(cpi, null);
             }
          } else {

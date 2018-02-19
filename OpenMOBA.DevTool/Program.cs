@@ -310,7 +310,7 @@ namespace OpenMOBA.DevTool {
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
-            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(200, 600, 0))
+            Tuple.Create(new DoubleVector3(800, 500, 0), new DoubleVector3(2400, 550, 0))
 //            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),

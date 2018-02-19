@@ -226,7 +226,14 @@ namespace OpenMOBA.Foundation {
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode)) return false;
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(destinationWorld.ToDotNetVector(), out var destinationNode)) return false;
 
-         return sourceNode == destinationNode;
+         var sourceLocal = Vector3.Transform(sourceWorld.ToDotNetVector(), sourceNode.SectorNodeDescription.WorldTransformInv);
+         var destinationLocal = Vector3.Transform(destinationWorld.ToDotNetVector(), destinationNode.SectorNodeDescription.WorldTransformInv);
+
+         return Dijkstras(
+            sourceNode, 
+            sourceLocal.ToOpenMobaVector().LossyToIntVector3().XY, 
+            destinationNode, 
+            destinationLocal.ToOpenMobaVector().LossyToIntVector3().XY);
       }
 
       public struct OverlayPathLink {
@@ -245,20 +252,101 @@ namespace OpenMOBA.Foundation {
       }
 
       public bool Dijkstras(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint) {
+         const int SOURCE_POINT_CPI = -100;
+         const int DESTINATION_POINT_CPI = -200;
+         // todo: special-case if src is dst node
+
+         Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
          var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
-         var q = new PriorityQueue<(float, TerrainOverlayNetworkNode, TerrainOverlayNetworkNode, TerrainOverlayNetworkEdge)>((a, b) => a.Item1.CompareTo(b.Item1));
+         var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
+
+         var q = new PriorityQueue<(float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>((a, b) => a.Item1.CompareTo(b.Item1));
          var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
+         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>(); // visited
 
          foreach (var kvp in sourceNode.OutboundEdgeGroups) {
             foreach (var g in kvp.Value) {
                foreach (var edge in g.Edges) {
                   var cpiLink = sourceOptimalLinkToCrossovers[edge.SourceCrossoverIndex];
                   priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = cpiLink.TotalCost;
-                  priorityUpperBounds[(destinationNode, edge.DestinationCrossoverIndex)] = cpiLink.TotalCost + edge.Cost;
-                  q.Enqueue((edge.SourceCrossoverIndex, sourceNode, g.Destination,));
+                  q.Enqueue((cpiLink.TotalCost, cpiLink.TotalCost, sourceNode, SOURCE_POINT_CPI, sourceNode, edge.SourceCrossoverIndex, null));
+                  Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + edge.SourceCrossoverIndex + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
                }
             }
          }
+
+         while (!q.IsEmpty) {
+            var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = q.Dequeue();
+            Console.WriteLine($"Deq {ncost} {nsrcnode} {nsrccpi} {ndstnode} {ndstcpi} {nedge}");
+
+            if (predecessor.ContainsKey((ndstnode, ndstcpi))) {
+               continue;
+            }
+            predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge);
+
+            if (ndstcpi == DESTINATION_POINT_CPI) {
+               var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>();
+
+               var cur = (ndstnode, ndstcpi, (TerrainOverlayNetworkEdge)null);
+               while (predecessor.TryGetValue((cur.Item1, cur.Item2), out var pred)) {
+                  path.Add(cur);
+                  var (psrcnode, psrccpi, pedge) = pred;
+                  cur = pred;
+               }
+               path.Add(cur);
+               path.Reverse();
+
+               foreach (var x in path) {
+                  Console.WriteLine("PATH: " + x);
+               }
+               return true;
+            }
+
+            // expansion to cp of other node => expand to other cps
+            if (nsrcnode != ndstnode || true) {
+               var linksToOtherCpis = ndstnode.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[ndstcpi];
+               for (var cpi = 0; cpi < linksToOtherCpis.Count; cpi++) {
+                  var link = linksToOtherCpis[cpi];
+                  var scost = ncost + link.TotalCost;
+
+                  if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out float scostub) && scostub <= scost) {
+                     continue;
+                  }
+                  priorityUpperBounds[(ndstnode, cpi)] = scost;
+
+                  q.Enqueue((scost, scost, ndstnode, ndstcpi, ndstnode, cpi, null));
+               }
+            }
+
+            // expansion to cp of same node => expand to neighbor edges
+            // (technically should do this either way if CPI has multiple meanings...?)
+            if (nsrcnode == ndstnode || true) {
+               Console.WriteLine("OEG?");
+               foreach (var kvp in ndstnode.OutboundEdgeGroups) {
+                  foreach (var g in kvp.Value) {
+                     foreach (var edge in g.Edges) {
+                        if (edge.SourceCrossoverIndex == ndstcpi) {
+                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
+                           var scost = ncost + edge.Cost;
+                           if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out float scostub) && scostub <= scost) {
+                              continue;
+                           }
+                           priorityUpperBounds[(g.Destination, edge.DestinationCrossoverIndex)] = scost;
+                           q.Enqueue((scost, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge));
+                        }
+                     }
+                  }
+               }
+            }
+
+            // expansion to terminal if current node is destination node
+            if (ndstnode == destinationNode) {
+               var link = destinationOptimalLinkToCrossovers[ndstcpi];
+               var scost = ncost + link.TotalCost;
+               q.Enqueue((scost, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
+            }
+         }
+
          return false;
       }
    }
