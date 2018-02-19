@@ -18,7 +18,7 @@ namespace OpenMOBA.DevTool {
       public static void Main(string[] args) {
          var gameFactory = new GameFactory();
          gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
-         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
+//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
          OpenMOBA.Program.Main(gameFactory);
       }
    }
@@ -111,7 +111,7 @@ namespace OpenMOBA.DevTool {
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
-//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
@@ -121,8 +121,7 @@ namespace OpenMOBA.DevTool {
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
 //               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-               debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.DarkGray));
-               continue;
+//               debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.White));
 
                //Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
                foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
@@ -131,6 +130,7 @@ namespace OpenMOBA.DevTool {
                }
 
                debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
+               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
 
                //if (!sectorNodeDescription.EnableDebugHighlight) continue;
 
@@ -310,50 +310,20 @@ namespace OpenMOBA.DevTool {
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
-            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
+            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(200, 600, 0))
+//            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
             //            Tuple.Create(new DoubleVector3(50, 900, 0), new DoubleVector3(950, 475, 0)),
             //            Tuple.Create(new DoubleVector3(50, 500, 0), new DoubleVector3(80, 720, 0))
          };
 
-         //         var sector1 = Game.TerrainService.BuildSnapshot().SectorSnapshots[1];
-         //         var p1 = new IntVector2(500, 300);
-         //         var p1World = sector1.LocalToWorld(p1);
-         //         sector1.GetGeometryContext(holeDilationRadius).PunchedLand.PickDeepestPolynode(p1, out PolyNode p1PolyNode, out bool p1IsInHole);
-         //         debugCanvas.DrawPoint(p1World, new StrokeStyle(p1IsInHole ? Color.Green : Color.Lime, 20));
-         //         var pathfindingContext = TerrainService.BuildSnapshot().GetPathfindingContext(holeDilationRadius);
-         //         if (pathfindingContext.TryFindSector(sector1.LocalToWorld(p1), out SectorSnapshot sector1SnapshotHopefully)) {
-         //            debugCanvas.DrawPoint(sector1SnapshotHopefully.LocalToWorld(new IntVector2(100, 100)), new StrokeStyle(Color.Lime, 20));
-         //         }
-         //
-         //         var sector2 = Game.TerrainService.BuildSnapshot().SectorSnapshots[2];
-         //         var p2 = new IntVector2(350, 320);
-         //         var p2World = Vector3.Transform(new DoubleVector3(p2.ToDoubleVector2()).ToDotNetVector(), sector2.WorldTransform).ToOpenMobaVector();
-         //         sector2.GetGeometryContext(holeDilationRadius).PunchedLand.PickDeepestPolynode(p2, out PolyNode p2PolyNode, out bool p2IsInHole);
-         //         debugCanvas.DrawPoint(p2World, new StrokeStyle(p2IsInHole ? Color.DarkRed : Color.Red, 20));
-         //         if (pathfindingContext.TryFindSector(sector2.LocalToWorld(p2), out SectorSnapshot sector2SnapshotHopefully)) {
-         //            debugCanvas.DrawPoint(sector2SnapshotHopefully.LocalToWorld(new IntVector2(900, 100)), new StrokeStyle(Color.Red, 20));
-         //         }
-         //
-         ////         double pathCostUpperBound;
-         ////         if (Game.PathfinderCalculator.TryFindPathCostUpperBound(holeDilationRadius, p1, p1PolyNode, p2, p2PolyNode, out pathCostUpperBound)) {
-         ////            debugCanvas.DrawLine(p1World, p2World, PathStroke);
-         ////         } else {
-         ////            debugCanvas.DrawLine(p1World, p2World, NoPathStroke);
-         ////         }
-         //         List<DoubleVector3> path;
-         //         if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, new DoubleVector3(50, 50, 0), new DoubleVector3(50, 250, 0), out path)) {
-         //            debugCanvas.DrawLine(p1World, p2World, PathStroke);
-         //         } else {
-         //            debugCanvas.DrawLine(p1World, p2World, NoPathStroke);
-         //         }
-
          foreach (var query in testPathFindingQueries) {
             List<DoubleVector3> pathPoints;
             if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out pathPoints)) {
-               Console.WriteLine("Yippee " + string.Join(", ", pathPoints));
-               debugCanvas?.DrawLineStrip(pathPoints, PathStroke);
+               Console.WriteLine("Yippee ");// + string.Join(", ", pathPoints));
+               //               debugCanvas?.DrawLineStrip(pathPoints, PathStroke);
+               debugCanvas?.DrawLine(query.Item1, query.Item2, PathStroke);
             } else {
                Console.WriteLine("Nope");
                debugCanvas?.DrawLine(query.Item1, query.Item2, NoPathStroke);

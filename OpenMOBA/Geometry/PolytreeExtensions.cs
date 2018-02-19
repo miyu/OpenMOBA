@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using ClipperLib;
 using OpenMOBA.Foundation.Terrain;
@@ -151,6 +152,22 @@ namespace OpenMOBA.Geometry {
          var endpointContainment = Clipper.PointInPolygon(query.First, node.Contour);
          if (endpointContainment == PolygonContainmentResult.OnPolygon) return PolygonContainmentResult.IntersectsPolygon;
          return endpointContainment;
+      }
+
+      public static bool PointInLandPolygonNonrecursive(this PolyNode landNode, IntVector2 query) {
+         var outerPipResult = Clipper.PointInPolygon(query, landNode.Contour);
+         if (outerPipResult == PolygonContainmentResult.OutsidePolygon) return false;
+         if (outerPipResult == PolygonContainmentResult.OnPolygon) return true;
+         Trace.Assert(outerPipResult == PolygonContainmentResult.InPolygon);
+     
+         foreach (var child in landNode.Childs) {
+            var childContainment = Clipper.PointInPolygon(query, child.Contour);
+            if (childContainment == PolygonContainmentResult.OutsidePolygon || childContainment == PolygonContainmentResult.OnPolygon) {
+               continue;
+            }
+            return false;
+         }
+         return true;
       }
 
       public static IEnumerable<PolyNode> EnumerateLandNodes(this PolyNode node) {

@@ -6,7 +6,7 @@ using OpenMOBA.Geometry;
 namespace OpenMOBA.DevTool.Debugging {
    public static class VisibilityGraphDebugDisplay {
       private static readonly StrokeStyle BarrierStrokeStyle = new StrokeStyle(Color.DimGray);
-      private static readonly StrokeStyle VisibilityEdgeStrokeStyle = new StrokeStyle(Color.Cyan);
+      private static readonly StrokeStyle VisibilityEdgeStrokeStyle = new StrokeStyle(Color.Cyan, 1.0f);
       private static readonly StrokeStyle WaypointStrokeStyle = new StrokeStyle(Color.Red, 5.0f);
 
       public static void DrawVisibilityGraph(this IDebugCanvas canvas, PolyNodeVisibilityGraph visibilityGraph) {

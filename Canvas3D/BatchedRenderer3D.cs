@@ -184,7 +184,7 @@ namespace Canvas3D {
    }
 
    internal class RenderContext : IRenderContext {
-      private const int kShadowMapWidthHeight = 256;
+      private const int kShadowMapWidthHeight = 2048;
       private const int kBatchNoMaterialIndexOverride = -1;
       private const int kBaseTextureSlotId = 48;
       private const int kTextureBindLimit = 80; // Slots [48, 127)

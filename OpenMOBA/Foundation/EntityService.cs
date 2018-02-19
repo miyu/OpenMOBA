@@ -220,7 +220,13 @@ namespace OpenMOBA.Foundation {
 
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out List<DoubleVector3> path) {
          path = null;
-         return false;
+
+         var terrainSnapshot = terrainService.CompileSnapshot();
+         var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(10.0);
+         if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode)) return false;
+         if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(destinationWorld.ToDotNetVector(), out var destinationNode)) return false;
+
+         return sourceNode == destinationNode;
       }
 
       public struct OverlayPathLink {
@@ -235,45 +241,23 @@ namespace OpenMOBA.Foundation {
          public float TotalCost;
 
          public TerrainOverlayNetworkNode CurrentNode;
-         public IReadOnlyList<IntVector2> CurrentCrossoverPointSet;
          public int CurrentCrossoverPointIndex;
       }
 
       public bool Dijkstras(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint) {
          var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
-         var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
+         var q = new PriorityQueue<(float, TerrainOverlayNetworkNode, TerrainOverlayNetworkNode, TerrainOverlayNetworkEdge)>((a, b) => a.Item1.CompareTo(b.Item1));
+         var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
 
-         var results = new Dictionary<TerrainOverlayNetworkNode, OverlayPathLink[]>();
-         var q = new PriorityQueue<OverlayDijkstrasIntermediate>((a, b) => a.TotalCost.CompareTo(b.TotalCost));
-
-         var startNodeResults = results[sourceNode] = sourceNode.CrossoverPointManager.CrossoverPoints.Map(_ => new OverlayPathLink());
-         foreach (var (cpi, link) in sourceOptimalLinkToCrossovers.Enumerate()) {
-            startNodeResults[cpi].TotalCost = link.TotalCost;
-            startNodeResults[cpi].PriorCrossoverPointIndex = -1;
-            startNodeResults[cpi].PriorCrossoverPointSet = null;
-
-            q.Enqueue(new OverlayDijkstrasIntermediate {
-               TotalCost = link.TotalCost,
-               CurrentNode = sourceNode,
-               CurrentCrossoverPointSet = sourceNode.CrossoverPointManager.CrossoverPoints,
-               CurrentCrossoverPointIndex = cpi
-            });
-         }
-
-         while (!q.IsEmpty) {
-            var x = q.Dequeue();
-            if (!results.TryGetValue(x.CurrentNode, out OverlayPathLink[] nodeCrossoverPointResults)) {
-               nodeCrossoverPointResults = x.CurrentNode.CrossoverPointManager.CrossoverPoints.Map(
-                  _ => new OverlayPathLink { PriorCrossoverPointIndex = OverlayPathLink.UnvisitedIndex });
-               results[x.CurrentNode] = nodeCrossoverPointResults;
+         foreach (var kvp in sourceNode.OutboundEdgeGroups) {
+            foreach (var g in kvp.Value) {
+               foreach (var edge in g.Edges) {
+                  var cpiLink = sourceOptimalLinkToCrossovers[edge.SourceCrossoverIndex];
+                  priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = cpiLink.TotalCost;
+                  priorityUpperBounds[(destinationNode, edge.DestinationCrossoverIndex)] = cpiLink.TotalCost + edge.Cost;
+                  q.Enqueue((edge.SourceCrossoverIndex, sourceNode, g.Destination,));
+               }
             }
-
-            if (nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointIndex != OverlayPathLink.UnvisitedIndex) {
-               continue;
-            }
-            nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].TotalCost = x.TotalCost;
-            // nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointSet = x.PriorCrossoverPointSet;
-            // nodeCrossoverPointResults[x.CurrentCrossoverPointIndex].PriorCrossoverPointIndex = x.PriorCrossoverPointIndex;
          }
          return false;
       }
