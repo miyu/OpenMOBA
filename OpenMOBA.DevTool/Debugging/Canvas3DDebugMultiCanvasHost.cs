@@ -12,6 +12,7 @@ using Canvas3D.LowLevel;
 using OpenMOBA.Geometry;
 using SharpDX;
 using Color = SharpDX.Color;
+using Vector2 = SharpDX.Vector2;
 using Vector3 = SharpDX.Vector3;
 using Vector4 = SharpDX.Vector4;
 using Quaternion = SharpDX.Quaternion;
@@ -19,9 +20,11 @@ using Quaternion = SharpDX.Quaternion;
 namespace OpenMOBA.DevTool.Debugging {
    public class Canvas3DDebugMultiCanvasHost : IDebugMultiCanvasHost {
       private readonly ConcurrentQueue<IScene> sceneQueue;
+      private readonly IGraphicsFacade graphicsFacade;
       private readonly IPresetsStore presets;
 
-      public Canvas3DDebugMultiCanvasHost(ConcurrentQueue<IScene> sceneQueue, IPresetsStore presets) {
+      public Canvas3DDebugMultiCanvasHost(ConcurrentQueue<IScene> sceneQueue, IGraphicsFacade graphicsFacade, IPresetsStore presets) {
+         this.graphicsFacade = graphicsFacade;
          this.sceneQueue = sceneQueue;
          this.presets = presets;
       }
@@ -29,7 +32,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public IDebugCanvas CreateAndAddCanvas(int timestamp) {
          var scene = new Scene();
          sceneQueue.Enqueue(scene);
-         return new Canvas3DDebugCanvas(presets, scene);
+         return new Canvas3DDebugCanvas(graphicsFacade, presets, scene);
       }
 
       private static Vector3 ToV3(DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
@@ -38,10 +41,11 @@ namespace OpenMOBA.DevTool.Debugging {
          var sceneQueue = new ConcurrentQueue<IScene>();
          var scenes = new List<IScene>();
          var activeSceneIndex = -1;
+         GraphicsLoop graphicsLoop = null;
          IPresetsStore presets = null;
          var initLatch = new ManualResetEvent(false);
          var thread = new Thread(() => {
-            var graphicsLoop = GraphicsLoop.CreateWithNewWindow(size, InitFlags.EnableDebugStats);
+            graphicsLoop = GraphicsLoop.CreateWithNewWindow(size, InitFlags.EnableDebugStats);
             presets = graphicsLoop.Presets;
             initLatch.Set();
 
@@ -125,18 +129,33 @@ namespace OpenMOBA.DevTool.Debugging {
          thread.SetApartmentState(ApartmentState.STA);
          thread.Start();
          initLatch.WaitOne();
-         return new Canvas3DDebugMultiCanvasHost(sceneQueue, presets);
+         return new Canvas3DDebugMultiCanvasHost(sceneQueue, graphicsLoop.GraphicsFacade, presets);
       }
 
       public class Canvas3DDebugCanvas : IDebugCanvas {
+         private readonly IGraphicsFacade graphicsFacade;
          private readonly IPresetsStore presets;
          private readonly Scene scene;
+         private readonly IMesh<VertexPositionNormalColorTexture> unitTriangleMesh;
+
          private Matrix4x4 transformDotNet = Matrix4x4.Identity;
          private Matrix transformSharpDx = Matrix.Identity;
 
-         public Canvas3DDebugCanvas(IPresetsStore presets, Scene scene) {
+         public Canvas3DDebugCanvas(IGraphicsFacade graphicsFacade, IPresetsStore presets, Scene scene) {
+            this.graphicsFacade = graphicsFacade;
             this.presets = presets;
             this.scene = scene;
+
+
+            unitTriangleMesh = graphicsFacade.CreateMesh(new[] {
+               new VertexPositionNormalColorTexture(new Vector3(0, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(0, 0)),
+               new VertexPositionNormalColorTexture(new Vector3(1, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(1, 0)),
+               new VertexPositionNormalColorTexture(new Vector3(0, 1, 0), -Vector3.UnitZ, Color.White, new Vector2(0, 1)),
+
+               new VertexPositionNormalColorTexture(new Vector3(1, 0, 0), Vector3.UnitZ, Color.White, new Vector2(1, 0)),
+               new VertexPositionNormalColorTexture(new Vector3(0, 0, 0), Vector3.UnitZ, Color.White, new Vector2(0, 0)),
+               new VertexPositionNormalColorTexture(new Vector3(0, 1, 0), Vector3.UnitZ, Color.White, new Vector2(0, 1)),
+            });
          }
 
          public Matrix4x4 Transform
@@ -196,8 +215,69 @@ namespace OpenMOBA.DevTool.Debugging {
             }
          }
 
+         public void DrawTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, StrokeStyle strokeStyle) {
+            BatchDraw(() => {
+               DrawLine(p1, p2, strokeStyle);
+               DrawLine(p2, p3, strokeStyle);
+               DrawLine(p3, p1, strokeStyle);
+            });
+         }
+
+         public void FillTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, FillStyle fillStyle) {
+            var p1w = (Vector3)Vector4.Transform(new Vector4(ToV3(p1), 1), transformSharpDx);
+            var p2w = (Vector3)Vector4.Transform(new Vector4(ToV3(p2), 1), transformSharpDx);
+            var p3w = (Vector3)Vector4.Transform(new Vector4(ToV3(p3), 1), transformSharpDx);
+
+            /**
+             * [m00, m01, m02, m03] * [ 0 1 0 ] = [ orig.x, orig.x + v1.x, orig.x + v2.x]
+             * [m10, m11, m12, m13]     0 0 1       orig.y, orig.y + v1.y, orig.y + v2.y
+             * [m20, m21, m22, m23]     0 0 0       orig.z, orig.z + v1.z, orig.z + v2.z
+             * [m30, m31, m32, m33]     1 1 1       1     , 1            , 1            
+             * 
+             * 
+             * m03 = orig.x
+             * m13 = orig.y
+             * m23 = orig.z
+             * m33 = 1
+             * 
+             * m00 = v1.x
+             * m10 = v1.y
+             * m20 = v1.z
+             * 
+             * m01 = v2.x
+             * m11 = v2.y
+             * m21 = v2.z
+             */
+
+            var unitTriangleToWorld = new Matrix();
+            unitTriangleToWorld.Column1 = new Vector4(p2w - p1w, 0);
+            unitTriangleToWorld.Column2 = new Vector4(p3w - p1w, 0);
+            unitTriangleToWorld.Column3 = new Vector4(0, 0, 1, 0);
+            unitTriangleToWorld.Column4 = new Vector4(p1w, 1);
+
+
+//            unitTriangleToWorld.Transpose();
+//            Console.WriteLine(p1w + " " + p2w + " " + p3w);
+//            Console.WriteLine("o: " + Vector3.TransformCoordinate(new Vector3(0, 0, 0), unitTriangleToWorld));
+//            Console.WriteLine("o + 1: " + Vector3.TransformCoordinate(new Vector3(1, 0, 0), unitTriangleToWorld));
+//            Console.WriteLine("o + 2: " + Vector3.TransformCoordinate(new Vector3(0, 1, 0), unitTriangleToWorld));
+//            Console.WriteLine("n: " + Vector3.TransformNormal(new Vector3(0, 0, 1), unitTriangleToWorld));
+//            unitTriangleToWorld.Transpose();
+
+
+            scene.AddRenderable(
+               unitTriangleMesh,
+               unitTriangleToWorld,
+               new MaterialDescription {
+                  Properties = new MaterialProperties { Metallic = 0, Roughness = 1.00f }
+               },
+               Color.FromBgra(fillStyle.Color.ToArgb()));
+         }
+
          public void FillPolygon(IReadOnlyList<DoubleVector3> polygonPoints, FillStyle fillStyle) {
             lock (scene) {
+
+
                DrawPolygon(polygonPoints, new StrokeStyle(fillStyle.Color));
             }
          }

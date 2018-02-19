@@ -8,7 +8,7 @@ float4 commonComputeFragmentOutput(float3 P, float3 N, float3 base, float transp
    float3 V = normalize(cameraEye - P);
 
    float3 colorAccumulator = 0;
-
+   
    [branch] if (pbrEnabled) {
       float3 diffuse, F0;
       pbrMaterialDiffuseF0(base, metallic, diffuse, F0);
@@ -17,7 +17,7 @@ float4 commonComputeFragmentOutput(float3 P, float3 N, float3 base, float transp
       for (uint i = 0; i != numSpotlights; i++) {
          colorAccumulator += pbrComputeSpotlightDirectContribution(P, N, i, V, nDotV, diffuse, F0, roughness);
       }
-
+	  
       // environment lighting
       [branch] if (false)
       {

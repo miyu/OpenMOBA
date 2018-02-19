@@ -111,7 +111,7 @@ namespace OpenMOBA.DevTool {
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
-            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
@@ -120,12 +120,14 @@ namespace OpenMOBA.DevTool {
                var crossoverPointManager = terrainNode.CrossoverPointManager;
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
-               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+//               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+               debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.DarkGray));
+               continue;
 
                //Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
                foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
-                  debugCanvas.DrawPolygons(v.holeIncludedContours, StrokeStyle.RedHairLineSolid);
-                  debugCanvas.DrawPolygons(v.holeExcludedContours, StrokeStyle.RedHairLineSolid);
+                  debugCanvas.DrawPolygonContours(v.holeIncludedContours, StrokeStyle.RedHairLineSolid);
+                  debugCanvas.DrawPolygonContours(v.holeExcludedContours, StrokeStyle.RedHairLineSolid);
                }
 
                debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
@@ -189,7 +191,7 @@ namespace OpenMOBA.DevTool {
                   //                     debugCanvas.DrawLine(c.SourceSegment.First, c.SourceSegment.Second, new StrokeStyle(Color.Red, 5));
                   //                  }
 
-                  debugCanvas.DrawVisibilityPolygon(landNode.ComputeWaypointVisibilityPolygons()[25]);
+//                  debugCanvas.DrawVisibilityPolygon(landNode.ComputeWaypointVisibilityPolygons()[25]);
 
                   //                  var colors = new[] { Color.Lime, Color.Orange, Color.Cyan, Color.Magenta, Color.Yellow, Color.Pink };
                   //                  for (int crossoverIndex = 0; crossoverIndex < visibilityGraphNodeData.ErodedCrossoverSegments.Count; crossoverIndex++) {

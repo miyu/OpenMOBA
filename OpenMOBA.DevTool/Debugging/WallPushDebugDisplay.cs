@@ -33,47 +33,47 @@ namespace OpenMOBA.DevTool.Debugging {
       private static readonly StrokeStyle AngleBoundaryStrokeStyle = new StrokeStyle(Color.FromArgb(30, Color.Black), 1.0, new [] { 10f, 10f });
       private static readonly StrokeStyle VisibleWallStrokeStyle = new StrokeStyle(Color.Black, 3.0);
 
-      public static void DrawVisibilityPolygon(this IDebugCanvas debugCanvas, VisibilityPolygon avss, double z = 0.0, FillStyle fillStyle = null) {
-         fillStyle = fillStyle ?? DefaultFillStyle;
-         var oxy = avss.Origin;
-         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_NULL)) {
-            var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
-            var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
-      
-            var s = range.Segment;
-            var s1 = s.First.ToDoubleVector2();
-            var s2 = s.Second.ToDoubleVector2();
-            DoubleVector2 visibleStart, visibleEnd;
-            if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart) ||
-                  !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
-               // wtf?
-               continue;
-            }
-
-            debugCanvas.BatchDraw(() => {
-               debugCanvas.FillPolygon(
-                  new List<DoubleVector3> {
-                     new DoubleVector3(oxy.X, oxy.Y, z),
-                     new DoubleVector3(visibleStart.X, visibleStart.Y, z),
-                     new DoubleVector3(visibleEnd.X, visibleEnd.Y, z)
-                  }, fillStyle);
-
-               debugCanvas.DrawLine(
-                  new DoubleVector3(oxy.X, oxy.Y, z),
-                  new DoubleVector3(visibleStart.X, visibleStart.Y, z),
-                  AngleBoundaryStrokeStyle);
-
-               debugCanvas.DrawLine(
-                  new DoubleVector3(oxy.X, oxy.Y, z),
-                  new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
-                  AngleBoundaryStrokeStyle);
-
-               debugCanvas.DrawLine(
-                  new DoubleVector3(visibleStart.X, visibleStart.Y, z),
-                  new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
-                  VisibleWallStrokeStyle);
-            });
-         }
-      }
+//      public static void DrawVisibilityPolygon(this IDebugCanvas debugCanvas, VisibilityPolygon avss, double z = 0.0, FillStyle fillStyle = null) {
+//         fillStyle = fillStyle ?? DefaultFillStyle;
+//         var oxy = avss.Origin;
+//         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_NULL)) {
+//            var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
+//            var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
+//      
+//            var s = range.Segment;
+//            var s1 = s.First.ToDoubleVector2();
+//            var s2 = s.Second.ToDoubleVector2();
+//            DoubleVector2 visibleStart, visibleEnd;
+//            if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart) ||
+//                  !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
+//               // wtf?
+//               continue;
+//            }
+//
+//            debugCanvas.BatchDraw(() => {
+//               debugCanvas.FillPolygon(
+//                  new List<DoubleVector2> {
+//                     new DoubleVector2(oxy.X, oxy.Y),
+//                     new DoubleVector2(visibleStart.X, visibleStart.Y),
+//                     new DoubleVector2(visibleEnd.X, visibleEnd.Y)
+//                  }, fillStyle);
+//
+//               debugCanvas.DrawLine(
+//                  new DoubleVector3(oxy.X, oxy.Y, z),
+//                  new DoubleVector3(visibleStart.X, visibleStart.Y, z),
+//                  AngleBoundaryStrokeStyle);
+//
+//               debugCanvas.DrawLine(
+//                  new DoubleVector3(oxy.X, oxy.Y, z),
+//                  new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
+//                  AngleBoundaryStrokeStyle);
+//
+//               debugCanvas.DrawLine(
+//                  new DoubleVector3(visibleStart.X, visibleStart.Y, z),
+//                  new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
+//                  VisibleWallStrokeStyle);
+//            });
+//         }
+//      }
    }
 }

@@ -50,6 +50,8 @@ namespace Canvas3D {
          return matrix;
       }
 
+      public static Matrix Translation(Vector3 v) => Translation(v.X, v.Y, v.Z);
+
       public static Matrix Translation(float x, float y, float z) {
          var matrix = Matrix.Translation(x, y, z);
          matrix.Transpose();

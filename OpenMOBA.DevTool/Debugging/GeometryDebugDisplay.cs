@@ -64,29 +64,29 @@ namespace OpenMOBA.DevTool.Debugging {
          });
       }
 
-      public static void FillPolygon(this IDebugCanvas canvas, Polygon3 polygon, FillStyle fillStyle) {
-         canvas.FillPolygon(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), fillStyle);
-      }
+//      public static void FillPolygon(this IDebugCanvas canvas, Polygon3 polygon, FillStyle fillStyle) {
+//         canvas.FillPolygon(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), fillStyle);
+//      }
+//
+//      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon3 polygon, StrokeStyle strokeStyle) {
+//         canvas.DrawPolygonContour(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
+//      }
 
-      public static void DrawPolygon(this IDebugCanvas canvas, Polygon3 polygon, StrokeStyle strokeStyle) {
-         canvas.DrawPolygon(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
-      }
-
-      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon3> polygons, StrokeStyle strokeStyle) {
-         canvas.BatchDraw(() => {
-            foreach (var polygon in polygons) {
-               canvas.DrawPolygon(polygon, strokeStyle);
-            }
-         });
-      }
-
-      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<DoubleVector3>> contours, StrokeStyle strokeStyle) {
-         canvas.BatchDraw(() => {
-            foreach (var contour in contours) {
-               canvas.DrawPolygon(contour, strokeStyle);
-            }
-         });
-      }
+//      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon3> polygons, StrokeStyle strokeStyle) {
+//         canvas.BatchDraw(() => {
+//            foreach (var polygon in polygons) {
+//               canvas.DrawPolygonContour(polygon, strokeStyle);
+//            }
+//         });
+//      }
+//
+//      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<DoubleVector3>> contours, StrokeStyle strokeStyle) {
+//         canvas.BatchDraw(() => {
+//            foreach (var contour in contours) {
+//               canvas.DrawPolygonContour(contour, strokeStyle);
+//            }
+//         });
+//      }
 
       public static void DrawPolyTree(this IDebugCanvas canvas, PolyTree polytree, StrokeStyle landStroke = null, StrokeStyle holeStroke = null) {
          landStroke = landStroke ?? new StrokeStyle(Color.Orange);
@@ -99,8 +99,8 @@ namespace OpenMOBA.DevTool.Debugging {
                var node = s.Pop();
                node.Childs.ForEach(s.Push);
                if (node.Contour.Any()) {
-                  canvas.DrawPolygon(
-                     new Polygon3(node.Contour.Select(p => new IntVector3(p.X, p.Y, 0)).ToList(), node.IsHole),
+                  canvas.DrawPolygonContour(
+                     new Polygon2(node.Contour.Select(p => new IntVector2(p.X, p.Y)).ToList(), node.IsHole),
                      node.IsHole ? holeStroke : landStroke);
                }
             }
@@ -117,10 +117,29 @@ namespace OpenMOBA.DevTool.Debugging {
          });
       }
 
+      public static void FillTriangulation(this IDebugCanvas canvas, Triangulation triangulation, FillStyle fillStyle) {
+         canvas.BatchDraw(() => {
+            foreach (var island in triangulation.Islands) {
+               foreach (var triangle in island.Triangles) {
+                  canvas.FillTriangle(triangle, fillStyle);
+               }
+            }
+         });
+      }
+
       public static void DrawTriangle(this IDebugCanvas canvas, Triangle3 triangle, StrokeStyle strokeStyle) {
          canvas.DrawLineStrip(
             triangle.Points.Concat(new[] { triangle.Points.A }).Select(p => new DoubleVector3(p.X, p.Y, 0)).ToList(),
             strokeStyle);
+      }
+
+
+      public static void FillTriangle(this IDebugCanvas canvas, Triangle3 triangle, FillStyle fillStyle) {
+         canvas.FillTriangle(
+            new DoubleVector3((float)triangle.Points.A.X, (float)triangle.Points.A.Y, 0),
+            new DoubleVector3((float)triangle.Points.B.X, (float)triangle.Points.B.Y, 0),
+            new DoubleVector3((float)triangle.Points.C.X, (float)triangle.Points.C.Y, 0),
+            fillStyle);
       }
 
       public static void DrawRectangle(this IDebugCanvas canvas, IntRect2 nodeRect, float z, StrokeStyle strokeStyle) {

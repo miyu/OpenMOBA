@@ -16,6 +16,14 @@ namespace Canvas3D.LowLevel.Direct3D {
       public ITechniqueCollection Techniques { get; private set; }
       public IPresetsStore Presets { get; private set; }
 
+      public IMesh<TVertex> CreateMesh<TVertex>(TVertex[] data) where TVertex : struct {
+         return new Direct3DMesh<TVertex> {
+            VertexBuffer = Device.CreateVertexBuffer(data),
+            Vertices = data.Length,
+            VertexBufferOffset = 0
+         };
+      }
+
       public static Direct3DGraphicsFacade Create(RenderForm form) {
          // Low-level device
          var device = Direct3DGraphicsDevice.Create(form);

@@ -6,7 +6,11 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
+using ClipperLib;
 using OpenMOBA.Geometry;
+using Poly2Tri;
+using Poly2Tri.Triangulation;
+using Poly2Tri.Triangulation.Polygon;
 
 namespace OpenMOBA.DevTool.Debugging {
    public class DebugCanvasHost {
@@ -96,14 +100,15 @@ namespace OpenMOBA.DevTool.Debugging {
 
       void DrawPoint(DoubleVector3 p, StrokeStyle strokeStyle);
       void DrawLine(DoubleVector3 p1, DoubleVector3 p2, StrokeStyle strokeStyle);
-      void FillPolygon(IReadOnlyList<DoubleVector3> points, FillStyle fillStyle);
-      void DrawPolygon(IReadOnlyList<DoubleVector3> polygonPoints, StrokeStyle strokeStyle);
+      void DrawTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, StrokeStyle strokeStyle);
+      void FillTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, FillStyle fillStyle);
       void DrawText(string text, DoubleVector3 point);
    }
 
    public static class DebugCanvas2DExtensions {
       private static DoubleVector3 ToDV3(IntVector2 p) => new DoubleVector3(p.ToDoubleVector2());
       private static DoubleVector3 ToDV3(DoubleVector2 p) => new DoubleVector3(p);
+      private static DoubleVector3 ToDV3(TriangulationPoint p) => new DoubleVector3(p.X, p.Y, 0);
       private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
       private static IntLineSegment3 ToILS3(IntLineSegment2 p) => new IntLineSegment3(ToIV3(p.First), ToIV3(p.Second));
 
@@ -123,29 +128,60 @@ namespace OpenMOBA.DevTool.Debugging {
          canvas.DrawPoints(p.Map(ToDV3), strokeStyle);
       }
 
-      public static void DrawPolygon(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
-         canvas.DrawPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
+      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
+         for (var i = 0; i < poly.Points.Count - 1; i++) {
+            canvas.DrawLineStrip(poly.Points.Map(ToDV3), strokeStyle);
+         }
       }
 
-      public static void DrawPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, StrokeStyle strokeStyle) {
-         canvas.DrawPolygon(polygonPoints.Select(ToDV3).ToList(), strokeStyle);
+      public static void DrawPolygonContours(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
+         foreach (var poly in polys) {
+            canvas.DrawPolygonContour(poly, strokeStyle);
+         }
       }
 
-      public static void FillPolygon(this IDebugCanvas canvas, Polygon2 polygon, FillStyle fillStyle) {
-         canvas.FillPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), fillStyle);
+      public static void DrawPolygonTriangulation(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
+         var cps = new Polygon(poly.Points.Map(p => new PolygonPoint(p.X, p.Y)));
+         P2T.Triangulate(cps);
+
+         foreach (var triangle in cps.Triangles) {
+            canvas.DrawTriangle(ToDV3(triangle.Points[0]), ToDV3(triangle.Points[1]), ToDV3(triangle.Points[2]), strokeStyle);
+         }
       }
 
-      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, FillStyle fillStyle) {
-         canvas.FillPolygon(polygonPoints.Select(ToDV3).ToList(), fillStyle);
+      public static void FillPolygonTriangulation(this IDebugCanvas canvas, Polygon2 poly, FillStyle fillStyle) {
+         var cps = new Polygon(poly.Points.Map(p => new PolygonPoint(p.X, p.Y)));
+         P2T.Triangulate(cps);
+
+         foreach (var triangle in cps.Triangles) {
+            canvas.FillTriangle(ToDV3(triangle.Points[0]), ToDV3(triangle.Points[1]), ToDV3(triangle.Points[2]), fillStyle);
+         }
       }
 
-      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polygons, StrokeStyle strokeStyle) {
-         canvas.DrawPolygons(polygons.Select(p => new Polygon3(p.Points.Select(ToIV3).ToList(), p.IsHole)).ToList(), strokeStyle);
-      }
 
-      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<IntVector2>> polygons, StrokeStyle strokeStyle) {
-         canvas.DrawPolygons(polygons.Select(p => p.Select(ToDV3).ToList()).ToList(), strokeStyle);
-      }
+      //      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
+      //         canvas.DrawPolygonContour(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
+      //      }
+      //
+      //      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, StrokeStyle strokeStyle) {
+      //         canvas.DrawPolygonContour(polygonPoints.Select(ToDV3).ToList(), strokeStyle);
+      //      }
+      //
+      //      public static void FillPolygon(this IDebugCanvas canvas, Polygon2 polygon, FillStyle fillStyle) {
+      //         canvas.FillPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), fillStyle);
+      //      }
+      //
+      //      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, FillStyle fillStyle) {
+      //         canvas.FillPolygon(polygonPoints.Select(ToDV3).ToList(), fillStyle);
+      //      }
+
+      //      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polygons, StrokeStyle strokeStyle) {
+      //         canvas.DrawPolygons(polygons.Select(p => new Polygon3(p.Points.Select(ToIV3).ToList(), p.IsHole)).ToList(), strokeStyle);
+      //      }
+      //
+      //      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<IntVector2>> polygons, StrokeStyle strokeStyle) {
+      //         canvas.DrawPolygons(polygons.Select(p => p.Select(ToDV3).ToList()).ToList(), strokeStyle);
+      //      }
 
       public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
          canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
@@ -322,6 +358,18 @@ namespace OpenMOBA.DevTool.Debugging {
 
       public void DrawLine(DoubleVector3 point1, DoubleVector3 point2, StrokeStyle strokeStyle) {
          DepthDrawLineStrip(new [] { point1, point2 }, strokeStyle);
+      }
+
+      public void DrawTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, StrokeStyle strokeStyle) {
+         BatchDraw(() => {
+            DrawLine(p1, p2, strokeStyle);
+            DrawLine(p2, p3, strokeStyle);
+            DrawLine(p3, p1, strokeStyle);
+         });
+      }
+
+      public void FillTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, FillStyle fillStyle) {
+         FillPolygon(new[] { p1, p2, p3 }, fillStyle);
       }
 
       public void FillPolygon(IReadOnlyList<DoubleVector3> points, FillStyle fillStyle) {

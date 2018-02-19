@@ -9,5 +9,7 @@ namespace Canvas3D.LowLevel {
       IGraphicsDevice Device { get; }
       ITechniqueCollection Techniques { get; }
       IPresetsStore Presets { get; }
+
+      IMesh<TVertex> CreateMesh<TVertex>(TVertex[] data) where TVertex : struct;
    }
 }

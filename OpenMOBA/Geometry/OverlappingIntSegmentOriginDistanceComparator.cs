@@ -102,14 +102,15 @@ namespace OpenMOBA.Geometry {
       }
 
       public static int Compare(DoubleVector2 p, DoubleLineSegment2 a, DoubleLineSegment2 b) {
-#if DEBUG
-         if (GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2) != Clockness.Clockwise) {
-            throw new InvalidStateException();
-         }
-         if (GeometryOperations.Clockness(p.X, p.Y, b.X1, b.Y1, b.X2, b.Y2) != Clockness.Clockwise) {
-            throw new InvalidStateException();
-         }
-#endif
+         // TODO: Why did I comment this
+//#if DEBUG
+//         if (GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2) != Clockness.Clockwise) {
+//            throw new InvalidStateException();
+//         }
+//         if (GeometryOperations.Clockness(p.X, p.Y, b.X1, b.Y1, b.X2, b.Y2) != Clockness.Clockwise) {
+//            throw new InvalidStateException();
+//         }
+//#endif
          var clk = GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, b.X1, b.Y1);
          if (clk != Clockness.Clockwise) {
             // b before a; b \' a *origin
