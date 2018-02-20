@@ -265,7 +265,7 @@ namespace OpenMOBA.Foundation {
 
          while (!q.IsEmpty) {
             var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = q.Dequeue();
-            Console.WriteLine($"Deq {ncost} {nsrcnode} {nsrccpi} {ndstnode} {ndstcpi} {nedge}");
+//            Console.WriteLine($"Deq {ncost} {nsrcnode} {nsrccpi} {ndstnode} {ndstcpi} {nedge}");
 
             if (predecessor.ContainsKey((ndstnode, ndstcpi))) {
                continue;
@@ -386,7 +386,7 @@ namespace OpenMOBA.Foundation {
             }
 
             // expansion to cp of other node => expand to other cps
-            if (nsrcnode != ndstnode || true) {
+            if (nsrcnode != ndstnode) {
                var linksToOtherCpis = ndstnode.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[ndstcpi];
                for (var cpi = 0; cpi < linksToOtherCpis.Count; cpi++) {
                   var link = linksToOtherCpis[cpi];
@@ -403,13 +403,13 @@ namespace OpenMOBA.Foundation {
 
             // expansion to cp of same node => expand to neighbor edges
             // (technically should do this either way if CPI has multiple meanings...?)
-            if (nsrcnode == ndstnode || true) {
-               Console.WriteLine("OEG?");
+            if (nsrcnode == ndstnode) {
+//               Console.WriteLine("OEG?");
                foreach (var kvp in ndstnode.OutboundEdgeGroups) {
                   foreach (var g in kvp.Value) {
                      foreach (var edge in g.Edges) {
                         if (edge.SourceCrossoverIndex == ndstcpi) {
-                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
+//                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
                            var scost = ncost + edge.Cost;
                            if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out float scostub) && scostub <= scost) {
                               continue;

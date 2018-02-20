@@ -50,9 +50,9 @@ namespace OpenMOBA.DevTool.Debugging {
             initLatch.Set();
 
             var rotation = 80 * Math.PI / 180.0;
-            var lookat = new DoubleVector3(1500, 500, 0);
+            var lookat = new DoubleVector3(0, 0, 0);
             //var lookat = new DoubleVector3(0, 0, 0);
-            var offset = new DoubleVector3(10, -30, 100) * 7;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
+            var offset = new DoubleVector3(0, -30, 100) * 7;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
             var up = DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2);
             Console.WriteLine(offset);
 
@@ -250,11 +250,12 @@ namespace OpenMOBA.DevTool.Debugging {
              */
 
             var unitTriangleToWorld = new Matrix();
-            unitTriangleToWorld.Column1 = new Vector4(p2w - p1w, 0);
-            unitTriangleToWorld.Column2 = new Vector4(p3w - p1w, 0);
-            unitTriangleToWorld.Column3 = new Vector4(0, 0, 1, 0);
+            var a = p2w - p1w;
+            var b = p3w - p1w;
+            unitTriangleToWorld.Column1 = new Vector4(a, 0);
+            unitTriangleToWorld.Column2 = new Vector4(b, 0);
+            unitTriangleToWorld.Column3 = new Vector4(Vector3.Cross(b, a), 0);
             unitTriangleToWorld.Column4 = new Vector4(p1w, 1);
-
 
 //            unitTriangleToWorld.Transpose();
 //            Console.WriteLine(p1w + " " + p2w + " " + p3w);
@@ -263,7 +264,6 @@ namespace OpenMOBA.DevTool.Debugging {
 //            Console.WriteLine("o + 2: " + Vector3.TransformCoordinate(new Vector3(0, 1, 0), unitTriangleToWorld));
 //            Console.WriteLine("n: " + Vector3.TransformNormal(new Vector3(0, 0, 1), unitTriangleToWorld));
 //            unitTriangleToWorld.Transpose();
-
 
             scene.AddRenderable(
                unitTriangleMesh,

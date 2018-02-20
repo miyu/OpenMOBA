@@ -96,6 +96,11 @@ namespace Canvas3D.LowLevel {
       /// Cull frontfaces, fill polys
       /// </summary>
       FillBack,
+
+      /// <summary>
+      /// Cull nothing
+      /// </summary>
+      FillFrontBack,
    }
 
    public class ShaderCompilationException : Exception {

@@ -248,7 +248,7 @@ namespace Canvas3D {
          _graphicsDevice.ImmediateContext.GetBackBufferViews(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
 
          var renderContext = _graphicsDevice.ImmediateContext; // : _graphicsDevice.CreateDeferredRenderContext();
-         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
+         renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFrontBack);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
 
          renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);

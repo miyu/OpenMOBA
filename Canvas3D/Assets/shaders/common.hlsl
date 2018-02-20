@@ -13,6 +13,10 @@ float4 commonComputeFragmentOutput(float3 P, float3 N, float3 base, float transp
       float3 diffuse, F0;
       pbrMaterialDiffuseF0(base, metallic, diffuse, F0);
 
+	  //return float4(P.z, P.z, P.z, 1);
+	  //return float4(N, 1);
+	  //return N.x < 0;
+
       float nDotV = dot(N, V);
       for (uint i = 0; i != numSpotlights; i++) {
          colorAccumulator += pbrComputeSpotlightDirectContribution(P, N, i, V, nDotV, diffuse, F0, roughness);

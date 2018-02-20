@@ -40,4 +40,10 @@
     <Reference Include="System.Runtime" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Assets\bunny.obj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

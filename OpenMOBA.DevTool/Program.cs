@@ -17,8 +17,8 @@ namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
          var gameFactory = new GameFactory();
-         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
-//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
+//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
+         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
          OpenMOBA.Program.Main(gameFactory);
       }
    }
@@ -99,7 +99,7 @@ namespace OpenMOBA.DevTool {
       }
 
       private void RenderDebugFrame() {
-         var holeDilationRadius = 15.0;
+         var holeDilationRadius = 1; //15.0;
          //Benchmark(holeDilationRadius);
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
@@ -114,6 +114,7 @@ namespace OpenMOBA.DevTool {
 
             DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
+            Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
                var localGeometryView = terrainNode.LocalGeometryView;
@@ -122,7 +123,7 @@ namespace OpenMOBA.DevTool {
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
 //               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-//               debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.White));
+               debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.White));
 
                //Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
                foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
@@ -131,7 +132,7 @@ namespace OpenMOBA.DevTool {
                }
 
                debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
-               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
+//               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
 
 
 //               if (landPolyNode.FindAggregateContourCrossoverWaypoints().Length > 16) {
@@ -338,7 +339,7 @@ namespace OpenMOBA.DevTool {
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
 //            Tuple.Create(new DoubleVector3(900, 750, 0), new DoubleVector3(2100, 800, 0))
-            Tuple.Create(new DoubleVector3(300, 300, 0), new DoubleVector3(2500, 500, 0))
+            Tuple.Create(new DoubleVector3(-1200, -200, 0), new DoubleVector3(1000, 0, 0))
 //            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),

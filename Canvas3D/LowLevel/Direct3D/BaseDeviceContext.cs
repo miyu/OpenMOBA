@@ -71,6 +71,9 @@ namespace Canvas3D.LowLevel.Direct3D {
                case RasterizerConfiguration.FillBack:
                   _deviceContext.Rasterizer.State = _renderStates.RasterizerFillBack;
                   break;
+               case RasterizerConfiguration.FillFrontBack:
+                  _deviceContext.Rasterizer.State = _renderStates.RasterizerFillFrontBack;
+                  break;
                default:
                   throw new ArgumentException($"Unknown Rasterizer Configuration '{config}'");
             }
