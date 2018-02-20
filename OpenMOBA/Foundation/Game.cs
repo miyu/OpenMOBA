@@ -126,8 +126,9 @@ namespace OpenMOBA.Foundation {
       }
 
       public void Run() {
-         Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
+         Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Release\net461";
          LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
+//         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 1000);
 
 //         var sectorSpanWidth = 3;
 //         var sectorSpanHeight = 1;
@@ -303,8 +304,9 @@ namespace OpenMOBA.Foundation {
          }
 
          foreach (var line in lines.Select(l => l.Trim())) {
+            if (line.Length == 0) continue;
             if (line.StartsWith("#")) continue;
-            var tokens = line.Split(' ');
+            var tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             switch (tokens[0]) {
                case "v":
                   var v = meshOffset + new DoubleVector3(double.Parse(tokens[1]), double.Parse(tokens[2]), double.Parse(tokens[3]));
@@ -319,19 +321,37 @@ namespace OpenMOBA.Foundation {
                   var v2 = verts[i2]; // a, x dim
                   var v3 = verts[i3]; // b, y dim
 
+                  /***
+                   *            ___      
+                   *    /'.      |     ^
+                   * b /.t '.    | h   | vert
+                   *  /__'___'. _|_    |
+                   *     a
+                   *  |-------| w
+                   *  |---| m
+                   *  
+                   *          ___      
+                   *  \.       |     ^
+                   * b \'.     | h   | vert
+                   *    \_'.  _|_    |
+                   *    |--| w
+                   *  |-| m
+                   */
                   var a = v2 - v1; 
                   var b = v3 - v1;
+                  var theta = Math.Acos(a.Dot(b) / (a.Norm2D() * b.Norm2D())); // a.b =|a||b|cos(theta)
 
-                  var w = (int)(a.Norm2D() * scaling);
-                  var h = (int)(b.Norm2D() * scaling);
+                  var w = a.Norm2D() * scaling;
+                  var h = b.Norm2D() * scaling * Math.Sin(theta);
+                  var m = b.Norm2D() * scaling * Math.Cos(theta);
 
                   var metadata = new TerrainStaticMetadata {
-                     LocalBoundary = new Rectangle(0, 0, w, h),
+                     LocalBoundary = m < 0 ? new Rectangle((int)m, 0, (int)w - (int)m, (int)h) : new Rectangle(0, 0, (int)w, (int)h),
                      LocalIncludedContours = new List<Polygon2> {
                         new Polygon2(new List<IntVector2> {
                            new IntVector2(0, 0),
-                           new IntVector2(0, h),
-                           new IntVector2(w, 0),
+                           new IntVector2((int)m, (int)h),
+                           new IntVector2((int)w, 0),
                            new IntVector2(0, 0)
                         }, false)
                      },
@@ -348,11 +368,18 @@ namespace OpenMOBA.Foundation {
                   triangleToWorld.M13 = (float)a.Z / alen;
                   triangleToWorld.M14 = 0.0f;
 
-                  var blen = (float)b.Norm2D();
-                  triangleToWorld.M21 = (float)b.X / blen;
-                  triangleToWorld.M22 = (float)b.Y / blen;
-                  triangleToWorld.M23 = (float)b.Z / blen;
+                  var n = a.Cross(b).ToUnit();
+                  var vert = n.Cross(a).ToUnit();
+//                  var blen = (float)b.Norm2D();
+                  triangleToWorld.M21 = (float)vert.X;
+                  triangleToWorld.M22 = (float)vert.Y;
+                  triangleToWorld.M23 = (float)vert.Z;
                   triangleToWorld.M24 = 0.0f;
+
+                  triangleToWorld.M31 = (float)n.X;
+                  triangleToWorld.M32 = (float)n.Y;
+                  triangleToWorld.M33 = (float)n.Z;
+                  triangleToWorld.M34 = 0.0f;
 
                   triangleToWorld.M41 = (float)v1.X * scaling + (float)worldOffset.X;
                   triangleToWorld.M42 = (float)v1.Y * scaling + (float)worldOffset.Y;
@@ -362,9 +389,9 @@ namespace OpenMOBA.Foundation {
                   snd.WorldTransform = triangleToWorld;
                   TerrainService.AddSectorNodeDescription(snd);
 
-                  Herp(snd, i1, i2, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(w, 0)));
-                  Herp(snd, i2, i3, new IntLineSegment2(new IntVector2(w, 0), new IntVector2(0, h)));
-                  Herp(snd, i3, i1, new IntLineSegment2(new IntVector2(0, h), new IntVector2(0, 0)));
+                  Herp(snd, i1, i2, new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0)));
+                  Herp(snd, i2, i3, new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h)));
+                  Herp(snd, i3, i1, new IntLineSegment2(new IntVector2((int)m, (int)h), new IntVector2(0, 0)));
                   break;
             }
          }

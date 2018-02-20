@@ -124,12 +124,12 @@ namespace OpenMOBA.DevTool {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
                return w.X > 100 && w.Y < -2000 && w.Z > 500;
             });
-            var destinationNode = terrainOverlayNetwork.TerrainNodes.Skip(terrainOverlayNetwork.TerrainNodes.Count / 2).First(n => {
+            var destinationNode = terrainOverlayNetwork.TerrainNodes.First(n => {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
-               return w.X < 100 && w.Y < -1000 && w.Z > 1000;
+               return w.X > -700 && w.Y < 500 && w.Z > 3200 && w.Z < 3700; // -1072 343 3786
             });
-            var sourcePoint = Vector3.Transform(new Vector3(sourceNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, sourceNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), sourceNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
-            var destinationPoint = Vector3.Transform(new Vector3(destinationNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, destinationNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), destinationNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+            var sourcePoint = Vector3.Transform(new Vector3(0, 0, 0), sourceNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+            var destinationPoint = Vector3.Transform(new Vector3(0, 0, 0), destinationNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
 
             var sourceLocal = Vector3.Transform(sourcePoint.ToDotNetVector(), sourceNode.SectorNodeDescription.WorldTransformInv);
             var destinationLocal = Vector3.Transform(destinationPoint.ToDotNetVector(), destinationNode.SectorNodeDescription.WorldTransformInv);

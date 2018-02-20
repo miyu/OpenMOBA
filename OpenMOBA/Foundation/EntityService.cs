@@ -387,6 +387,9 @@ namespace OpenMOBA.Foundation {
                   }
                }
 
+               Console.WriteLine("Number of nodes visited: " + predecessor.Count);
+               Console.WriteLine("Upper bounds: " + priorityUpperBounds.Count);
+
                result = roadmap;
                return true;
             }
@@ -395,8 +398,11 @@ namespace OpenMOBA.Foundation {
             if (nsrcnode != ndstnode) {
                var linksToOtherCpis = ndstnode.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[ndstcpi];
                for (var cpi = 0; cpi < linksToOtherCpis.Count; cpi++) {
+                  if (cpi == ndstcpi) continue;
+
                   var link = linksToOtherCpis[cpi];
                   var scost = ncost + link.TotalCost;
+                  Trace.Assert(link.TotalCost >= 0);
 
                   if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out float scostub) && scostub <= scost) {
                      continue;
@@ -417,6 +423,8 @@ namespace OpenMOBA.Foundation {
                         if (edge.SourceCrossoverIndex == ndstcpi) {
 //                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
                            var scost = ncost + edge.Cost;
+                           Trace.Assert(edge.Cost >= 0);
+
                            if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out float scostub) && scostub <= scost) {
                               continue;
                            }
@@ -431,6 +439,8 @@ namespace OpenMOBA.Foundation {
             // expansion to terminal if current node is destination node
             if (ndstnode == destinationNode) {
                var link = destinationOptimalLinkToCrossovers[ndstcpi];
+               Trace.Assert(link.TotalCost >= 0);
+
                var scost = ncost + link.TotalCost;
                q.Enqueue((scost, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
             }
