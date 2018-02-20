@@ -144,24 +144,40 @@ namespace OpenMOBA.Foundation.Terrain {
          punchedLand.Childs.ForEach(R);
 
          var breakpoints = new SortedList<double, PolyNode>();
-         foreach (var polyNode in punchedLand.m_AllPolys) {
+         foreach (var polyNode in punchedLand.EnumerateAllNonrootNodes()) {
             for (var i = 0; i < polyNode.Contour.Count; i++) {
                var contourSegment = new IntLineSegment2(
                   i == 0 ? polyNode.Contour.Last() : polyNode.Contour[i - 1],
                   polyNode.Contour[i]);
 
                if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
-                  Console.WriteLine("Breakpoint: " + t + " " + seg.PointAt(t));
-                  breakpoints.Add(t, polyNode);
+                  //Console.WriteLine("Breakpoint: " + t + " " + seg.PointAt(t));
+                  if (breakpoints.TryGetValue(t, out var existing)) {
+                     Trace.Assert(existing == polyNode);
+                  } else {
+                     breakpoints.Add(t, polyNode);
+                  }
                }
             }
          }
 
          punchedLand.PickDeepestPolynode(seg.First, out var startPolyNode, out var startInHole);
-         if (!startInHole) breakpoints.Add(0, startPolyNode);
+         if (!startInHole) {
+            if (breakpoints.TryGetValue(0.0, out var existing)) {
+               Trace.Assert(existing == startPolyNode);
+            } else {
+               breakpoints.Add(0.0, startPolyNode);
+            }
+         }
 
          punchedLand.PickDeepestPolynode(seg.Second, out var endPolyNode, out var endInHole);
-         if (!endInHole) breakpoints.Add(1, endPolyNode);
+         if (!endInHole) {
+            if (breakpoints.TryGetValue(1.0, out var existing)) {
+               Trace.Assert(existing == endPolyNode);
+            } else {
+               breakpoints.Add(1.0, endPolyNode);
+            }
+         }
 
          Trace.Assert(breakpoints.Count % 2 == 0);
          return breakpoints.Select(kvp => (kvp.Value, kvp.Key));

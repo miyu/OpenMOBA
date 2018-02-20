@@ -1,4 +1,5 @@
-﻿using SharpDX;
+﻿using System;
+using SharpDX;
 
 namespace Canvas3D {
    // column-major matrices
@@ -15,7 +16,7 @@ namespace Canvas3D {
       // In contrast, LookAtRH is a matrix for transforming everyone else to fit these constraints.
       // That is the inverse of this behavior.
       public static Matrix RotationLookAtRH(Vector3 directionAkaDesiredYplus, Vector3 upAkaDesiredZPlus) {
-         var orien = Quaternion.RotationLookAtRH(-upAkaDesiredZPlus, directionAkaDesiredYplus);
+         var orien = Quaternion.RotationLookAtRH(directionAkaDesiredYplus, upAkaDesiredZPlus);
          var matrix = Matrix.RotationQuaternion(orien);
          return matrix; // no transpose; orthogonal matrix, want inverse so transpose twice.
       }

@@ -52,7 +52,7 @@ namespace OpenMOBA.DevTool.Debugging {
             var rotation = 80 * Math.PI / 180.0;
             var lookat = new DoubleVector3(0, 0, 0);
             //var lookat = new DoubleVector3(0, 0, 0);
-            var offset = new DoubleVector3(-10, -100, 70) * 5;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
+            var offset = new DoubleVector3(-10, -100, 70) * 50;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
             var up = DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2);
             Console.WriteLine(offset);
 
@@ -202,8 +202,10 @@ namespace OpenMOBA.DevTool.Debugging {
 
             lock (scene) {
                var thicknessMult = 4;
-               var scale = MatrixCM.Scaling((float)strokeStyle.Thickness * thicknessMult, (from - to).Length(), (float)strokeStyle.Thickness * thicknessMult);
-               var lookat = MatrixCM.RotationLookAtRH(to - from, Vector3.UnitZ);
+               var scale = MatrixCM.Scaling((float)strokeStyle.Thickness * thicknessMult, (float)strokeStyle.Thickness * thicknessMult, (from - to).Length());
+               //var orien = Quaternion.RotationLookAtRH(from - to, Vector3.Cross(from - to, Vector3.UnitZ));
+               //var lookat = MatrixCM.RotationLookAtRH(Vector3.UnitY, Vector3.UnitZ);
+               var lookat = MatrixCM.RotationLookAtRH(from - to, Vector3.UnitZ);
                var offset = MatrixCM.Translation((from.X + to.X) / 2, (from.Y + to.Y) / 2, (from.Z + to.Z) / 2);
                scene.AddRenderable(
                   presets.UnitCube,

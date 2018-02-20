@@ -224,7 +224,7 @@ namespace OpenMOBA.Foundation {
       public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap) {
          roadmap = null;
          var terrainSnapshot = terrainService.CompileSnapshot();
-         var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(10.0);
+         var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode)) return false;
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(destinationWorld.ToDotNetVector(), out var destinationNode)) return false;
 
@@ -289,12 +289,12 @@ namespace OpenMOBA.Foundation {
                   if (x.Item2 >= 0) {
                      var cp = x.Item1.CrossoverPointManager.CrossoverPoints[x.Item2];
                      Console.WriteLine("   " + cp + " => " + Vector3.Transform(new Vector3(cp.X, cp.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
+                  } else if (x.Item2 == DESTINATION_POINT_CPI) {
+                     Console.WriteLine("   " + destinationPoint + " => " + Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
                   }
                }
 
-               // convert path to a motion plan. Will be pairs of "move to crossover point" and "take crossover point"
-               // three cases for motion: moving from start to crossover, crossover to crossover, or crossover to end.
-               Trace.Assert(path.Count % 2 == 0);
+               // convert path to a motion plan. three cases for motion: moving from start to crossover, crossover to crossover, or crossover to end.
                var roadmap = new MotionRoadmap();
 
                void X(TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint) {
@@ -338,7 +338,8 @@ namespace OpenMOBA.Foundation {
                   }
                }
 
-               for (var i = 0; i < path.Count; i += 2) {
+               // last one not processed, since we process pairwise.
+               for (var i = 0; i < path.Count - 1; i++) {
                   if (i == 0) {
                      // moving from start to crossover
                      var nextCpi = path[1].Item2;
@@ -353,9 +354,14 @@ namespace OpenMOBA.Foundation {
                      }
 
                      // TODO: take cpi edge
-                  } else if (i + 2 != path.Count) {
+                  } else if (i + 2 < path.Count) {
                      // moving from crossover to crossover
                      var (a, b) = (path[i], path[i + 1]);
+
+                     if (a.Item1 != b.Item1) {
+                        // todo: handle edge action in roadmap
+                        continue;
+                     }
 
                      var firstLink = a.Item1.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[a.Item2][b.Item2];
                      if (firstLink.PriorIndex == PathLink.DirectPathIndex) {

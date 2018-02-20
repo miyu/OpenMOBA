@@ -282,9 +282,26 @@ namespace OpenMOBA.Foundation {
          latch.Wait();
       }
 
-      private void LoadMeshAsMap(string objPath, DoubleVector3 meshOffset, DoubleVector3 worldOffset, int scaling = 5000) {
+      private void LoadMeshAsMap(string objPath, DoubleVector3 meshOffset, DoubleVector3 worldOffset, int scaling = 50000) {
          var lines = File.ReadLines(objPath);
          var verts = new List<DoubleVector3>();
+         var previousEdges = new Dictionary<(int, int), (SectorNodeDescription, IntLineSegment2)>();
+
+         void Herp(SectorNodeDescription node, int a, int b, IntLineSegment2 seg) {
+            if (a > b) {
+               (a, b) = (b, a); // a < b
+               seg = new IntLineSegment2(seg.Second, seg.First);
+            }
+
+            if (previousEdges.TryGetValue((a, b), out var prev)) {
+               var (prevNode, prevSeg) = prev;
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(node, prevNode, seg, prevSeg));
+               TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(prevNode, node, prevSeg, seg));
+            } else {
+               previousEdges.Add((a, b), (node, seg));
+            }
+         }
+
          foreach (var line in lines.Select(l => l.Trim())) {
             if (line.StartsWith("#")) continue;
             var tokens = line.Split(' ');
@@ -294,9 +311,13 @@ namespace OpenMOBA.Foundation {
                   verts.Add(new DoubleVector3(v.X, -v.Z, v.Y));
                   break;
                case "f":
-                  var v1 = verts[int.Parse(tokens[1]) - 1]; // origin
-                  var v2 = verts[int.Parse(tokens[2]) - 1]; // a, x dim
-                  var v3 = verts[int.Parse(tokens[3]) - 1]; // b, y dim
+                  var i1 = int.Parse(tokens[1]) - 1;
+                  var i2 = int.Parse(tokens[2]) - 1;
+                  var i3 = int.Parse(tokens[3]) - 1;
+
+                  var v1 = verts[i1]; // origin
+                  var v2 = verts[i2]; // a, x dim
+                  var v3 = verts[i3]; // b, y dim
 
                   var a = v2 - v1; 
                   var b = v3 - v1;
@@ -305,17 +326,6 @@ namespace OpenMOBA.Foundation {
                   var h = (int)(b.Norm2D() * scaling);
 
                   var metadata = new TerrainStaticMetadata {
-//                     LocalBoundary = new Rectangle(0, 0, 1000, 1000),
-//                     LocalIncludedContours = new[] {
-//                        Polygon2.CreateRect(200, 0, 200, 1000),
-//                        Polygon2.CreateRect(600, 0, 200, 1000),
-//                        Polygon2.CreateRect(0, 200, 1000, 200),
-//                        Polygon2.CreateRect(0, 600, 1000, 200),
-//                        Polygon2.CreateCircle(500, 500, 105, 64),
-//                        Polygon2.CreateRect(450, 300, 100, 400),
-//                        Polygon2.CreateRect(300, 450, 400, 100)
-//                     },
-//                     LocalExcludedContours = new Polygon2[] { }
                      LocalBoundary = new Rectangle(0, 0, w, h),
                      LocalIncludedContours = new List<Polygon2> {
                         new Polygon2(new List<IntVector2> {
@@ -331,11 +341,6 @@ namespace OpenMOBA.Foundation {
 
                   var triangleToWorld = Matrix4x4.Identity;
 
-                  //                  matrix4x4.M41 = position.X;
-                  //                  matrix4x4.M42 = position.Y;
-                  //                  matrix4x4.M43 = position.Z;
-                  //                  matrix4x4.M44 = 1f;
-
 
                   var alen = (float)a.Norm2D();
                   triangleToWorld.M11 = (float)a.X / alen;
@@ -349,28 +354,17 @@ namespace OpenMOBA.Foundation {
                   triangleToWorld.M23 = (float)b.Z / blen;
                   triangleToWorld.M24 = 0.0f;
 
-//                  triangleToWorld.M31 = 0.0f;
-//                  triangleToWorld.M32 = 0.0f;
-//                  triangleToWorld.M33 = 1.0f;
-//                  triangleToWorld.M34 = 0.0f;
-
                   triangleToWorld.M41 = (float)v1.X * scaling + (float)worldOffset.X;
                   triangleToWorld.M42 = (float)v1.Y * scaling + (float)worldOffset.Y;
                   triangleToWorld.M43 = (float)v1.Z * scaling + (float)worldOffset.Z;
                   triangleToWorld.M44 = 1.0f;
 
-                  //Console.WriteLine((v1 * scaling) + " " + Vector3.Transform(new Vector3(0, 0, 0), triangleToWorld));
-                  //Console.WriteLine((v2 * scaling) + " " + Vector3.Transform(new Vector3(w, 0, 0), triangleToWorld));
-                  //Console.WriteLine((v3 * scaling) + " " + Vector3.Transform(new Vector3(0, h, 0), triangleToWorld));
-                  //Console.WriteLine(Vector3.Transform(new Vector3(0, 0, 1), triangleToWorld));
-
-                  //                  triangleToWorld.Column1 = new Vector4(p2w - p1w, 0);
-                  //                  triangleToWorld.Column2 = new Vector4(p3w - p1w, 0);
-                  //                  triangleToWorld.Column3 = new Vector4(0, 0, 1, 0);
-                  //                  triangleToWorld.Column4 = new Vector4(p1w, 1);
-
                   snd.WorldTransform = triangleToWorld;
                   TerrainService.AddSectorNodeDescription(snd);
+
+                  Herp(snd, i1, i2, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(w, 0)));
+                  Herp(snd, i2, i3, new IntLineSegment2(new IntVector2(w, 0), new IntVector2(0, h)));
+                  Herp(snd, i3, i1, new IntLineSegment2(new IntVector2(0, h), new IntVector2(0, 0)));
                   break;
             }
          }

@@ -185,5 +185,16 @@ namespace OpenMOBA.Geometry {
             }
          }
       }
+
+      public static IEnumerable<PolyNode> EnumerateAllNonrootNodes(this PolyNode root) {
+         if (root.Parent != null) throw new ArgumentException("Expected root node");
+         var s = new Stack<PolyNode>();
+         root.Childs.ForEach(s.Push);
+         while (s.Any()) {
+            var node = s.Pop();
+            yield return node;
+            node.Childs.ForEach(s.Push);
+         }
+      }
    }
 }

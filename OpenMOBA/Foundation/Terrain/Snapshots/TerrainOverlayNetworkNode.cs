@@ -1,3 +1,4 @@
+using System;
 using ClipperLib;
 using OpenMOBA.DataStructures;
 
@@ -17,5 +18,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public readonly PolyNodeCrossoverPointManager CrossoverPointManager;
       public readonly MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup> InboundEdgeGroups = new MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup>();
       public readonly MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup> OutboundEdgeGroups = new MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup>();
+
+      private readonly Guid guid = Guid.NewGuid();
+      public override string ToString() => guid.ToString("n").Substring(0, 8);
    }
 }

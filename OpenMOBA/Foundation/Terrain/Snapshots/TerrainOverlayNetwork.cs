@@ -98,7 +98,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var destinationSegmentLength = destinationSegmentVector.Norm2D();
 
          var longestSegmentLength = Math.Max(sourceSegmentLength, destinationSegmentLength);
-         var crossoverPointSpacing = 20;
+         var crossoverPointSpacing = 10;
          var points = (int)Math.Ceiling(longestSegmentLength / crossoverPointSpacing) + 1;
 
          var sourceCrossoverPoints = new IntVector2[points]; 

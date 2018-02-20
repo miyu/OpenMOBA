@@ -24,7 +24,7 @@ namespace OpenMOBA.DevTool {
    }
 
    public class GameDebugger : IGameDebugger {
-      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 15.0);
+      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 5.0);
       private static readonly StrokeStyle PathStroke2 = new StrokeStyle(Color.DarkGreen, 15.0);
       private static readonly StrokeStyle NoPathStroke = new StrokeStyle(Color.Red, 15.0, new[] { 1.0f, 1.0f });
       private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
@@ -99,22 +99,51 @@ namespace OpenMOBA.DevTool {
       }
 
       private void RenderDebugFrame() {
-         var holeDilationRadius = 1; //15.0;
+         var holeDilationRadius = 0.0;
          //Benchmark(holeDilationRadius);
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
-
-         terrainOverlayNetwork.Initialize();
+         //terrainOverlayNetwork.Initialize();
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
 
-            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
+//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
+//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
+
+//            return;
+
+//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
+            var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
+               var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
+               return w.X > 100 && w.Y < -2000 && w.Z > 500;
+            });
+            var destinationNode = terrainOverlayNetwork.TerrainNodes.Skip(terrainOverlayNetwork.TerrainNodes.Count / 2).First(n => {
+               var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
+               return w.X < 100 && w.Y < -1000 && w.Z > 1000;
+            });
+            var sourcePoint = Vector3.Transform(new Vector3(sourceNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, sourceNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), sourceNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+            var destinationPoint = Vector3.Transform(new Vector3(destinationNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, destinationNode.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), destinationNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+
+            var sourceLocal = Vector3.Transform(sourcePoint.ToDotNetVector(), sourceNode.SectorNodeDescription.WorldTransformInv);
+            var destinationLocal = Vector3.Transform(destinationPoint.ToDotNetVector(), destinationNode.SectorNodeDescription.WorldTransformInv);
+            var sourceValid = sourceNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)sourceLocal.X, (int)sourceLocal.Y));
+            var destinationValid = destinationNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)destinationLocal.X, (int)destinationLocal.Y));
+            Console.WriteLine("Svalid? " + sourceValid + " Dvalid? " + destinationValid);
+
+            DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, sourcePoint, destinationPoint);
+            Console.WriteLine("Source: " + sourcePoint + " to " + destinationPoint);
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 150));
+            debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
+
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
                var localGeometryView = terrainNode.LocalGeometryView;
@@ -131,7 +160,7 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawPolygonContours(v.holeExcludedContours, StrokeStyle.RedHairLineSolid);
                }
 
-               debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
+//               debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
 //               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
 
 
@@ -193,7 +222,7 @@ namespace OpenMOBA.DevTool {
                //                  debugCanvas.DrawPoint(ind, new StrokeStyle(Color.DarkSlateGray, 10));
                //               }
 
-               foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
+//               foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
 
 
                //               terrainNode.CrossoverPointManager.CrossoverPoints
@@ -348,23 +377,31 @@ namespace OpenMOBA.DevTool {
          };
 
          foreach (var query in testPathFindingQueries) {
-            if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out var roadmap)) {
-               Console.WriteLine("Yippee ");
-               foreach (var action in roadmap.Plan) {
-                  switch (action) {
-                     case MotionRoadmapWalkAction walk:
-                        if (debugCanvas != null) {
-                           debugCanvas.Transform = walk.Node.SectorNodeDescription.WorldTransform;
-                           debugCanvas.DrawLine(walk.Source, walk.Destination, PathStroke);
-                        }
-                        break;
-                  }
-               }
+            DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, query.Item1, query.Item2);
+         }
+      }
 
-            } else {
-               Console.WriteLine("Nope");
-               debugCanvas?.DrawLine(query.Item1, query.Item2, NoPathStroke);
+      private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double holeDilationRadius, DoubleVector3 source, DoubleVector3 dest) {
+         if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, source, dest, out var roadmap)) {
+            Console.WriteLine("Yippee ");
+            foreach (var action in roadmap.Plan) {
+               switch (action) {
+                  case MotionRoadmapWalkAction walk:
+                     debugCanvas.Transform = Matrix4x4.Identity;
+                     var s = Vector3.Transform(new Vector3(walk.Source.X, walk.Source.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+                     var t = Vector3.Transform(new Vector3(walk.Destination.X, walk.Destination.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+                     Console.WriteLine("S: " + s + "\t AND T: " + t);
+                     for (var i = 0; i < 100; i++) {
+                        debugCanvas.DrawPoint((s * (100 - i) + t * i) / 100, new StrokeStyle(Color.Cyan, 50));
+                     }
+//                     debugCanvas.DrawLine(s, t, PathStroke);
+                     break;
+               }
             }
+         } else {
+            Console.WriteLine("Nope");
+            debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.DrawLine(source, dest, NoPathStroke);
          }
       }
 

@@ -32,7 +32,7 @@ namespace OpenMOBA.Foundation.Terrain {
 
       // Internals touched by terrain service
       internal int Version;
-      internal TerrainStaticMetadata StaticMetadata;
+      public TerrainStaticMetadata StaticMetadata;
       internal SectorInstanceMetadata InstanceMetadata = new SectorInstanceMetadata();
 
       // Publics accessible by game logic

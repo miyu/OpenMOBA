@@ -226,7 +226,7 @@ namespace Canvas3D {
          _textureDescriptorBuffer = _graphicsDevice.CreateConstantBuffer<TextureDescriptorConstantBufferData>(kBaseTextureSlotId + kTextureBindLimit);
          _instancingBuffers = new List<IBuffer<RenderJobDescription>>();
 
-         const int kMaxPreallocatedInstanceBufferPower = 18;
+         const int kMaxPreallocatedInstanceBufferPower = 20;
          for (var i = 0; i <= kMaxPreallocatedInstanceBufferPower; i++) {
             _instancingBuffers.Add(_graphicsDevice.CreateVertexBuffer<RenderJobDescription>(1 << i));
          }
@@ -323,13 +323,16 @@ namespace Canvas3D {
 
       private unsafe void RenderBatch_MaterialPerInstance(IDeviceContext context, SceneSnapshot scene, RenderJobBatch batch) {
          // sort jobs by MRI
-         var mris = stackalloc int[batch.Jobs.store.Length];
-         var jobIndexer = stackalloc int[batch.Jobs.store.Length];
+         var mris = new int[batch.Jobs.store.Length];
+         var jobIndexer = new int[batch.Jobs.store.Length];
          for (var i = 0; i < batch.Jobs.store.Length; i++) {
             mris[i] = batch.Jobs.store[i].MaterialResourcesIndex;
             jobIndexer[i] = i;
          }
-         UnmanagedCollections.IndirectSort(mris, jobIndexer, 0, batch.Jobs.store.Length);
+         fixed (int* pmris = mris)
+            fixed(int* pjobIndexer = jobIndexer)
+               UnmanagedCollections.IndirectSort(pmris, pjobIndexer, 0, batch.Jobs.store.Length);
+//         UnmanagedCollections.IndirectSort(mris, jobIndexer, 0, batch.Jobs.store.Length);
 
          var boundTextureSlotByTextureIndex = new int[scene.Textures.Count]; // todo: stackalloc
          for (var i = 0; i < scene.Textures.Count; i++) {

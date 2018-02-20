@@ -18,7 +18,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                continue;
             }
 
-            if (Math.Abs(pLocal.Z) > 1E-9f) {
+            if (Math.Abs(pLocal.Z) > 1E-3f) {
                continue;
             }
 
