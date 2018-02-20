@@ -111,6 +111,7 @@ namespace OpenMOBA.DevTool {
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
+
             DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
@@ -131,6 +132,32 @@ namespace OpenMOBA.DevTool {
 
                debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
                debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
+
+
+//               if (landPolyNode.FindAggregateContourCrossoverWaypoints().Length > 16) {
+//                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[7], new StrokeStyle(Color.Lime, 50));
+//                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[16], new StrokeStyle(Color.Lime, 50));
+//               }
+
+               //               debugCanvas.DrawLine(new IntVector2(800, 500), new IntVector2(1000, 215), new StrokeStyle(Color.Magenta, 5));
+               //               if (terrainNode != terrainOverlayNetwork.TerrainNodes.Last()) continue;
+
+               //               debugCanvas.DrawLine(new IntVector2(400, 550), new IntVector2(0, 615), new StrokeStyle(Color.Magenta, 1));
+               //               Console.WriteLine("!@#@!#!@#@!@");
+               //               Console.WriteLine("!!!!!!!AAAAAA");
+               //               Console.WriteLine(!terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh().TryIntersect(new IntLineSegment2(new IntVector2(400, 550), new IntVector2(0, 615)), out var qqqq) + " " + qqqq);
+               //               Console.WriteLine("!!!!!!!BBBB");
+               //               Console.WriteLine(terrainNode.LandPolyNode.SegmentInLandPolygonNonrecursive(new IntVector2(400, 550), new IntVector2(0, 615)));
+               //               Console.WriteLine("!!!!!!!CCCC");
+               //               var (_, _, _, sourceOptimalLinkToCrossovers) = terrainNode.CrossoverPointManager.FindOptimalLinksToCrossovers(new IntVector2(400, 550));
+               //               Console.WriteLine("!!!!!!!!");
+               //               Console.WriteLine(sourceOptimalLinkToCrossovers[0].PriorIndex);
+               //               Console.WriteLine("!!!!!!!AAAAAA");
+               //               Console.WriteLine(!terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh().TryIntersect(new IntLineSegment2(new IntVector2(400, 550), new IntVector2(0, 615)), out var zzz) + " " + zzz);
+               //               Console.WriteLine("!!!!!!!BBBB");
+               //               Console.WriteLine(terrainNode.LandPolyNode.SegmentInLandPolygonNonrecursive(new IntVector2(400, 550), new IntVector2(0, 615)));
+               //               Console.WriteLine("!!!!!!!CCCC");
+               //               debugCanvas.DrawBvh(terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh());
 
                //if (!sectorNodeDescription.EnableDebugHighlight) continue;
 
@@ -310,7 +337,7 @@ namespace OpenMOBA.DevTool {
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
-            Tuple.Create(new DoubleVector3(800, 500, 0), new DoubleVector3(2400, 550, 0))
+            Tuple.Create(new DoubleVector3(800, 500, 0), new DoubleVector3(2100, 500, 0))
 //            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
@@ -319,11 +346,19 @@ namespace OpenMOBA.DevTool {
          };
 
          foreach (var query in testPathFindingQueries) {
-            List<DoubleVector3> pathPoints;
-            if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out pathPoints)) {
-               Console.WriteLine("Yippee ");// + string.Join(", ", pathPoints));
-               //               debugCanvas?.DrawLineStrip(pathPoints, PathStroke);
-               debugCanvas?.DrawLine(query.Item1, query.Item2, PathStroke);
+            if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, query.Item1, query.Item2, out var roadmap)) {
+               Console.WriteLine("Yippee ");
+               foreach (var action in roadmap.Plan) {
+                  switch (action) {
+                     case MotionRoadmapWalkAction walk:
+                        if (debugCanvas != null) {
+                           debugCanvas.Transform = walk.Node.SectorNodeDescription.WorldTransform;
+                           debugCanvas.DrawLine(walk.Source, walk.Destination, PathStroke);
+                        }
+                        break;
+                  }
+               }
+
             } else {
                Console.WriteLine("Nope");
                debugCanvas?.DrawLine(query.Item1, query.Item2, NoPathStroke);

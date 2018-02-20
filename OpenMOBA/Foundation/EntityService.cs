@@ -166,6 +166,24 @@ namespace OpenMOBA.Foundation {
       }
    }
 
+   public class MotionRoadmap {
+      public List<MotionRoadmapAction> Plan = new List<MotionRoadmapAction>();
+   }
+
+   public abstract class MotionRoadmapAction { }
+
+   public class MotionRoadmapWalkAction : MotionRoadmapAction {
+      public MotionRoadmapWalkAction(TerrainOverlayNetworkNode node, IntVector2 source, IntVector2 destination) {
+         Node = node;
+         Source = source;
+         Destination = destination;
+      }
+
+      public readonly TerrainOverlayNetworkNode Node;
+      public readonly IntVector2 Source;
+      public readonly IntVector2 Destination;
+   }
+
    public class PathfinderCalculator {
       private readonly StatsCalculator statsCalculator;
       private readonly TerrainService terrainService;
@@ -175,52 +193,36 @@ namespace OpenMOBA.Foundation {
          this.statsCalculator = statsCalculator;
       }
 
-      private bool IsDestinationReachable(double holeDilationRadius, PolyNode sourceLand, PolyNode destinationLand) {
+      public bool IsDestinationReachable(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld) {
          var snapshot = terrainService.CompileSnapshot();
          var overlayNetwork = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
-         
-//         var s = new Queue<PolyNode>();
-//         s.Enqueue(sourceLand);
-//
-//         var addedCrossovers = new HashSet<Crossover>();
-//         while (s.Any()) {
-//            var currentLand = s.Dequeue();
-//            Console.WriteLine("AT " + currentLand.GetHashCode());
-//            if (currentLand == destinationLand) {
-//               return true;
-//            }
-//            if (currentLand.visibilityGraphNodeData.EdgeDescriptions == null) {
-//               Console.WriteLine("No CS");
-//               continue;
-//            }
-//
-//            // This shit's terrifyingly inefficient. Fix by precomputing?
-//            foreach (var crossoverSnapshot in currentLand.visibilityGraphNodeData.EdgeDescriptions) {
-//               var remoteGeometryContext = terrainService.BuildSnapshot().GetErodedView(holeDilationRadius).GetGeometryContext(crossoverSnapshot.Remote);
-//               var remotePolyTree = remoteGeometryContext.PunchedLand;
-//               var remotePolyNode = remotePolyTree.visibilityGraphTreeData.CrossoverPolyNodes[crossoverSnapshot.Crossover];
-//               if (addedCrossovers.Add(crossoverSnapshot.Crossover)) {
-//                  s.Enqueue(remotePolyNode);
-//               }
-//            }
-//         }
-         return false;
+
+         return overlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode) &&
+                overlayNetwork.TryFindTerrainOverlayNode(destinationWorld.ToDotNetVector(), out var destinationNode) &&
+                IsDestinationReachable(sourceNode, destinationNode);
       }
 
-      public bool TryFindPathCostUpperBound(double holeDilationRadius, IntVector2 sourceLocation, PolyNode sourceLand, IntVector2 destinationLocation, PolyNode destinationLand, out double upperBound) {
-         // First: Validate we can reach destination from source\
-         if (IsDestinationReachable(holeDilationRadius, sourceLand, destinationLand)) {
-            upperBound = 1.0;
-            return true;
-         } else {
-            upperBound = double.NaN;
+      public bool IsDestinationReachable(TerrainOverlayNetworkNode sourceNode, TerrainOverlayNetworkNode destinationNode) {
+         var visited = new HashSet<TerrainOverlayNetworkNode>();
+
+         bool Visit(TerrainOverlayNetworkNode n) {
+            if (!visited.Add(n)) {
+               return false;
+            }
+            if (n == destinationNode) {
+               return true;
+            }
+            foreach (var neighbor in n.OutboundEdgeGroups.Keys) {
+               Visit(neighbor);
+            }
             return false;
          }
+
+         return Visit(sourceNode);
       }
 
-      public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out List<DoubleVector3> path) {
-         path = null;
-
+      public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap) {
+         roadmap = null;
          var terrainSnapshot = terrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(10.0);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode)) return false;
@@ -229,29 +231,15 @@ namespace OpenMOBA.Foundation {
          var sourceLocal = Vector3.Transform(sourceWorld.ToDotNetVector(), sourceNode.SectorNodeDescription.WorldTransformInv);
          var destinationLocal = Vector3.Transform(destinationWorld.ToDotNetVector(), destinationNode.SectorNodeDescription.WorldTransformInv);
 
-         return Dijkstras(
+         return TryFindPath(
             sourceNode, 
             sourceLocal.ToOpenMobaVector().LossyToIntVector3().XY, 
             destinationNode, 
-            destinationLocal.ToOpenMobaVector().LossyToIntVector3().XY);
+            destinationLocal.ToOpenMobaVector().LossyToIntVector3().XY,
+            out roadmap);
       }
 
-      public struct OverlayPathLink {
-         public const int UnvisitedIndex = int.MinValue;
-
-         public IReadOnlyList<IntVector2> PriorCrossoverPointSet;
-         public int PriorCrossoverPointIndex;
-         public float TotalCost;
-      }
-
-      public struct OverlayDijkstrasIntermediate {
-         public float TotalCost;
-
-         public TerrainOverlayNetworkNode CurrentNode;
-         public int CurrentCrossoverPointIndex;
-      }
-
-      public bool Dijkstras(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint) {
+      private bool TryFindPath(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint, out MotionRoadmap result) {
          const int SOURCE_POINT_CPI = -100;
          const int DESTINATION_POINT_CPI = -200;
          // todo: special-case if src is dst node
@@ -285,20 +273,110 @@ namespace OpenMOBA.Foundation {
             predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge);
 
             if (ndstcpi == DESTINATION_POINT_CPI) {
+               // build high-level plan of path
                var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>();
-
                var cur = (ndstnode, ndstcpi, (TerrainOverlayNetworkEdge)null);
                while (predecessor.TryGetValue((cur.Item1, cur.Item2), out var pred)) {
                   path.Add(cur);
                   var (psrcnode, psrccpi, pedge) = pred;
-                  cur = pred;
+                  cur = pred; 
                }
                path.Add(cur);
                path.Reverse();
 
                foreach (var x in path) {
                   Console.WriteLine("PATH: " + x);
+                  if (x.Item2 >= 0) {
+                     var cp = x.Item1.CrossoverPointManager.CrossoverPoints[x.Item2];
+                     Console.WriteLine("   " + cp + " => " + Vector3.Transform(new Vector3(cp.X, cp.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
+                  }
                }
+
+               // convert path to a motion plan. Will be pairs of "move to crossover point" and "take crossover point"
+               // three cases for motion: moving from start to crossover, crossover to crossover, or crossover to end.
+               Trace.Assert(path.Count % 2 == 0);
+               var roadmap = new MotionRoadmap();
+
+               void X(TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint) {
+                  var cpm = node.CrossoverPointManager;
+                  var waypointToWaypointLut = cpm.WaypointToWaypointLut;
+                  var sourcePath = new List<PathLink>();
+                  var destPath = new List<PathLink>();
+
+                  // must query with [a][b] where a > b
+                  var sourceFinger = sourceWaypoint;
+                  var destinationFinger = destinationWaypoint;
+                  while (sourceFinger != destinationFinger) {
+                     if (sourceFinger < destinationFinger) {
+                        var link = waypointToWaypointLut[destinationFinger][sourceFinger];
+                        destPath.Add(link);
+                        destinationFinger = link.PriorIndex;
+                     } else {
+                        var link = waypointToWaypointLut[sourceFinger][destinationFinger];
+                        sourcePath.Add(link);
+                        sourceFinger = link.PriorIndex;
+                     }
+                  }
+
+                  // extend roadmap
+                  var prior = sourceWaypoint;
+                  for (var i = 0; i < sourcePath.Count; i++) {
+                     var next = sourcePath[i].PriorIndex;
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[next]));
+                     prior = next;
+                  }
+
+                  // skip last item since is link to last of source plan
+                  for (var i = destPath.Count - 2; i >= 0; i--) {
+                     var next = destPath[i].PriorIndex;
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[next]));
+                     prior = next;
+                  }
+
+                  if (prior != destinationWaypoint) {
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[destinationWaypoint]));
+                  }
+               }
+
+               for (var i = 0; i < path.Count; i += 2) {
+
+                  if (i == 0) {
+                     // moving from start to crossover
+                     var nextCpi = path[1].Item2;
+                     var firstLink = sourceOptimalLinkToCrossovers[nextCpi];
+                     // TODO: handle firstLink.PriorIndex == DirectPathIndex
+                     var lastLink = sourceNode.CrossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[nextCpi][firstLink.PriorIndex];
+
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
+                     X(sourceNode, firstLink.PriorIndex, lastLink.PriorIndex);
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourceNode.CrossoverPointManager.Waypoints[lastLink.PriorIndex], sourceNode.CrossoverPointManager.CrossoverPoints[nextCpi]));
+
+                     // TODO: take cpi edge
+                  } else if (i + 2 != path.Count) {
+                     // moving from crossover to crossover
+                     var (a, b) = (path[i], path[i + 1]);
+
+                     var firstLink = a.Item1.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[a.Item2][b.Item2];
+                     // TODO: handle firstLink.PriorIndex == DirectPathIndex
+                     var lastLink = b.Item1.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[b.Item2][a.Item2];
+
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.CrossoverPoints[a.Item2], a.Item1.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
+                     X(a.Item1, firstLink.PriorIndex, lastLink.PriorIndex);
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.Waypoints[lastLink.PriorIndex], a.Item1.CrossoverPointManager.CrossoverPoints[b.Item2]));
+                  } else {
+                     // moving from crossover to destination
+                     var sourceCpi = path[i].Item2;
+                     var lastLink = destinationOptimalLinkToCrossovers[sourceCpi];
+                     // TODO: handle firstLink.PriorIndex == DirectPathIndex
+                     var firstLink = destinationNode.CrossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[sourceCpi][lastLink.PriorIndex];
+
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.CrossoverPoints[sourceCpi], destinationNode.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
+                     X(destinationNode, firstLink.PriorIndex, lastLink.PriorIndex);
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.Waypoints[lastLink.PriorIndex], destinationPoint));
+                  }
+               }
+
+               result = roadmap;
                return true;
             }
 
@@ -347,7 +425,12 @@ namespace OpenMOBA.Foundation {
             }
          }
 
+         result = null;
          return false;
+      }
+
+      private void X(TerrainOverlayNetworkNode sourceNode, int priorIndex1, int priorIndex2, MotionRoadmap roadmap) {
+         throw new NotImplementedException();
       }
    }
 
@@ -380,12 +463,13 @@ namespace OpenMOBA.Foundation {
       }
 
       public void Pathfind(Entity entity, DoubleVector3 destination) {
+         throw new NotImplementedException();
          var movementComponent = entity.MovementComponent;
 
          var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + TerrainConstants.AdditionalHoleDilationRadius;
-         List<DoubleVector3> pathPoints;
-         if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) movementComponent.PathingBreadcrumbs.Clear();
-         else movementComponent.PathingBreadcrumbs = pathPoints;
+//         List<DoubleVector3> pathPoints;
+//         if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) movementComponent.PathingBreadcrumbs.Clear();
+//         else movementComponent.PathingBreadcrumbs = pathPoints;
          movementComponent.PathingIsInvalidated = false;
          movementComponent.PathingDestination = destination;
       }

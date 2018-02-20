@@ -205,6 +205,9 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
    }
 
    public struct PathLink {
+      public const int Uninitialized = -1;
+
+      // for direct link from waypoint to non-waypoint.
       public const int DirectPathIndex = -1337;
 
       public int PriorIndex;
@@ -306,7 +309,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          var res = new PathLink[Waypoints.Length][];
          if (Waypoints.Length != Offsets.Length - 1) throw new InvalidStateException();
          for (var swi = 0; swi < Waypoints.Length; swi++) {
-            res[swi] = Util.Repeat(swi + 1, new PathLink { PriorIndex = -1, TotalCost = float.PositiveInfinity });
+            res[swi] = Util.Repeat(swi + 1, new PathLink { PriorIndex = PathLink.Uninitialized, TotalCost = float.PositiveInfinity });
             res[swi][swi].TotalCost = 0;
             res[swi][swi].PriorIndex = swi;
          }
@@ -316,6 +319,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
                // edges are undirected and duplicated as directed, so only process one
                if (edge.NextIndex < res[swi].Length) {
+                  res[swi][edge.NextIndex].PriorIndex = edge.NextIndex;
                   res[swi][edge.NextIndex].TotalCost = edge.Cost;
                }
             }

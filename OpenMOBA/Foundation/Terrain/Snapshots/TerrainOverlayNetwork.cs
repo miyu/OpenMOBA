@@ -185,6 +185,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public IReadOnlyList<IntVector2> Waypoints => waypoints;
       public IReadOnlyList<IntVector2> CrossoverPoints => crossoverPoints;
       public IReadOnlyList<IReadOnlyList<PathLink>> OptimalLinkToOtherCrossoversByCrossoverPointIndex => optimalLinkToOtherCrossoversByCrossoverPointIndex;
+      public IReadOnlyList<PathLink[]> OptimalLinkToWaypointsByCrossoverPointIndex => optimalLinkToWaypointsByCrossoverPointIndex;
+      public PathLink[][] WaypointToWaypointLut => waypointToWaypointLut;
 
       // Todo: Can we support DV2s?
 
@@ -291,8 +293,11 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
             if (candidateBarriers == null) {
-               isDirectPath = landPolyNode.FindContourAndChildHoleBarriersBvh().Intersects(new IntLineSegment2(p, crossoverPoints[cpi]));
-               //isDirectPath = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
+//               Console.WriteLine($"Try intersect {cpi}: {p} to {crossoverPoints[cpi]}");
+               var isDirectPath1 = !landPolyNode.FindContourAndChildHoleBarriersBvh().Intersects(new IntLineSegment2(p, crossoverPoints[cpi]));
+//               var isDirectPath2 = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
+//               Console.WriteLine($" => res {isDirectPath1} vs {isDirectPath2}");
+               isDirectPath = isDirectPath1;
             } else {
                // below is equivalent to (and shaved off 22% execution time relative to):
                // isDirectPath = candidateBarriers.None(new ILS2(p, crossoverPoints[cpi]).Intersects)
@@ -363,6 +368,28 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             }
          }
          return (visibleWaypointLinks, visibleWaypointLinksLength, optimalLinkToWaypoints, optimalLinkToCrossovers);
+      }
+
+
+      public void FindWaypointToWaypointPath(int sourceWaypoint, int destinationWaypoint) {
+         var sourcePath = new List<PathLink>();
+         var destPath = new List<PathLink>();
+
+         // must query with [a][b] where a > b
+         while (sourceWaypoint != destinationWaypoint) {
+            if (sourceWaypoint < destinationWaypoint) {
+               // grow destination, query with [destinationWaypoint][sourceWaypoint]
+               var link = waypointToWaypointLut[destinationWaypoint][sourceWaypoint];
+               destPath.Add(link);
+               destinationWaypoint = link.PriorIndex;
+            } else {
+               // grow source, query with [sourceWaypoint][destinationWaypoint]
+               var link = waypointToWaypointLut[sourceWaypoint][destinationWaypoint];
+               sourcePath.Add(link);
+               sourceWaypoint = link.PriorIndex;
+            }
+         }
+
       }
    }
 }
