@@ -339,17 +339,18 @@ namespace OpenMOBA.Foundation {
                }
 
                for (var i = 0; i < path.Count; i += 2) {
-
                   if (i == 0) {
                      // moving from start to crossover
                      var nextCpi = path[1].Item2;
                      var firstLink = sourceOptimalLinkToCrossovers[nextCpi];
-                     // TODO: handle firstLink.PriorIndex == DirectPathIndex
-                     var lastLink = sourceNode.CrossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[nextCpi][firstLink.PriorIndex];
-
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
-                     X(sourceNode, firstLink.PriorIndex, lastLink.PriorIndex);
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourceNode.CrossoverPointManager.Waypoints[lastLink.PriorIndex], sourceNode.CrossoverPointManager.CrossoverPoints[nextCpi]));
+                     if (firstLink.PriorIndex == PathLink.DirectPathIndex) {
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.CrossoverPoints[nextCpi]));
+                     } else {
+                        var lastLink = sourceNode.CrossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[nextCpi][firstLink.PriorIndex];
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
+                        X(sourceNode, firstLink.PriorIndex, lastLink.PriorIndex);
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourceNode.CrossoverPointManager.Waypoints[lastLink.PriorIndex], sourceNode.CrossoverPointManager.CrossoverPoints[nextCpi]));
+                     }
 
                      // TODO: take cpi edge
                   } else if (i + 2 != path.Count) {
@@ -357,22 +358,26 @@ namespace OpenMOBA.Foundation {
                      var (a, b) = (path[i], path[i + 1]);
 
                      var firstLink = a.Item1.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[a.Item2][b.Item2];
-                     // TODO: handle firstLink.PriorIndex == DirectPathIndex
-                     var lastLink = b.Item1.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[b.Item2][a.Item2];
-
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.CrossoverPoints[a.Item2], a.Item1.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
-                     X(a.Item1, firstLink.PriorIndex, lastLink.PriorIndex);
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.Waypoints[lastLink.PriorIndex], a.Item1.CrossoverPointManager.CrossoverPoints[b.Item2]));
+                     if (firstLink.PriorIndex == PathLink.DirectPathIndex) {
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.CrossoverPoints[a.Item2], a.Item1.CrossoverPointManager.CrossoverPoints[b.Item2]));
+                     } else {
+                        var lastLink = b.Item1.CrossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[b.Item2][a.Item2];
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.CrossoverPoints[a.Item2], a.Item1.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
+                        X(a.Item1, firstLink.PriorIndex, lastLink.PriorIndex);
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(a.Item1, a.Item1.CrossoverPointManager.Waypoints[lastLink.PriorIndex], a.Item1.CrossoverPointManager.CrossoverPoints[b.Item2]));
+                     }
                   } else {
                      // moving from crossover to destination
                      var sourceCpi = path[i].Item2;
                      var lastLink = destinationOptimalLinkToCrossovers[sourceCpi];
-                     // TODO: handle firstLink.PriorIndex == DirectPathIndex
-                     var firstLink = destinationNode.CrossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[sourceCpi][lastLink.PriorIndex];
-
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.CrossoverPoints[sourceCpi], destinationNode.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
-                     X(destinationNode, firstLink.PriorIndex, lastLink.PriorIndex);
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.Waypoints[lastLink.PriorIndex], destinationPoint));
+                     if (lastLink.PriorIndex == PathLink.DirectPathIndex) {
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.CrossoverPoints[sourceCpi], destinationPoint));
+                     } else {
+                        var firstLink = destinationNode.CrossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[sourceCpi][lastLink.PriorIndex];
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.CrossoverPoints[sourceCpi], destinationNode.CrossoverPointManager.Waypoints[firstLink.PriorIndex]));
+                        X(destinationNode, firstLink.PriorIndex, lastLink.PriorIndex);
+                        roadmap.Plan.Add(new MotionRoadmapWalkAction(destinationNode, destinationNode.CrossoverPointManager.Waypoints[lastLink.PriorIndex], destinationPoint));
+                     }
                   }
                }
 

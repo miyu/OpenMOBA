@@ -157,7 +157,7 @@ namespace OpenMOBA.Foundation {
          for (var y = 0; y < sectorSpanHeight; y++) {
             var rng = new Random(y);
             for (var x = 0; x < sectorSpanWidth; x++) {
-               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.Blank2D };
+               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
                sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(x * 1000, y * 1000, 0));
