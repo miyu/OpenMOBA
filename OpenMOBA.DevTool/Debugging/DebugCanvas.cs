@@ -387,10 +387,10 @@ namespace OpenMOBA.DevTool.Debugging {
 
       private void DepthDrawLineStrip(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
          BatchDraw(() => {
-            if (strokeStyle.DisableStrokePerspective) {
+            if (strokeStyle.DisableStrokePerspective || true) {
                if (points.Count <= 1) return;
 
-               using (var pen = new Pen(strokeStyle.Color, ProjectThickness(points[0], strokeStyle.Thickness))) {
+               using (var pen = new Pen(strokeStyle.Color, (float)strokeStyle.Thickness)) {
                   g.DrawLines(pen, points.Select(ProjectPointF).ToArray());
                   return;
                }

@@ -10,8 +10,8 @@ using cInt = System.Int32;
 namespace OpenMOBA.Foundation.Terrain {
    public class TerrainStaticMetadata {
       public Rectangle LocalBoundary;
-      public IReadOnlyList<Polygon2> LocalIncludedContours;
-      public IReadOnlyList<Polygon2> LocalExcludedContours;
+      public IReadOnlyList<Polygon2> LocalIncludedContours = new List<Polygon2>();
+      public IReadOnlyList<Polygon2> LocalExcludedContours = new List<Polygon2>();
    }
 
    public class SectorInstanceMetadata {

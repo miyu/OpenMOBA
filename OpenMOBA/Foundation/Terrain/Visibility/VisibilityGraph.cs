@@ -40,6 +40,25 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
       private const int kBarrierPolyTreeDilationFactor = 5; // dilation to move holes inward
       private const int kBarrierSegmentExpansionFactor = 2; // expansion to make corners hit
 
+      /**
+       * hack: fixes case where clipper dilation doesn't buffer the low-angle corner of a triangle sliver.
+       * 
+       * var sector = TerrainService.CreateSectorNodeDescription(new TerrainStaticMetadata {
+       *    LocalBoundary = new Rectangle(-80, 0, 225, 10),
+       *    LocalIncludedContours = new List<Polygon2> {
+       *       new Polygon2(new List<IntVector2> {
+       *          new IntVector2(0, 0),
+       *          new IntVector2(-80, 10),
+       *          new IntVector2(145, 0),
+       *          new IntVector2(0, 0)
+       *       }, false)
+       *    }
+       * });
+       * TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(-80, 10)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2(-80, 10))));
+       * TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(145, 0)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2(145, 0))));
+       */
+      private const int kBarrierOverDilationFactor = 10;
+
       // Note: Holes in polytree are in reverse clockness than lands.
       private static IntVector2[] FindContourWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourWaypoints != null) return node.visibilityGraphNodeData.ContourWaypoints;
@@ -65,7 +84,8 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          var nodeAndChildrenContours = new[] { node.Contour }.Concat(node.Childs.Select(c => c.Contour));
          var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
                                                                .Include(nodeAndChildrenContours)
-                                                               .Dilate(kBarrierPolyTreeDilationFactor)
+                                                               .Dilate(kBarrierPolyTreeDilationFactor + kBarrierOverDilationFactor)
+                                                               .Erode(kBarrierOverDilationFactor)
                                                                .Execute();
 
          var results = new List<IntLineSegment2>();

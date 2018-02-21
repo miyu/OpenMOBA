@@ -143,7 +143,12 @@ namespace OpenMOBA.Geometry {
 
          public OffsetOperation Include(params Polygon2[] polygons) => Include((IReadOnlyList<Polygon2>)polygons);
 
-         public OffsetOperation Include(params IReadOnlyList<IntVector2>[] contours) => Include(contours);
+         public OffsetOperation Include(params IReadOnlyList<IntVector2>[] contours) {
+            foreach (var contour in contours) {
+               includedContours.Add(contour);
+            }
+            return this;
+         }
 
          public OffsetOperation Include(IEnumerable<Polygon2> polygons) {
             return Include(polygons.Select(p => p.Points));

@@ -111,14 +111,16 @@ namespace OpenMOBA.DevTool {
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
 
-//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
-//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
-//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
+            //            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
+            //            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
+            //            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
 
-//            return;
+            //            return;
 
-//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
+            /*
+            // FOR BUNNY
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
@@ -143,6 +145,31 @@ namespace OpenMOBA.DevTool {
             debugCanvas.Transform = Matrix4x4.Identity;
             debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 150));
             debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
+            /**/
+            Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
+            var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
+               var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
+               //[849.049987792969, 489.600006103516, 1492.59997558594] to[849.049987792969, 489.600006103516, 1492.59997558594
+               return w.X < -500 && w.Y < 490 && w.Z > 1490;
+            });
+            var destinationNode = terrainOverlayNetwork.TerrainNodes.First(n => {
+               var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
+               return w.X > 850 && w.Y < 490 && w.Z > 1490;
+            });
+            var sourcePoint = Vector3.Transform(new Vector3(0, 0, 0), sourceNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+            var destinationPoint = Vector3.Transform(new Vector3(0, 0, 0), destinationNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+
+            var sourceLocal = Vector3.Transform(sourcePoint.ToDotNetVector(), sourceNode.SectorNodeDescription.WorldTransformInv);
+            var destinationLocal = Vector3.Transform(destinationPoint.ToDotNetVector(), destinationNode.SectorNodeDescription.WorldTransformInv);
+            var sourceValid = sourceNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)sourceLocal.X, (int)sourceLocal.Y));
+            var destinationValid = destinationNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)destinationLocal.X, (int)destinationLocal.Y));
+            Console.WriteLine("Svalid? " + sourceValid + " Dvalid? " + destinationValid);
+            DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, sourcePoint, destinationPoint);
+            Console.WriteLine("Source: " + sourcePoint + " to " + destinationPoint);
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 300));
+            debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 300));
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;
@@ -160,14 +187,41 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawPolygonContours(v.holeExcludedContours, StrokeStyle.RedHairLineSolid);
                }
 
-//               debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
-//               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
+
+//               debugCanvas.DrawLine(new IntVector2(144, -7), new IntVector2(145, 2), new StrokeStyle(Color.Orange));
+//               var x = terrainNode.LandPolyNode.FindContourAndChildHoleBarriers();
+//               var y = terrainNode.CrossoverPointManager.CrossoverPoints;
+//
+//               debugCanvas.DrawLineList(x, new StrokeStyle(Color.Red));
+//
+//
+//               var nodeAndChildrenContours = new[] { terrainNode.LandPolyNode.Contour }
+//                  .Concat(terrainNode.LandPolyNode.Childs.Select(c => c.Contour)).ToArray()
+//                  .Map(c => c.Concat(new[] { c.First() }).ToArray());
+//               var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
+//                                                                     .Include(nodeAndChildrenContours)
+//                                                                     .Dilate(15)
+//                                                                     .Erode(10)
+//                                                                     .Execute();
+//               debugCanvas.DrawPolyTree(dilatedNodeAndChildrenPolytree, new StrokeStyle(Color.Lime), new StrokeStyle(Color.Cyan));
+
+               //               var seg = new IntLineSegment2(new IntVector2(-54, 6), new IntVector2(145, 0));
+               //               foreach (var barrier in x) {
+               //                  if (barrier.Intersects(ref seg)) {
+               //                     throw new Exception("!!");
+               //                  }
+               //               }
+
+//               Console.WriteLine(x + "" + y);
+
+               //               debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
+               //               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
 
 
-//               if (landPolyNode.FindAggregateContourCrossoverWaypoints().Length > 16) {
-//                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[7], new StrokeStyle(Color.Lime, 50));
-//                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[16], new StrokeStyle(Color.Lime, 50));
-//               }
+               //               if (landPolyNode.FindAggregateContourCrossoverWaypoints().Length > 16) {
+               //                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[7], new StrokeStyle(Color.Lime, 50));
+               //                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[16], new StrokeStyle(Color.Lime, 50));
+               //               }
 
                //               debugCanvas.DrawLine(new IntVector2(800, 500), new IntVector2(1000, 215), new StrokeStyle(Color.Magenta, 5));
                //               if (terrainNode != terrainOverlayNetwork.TerrainNodes.Last()) continue;
@@ -222,7 +276,7 @@ namespace OpenMOBA.DevTool {
                //                  debugCanvas.DrawPoint(ind, new StrokeStyle(Color.DarkSlateGray, 10));
                //               }
 
-//               foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
+               //               foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
 
 
                //               terrainNode.CrossoverPointManager.CrossoverPoints
@@ -406,12 +460,12 @@ namespace OpenMOBA.DevTool {
       }
 
       public static void AttachToWithSoftwareRendering(Game game) {
-         var rotation = 100 * Math.PI / 180.0;
+         var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-         var center = new DoubleVector3(1500, 500, 0);
+         var center = new DoubleVector3(1550, 500, 0);
          var projector = new PerspectiveProjector(
-            center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
+            center + DoubleVector3.FromRadiusAngleAroundXAxis(80, rotation),
             center,
             DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
             displaySize.Width,

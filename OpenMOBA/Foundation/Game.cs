@@ -126,9 +126,27 @@ namespace OpenMOBA.Foundation {
       }
 
       public void Run() {
-         Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
+         Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
 //         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
          LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
+
+//         var sector = TerrainService.CreateSectorNodeDescription(new TerrainStaticMetadata {
+//            LocalBoundary = new Rectangle(0, 0, 55, 1),
+//            LocalIncludedContours = new List<Polygon2> {
+//               new Polygon2(new List<IntVector2> {
+//                  new IntVector2(0, 0),
+//                  new IntVector2(14, 1),
+//                  new IntVector2(55, 0),
+//                  new IntVector2(0, 0)
+//               }, false)
+//            }
+//         });
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(14, 1)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2(14, 1))));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(55, 0)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2(55, 0))));
+//         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(14, 1), new IntVector2(55, 0)), new IntLineSegment2(new IntVector2(14, 1), new IntVector2(55, 0))));
+//         sector.WorldTransform = Matrix4x4.CreateTranslation(1500, 500, 0);
+//         TerrainService.AddSectorNodeDescription(sector);
+
 
 //         var sectorSpanWidth = 3;
 //         var sectorSpanHeight = 1;
@@ -357,6 +375,7 @@ namespace OpenMOBA.Foundation {
                      },
                      LocalExcludedContours = new List<Polygon2>()
                   };
+
                   var snd = TerrainService.CreateSectorNodeDescription(metadata);
 
                   var triangleToWorld = Matrix4x4.Identity;
