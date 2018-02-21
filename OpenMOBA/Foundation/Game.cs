@@ -127,9 +127,10 @@ namespace OpenMOBA.Foundation {
       }
 
       public void Run() {
-         Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
+         Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Release\net461";
 //         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
-         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
+         //LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
+         LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
 
 //         var sector = TerrainService.CreateSectorNodeDescription(new TerrainStaticMetadata {
 //            LocalBoundary = new Rectangle(0, 0, 55, 1),

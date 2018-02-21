@@ -191,3 +191,5 @@ NuGet.exe
 
 # Scriptcs
 scriptcs_nuget.config
+
+*.diagsession

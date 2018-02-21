@@ -267,6 +267,14 @@ namespace OpenMOBA.Foundation {
          int dequeueCount = 0;
          bool terminalEnqueued = false;
 
+         var destinationWorld = Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), destinationNode.SectorNodeDescription.WorldTransform);
+
+         float ComputeHeuristic(TerrainOverlayNetworkNode n, int cpi) {
+            var cp = n.CrossoverPointManager.CrossoverPoints[cpi];
+            var cpw = Vector3.Transform(new Vector3(cp.X, cp.Y, 0), n.SectorNodeDescription.WorldTransform);
+            return Vector3.Distance(destinationWorld, cpw) * 1.2f;
+         }
+
          while (!q.IsEmpty) {
             var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = q.Dequeue();
             dequeueCount++;
@@ -409,6 +417,7 @@ namespace OpenMOBA.Foundation {
 
                   var link = linksToOtherCpis[cpi];
                   var scost = ncost + link.TotalCost * ndstnode.SectorNodeDescription.LocalToWorldScalingFactor;
+                  var sprior = scost + ComputeHeuristic(ndstnode, cpi);
                   Trace.Assert(link.TotalCost >= 0);
 
                   if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out float scostub) && scostub <= scost) {
@@ -416,7 +425,7 @@ namespace OpenMOBA.Foundation {
                   }
                   priorityUpperBounds[(ndstnode, cpi)] = scost;
 
-                  q.Enqueue((scost, scost, ndstnode, ndstcpi, ndstnode, cpi, null));
+                  q.Enqueue((sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null));
                   enqueueCount++;
                }
             }
@@ -431,13 +440,14 @@ namespace OpenMOBA.Foundation {
                         if (edge.SourceCrossoverIndex == ndstcpi) {
 //                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
                            var scost = ncost + edge.Cost; // no need for scaling factor
+                           var sprior = scost + ComputeHeuristic(g.Destination, edge.DestinationCrossoverIndex);
                            Trace.Assert(edge.Cost >= 0);
 
                            if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out float scostub) && scostub <= scost) {
                               continue;
                            }
                            priorityUpperBounds[(g.Destination, edge.DestinationCrossoverIndex)] = scost;
-                           q.Enqueue((scost, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge));
+                           q.Enqueue((sprior, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge));
                            enqueueCount++;
                         }
                      }
@@ -451,7 +461,8 @@ namespace OpenMOBA.Foundation {
                Trace.Assert(link.TotalCost >= 0);
 
                var scost = ncost + link.TotalCost * destinationNode.SectorNodeDescription.LocalToWorldScalingFactor;
-               q.Enqueue((scost, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
+               var sprior = scost + 0;
+               q.Enqueue((sprior, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
                enqueueCount++;
 
                if (!terminalEnqueued) {
