@@ -128,8 +128,8 @@ namespace OpenMOBA.Foundation {
 
       public void Run() {
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
-         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
-//         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
+//         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
+         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
 
 //         var sector = TerrainService.CreateSectorNodeDescription(new TerrainStaticMetadata {
 //            LocalBoundary = new Rectangle(0, 0, 55, 1),
@@ -368,7 +368,7 @@ namespace OpenMOBA.Foundation {
                   var scaleBound = 1000; //ClipperBase.loRange
                   var localUpscale = scaleBound * 0.9f / (float)Math.Max(Math.Abs(m), Math.Max(Math.Abs(h), w));
                   var globalDownscale = 1.0f / localUpscale;
-                  Console.WriteLine(localUpscale + " " + (int)(m * localUpscale) + " " + (int)(h * localUpscale) + " " + (int)(w * localUpscale));
+                  // Console.WriteLine(localUpscale + " " + (int)(m * localUpscale) + " " + (int)(h * localUpscale) + " " + (int)(w * localUpscale));
 
                   var po = new IntVector2(0, 0);
                   var pa = new IntVector2((int)(w * localUpscale), 0);
@@ -376,12 +376,7 @@ namespace OpenMOBA.Foundation {
                   var metadata = new TerrainStaticMetadata {
                      LocalBoundary = m < 0 ? new Rectangle((int)(m * localUpscale), 0, (int)((w - m) * localUpscale), (int)(h * localUpscale)) : new Rectangle(0, 0, (int)(w * localUpscale), (int)(h * localUpscale)),
                      LocalIncludedContours = new List<Polygon2> {
-                        new Polygon2(new List<IntVector2> {
-                           po,
-                           pb,
-                           pa,
-                           po
-                        }, false)
+                        new Polygon2(new List<IntVector2> { po, pb, pa, po }, false)
                      },
                      LocalExcludedContours = new List<Polygon2>()
                   };
@@ -422,6 +417,7 @@ namespace OpenMOBA.Foundation {
                   triangleToWorld.M44 = 1.0f;
 
                   snd.WorldTransform = triangleToWorld;
+                  snd.WorldToLocalScalingFactor = localUpscale;
                   TerrainService.AddSectorNodeDescription(snd);
 
                   var store = new SectorGraphDescriptionStore();

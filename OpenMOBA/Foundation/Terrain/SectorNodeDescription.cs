@@ -17,7 +17,9 @@ namespace OpenMOBA.Foundation.Terrain {
    public class SectorInstanceMetadata {
       public Matrix4x4 WorldTransform = Matrix4x4.Identity;
       public Matrix4x4 WorldTransformInv = Matrix4x4.Identity;
-      //      public HashSet<DynamicTerrainHole> Holes;
+
+      public float WorldToLocalScalingFactor = 1.0f;
+      public float LocalToWorldScalingFactor = 1.0f;
 
       public int CachedSnapshotVersion;
    }
@@ -52,6 +54,19 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public Matrix4x4 WorldTransformInv => InstanceMetadata.WorldTransformInv;
+
+      public float WorldToLocalScalingFactor {
+         get => InstanceMetadata.WorldToLocalScalingFactor;
+         set {
+            if (InstanceMetadata.WorldToLocalScalingFactor != value) {
+               InstanceMetadata.WorldToLocalScalingFactor = value;
+               InstanceMetadata.LocalToWorldScalingFactor = 1.0f / value;
+               Version++;
+            }
+         }
+      }
+
+      public float LocalToWorldScalingFactor => InstanceMetadata.LocalToWorldScalingFactor;
 
       public bool EnableDebugHighlight { get; set; }
       //      public IReadOnlyCollection<DynamicTerrainHole> Holes => InstanceMetadata.Holes;

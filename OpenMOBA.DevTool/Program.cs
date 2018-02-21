@@ -120,6 +120,7 @@ namespace OpenMOBA.DevTool {
             //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
 
+            /*
             // FOR BUNNY
             // Paths from Source [808.800476074219, -2133.13989257813, 466.265472412109] to [-496.957489013672, 566.484985351563, 3515.56762695313]
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
@@ -148,7 +149,6 @@ namespace OpenMOBA.DevTool {
             debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
             /**/
 
-            /*
             // for dragon
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.Where(n => {

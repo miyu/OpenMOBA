@@ -256,7 +256,7 @@ namespace OpenMOBA.Foundation {
             foreach (var g in kvp.Value) {
                foreach (var edge in g.Edges) {
                   var cpiLink = sourceOptimalLinkToCrossovers[edge.SourceCrossoverIndex];
-                  priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = cpiLink.TotalCost;
+                  priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = cpiLink.TotalCost * sourceNode.SectorNodeDescription.LocalToWorldScalingFactor;
                   q.Enqueue((cpiLink.TotalCost, cpiLink.TotalCost, sourceNode, SOURCE_POINT_CPI, sourceNode, edge.SourceCrossoverIndex, null));
                   Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + edge.SourceCrossoverIndex + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
                }
@@ -401,7 +401,7 @@ namespace OpenMOBA.Foundation {
                   if (cpi == ndstcpi) continue;
 
                   var link = linksToOtherCpis[cpi];
-                  var scost = ncost + link.TotalCost;
+                  var scost = ncost + link.TotalCost * ndstnode.SectorNodeDescription.LocalToWorldScalingFactor;
                   Trace.Assert(link.TotalCost >= 0);
 
                   if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out float scostub) && scostub <= scost) {
@@ -422,7 +422,7 @@ namespace OpenMOBA.Foundation {
                      foreach (var edge in g.Edges) {
                         if (edge.SourceCrossoverIndex == ndstcpi) {
 //                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
-                           var scost = ncost + edge.Cost;
+                           var scost = ncost + edge.Cost; // no need for scaling factor
                            Trace.Assert(edge.Cost >= 0);
 
                            if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out float scostub) && scostub <= scost) {
@@ -441,7 +441,7 @@ namespace OpenMOBA.Foundation {
                var link = destinationOptimalLinkToCrossovers[ndstcpi];
                Trace.Assert(link.TotalCost >= 0);
 
-               var scost = ncost + link.TotalCost;
+               var scost = ncost + link.TotalCost * destinationNode.SectorNodeDescription.LocalToWorldScalingFactor;
                q.Enqueue((scost, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
             }
          }
