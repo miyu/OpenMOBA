@@ -146,16 +146,18 @@ namespace OpenMOBA.DevTool {
             debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 150));
             debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
             /**/
+
+            // for dragon
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
-            var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
+            var sourceNode = terrainOverlayNetwork.TerrainNodes.Where(n => {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
                //[849.049987792969, 489.600006103516, 1492.59997558594] to[849.049987792969, 489.600006103516, 1492.59997558594
                return w.X < -500 && w.Y < 490 && w.Z > 1490;
-            });
-            var destinationNode = terrainOverlayNetwork.TerrainNodes.First(n => {
+            }).Skip(0).First();
+            var destinationNode = terrainOverlayNetwork.TerrainNodes.Where(n => {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
                return w.X > 850 && w.Y < 490 && w.Z > 1490;
-            });
+            }).Skip(0).First();
             var sourcePoint = Vector3.Transform(new Vector3(0, 0, 0), sourceNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
             var destinationPoint = Vector3.Transform(new Vector3(0, 0, 0), destinationNode.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
 
@@ -170,6 +172,7 @@ namespace OpenMOBA.DevTool {
             debugCanvas.Transform = Matrix4x4.Identity;
             debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 300));
             debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 300));
+            /**/
 
             foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
                var sectorNodeDescription = terrainNode.SectorNodeDescription;

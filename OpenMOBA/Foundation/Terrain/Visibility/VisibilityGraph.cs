@@ -57,7 +57,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
        * TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(-80, 10)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2(-80, 10))));
        * TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, new IntLineSegment2(new IntVector2(0, 0), new IntVector2(145, 0)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2(145, 0))));
        */
-      private const int kBarrierOverDilationFactor = 10;
+      private const int kBarrierOverDilationFactor = 50;
 
       // Note: Holes in polytree are in reverse clockness than lands.
       private static IntVector2[] FindContourWaypoints(this PolyNode node) {

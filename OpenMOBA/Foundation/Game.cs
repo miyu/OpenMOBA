@@ -321,7 +321,7 @@ namespace OpenMOBA.Foundation {
             }
          }
 
-         foreach (var line in lines.Select(l => l.Trim())) {
+         foreach (var (i, line) in lines.Select(l => l.Trim()).Enumerate()) {
             if (line.Length == 0) continue;
             if (line.StartsWith("#")) continue;
             var tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -331,6 +331,7 @@ namespace OpenMOBA.Foundation {
                   verts.Add(new DoubleVector3(v.X, -v.Z, v.Y));
                   break;
                case "f":
+                  Console.WriteLine($"Loading face of line {i}");
                   var i1 = int.Parse(tokens[1]) - 1;
                   var i2 = int.Parse(tokens[2]) - 1;
                   var i3 = int.Parse(tokens[3]) - 1;
@@ -377,9 +378,7 @@ namespace OpenMOBA.Foundation {
                   };
 
                   var snd = TerrainService.CreateSectorNodeDescription(metadata);
-
                   var triangleToWorld = Matrix4x4.Identity;
-
 
                   var alen = (float)a.Norm2D();
                   triangleToWorld.M11 = (float)a.X / alen;
@@ -407,6 +406,15 @@ namespace OpenMOBA.Foundation {
 
                   snd.WorldTransform = triangleToWorld;
                   TerrainService.AddSectorNodeDescription(snd);
+
+
+                  var store = new SectorGraphDescriptionStore();
+                  var ts = new TerrainService(store, new TerrainSnapshotCompiler(store));
+                  ts.AddSectorNodeDescription(snd);
+                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0))));
+                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h)), new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h))));
+                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(new IntVector2((int)m, (int)h), new IntVector2(0, 0)), new IntLineSegment2(new IntVector2((int)m, (int)h), new IntVector2(0, 0))));
+                  ts.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0.0);
 
                   Herp(snd, i1, i2, new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0)));
                   Herp(snd, i2, i3, new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h)));

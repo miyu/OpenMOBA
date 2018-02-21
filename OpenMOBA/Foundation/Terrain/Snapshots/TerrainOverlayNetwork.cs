@@ -91,8 +91,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       }
 
       private (IntVector2[], IntVector2[]) ComputeEdgeCrossoverPoints(DoubleLineSegment2 sourceSegment, DoubleLineSegment2 destinationSegment) {
-         return (new IntVector2[0], new IntVector2[0]);
-
          var sourceSegmentVector = sourceSegment.First.To(sourceSegment.Second);
          var sourceSegmentLength = sourceSegmentVector.Norm2D();
 
