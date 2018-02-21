@@ -148,7 +148,7 @@ namespace OpenMOBA.DevTool {
             debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 150));
             debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
             /**/
-
+            
             // for dragon
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.Where(n => {
@@ -168,7 +168,7 @@ namespace OpenMOBA.DevTool {
             var sourceValid = sourceNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)sourceLocal.X, (int)sourceLocal.Y));
             var destinationValid = destinationNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)destinationLocal.X, (int)destinationLocal.Y));
             Console.WriteLine("Svalid? " + sourceValid + " Dvalid? " + destinationValid);
-            DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, sourcePoint, destinationPoint);
+            while(true) DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, sourcePoint, destinationPoint);
             Console.WriteLine("Source: " + sourcePoint + " to " + destinationPoint);
 
             debugCanvas.Transform = Matrix4x4.Identity;

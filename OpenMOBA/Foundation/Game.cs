@@ -420,13 +420,13 @@ namespace OpenMOBA.Foundation {
                   snd.WorldToLocalScalingFactor = localUpscale;
                   TerrainService.AddSectorNodeDescription(snd);
 
-                  var store = new SectorGraphDescriptionStore();
-                  var ts = new TerrainService(store, new TerrainSnapshotCompiler(store));
-                  ts.AddSectorNodeDescription(snd);
-                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(po, pa), new IntLineSegment2(po, pa)));
-                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(pa, pb), new IntLineSegment2(pa, pb)));
-                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(pb, po), new IntLineSegment2(pb, po)));
-                  ts.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0.0);
+//                  var store = new SectorGraphDescriptionStore();
+//                  var ts = new TerrainService(store, new TerrainSnapshotCompiler(store));
+//                  ts.AddSectorNodeDescription(snd);
+//                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(po, pa), new IntLineSegment2(po, pa)));
+//                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(pa, pb), new IntLineSegment2(pa, pb)));
+//                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(pb, po), new IntLineSegment2(pb, po)));
+//                  ts.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0.0);
 
                   Herp(snd, i1, i2, new IntLineSegment2(po, pa));
                   Herp(snd, i2, i3, new IntLineSegment2(pa, pb));

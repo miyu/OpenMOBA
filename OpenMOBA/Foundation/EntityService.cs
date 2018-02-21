@@ -263,8 +263,13 @@ namespace OpenMOBA.Foundation {
             }
          }
 
+         int enqueueCount = 0;
+         int dequeueCount = 0;
+         bool terminalEnqueued = false;
+
          while (!q.IsEmpty) {
             var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = q.Dequeue();
+            dequeueCount++;
 //            Console.WriteLine($"Deq {ncost} {nsrcnode} {nsrccpi} {ndstnode} {ndstcpi} {nedge}");
 
             if (predecessor.ContainsKey((ndstnode, ndstcpi))) {
@@ -273,6 +278,8 @@ namespace OpenMOBA.Foundation {
             predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge);
 
             if (ndstcpi == DESTINATION_POINT_CPI) {
+               Console.WriteLine("Success! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
+
                // build high-level plan of path
                var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>();
                var cur = (ndstnode, ndstcpi, (TerrainOverlayNetworkEdge)null);
@@ -410,6 +417,7 @@ namespace OpenMOBA.Foundation {
                   priorityUpperBounds[(ndstnode, cpi)] = scost;
 
                   q.Enqueue((scost, scost, ndstnode, ndstcpi, ndstnode, cpi, null));
+                  enqueueCount++;
                }
             }
 
@@ -430,6 +438,7 @@ namespace OpenMOBA.Foundation {
                            }
                            priorityUpperBounds[(g.Destination, edge.DestinationCrossoverIndex)] = scost;
                            q.Enqueue((scost, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge));
+                           enqueueCount++;
                         }
                      }
                   }
@@ -443,9 +452,16 @@ namespace OpenMOBA.Foundation {
 
                var scost = ncost + link.TotalCost * destinationNode.SectorNodeDescription.LocalToWorldScalingFactor;
                q.Enqueue((scost, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
+               enqueueCount++;
+
+               if (!terminalEnqueued) {
+                  terminalEnqueued = true;
+                  Console.WriteLine("Terminal Enqueued: Dequeues such far: " + dequeueCount + " and enqueues: " + enqueueCount);
+               }
             }
          }
 
+         Console.WriteLine("Failure! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
          result = null;
          return false;
       }
