@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
+using ClipperLib;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Geometry;
@@ -127,8 +128,8 @@ namespace OpenMOBA.Foundation {
 
       public void Run() {
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
-//         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
-         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
+         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
+//         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
 
 //         var sector = TerrainService.CreateSectorNodeDescription(new TerrainStaticMetadata {
 //            LocalBoundary = new Rectangle(0, 0, 55, 1),
@@ -331,7 +332,7 @@ namespace OpenMOBA.Foundation {
                   verts.Add(new DoubleVector3(v.X, -v.Z, v.Y));
                   break;
                case "f":
-                  Console.WriteLine($"Loading face of line {i}");
+//                  Console.WriteLine($"Loading face of line {i}");
                   var i1 = int.Parse(tokens[1]) - 1;
                   var i2 = int.Parse(tokens[2]) - 1;
                   var i3 = int.Parse(tokens[3]) - 1;
@@ -364,39 +365,55 @@ namespace OpenMOBA.Foundation {
                   var h = b.Norm2D() * scaling * Math.Sin(theta);
                   var m = b.Norm2D() * scaling * Math.Cos(theta);
 
+                  var scaleBound = 1000; //ClipperBase.loRange
+                  var localUpscale = scaleBound * 0.9f / (float)Math.Max(Math.Abs(m), Math.Max(Math.Abs(h), w));
+                  var globalDownscale = 1.0f / localUpscale;
+                  Console.WriteLine(localUpscale + " " + (int)(m * localUpscale) + " " + (int)(h * localUpscale) + " " + (int)(w * localUpscale));
+
+                  var po = new IntVector2(0, 0);
+                  var pa = new IntVector2((int)(w * localUpscale), 0);
+                  var pb = new IntVector2((int)(m * localUpscale), (int)(h * localUpscale));
                   var metadata = new TerrainStaticMetadata {
-                     LocalBoundary = m < 0 ? new Rectangle((int)m, 0, (int)w - (int)m, (int)h) : new Rectangle(0, 0, (int)w, (int)h),
+                     LocalBoundary = m < 0 ? new Rectangle((int)(m * localUpscale), 0, (int)((w - m) * localUpscale), (int)(h * localUpscale)) : new Rectangle(0, 0, (int)(w * localUpscale), (int)(h * localUpscale)),
                      LocalIncludedContours = new List<Polygon2> {
                         new Polygon2(new List<IntVector2> {
-                           new IntVector2(0, 0),
-                           new IntVector2((int)m, (int)h),
-                           new IntVector2((int)w, 0),
-                           new IntVector2(0, 0)
+                           po,
+                           pb,
+                           pa,
+                           po
                         }, false)
                      },
                      LocalExcludedContours = new List<Polygon2>()
                   };
 
+                  foreach (var zzz in metadata.LocalIncludedContours) {
+                     foreach (var p in zzz.Points) {
+                        if (Math.Abs(p.X) >= ClipperBase.loRange || Math.Abs(p.Y) >= ClipperBase.loRange) {
+                           throw new Exception("!!!!");
+                        }
+                     }
+                  }
+
                   var snd = TerrainService.CreateSectorNodeDescription(metadata);
                   var triangleToWorld = Matrix4x4.Identity;
 
                   var alen = (float)a.Norm2D();
-                  triangleToWorld.M11 = (float)a.X / alen;
-                  triangleToWorld.M12 = (float)a.Y / alen;
-                  triangleToWorld.M13 = (float)a.Z / alen;
+                  triangleToWorld.M11 = globalDownscale * (float)a.X / alen;
+                  triangleToWorld.M12 = globalDownscale * (float)a.Y / alen;
+                  triangleToWorld.M13 = globalDownscale * (float)a.Z / alen;
                   triangleToWorld.M14 = 0.0f;
 
                   var n = a.Cross(b).ToUnit();
                   var vert = n.Cross(a).ToUnit();
 //                  var blen = (float)b.Norm2D();
-                  triangleToWorld.M21 = (float)vert.X;
-                  triangleToWorld.M22 = (float)vert.Y;
-                  triangleToWorld.M23 = (float)vert.Z;
+                  triangleToWorld.M21 = globalDownscale * (float)vert.X;
+                  triangleToWorld.M22 = globalDownscale * (float)vert.Y;
+                  triangleToWorld.M23 = globalDownscale * (float)vert.Z;
                   triangleToWorld.M24 = 0.0f;
 
-                  triangleToWorld.M31 = (float)n.X;
-                  triangleToWorld.M32 = (float)n.Y;
-                  triangleToWorld.M33 = (float)n.Z;
+                  triangleToWorld.M31 = globalDownscale * (float)n.X;
+                  triangleToWorld.M32 = globalDownscale * (float)n.Y;
+                  triangleToWorld.M33 = globalDownscale * (float)n.Z;
                   triangleToWorld.M34 = 0.0f;
 
                   triangleToWorld.M41 = (float)v1.X * scaling + (float)worldOffset.X;
@@ -407,18 +424,17 @@ namespace OpenMOBA.Foundation {
                   snd.WorldTransform = triangleToWorld;
                   TerrainService.AddSectorNodeDescription(snd);
 
-
                   var store = new SectorGraphDescriptionStore();
                   var ts = new TerrainService(store, new TerrainSnapshotCompiler(store));
                   ts.AddSectorNodeDescription(snd);
-                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0)), new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0))));
-                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h)), new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h))));
-                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(new IntVector2((int)m, (int)h), new IntVector2(0, 0)), new IntLineSegment2(new IntVector2((int)m, (int)h), new IntVector2(0, 0))));
+                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(po, pa), new IntLineSegment2(po, pa)));
+                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(pa, pb), new IntLineSegment2(pa, pb)));
+                  ts.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(snd, snd, new IntLineSegment2(pb, po), new IntLineSegment2(pb, po)));
                   ts.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0.0);
 
-                  Herp(snd, i1, i2, new IntLineSegment2(new IntVector2(0, 0), new IntVector2((int)w, 0)));
-                  Herp(snd, i2, i3, new IntLineSegment2(new IntVector2((int)w, 0), new IntVector2((int)m, (int)h)));
-                  Herp(snd, i3, i1, new IntLineSegment2(new IntVector2((int)m, (int)h), new IntVector2(0, 0)));
+                  Herp(snd, i1, i2, new IntLineSegment2(po, pa));
+                  Herp(snd, i2, i3, new IntLineSegment2(pa, pb));
+                  Herp(snd, i3, i1, new IntLineSegment2(pb, po));
                   break;
             }
          }

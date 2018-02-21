@@ -119,8 +119,9 @@ namespace OpenMOBA.DevTool {
 
             //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
-            /*
+
             // FOR BUNNY
+            // Paths from Source [808.800476074219, -2133.13989257813, 466.265472412109] to [-496.957489013672, 566.484985351563, 3515.56762695313]
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
@@ -147,6 +148,7 @@ namespace OpenMOBA.DevTool {
             debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
             /**/
 
+            /*
             // for dragon
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.Where(n => {
