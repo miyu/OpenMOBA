@@ -126,9 +126,9 @@ namespace OpenMOBA.Foundation {
       }
 
       public void Run() {
-         Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Release\net461";
-         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
-//         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 1000);
+         Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
+//         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
+         LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
 
 //         var sectorSpanWidth = 3;
 //         var sectorSpanHeight = 1;
