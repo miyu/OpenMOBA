@@ -82,7 +82,10 @@ namespace OpenMOBA.Foundation.Terrain {
          var destinationSegmentVector = DestinationSegment.First.To(DestinationSegment.Second).ToDoubleVector2();
 
          var edgeJobs = new List<EdgeJob>();
-         foreach (var (source, dest, tStart, tEnd) in CrossTheStreams(X(SourceSegment, sourceLgv), X(DestinationSegment, destinationLgv))) {
+         var streamSource = X(SourceSegment, sourceLgv).ToArray();
+         var streamDest = X(DestinationSegment, destinationLgv).ToArray();
+         var crossResult = CrossTheStreams(streamSource, streamDest).ToArray();
+         foreach (var (source, dest, tStart, tEnd) in crossResult) {
             var sourceSubSegment = new DoubleLineSegment2(
                SourceSegment.First.ToDoubleVector2() + tStart * sourceSegmentVector,
                SourceSegment.First.ToDoubleVector2() + tEnd * sourceSegmentVector);
@@ -106,23 +109,54 @@ namespace OpenMOBA.Foundation.Terrain {
          IEnumerable<(PolyNode, double)> sourceStream,
          IEnumerable<(PolyNode, double)> destStream
       ) {
-         var eventStream = sourceStream
-            .Select(t => (true, t))
-            .Concat(destStream.Select(t => (false, t)))
-            .OrderBy(t => t.Item2.Item2);
+         var ss = sourceStream.ToArray();
+         var ds = destStream.ToArray();
+         for (var i = 0; i < ss.Length; i += 2) {
+            for (var j = 0; j < ds.Length; j += 2) {
+               var sa = ss[i];
+               var sb = ss[i + 1];
+               var da = ds[j];
+               var db = ds[j + 1];
 
-         PolyNode first = null, second = null;
-         double tstart = 0.0;
-         foreach (var (x, (n, t)) in eventStream) {
-            if (first != null && second != null) {
-               yield return (first, second, tstart, t);
-            }
-            if (x) first = first != null ? null : n;
-            else second = second != null ? null : n;
-            if (first != null && second != null) {
-               tstart = t;
+               if (sb.Item2 <= da.Item2) continue;
+               if (db.Item2 <= sa.Item2) continue;
+
+               if (sa.Item2 <= da.Item2 && da.Item2 <= sb.Item2) {
+                  if (sa.Item2 <= db.Item2 && db.Item2 <= sb.Item2) {
+                     // containment
+                     yield return (sa.Item1, da.Item1, da.Item2, db.Item2);
+                  } else {
+                     // overlap
+                     yield return (sa.Item1, da.Item1, da.Item2, sb.Item2);
+                  }
+               } else if (da.Item2 <= sa.Item2 && sa.Item2 <= db.Item2) {
+                  if (da.Item2 <= sb.Item2 && sb.Item2 <= db.Item2) {
+                     // containment
+                     yield return (sa.Item1, da.Item1, sa.Item2, sb.Item2);
+                  } else {
+                     // overlap
+                     yield return (sa.Item1, da.Item1, sa.Item2, db.Item2);
+                  }
+               }
             }
          }
+//         var eventStream = sourceStream
+//            .Select(t => (true, t))
+//            .Concat(destStream.Select(t => (false, t)))
+//            .OrderBy(t => t.Item2.Item2);
+//
+//         PolyNode first = null, second = null;
+//         double tstart = 0.0;
+//         foreach (var (x, (n, t)) in eventStream) {
+//            if (first != null && second != null) {
+//               yield return (first, second, tstart, t);
+//            }
+//            if (x) first = first != null ? null : n;
+//            else second = second != null ? null : n;
+//            if (first != null && second != null) {
+//               tstart = t;
+//            }
+//         }
       }
 
       private IEnumerable<(PolyNode, double)> X(IntLineSegment2 seg, LocalGeometryView v) {
