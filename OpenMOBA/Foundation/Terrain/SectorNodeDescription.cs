@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
@@ -21,6 +22,8 @@ namespace OpenMOBA.Foundation.Terrain {
       public float WorldToLocalScalingFactor = 1.0f;
       public float LocalToWorldScalingFactor = 1.0f;
 
+      public AxisAlignedBoundingBox WorldAABB = null;
+
       public int CachedSnapshotVersion;
    }
 
@@ -30,6 +33,8 @@ namespace OpenMOBA.Foundation.Terrain {
       internal SectorNodeDescription(TerrainService terrainService, TerrainStaticMetadata staticMetadata) {
          this.terrainService = terrainService;
          this.StaticMetadata = staticMetadata;
+
+         RecomputeWorldAABB();
       }
 
       // Internals touched by terrain service
@@ -48,6 +53,9 @@ namespace OpenMOBA.Foundation.Terrain {
                if (!inverted) {
                   throw new InvalidOperationException("Unable to invert transformation matrix!?");
                }
+
+               RecomputeWorldAABB();
+
                Version++;
             }
          }
@@ -70,6 +78,39 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public bool EnableDebugHighlight { get; set; }
       //      public IReadOnlyCollection<DynamicTerrainHole> Holes => InstanceMetadata.Holes;
+
+      public AxisAlignedBoundingBox WorldBounds => InstanceMetadata.WorldAABB;
+
+      private void RecomputeWorldAABB() {
+         var transform = InstanceMetadata.WorldTransform;
+         //         transform = Matrix4x4.Transpose(transform);
+
+         var origin = Vector3.Transform(Vector3.Zero, transform).ToOpenMobaVector();
+         var basisX = Vector3.TransformNormal(Vector3.UnitX, transform).ToOpenMobaVector();
+         var basisY = Vector3.TransformNormal(Vector3.UnitY, transform).ToOpenMobaVector();
+         var basisZ = Vector3.TransformNormal(Vector3.UnitZ, transform).ToOpenMobaVector();
+         var bounds = StaticMetadata.LocalBoundary;
+
+         var bottomLeft = basisY * bounds.Bottom + basisX * bounds.Left;
+         var bottomRight = basisY * bounds.Bottom + basisX * bounds.Right;
+         var topLeft = basisY * bounds.Top + basisX * bounds.Left;
+         var topRight = basisY * bounds.Top + basisX * bounds.Right;
+         var boundingBoxExtrusionFactor = 1E-3 * basisZ / basisZ.Norm2D();
+
+         var nearBottomLeft = bottomLeft + boundingBoxExtrusionFactor;
+         var nearBottomRight = bottomRight + boundingBoxExtrusionFactor;
+         var nearTopLeft = topLeft + boundingBoxExtrusionFactor;
+         var nearTopRight = topRight + boundingBoxExtrusionFactor;
+
+         var farBottomLeft = bottomLeft + boundingBoxExtrusionFactor;
+         var farBottomRight = bottomRight + boundingBoxExtrusionFactor;
+         var farTopLeft = topLeft + boundingBoxExtrusionFactor;
+         var farTopRight = topRight + boundingBoxExtrusionFactor;
+
+         var mins = origin + nearBottomLeft.MinWith(nearBottomRight).MinWith(nearTopLeft).MinWith(nearTopRight).MinWith(farBottomLeft).MinWith(farBottomRight).MinWith(farTopLeft).MinWith(farTopRight);
+         var maxs = origin + nearBottomLeft.MaxWith(nearBottomRight).MaxWith(nearTopLeft).MaxWith(nearTopRight).MaxWith(farBottomLeft).MaxWith(farBottomRight).MaxWith(farTopLeft).MaxWith(farTopRight);
+         InstanceMetadata.WorldAABB = AxisAlignedBoundingBox.FromExtents(mins, maxs);
+      }
    }
 
    public class HoleInstanceMetadata {

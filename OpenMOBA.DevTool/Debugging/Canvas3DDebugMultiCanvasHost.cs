@@ -158,6 +158,9 @@ namespace OpenMOBA.DevTool.Debugging {
             });
          }
 
+         public IGraphicsFacade GraphicsFacade => graphicsFacade;
+         public Scene Scene => scene;
+
          public Matrix4x4 Transform
          {
             get => transformDotNet;

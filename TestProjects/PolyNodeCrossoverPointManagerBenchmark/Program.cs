@@ -46,7 +46,7 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          // canvas.DrawPoint(b, StrokeStyle.RedThick5Solid);
          // var bvh = landPolyNode.FindContourAndChildHoleBarriersBvh();
          // canvas.DrawBvh(bvh);
-         // foreach (var (i, val) in bvh.Segments.Enumerate()) {
+         // foreach (var (i, val) in bvh.BoundingBoxes.Enumerate()) {
          //    if (val.Intersects(q)) Console.WriteLine(i + " " + val);
          // }
          // var intersects = bvh.Intersects(q);

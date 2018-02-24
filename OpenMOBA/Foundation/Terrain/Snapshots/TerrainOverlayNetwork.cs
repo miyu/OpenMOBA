@@ -49,6 +49,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public IReadOnlyCollection<TerrainOverlayNetworkNode> TerrainNodes => terrainNodesBySectorNodeDescriptionAndPolyNode.Values;
 
       public void Initialize() {
+//         foreach (var localGeometryView in landPolyNodesByDefaultLocalGeometryView.Keys) {
+//         }
+//         BvhTreeAABB.Build()
+
          foreach (var edge in edgeDescriptions) {
             UpdateEdge(edge, false);
          }

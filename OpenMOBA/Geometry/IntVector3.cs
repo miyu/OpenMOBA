@@ -63,6 +63,9 @@ namespace OpenMOBA.Geometry {
 
       public IntVector3 LossyToIntVector3() => new IntVector3((cInt)Math.Floor(X), (cInt)Math.Floor(Y), (cInt)Math.Floor(Z));
 
+      public DoubleVector3 MinWith(DoubleVector3 o) => new DoubleVector3(Math.Min(X, o.X), Math.Min(Y, o.Y), Math.Min(Z, o.Z));
+      public DoubleVector3 MaxWith(DoubleVector3 o) => new DoubleVector3(Math.Max(X, o.X), Math.Max(Y, o.Y), Math.Max(Z, o.Z));
+
       public static DoubleVector3 Zero => new DoubleVector3(0, 0, 0);
       public static DoubleVector3 UnitX => new DoubleVector3(1, 0, 0);
       public static DoubleVector3 UnitY => new DoubleVector3(0, 1, 0);

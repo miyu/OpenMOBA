@@ -7,6 +7,7 @@ using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
 using ClipperLib;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 using Poly2Tri;
 using Poly2Tri.Triangulation;
@@ -247,9 +248,9 @@ namespace OpenMOBA.DevTool.Debugging {
          this.up = up;
          this.width = width;
          this.height = height;
-         this.worldToCamera = 
+         this.worldToCamera =
             Matrix4x4.CreateTranslation(ToNumerics3(-1.0 * position)) *
-            Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up)) * 
+            Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up)) *
             Matrix4x4.CreateScale(-1, 1, 1);
          this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI * 2 / 4, (float)(width / height), 1f, 10000f);
 //          this.cameraToView = Matrix4x4.CreatePerspectiveOffCenter(0, (float)width, (float)height, 0, 1.0f, 1000.0f);
@@ -357,7 +358,7 @@ namespace OpenMOBA.DevTool.Debugging {
       }
 
       public void DrawLine(DoubleVector3 point1, DoubleVector3 point2, StrokeStyle strokeStyle) {
-         DepthDrawLineStrip(new [] { point1, point2 }, strokeStyle);
+         DepthDrawLineStrip(new[] { point1, point2 }, strokeStyle);
       }
 
       public void DrawTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, StrokeStyle strokeStyle) {
@@ -382,7 +383,7 @@ namespace OpenMOBA.DevTool.Debugging {
       }
 
       public void DrawPolygon(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
-         DepthDrawLineStrip(points.Concat(new [] { points[0] }).ToList(), strokeStyle);
+         DepthDrawLineStrip(points.Concat(new[] { points[0] }).ToList(), strokeStyle);
       }
 
       private void DepthDrawLineStrip(IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
@@ -461,6 +462,34 @@ namespace OpenMOBA.DevTool.Debugging {
          lock (synchronization) {
             callback(bitmap);
          }
+      }
+   }
+
+   public static class DebugCanvas3DExtensions {
+      public static void DrawAxisAlignedBoundingBox(this IDebugCanvas canvas, AxisAlignedBoundingBox box, StrokeStyle strokeStyle) {
+         var extents = box.Extents;
+         var nbl = box.Center - extents;
+         var ftr = box.Center + extents;
+         canvas.BatchDraw(() => {
+            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, nbl.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(nbl.X, ftr.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(nbl.X, nbl.Y, ftr.Z), strokeStyle);
+
+            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
+
+
+            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, ftr.Z), new DoubleVector3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, ftr.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
+
+            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, ftr.Z), new DoubleVector3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, nbl.Z), new DoubleVector3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
+
+            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, ftr.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
+
+            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(new DoubleVector3(ftr.X, ftr.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
+         });
       }
    }
 }
