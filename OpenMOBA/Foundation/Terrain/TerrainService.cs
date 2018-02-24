@@ -1,15 +1,10 @@
 ﻿using System;
-using OpenMOBA.Geometry;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
-using System.Numerics;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Xml;
 using ClipperLib;
-using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.Snapshots;
+using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain {
    public interface ISourceSegmentEdgeDescription {
@@ -134,6 +129,7 @@ namespace OpenMOBA.Foundation.Terrain {
          punchedLand.AssertIsContourlessRootHolePunchResult();
 
          var landPolyNodeBoundedByPolyNodeContour = new Dictionary<PolyNode, PolyNode>();
+
          void R(PolyNode landNode) {
             landPolyNodeBoundedByPolyNodeContour[landNode] = landNode;
             foreach (var holeNode in landNode.Childs) {
@@ -141,6 +137,7 @@ namespace OpenMOBA.Foundation.Terrain {
                holeNode.Childs.ForEach(R);
             }
          }
+
          punchedLand.Childs.ForEach(R);
 
          var breakpoints = new SortedList<double, PolyNode>();
@@ -191,13 +188,14 @@ namespace OpenMOBA.Foundation.Terrain {
          //         }
       }
 
-      public static PortalSectorEdgeDescription Build(SectorNodeDescription source, SectorNodeDescription destination, IntLineSegment2 sourceSegment, IntLineSegment2 destinationSegment)
-         => new PortalSectorEdgeDescription {
+      public static PortalSectorEdgeDescription Build(SectorNodeDescription source, SectorNodeDescription destination, IntLineSegment2 sourceSegment, IntLineSegment2 destinationSegment) {
+         return new PortalSectorEdgeDescription {
             Source = source,
             Destination = destination,
             SourceSegment = sourceSegment,
             DestinationSegment = destinationSegment
          };
+      }
    }
 
    //   public class Crossover {
@@ -224,9 +222,17 @@ namespace OpenMOBA.Foundation.Terrain {
       private readonly HashSet<DynamicTerrainHoleDescription> holeDescriptions = new HashSet<DynamicTerrainHoleDescription>();
       public int Version { get; private set; }
 
-      public IEnumerable<SectorNodeDescription> EnumerateSectorNodeDescriptions() => nodeDescriptions;
-      public IEnumerable<SectorEdgeDescription> EnumerateSectorEdgeDescriptions() => edgeDescriptions;
-      public IEnumerable<DynamicTerrainHoleDescription> EnumerateDynamicTerrainHoleDescriptions() => holeDescriptions;
+      public IEnumerable<SectorNodeDescription> EnumerateSectorNodeDescriptions() {
+         return nodeDescriptions;
+      }
+
+      public IEnumerable<SectorEdgeDescription> EnumerateSectorEdgeDescriptions() {
+         return edgeDescriptions;
+      }
+
+      public IEnumerable<DynamicTerrainHoleDescription> EnumerateDynamicTerrainHoleDescriptions() {
+         return holeDescriptions;
+      }
 
       public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) {
          if (nodeDescriptions.Add(sectorNodeDescription)) {
@@ -287,6 +293,13 @@ namespace OpenMOBA.Foundation.Terrain {
          //    }
          // }
       }
+
+      public void Clear() {
+         nodeDescriptions.Clear();
+         edgeDescriptions.Clear();
+         holeDescriptions.Clear();
+         Version++;
+      }
    }
 
    public class TerrainService : ISectorGraphDescriptionStore, ITerrainSnapshotCompiler {
@@ -300,16 +313,41 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public TerrainSnapshotCompiler SnapshotCompiler => snapshotCompiler;
 
-      public SectorNodeDescription CreateSectorNodeDescription(TerrainStaticMetadata metadata) => new SectorNodeDescription(this, metadata);
-      public DynamicTerrainHoleDescription CreateHoleDescription(TerrainStaticMetadata metadata) => new DynamicTerrainHoleDescription(this, metadata);
+      public SectorNodeDescription CreateSectorNodeDescription(TerrainStaticMetadata metadata) {
+         return new SectorNodeDescription(this, metadata);
+      }
 
-      public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) => storage.AddSectorNodeDescription(sectorNodeDescription);
-      public void RemoveSectorNodeDescription(SectorNodeDescription sectorNodeDescription) => storage.RemoveSectorNodeDescription(sectorNodeDescription);
-      public void AddSectorEdgeDescription(SectorEdgeDescription sectorEdgeDescription) => storage.AddSectorEdgeDescription(sectorEdgeDescription);
-      public void AddTemporaryHoleDescription(DynamicTerrainHoleDescription holeDescription) => storage.AddTemporaryHoleDescription(holeDescription);
-      public void RemoveTemporaryHoleDescription(DynamicTerrainHoleDescription holeDescription) => storage.RemoveTemporaryHoleDescription(holeDescription);
+      public DynamicTerrainHoleDescription CreateHoleDescription(TerrainStaticMetadata metadata) {
+         return new DynamicTerrainHoleDescription(this, metadata);
+      }
 
-      public TerrainSnapshot CompileSnapshot() => snapshotCompiler.CompileSnapshot();
+      public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) {
+         storage.AddSectorNodeDescription(sectorNodeDescription);
+      }
+
+      public void RemoveSectorNodeDescription(SectorNodeDescription sectorNodeDescription) {
+         storage.RemoveSectorNodeDescription(sectorNodeDescription);
+      }
+
+      public void AddSectorEdgeDescription(SectorEdgeDescription sectorEdgeDescription) {
+         storage.AddSectorEdgeDescription(sectorEdgeDescription);
+      }
+
+      public void AddTemporaryHoleDescription(DynamicTerrainHoleDescription holeDescription) {
+         storage.AddTemporaryHoleDescription(holeDescription);
+      }
+
+      public void RemoveTemporaryHoleDescription(DynamicTerrainHoleDescription holeDescription) {
+         storage.RemoveTemporaryHoleDescription(holeDescription);
+      }
+
+      public void Clear() {
+         storage.Clear();
+      }
+
+      public TerrainSnapshot CompileSnapshot() {
+         return snapshotCompiler.CompileSnapshot();
+      }
    }
 
    public static class TerrainHoleHelpers {

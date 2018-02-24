@@ -156,7 +156,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       /// [SourceCrossoverIndex][DestCrossoverIndex] = (first hop, total path cost),
       /// probably followed by a lookup of [DestCrossoverIndex][first hop] in optimalLinkToWaypointsByCrossoverPointIndex
       /// </summary>
-      private readonly List<List<PathLink>> optimalLinkToOtherCrossoversByCrossoverPointIndex = new List<List<PathLink>>();
+      private readonly List<ExposedArrayList<PathLink>> optimalLinkToOtherCrossoversByCrossoverPointIndex = new List<ExposedArrayList<PathLink>>();
 
       private readonly Dictionary<DoubleLineSegment2, int[]> indicesBySegment = new Dictionary<DoubleLineSegment2, int[]>();
       private readonly Dictionary<IntVector2, DoubleLineSegment2> segmentByCrossoverPoint = new Dictionary<IntVector2, DoubleLineSegment2>();
@@ -237,7 +237,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          }
       }
 
-      public (PathLink[] visibleWaypointLinks, int visibleWaypointLinksLength, PathLink[] optimalLinkToWaypoints, List<PathLink> optimalLinkToCrossovers) FindOptimalLinksToCrossovers(IntVector2 p, int[] candidateWaypoints = null, IReadOnlyDictionary<DoubleLineSegment2, IntLineSegment2[]> candidateBarriersByDestinationSegment = null) {
+      public (PathLink[] visibleWaypointLinks, int visibleWaypointLinksLength, PathLink[] optimalLinkToWaypoints, ExposedArrayList<PathLink> optimalLinkToCrossovers) FindOptimalLinksToCrossovers(IntVector2 p, int[] candidateWaypoints = null, IReadOnlyDictionary<DoubleLineSegment2, IntLineSegment2[]> candidateBarriersByDestinationSegment = null) {
          Interlocked.Increment(ref FindOptimalLinksToCrossoversInvocationCount);
          //var links = new List<PathLink>(128);
          //links.Resize(crossoverPoints.Count);
@@ -286,8 +286,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          };
 
          // Cost from p to other crossoverPoints...
-         var optimalLinkToCrossovers = new List<PathLink>(128);
-         optimalLinkToCrossovers.Resize(crossoverPoints.Count);
+         var optimalLinkToCrossovers = new ExposedArrayList<PathLink>(Math.Max(128, crossoverPoints.Count));
+         optimalLinkToCrossovers.size = crossoverPoints.Count;
 
          void ProcessCpi(int cpi, IntLineSegment2[] candidateBarriers) {
             Interlocked.Increment(ref ProcessCpiInvocationCount);
