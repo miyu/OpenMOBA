@@ -141,7 +141,7 @@ namespace OpenMOBA.Foundation {
          var holeDescription = TerrainService.CreateHoleDescription(new TerrainStaticMetadata {
          	LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          	LocalIncludedContours = new List<Polygon2> {
-         		Polygon2.CreateCircle(500, 500, 200)
+         		Polygon2.CreateCircle(500, 500, 500)
          	}
          });
 //         holeDescription.WorldTransform = Matrix4x4.CreateTranslation(-2714.80395507813f, -578.109497070313f, 3310.75463867188f);

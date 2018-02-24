@@ -139,6 +139,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          return punchedLand;
       }
 
-      public Triangulation Triangulation => _triangulation ?? (_triangulation = new Triangulator().Triangulate(PunchedLand));
+      public Triangulation Triangulation => _triangulation ?? (_triangulation = new Triangulator().TriangulateRoot(PunchedLand));
    }
 }

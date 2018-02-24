@@ -141,19 +141,10 @@ namespace OpenMOBA.Foundation.Terrain {
 
          punchedLand.Childs.ForEach(R);
 
-         var breakpoints = new SortedList<double, PolyNode>();
+         var allBreakpoints = new SortedList<double, (PolyNode, SortedList<double, bool>)>();
          foreach (var polyNode in punchedLand.EnumerateAllNonrootNodes()) {
-//            var barriers = polyNode.FindContourAndChildHoleBarriers();
-//            for (var i = 0; i < barriers.Length; i++) {
-//               if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref barriers[i], out var t)) {
-//                  if (breakpoints.TryGetValue(t, out var existing)) {
-//                     Trace.Assert(existing == polyNode);
-//                  } else {
-//                     breakpoints.Add(t, polyNode);
-//                  }
-//               }
-//            }
-//            var barriers = polyNode.FindContourAndChildHoleBarriers();
+            var localBreakpoints = new SortedList<double, bool>();
+
             for (var i = 0; i < polyNode.Contour.Count; i++) {
                var contourSegment = new IntLineSegment2(
                   i == 0 ? polyNode.Contour.Last() : polyNode.Contour[i - 1],
@@ -167,44 +158,38 @@ namespace OpenMOBA.Foundation.Terrain {
                }
 
                if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
-                  //Console.WriteLine("Breakpoint: " + t + " " + seg.PointAt(t));
-                  if (breakpoints.TryGetValue(t, out var existing)) {
-                     Trace.Assert(existing == polyNode);
-                  } else {
-                     breakpoints.Add(t, polyNode);
-                  }
+                  localBreakpoints[t] = true;
                }
             }
-         }
 
-         punchedLand.PickDeepestPolynode(seg.First, out var startPolyNode, out var startInHole);
-         if (!startInHole) {
-            if (breakpoints.TryGetValue(0.0, out var existing)) {
-               Trace.Assert(existing == startPolyNode);
-            } else {
-               breakpoints.Add(0.0, startPolyNode);
+            if (Clipper.PointInPolygon(seg.First, polyNode.Contour) != PolygonContainmentResult.OutsidePolygon) {
+               localBreakpoints[0.0] = true;
+            }
+
+            if (Clipper.PointInPolygon(seg.Second, polyNode.Contour) != PolygonContainmentResult.OutsidePolygon) {
+               localBreakpoints[1.0] = true;
+            }
+
+            for (var i = localBreakpoints.Count - 2; i >= 0; i -= 1) {
+               if (localBreakpoints.Keys[i + 1] - localBreakpoints.Keys[i] < 1E-3) {
+                  localBreakpoints.RemoveAt(i);
+               }
+            }
+
+            Trace.Assert(localBreakpoints.Count % 2 == 0);
+            if (localBreakpoints.Count > 0) {
+               allBreakpoints.Add(localBreakpoints.Keys[0], (polyNode, localBreakpoints));
             }
          }
 
-         punchedLand.PickDeepestPolynode(seg.Second, out var endPolyNode, out var endInHole);
-         if (!endInHole) {
-            if (breakpoints.TryGetValue(1.0, out var existing)) {
-               Trace.Assert(existing == endPolyNode);
-            } else {
-               breakpoints.Add(1.0, endPolyNode);
-            }
-         }
+         var res = allBreakpoints.SelectMany(kvp => kvp.Value.Item2.Keys.Select(t => (kvp.Value.Item1, t))).ToList();
+         return res;
 
-         // TODO: Fix this hack. Eventually. Maybe never. Possibly.
-         for (var i = breakpoints.Count - 2; i >= 0; i -= 1) {
-            if (breakpoints.Keys[i + 1] - breakpoints.Keys[i] < 1E-3) {
-               breakpoints.RemoveAt(i);
-            }
-         }
-
-
-         Trace.Assert(breakpoints.Count % 2 == 0);
-         return breakpoints.Select(kvp => (kvp.Value, kvp.Key));
+//         // TODO: Fix this hack. Eventually. Maybe never. Possibly.
+//
+//
+//         Trace.Assert(breakpoints.Count % 2 == 0);
+//         return breakpoints.Select(kvp => (kvp.Value, kvp.Key));
          //
          //         var it = breakpoints.GetEnumerator();
          //         while (it.MoveNext()) {

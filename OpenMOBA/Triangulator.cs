@@ -81,7 +81,7 @@ namespace OpenMOBA {
    }
 
    public class Triangulator {
-      public Triangulation Triangulate(PolyTree polyTree) {
+      public Triangulation TriangulateRoot(PolyTree polyTree) {
          if (!polyTree.IsHole || polyTree.Contour.Any()) {
             throw new ArgumentException("Expected polytree to be contourless root hole!");
          }
@@ -92,8 +92,17 @@ namespace OpenMOBA {
          return new Triangulation { Islands = islands };
       }
 
+      public Triangulation TriangulateLandNode(PolyNode landNode) {
+         if (landNode.IsHole || !landNode.Contour.Any() || landNode.Parent == null) {
+            throw new ArgumentException("Expected polynode to be contourful non-root hole!");
+         }
+         var islands = new List<TriangulationIsland>();
+         TriangulateHelper(landNode, islands);
+         return new Triangulation { Islands = islands };
+      }
+
       private void TriangulateHelper(PolyNode node, List<TriangulationIsland> islands) {
-         DebugPrint("Triangulate out");
+         DebugPrint("TriangulateRoot out");
 
          var cps = new Polygon(ConvertToTriangulationPoints(node.Contour));
          foreach (var hole in node.Childs) {

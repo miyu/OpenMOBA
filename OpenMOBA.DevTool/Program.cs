@@ -240,7 +240,8 @@ namespace OpenMOBA.DevTool {
 			   //debugCanvas.DrawPoint(new DoubleVector3(0, 0, 500), new StrokeStyle(Color.Red, 50));
 
 
-            foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
+			   var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
+            foreach (var (index, terrainNode) in terrainOverlayNetwork.TerrainNodes.Enumerate()) {
 					var sectorNodeDescription = terrainNode.SectorNodeDescription;
 					var localGeometryView = terrainNode.LocalGeometryView;
 					var landPolyNode = terrainNode.LandPolyNode;
@@ -269,7 +270,7 @@ namespace OpenMOBA.DevTool {
 
 					debugCanvas.Transform = sectorNodeDescription.WorldTransform;
 					//debugCanvas.DrawPoint(new DoubleVector3(0, 0, 0), new StrokeStyle(Color.Black, 100));
-					debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.Black));
+					debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(colors[index % colors.Length]));
 //					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
 
 					//Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
