@@ -117,16 +117,16 @@ namespace OpenMOBA.DevTool {
 			debugCanvas.BatchDraw(() => {
 				debugCanvas.Transform = Matrix4x4.Identity;
 
-				//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
-				//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
-				//            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
+				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
+				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
+				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
 
-				//            return;
+            //            return;
 
-				//            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
+            //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
 
-				/*
+            /*
 				// FOR BUNNY
 				// Paths from Source [808.800476074219, -2133.13989257813, 466.265472412109] to [-496.957489013672, 566.484985351563, 3515.56762695313]
 				Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
@@ -154,7 +154,9 @@ namespace OpenMOBA.DevTool {
 				debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 150));
 				debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 150));
 				/**/
-				
+
+
+            /*
 				// for dragon
 				Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
 				var sourceNode = terrainOverlayNetwork.TerrainNodes.Where(n => {
@@ -175,18 +177,21 @@ namespace OpenMOBA.DevTool {
 				var destinationValid = destinationNode.LandPolyNode.PointInLandPolygonNonrecursive(new IntVector2((int)destinationLocal.X, (int)destinationLocal.Y));
 				Console.WriteLine("Svalid? " + sourceValid + " Dvalid? " + destinationValid);
 				// while(true) 
-				DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, sourcePoint, destinationPoint);
+//				DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, sourcePoint, destinationPoint);
 				Console.WriteLine("Source: " + sourcePoint + " to " + destinationPoint);
 
-				debugCanvas.Transform = Matrix4x4.Identity;
-				debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 300));
-				debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 300));
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+//				debugCanvas.DrawPoint(sourcePoint, new StrokeStyle(Color.Lime, 200));
+				debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 200));
 				/**/
 
-				var boundsBvh = BvhTreeAABB.Build(terrainOverlayNetwork.TerrainNodes.Select(n => n.SectorNodeDescription.WorldBounds));
+			   DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, new DoubleVector3(0, -500, 400), new DoubleVector3(0, 500, 400));
 
-				void DrawBvhAABB(BvhTreeAABB bvhRoot) {
-					var q = new Queue<(BvhTreeAABB, int)>();
+            var boundsBvh = terrainOverlayNetwork.NodeBvh;
+
+				void DrawBvhAABB<TValue>(BvhTreeAABB<TValue> bvhRoot) {
+					var q = new Queue<(BvhTreeAABB<TValue>, int)>();
 					q.Enqueue((bvhRoot, 0));
 
 				   var maxDepth = -1;
@@ -200,7 +205,7 @@ namespace OpenMOBA.DevTool {
                   }
                }
 
-					void Helper(BvhTreeAABB bvh, int depth = 0) {
+					void Helper(BvhTreeAABB<TValue> bvh, int depth = 0) {
 						if (bvh.First != null) {
 						   var r = maxDepth == 0 ? 0 : (int)(255 * depth / (float)maxDepth);
 						   var g = 255 - r;
@@ -210,7 +215,7 @@ namespace OpenMOBA.DevTool {
 							Helper(bvh.First, depth + 1);
 							Helper(bvh.Second, depth + 1);
 						} else {
-							for (var i = bvh.BoundingBoxesStartIndexInclusive; i < bvh.BoundingBoxesEndIndexExclusive; i++) {
+							for (var i = bvh.StartIndexInclusive; i < bvh.EndIndexExclusive; i++) {
 								debugCanvas.DrawAxisAlignedBoundingBox(bvh.BoundingBoxes[i], new StrokeStyle(Color.Black, 3));
 							}
 						}
@@ -220,13 +225,22 @@ namespace OpenMOBA.DevTool {
 				}
 
             //				DrawBvhAABB(boundsBvh);
+            //			   foreach (var node in boundsBvh.FindIntersectingLeaves(sourcePoint)) {
+            //			      debugCanvas.DrawAxisAlignedBoundingBox(node.Bounds, new StrokeStyle(Color.Red, 3));
+            //			      for (var i = node.StartIndexInclusive; i < node.EndIndexExclusive; i++) {
+            //			         var tonn = node.Values[i];
+            //			         debugCanvas.Transform = tonn.SectorNodeDescription.WorldTransform;
+            //                  debugCanvas.FillTriangulation(tonn.LocalGeometryView.Triangulation, new FillStyle(Color.White));
+            ////                  debugCanvas.DrawAxisAlignedBoundingBox(node.BoundingBoxes[i], new StrokeStyle(Color.Black, 3));
+			   //			      }
+			   //			   }
 
-			   foreach (var node in boundsBvh.FindIntersectingLeaves(sourcePoint)) {
-			      debugCanvas.DrawAxisAlignedBoundingBox(node.Bounds, new StrokeStyle(Color.Black, 3));
-			   }
+
+			   //debugCanvas.Transform = Matrix4x4.Identity;
+			   //debugCanvas.DrawPoint(new DoubleVector3(0, 0, 500), new StrokeStyle(Color.Red, 50));
 
 
-			   foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
+            foreach (var terrainNode in terrainOverlayNetwork.TerrainNodes) {
 					var sectorNodeDescription = terrainNode.SectorNodeDescription;
 					var localGeometryView = terrainNode.LocalGeometryView;
 					var landPolyNode = terrainNode.LandPolyNode;
@@ -255,9 +269,8 @@ namespace OpenMOBA.DevTool {
 
 					debugCanvas.Transform = sectorNodeDescription.WorldTransform;
 					//debugCanvas.DrawPoint(new DoubleVector3(0, 0, 0), new StrokeStyle(Color.Black, 100));
-					continue;
-					//               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-					debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.White));
+					debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.Black));
+//					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
 
 					//Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
 					foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
@@ -541,9 +554,9 @@ namespace OpenMOBA.DevTool {
 			var rotation = 95 * Math.PI / 180.0;
 			var scale = 1.0f;
 			var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-			var center = new DoubleVector3(1550, 500, 0);
+			var center = new DoubleVector3(0, 0, 0);
 			var projector = new PerspectiveProjector(
-				center + DoubleVector3.FromRadiusAngleAroundXAxis(80, rotation),
+				center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
 				center,
 				DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
 				displaySize.Width,

@@ -272,7 +272,7 @@ namespace OpenMOBA.Foundation {
          float ComputeHeuristic(TerrainOverlayNetworkNode n, int cpi) {
             var cp = n.CrossoverPointManager.CrossoverPoints[cpi];
             var cpw = Vector3.Transform(new Vector3(cp.X, cp.Y, 0), n.SectorNodeDescription.WorldTransform);
-            return Vector3.Distance(destinationWorld, cpw) * 1.2f;
+            return Vector3.Distance(destinationWorld, cpw) * 1.0f;
          }
 
          while (!q.IsEmpty) {

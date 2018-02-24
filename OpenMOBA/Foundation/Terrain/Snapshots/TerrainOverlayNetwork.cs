@@ -23,6 +23,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByEndpoints;
 
       private readonly Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>> edgeJobCache = new Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>>();
+      private BvhTreeAABB<TerrainOverlayNetworkNode> nodeBvh;
 
       public TerrainOverlayNetwork(
          double agentRadius, 
@@ -47,12 +48,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       }
 
       public IReadOnlyCollection<TerrainOverlayNetworkNode> TerrainNodes => terrainNodesBySectorNodeDescriptionAndPolyNode.Values;
+      public BvhTreeAABB<TerrainOverlayNetworkNode> NodeBvh => nodeBvh;
 
       public void Initialize() {
-//         foreach (var localGeometryView in landPolyNodesByDefaultLocalGeometryView.Keys) {
-//         }
-//         BvhTreeAABB.Build()
-
+         nodeBvh = BvhTreeAABB<TerrainOverlayNetworkNode>.Build(TerrainNodes.Select(n => n.SectorNodeDescription.WorldBounds.PairValue(n)));
          foreach (var edge in edgeDescriptions) {
             UpdateEdge(edge, false);
          }
@@ -102,7 +101,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var destinationSegmentLength = destinationSegmentVector.Norm2D();
 
          var longestSegmentLength = Math.Max(sourceSegmentLength, destinationSegmentLength);
-         var crossoverPointSpacing = 100;
+         var crossoverPointSpacing = 50;
          var points = (int)Math.Ceiling(longestSegmentLength / crossoverPointSpacing) + 1;
 
          var sourceCrossoverPoints = new IntVector2[points]; 

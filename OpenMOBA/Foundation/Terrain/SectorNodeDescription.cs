@@ -102,10 +102,10 @@ namespace OpenMOBA.Foundation.Terrain {
          var nearTopLeft = topLeft + boundingBoxExtrusionFactor;
          var nearTopRight = topRight + boundingBoxExtrusionFactor;
 
-         var farBottomLeft = bottomLeft + boundingBoxExtrusionFactor;
-         var farBottomRight = bottomRight + boundingBoxExtrusionFactor;
-         var farTopLeft = topLeft + boundingBoxExtrusionFactor;
-         var farTopRight = topRight + boundingBoxExtrusionFactor;
+         var farBottomLeft = bottomLeft - boundingBoxExtrusionFactor;
+         var farBottomRight = bottomRight - boundingBoxExtrusionFactor;
+         var farTopLeft = topLeft - boundingBoxExtrusionFactor;
+         var farTopRight = topRight - boundingBoxExtrusionFactor;
 
          var mins = origin + nearBottomLeft.MinWith(nearBottomRight).MinWith(nearTopLeft).MinWith(nearTopRight).MinWith(farBottomLeft).MinWith(farBottomRight).MinWith(farTopLeft).MinWith(farTopRight);
          var maxs = origin + nearBottomLeft.MaxWith(nearBottomRight).MaxWith(nearTopLeft).MaxWith(nearTopRight).MaxWith(farBottomLeft).MaxWith(farBottomRight).MaxWith(farTopLeft).MaxWith(farTopRight);
@@ -173,14 +173,15 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public bool TryProjectOnto(SectorNodeDescription sectorNodeDescription, out IReadOnlyList<Polygon2> projectedHoleIncludedContours, out IReadOnlyList<Polygon2> projectedHoleExcludedContours) {
          // transformation matrix from hole-local space to sector-local space
-         var transformHoleToSector = sectorNodeDescription.WorldTransformInv * InstanceMetadata.WorldTransform;
+         var transformHoleToSector = InstanceMetadata.WorldTransform * sectorNodeDescription.WorldTransformInv;
 
          // compute projected poly's bounds in sector-local space.
          var boundsWorld = ComputeExtrudedBoundsLocal().Map(p => Vector4.Transform(p, transformHoleToSector));
 
          // test if projected poly is within sector-local space.
          var intersects = boundsWorld.Any(p => sectorNodeDescription.StaticMetadata.LocalBoundary.Contains((int)p.X, (int)p.Y));
-         if (!intersects) {
+         var withinHeight = boundsWorld.Any(p => p.Z >= -1E-3 && p.Z <= InstanceMetadata.Height);
+         if (!intersects || !withinHeight) {
             projectedHoleIncludedContours = null;
             projectedHoleExcludedContours = null;
             return false;

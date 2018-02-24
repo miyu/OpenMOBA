@@ -4,28 +4,30 @@ using System.Linq;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.DataStructures {
-   public class BvhTreeAABB {
-      public readonly BvhTreeAABB First;
-      public readonly BvhTreeAABB Second;
+   public class BvhTreeAABB<TValue> {
+      public readonly BvhTreeAABB<TValue> First;
+      public readonly BvhTreeAABB<TValue> Second;
       public readonly AxisAlignedBoundingBox[] BoundingBoxes;
-      public readonly int BoundingBoxesStartIndexInclusive;
-      public readonly int BoundingBoxesEndIndexExclusive;
+      public readonly TValue[] Values;
+      public readonly int StartIndexInclusive;
+      public readonly int EndIndexExclusive;
       public readonly AxisAlignedBoundingBox Bounds;
 
-      private BvhTreeAABB(BvhTreeAABB first, BvhTreeAABB second, AxisAlignedBoundingBox[] boundingBoxes, int boundingBoxesStartIndexInclusive, int boundingBoxesEndIndexExclusive, AxisAlignedBoundingBox bounds) {
+      private BvhTreeAABB(BvhTreeAABB<TValue> first, BvhTreeAABB<TValue> second, AxisAlignedBoundingBox[] boundingBoxes, TValue[] values, int startIndexInclusive, int endIndexExclusive, AxisAlignedBoundingBox bounds) {
          First = first;
          Second = second;
          BoundingBoxes = boundingBoxes;
-         BoundingBoxesStartIndexInclusive = boundingBoxesStartIndexInclusive;
-         BoundingBoxesEndIndexExclusive = boundingBoxesEndIndexExclusive;
+         Values = values;
+         StartIndexInclusive = startIndexInclusive;
+         EndIndexExclusive = endIndexExclusive;
          Bounds = bounds;
       }
 
-      public bool TryIntersect(DoubleVector3 p, out BvhTreeAABB node) {
+      public bool TryIntersect(DoubleVector3 p, out BvhTreeAABB<TValue> node) {
          return TryIntersect(ref p, out node);
       }
 
-      public bool TryIntersect(ref DoubleVector3 p, out BvhTreeAABB node) {
+      public bool TryIntersect(ref DoubleVector3 p, out BvhTreeAABB<TValue> node) {
          if (!Bounds.Contains(ref p)) {
             node = null;
             return false;
@@ -33,7 +35,7 @@ namespace OpenMOBA.DataStructures {
          if (First != null) {
             return First.TryIntersect(ref p, out node) || Second.TryIntersect(ref p, out node);
          }
-         for (var i = BoundingBoxesStartIndexInclusive; i < BoundingBoxesEndIndexExclusive; i++) {
+         for (var i = StartIndexInclusive; i < EndIndexExclusive; i++) {
             if (BoundingBoxes[i].Contains(ref p)) {
                node = this;
                return true;
@@ -48,7 +50,7 @@ namespace OpenMOBA.DataStructures {
       }
 
       public bool TryIntersect(ref DoubleVector3 p, out AxisAlignedBoundingBox box) {
-         if (TryIntersect(ref p, out BvhTreeAABB node)) {
+         if (TryIntersect(ref p, out BvhTreeAABB<TValue> node)) {
             box = node.Bounds;
             return true;
          }
@@ -56,13 +58,13 @@ namespace OpenMOBA.DataStructures {
          return false;
       }
 
-      public List<BvhTreeAABB> FindIntersectingLeaves(DoubleVector3 p) {
-         var res = new List<BvhTreeAABB>();
+      public List<BvhTreeAABB<TValue>> FindIntersectingLeaves(DoubleVector3 p) {
+         var res = new List<BvhTreeAABB<TValue>>();
          FindIntersectingLeavesInternal(p, res);
          return res;
       }
 
-      private void FindIntersectingLeavesInternal(DoubleVector3 p, List<BvhTreeAABB> results) {
+      private void FindIntersectingLeavesInternal(DoubleVector3 p, List<BvhTreeAABB<TValue>> results) {
          if (!Bounds.Contains(ref p)) {
             return;
          }
@@ -70,7 +72,7 @@ namespace OpenMOBA.DataStructures {
             First.FindIntersectingLeavesInternal(p, results);
             Second.FindIntersectingLeavesInternal(p, results);
          } else {
-            for (var i = BoundingBoxesStartIndexInclusive; i < BoundingBoxesEndIndexExclusive; i++) {
+            for (var i = StartIndexInclusive; i < EndIndexExclusive; i++) {
                if (BoundingBoxes[i].Contains(ref p)) {
                   results.Add(this);
                }
@@ -78,20 +80,21 @@ namespace OpenMOBA.DataStructures {
          }
       }
 
-      public static BvhTreeAABB Build(IEnumerable<AxisAlignedBoundingBox> boundingBoxesEnumerable) {
-         var inputBoxes = boundingBoxesEnumerable.ToArray();
-         var inputBoxesCenters = inputBoxes.Map(s => s.Center);
-         var segmentIndices = Util.Generate(inputBoxes.Length, i => i);
+      public static BvhTreeAABB<TValue> Build(IEnumerable<KeyValuePair<AxisAlignedBoundingBox, TValue>> kvpEnumerable) {
+         var inputKvps = kvpEnumerable.ToArray();
+         var inputBoxesCenters = inputKvps.Map(kvp => kvp.Key.Center);
+         var segmentIndices = Util.Generate(inputKvps.Length, i => i);
          var xComparer = Comparer<int>.Create((a, b) => inputBoxesCenters[a].X.CompareTo(inputBoxesCenters[b].X));
          var yComparer = Comparer<int>.Create((a, b) => inputBoxesCenters[a].Y.CompareTo(inputBoxesCenters[b].Y));
          var zComparer = Comparer<int>.Create((a, b) => inputBoxesCenters[a].Z.CompareTo(inputBoxesCenters[b].Z));
-         var outputBoxes = new AxisAlignedBoundingBox[inputBoxes.Length];
+         var outputBoxes = new AxisAlignedBoundingBox[inputKvps.Length];
+         var outputValues = new TValue[inputKvps.Length];
 
          AxisAlignedBoundingBox BoundingBoxes(int startIndexInclusive, int endIndexExclusive) {
             double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
             for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
-               var center = inputBoxes[segmentIndices[i]].Center;
-               var extents = inputBoxes[segmentIndices[i]].Extents;
+               var center = inputKvps[segmentIndices[i]].Key.Center;
+               var extents = inputKvps[segmentIndices[i]].Key.Extents;
 
                if (center.X - extents.X < minX) minX = center.X - extents.X;
                if (center.X + extents.X > maxX) maxX = center.X + extents.X;
@@ -106,12 +109,13 @@ namespace OpenMOBA.DataStructures {
             return AxisAlignedBoundingBox.FromExtents(minX, minY, minZ, maxX, maxY, maxZ);
          }
 
-         BvhTreeAABB BuildInternal(int startInclusive, int endExclusive, int depth) {
-            if (endExclusive - startInclusive < 16) {
+         BvhTreeAABB<TValue> BuildInternal(int startInclusive, int endExclusive, int depth) {
+            if (endExclusive - startInclusive < 4) {
                for (var i = startInclusive; i < endExclusive; i++) {
-                  outputBoxes[i] = inputBoxes[segmentIndices[i]];
+                  outputBoxes[i] = inputKvps[segmentIndices[i]].Key;
+                  outputValues[i] = inputKvps[segmentIndices[i]].Value;
                }
-               return new BvhTreeAABB(null, null, outputBoxes, startInclusive, endExclusive, BoundingBoxes(startInclusive, endExclusive));
+               return new BvhTreeAABB<TValue>(null, null, outputBoxes, outputValues, startInclusive, endExclusive, BoundingBoxes(startInclusive, endExclusive));
             }
 
             var mod = depth % 3;
@@ -122,10 +126,10 @@ namespace OpenMOBA.DataStructures {
             var second = BuildInternal(midpoint, endExclusive, depth + 1);
             var bounds = AxisAlignedBoundingBox.BoundingBoxes(first.Bounds, second.Bounds);
 
-            return new BvhTreeAABB(first, second, outputBoxes, startInclusive, endExclusive, bounds);
+            return new BvhTreeAABB<TValue>(first, second, outputBoxes, outputValues, startInclusive, endExclusive, bounds);
          }
 
-         return BuildInternal(0, inputBoxes.Length, 0);
+         return BuildInternal(0, inputKvps.Length, 0);
       }
    }
 }

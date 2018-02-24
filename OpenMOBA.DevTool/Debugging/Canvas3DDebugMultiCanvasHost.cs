@@ -50,9 +50,11 @@ namespace OpenMOBA.DevTool.Debugging {
             initLatch.Set();
 
             var rotation = 80 * Math.PI / 180.0;
-            var lookat = new DoubleVector3(-300, 0, 2700);
-            //var lookat = new DoubleVector3(0, 0, 0);
-            var offset = new DoubleVector3(-10, -100, 70) * 25;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
+            var lookat = new DoubleVector3(0, 0, 0);
+            //var lookat = new DoubleVector3(0, 0, 0); 
+
+            // originally offset -10, -100, 70)
+            var offset = new DoubleVector3(10, 100, 200) * 15;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
             var up = DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2);
             Console.WriteLine(offset);
 

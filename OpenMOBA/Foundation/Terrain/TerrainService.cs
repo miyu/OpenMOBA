@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using ClipperLib;
 using OpenMOBA.Foundation.Terrain.Snapshots;
+using OpenMOBA.Foundation.Terrain.Visibility;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain {
@@ -142,10 +143,28 @@ namespace OpenMOBA.Foundation.Terrain {
 
          var breakpoints = new SortedList<double, PolyNode>();
          foreach (var polyNode in punchedLand.EnumerateAllNonrootNodes()) {
+//            var barriers = polyNode.FindContourAndChildHoleBarriers();
+//            for (var i = 0; i < barriers.Length; i++) {
+//               if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref barriers[i], out var t)) {
+//                  if (breakpoints.TryGetValue(t, out var existing)) {
+//                     Trace.Assert(existing == polyNode);
+//                  } else {
+//                     breakpoints.Add(t, polyNode);
+//                  }
+//               }
+//            }
+//            var barriers = polyNode.FindContourAndChildHoleBarriers();
             for (var i = 0; i < polyNode.Contour.Count; i++) {
                var contourSegment = new IntLineSegment2(
                   i == 0 ? polyNode.Contour.Last() : polyNode.Contour[i - 1],
-                  polyNode.Contour[i]);
+                  polyNode.Contour[i]).Dilate(4);
+
+               var dcs = contourSegment.First.To(contourSegment.Second);
+               var dseg = seg.First.To(seg.Second);
+               var dot = Math.Abs(dcs.ToDoubleVector2().ToUnit().Dot(dseg.ToDoubleVector2().ToUnit()));
+               if (dot > 0.99999) {
+                  continue;
+               }
 
                if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
                   //Console.WriteLine("Breakpoint: " + t + " " + seg.PointAt(t));
@@ -175,6 +194,14 @@ namespace OpenMOBA.Foundation.Terrain {
                breakpoints.Add(1.0, endPolyNode);
             }
          }
+
+         // TODO: Fix this hack. Eventually. Maybe never. Possibly.
+         for (var i = breakpoints.Count - 2; i >= 0; i -= 1) {
+            if (breakpoints.Keys[i + 1] - breakpoints.Keys[i] < 1E-3) {
+               breakpoints.RemoveAt(i);
+            }
+         }
+
 
          Trace.Assert(breakpoints.Count % 2 == 0);
          return breakpoints.Select(kvp => (kvp.Value, kvp.Key));
