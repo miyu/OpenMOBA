@@ -187,7 +187,7 @@ namespace OpenMOBA.Foundation.Terrain {
                var dcs = contourSegment.First.To(contourSegment.Second);
                var dseg = seg.First.To(seg.Second);
                var dot = Math.Abs(dcs.ToDoubleVector2().ToUnit().Dot(dseg.ToDoubleVector2().ToUnit()));
-               if (dot > 0.99999) {
+               if (dot > 0.999) {
                   continue;
                }
 
@@ -205,7 +205,7 @@ namespace OpenMOBA.Foundation.Terrain {
             }
 
             for (var i = localBreakpoints.Count - 2; i >= 0; i -= 1) {
-               if (localBreakpoints.Keys[i + 1] - localBreakpoints.Keys[i] < 1E-3) {
+               if (localBreakpoints.Keys[i + 1] - localBreakpoints.Keys[i] < 0.04) {
                   localBreakpoints.RemoveAt(i);
                }
             }

@@ -135,19 +135,20 @@ namespace OpenMOBA.Foundation {
          // shift by something like -300, 0, 2700
          //LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
          //LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
-         //LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
+         LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(300, 0, -2700), 500);
+
+         /*
          LoadMeshAsMap("Assets/cube.obj", new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 0), 500);
-         
          var holeDescription = TerrainService.CreateHoleDescription(new TerrainStaticMetadata {
          	LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          	LocalIncludedContours = new List<Polygon2> {
-         		Polygon2.CreateCircle(500, 500, 500)
+         		Polygon2.CreateCircle(500, 500, 800)
          	}
          });
-//         holeDescription.WorldTransform = Matrix4x4.CreateTranslation(-2714.80395507813f, -578.109497070313f, 3310.75463867188f);
          holeDescription.WorldTransform = Matrix4x4.CreateTranslation(-500, -500, 500);
          TerrainService.AddTemporaryHoleDescription(holeDescription); 
          //[]
+         */
 
          /*
          var sectorSpanWidth = 3;
@@ -330,8 +331,8 @@ namespace OpenMOBA.Foundation {
                case "v":
                   var v = meshOffset + new DoubleVector3(double.Parse(tokens[1]), double.Parse(tokens[2]), double.Parse(tokens[3]));
                   // todo: flags for dragon / bunny to switch handiness + rotate
-                  // verts.Add(new DoubleVector3(v.X, -v.Z, v.Y));
-                  verts.Add(new DoubleVector3(v.X, v.Y, v.Z));
+                  verts.Add(new DoubleVector3(v.X, -v.Z, v.Y));
+//                  verts.Add(new DoubleVector3(v.X, v.Y, v.Z));
                   break;
                case "f":
 //                  Console.WriteLine($"Loading face of line {i}");
