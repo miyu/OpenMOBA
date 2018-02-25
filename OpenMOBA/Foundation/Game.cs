@@ -133,9 +133,10 @@ namespace OpenMOBA.Foundation {
 
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
          // shift by something like -300, 0, 2700
-         //LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0));
+         //LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
+         LoadMeshAsMap("Assets/bunny_decimate_0_03.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
          //LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
-         LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(300, 0, -2700), 500);
+         //LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0), new DoubleVector3(300, 0, -2700), 500);
 
          /*
          LoadMeshAsMap("Assets/cube.obj", new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 0), 500);
@@ -330,8 +331,10 @@ namespace OpenMOBA.Foundation {
             switch (tokens[0]) {
                case "v":
                   var v = meshOffset + new DoubleVector3(double.Parse(tokens[1]), double.Parse(tokens[2]), double.Parse(tokens[3]));
+                  v = new DoubleVector3(v.X, -v.Z, v.Y);
+                  v = v * scaling + worldOffset;
                   // todo: flags for dragon / bunny to switch handiness + rotate
-                  verts.Add(new DoubleVector3(v.X, -v.Z, v.Y));
+                  verts.Add(v);
 //                  verts.Add(new DoubleVector3(v.X, v.Y, v.Z));
                   break;
                case "f":
@@ -364,9 +367,9 @@ namespace OpenMOBA.Foundation {
                   var b = v3 - v1;
                   var theta = Math.Acos(a.Dot(b) / (a.Norm2D() * b.Norm2D())); // a.b =|a||b|cos(theta)
 
-                  var w = a.Norm2D() * scaling;
-                  var h = b.Norm2D() * scaling * Math.Sin(theta);
-                  var m = b.Norm2D() * scaling * Math.Cos(theta);
+                  var w = a.Norm2D();
+                  var h = b.Norm2D() * Math.Sin(theta);
+                  var m = b.Norm2D() * Math.Cos(theta);
 
                   var scaleBound = 1000; //ClipperBase.loRange
                   var localUpscale = scaleBound * 0.9f / (float)Math.Max(Math.Abs(m), Math.Max(Math.Abs(h), w));
@@ -414,9 +417,9 @@ namespace OpenMOBA.Foundation {
                   triangleToWorld.M33 = globalDownscale * (float)n.Z;
                   triangleToWorld.M34 = 0.0f;
 
-                  triangleToWorld.M41 = (float)v1.X * scaling + (float)worldOffset.X;
-                  triangleToWorld.M42 = (float)v1.Y * scaling + (float)worldOffset.Y;
-                  triangleToWorld.M43 = (float)v1.Z * scaling + (float)worldOffset.Z;
+                  triangleToWorld.M41 = (float)v1.X;
+                  triangleToWorld.M42 = (float)v1.Y;
+                  triangleToWorld.M43 = (float)v1.Z;
                   triangleToWorld.M44 = 1.0f;
 
                   snd.WorldTransform = triangleToWorld;
@@ -440,7 +443,7 @@ namespace OpenMOBA.Foundation {
 
          var lowerbound = verts.Aggregate(new DoubleVector3(double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity), (a, b) => new DoubleVector3(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Min(a.Z, b.Z)));
          var upperbound = verts.Aggregate(new DoubleVector3(double.NegativeInfinity, double.NegativeInfinity, double.NegativeInfinity), (a, b) => new DoubleVector3(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y), Math.Max(a.Z, b.Z)));
-         Console.WriteLine(lowerbound + " " + upperbound);
+         Console.WriteLine(lowerbound + " " + upperbound + " " + (upperbound + lowerbound) / 2 + " " + (upperbound - lowerbound));
       }
 
       private Entity CreateTestEntity(DoubleVector3 initialPosition, float radius, float movementSpeed) {
