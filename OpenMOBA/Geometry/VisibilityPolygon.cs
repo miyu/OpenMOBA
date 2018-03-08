@@ -441,7 +441,7 @@ namespace OpenMOBA.Geometry {
       
       // IV2 origin variant doesn't have significant perf gains - overhead is largely in struct copying
       // and tree structure stuff.
-      public static VisibilityPolygon Create(DoubleVector2 origin, IntLineSegment2[] barriers) {
+      public static VisibilityPolygon Create(DoubleVector2 origin, IntLineSegment2[] barriers, int eventLimit = -1) {
          var events = new (float, int, bool)[barriers.Length * 4];
          var numEvents = 0;
 
@@ -493,15 +493,8 @@ namespace OpenMOBA.Geometry {
          Array.Sort(eventIndices, (a, b) => {
             var res = events[a].Item1.CompareTo(events[b].Item1);
             if (res != 0) return res;
-            //return (events[a].Item2 & 1).CompareTo(events[b].Item2 & 1);
             return events[a].Item3.CompareTo(events[b].Item3);
          });
-
-//         Array.Sort(events, 0, numEvents, Comparer<(float, bool, int)>.Create((a, b) => {
-//            var res = a.Item1.CompareTo(b.Item1);
-//            if (res != 0) return res;
-//            return a.Item2.CompareTo(b.Item2);
-//         }));
 
          var lastTheta = 0.0;
          var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingIntSegmentOriginDistanceComparator.Compare(origin, a, b));
@@ -578,10 +571,9 @@ namespace OpenMOBA.Geometry {
 
          var lastOutputRangeIndex = -1;
          for (var i = 0; i < eventIndices.Length; i++) {
-            //var (theta, id, add) = events[eventIndices[i]];
+            if (i == eventLimit) break;
+
             var (theta, id, add) = events[eventIndices[i]];
-            //var id = val >> 1;
-            //var add = (val & 1) == 1;
             if (theta != lastTheta) {
                var nearestId = orderedSegments.Count == 0 ? RANGE_ID_NULL : orderedSegments.Peek();
                if (lastOutputRangeIndex != -1 && outputRanges[lastOutputRangeIndex].Id == nearestId) {
@@ -589,8 +581,8 @@ namespace OpenMOBA.Geometry {
                   // Console.WriteLine($"EXTEND to {theta} {id}");
                   outputRanges[lastOutputRangeIndex].ThetaEnd = theta;
                } else {
-                  // Console.WriteLine($"EMIT {lastTheta} to {theta} {nearestId} {nearestSegment}");
                   // emit from theta to lastTheta
+                  // Console.WriteLine($"EMIT {lastTheta} to {theta} {nearestId} {nearestSegment}");
                   lastOutputRangeIndex++;
                   outputRanges[lastOutputRangeIndex] = new IntervalRange {
                      Id = nearestId,
@@ -619,9 +611,7 @@ namespace OpenMOBA.Geometry {
          var outputRangeCount = lastOutputRangeIndex + 1;
          var finalOutputRanges = new IntervalRange[outputRangeCount];
          Array.Copy(outputRanges, finalOutputRanges, outputRangeCount);
-//         for (var i = 0; i < outputRangeCount; i++) {
-//            finalOutputRanges[i] = outputRanges[i];
-//         }
+
          return new VisibilityPolygon(origin, finalOutputRanges, segmentComparer);
       }
    }

@@ -14,17 +14,37 @@ namespace VisibilityPolygonBenchmark {
       private static int frameCounter = 0;
 
       public static void Main(string[] args) {
-         for (var i = 0; i < 100; i++) RenderVisualizationFrame();
-         Benchmark();
+         RenderAlgorithmVisualizationFrames();
+//         Benchmark();
       }
 
-      private static void RenderVisualizationFrame() {
+      private static void RenderAlgorithmVisualizationFrames() {
+         for (var i = 0; i < 9; i++) RandomInput();
+
          var (p, segments) = RandomInput();
          p = new DoubleVector2(bounds.Width / 2, bounds.Height / 2);
          segments = segments.Where(s => GeometryOperations.Clockness(p.X, p.Y, s.X1, s.Y1, s.X2, s.Y2) == Clockness.Clockwise).ToArray();
 
+         for (var i = 0; i < 50; i++)
+            RenderVisualizationFrame(p, segments, 0);
+
+         for (var i = 0; i < 500; i++) {
+            RenderVisualizationFrame(p, segments, i);
+         }
+      }
+
+      private static void RenderRandomVisualizationFrames() {
+         for (var i = 0; i < 100; i++) {
+            var (p, segments) = RandomInput();
+            p = new DoubleVector2(bounds.Width / 2, bounds.Height / 2);
+            segments = segments.Where(s => GeometryOperations.Clockness(p.X, p.Y, s.X1, s.Y1, s.X2, s.Y2) == Clockness.Clockwise).ToArray();
+            RenderVisualizationFrame(p, segments);
+         }
+      }
+
+      private static void RenderVisualizationFrame(DoubleVector2 p, IntLineSegment2[] segments, int eventLimit = -1) {
          var canvas = host.CreateAndAddCanvas(frameCounter++);
-         var vp = VisibilityPolygon.Create(p, segments);
+         var vp = VisibilityPolygon.Create(p, segments, eventLimit);
 
          canvas.BatchDraw(() => {
             canvas.DrawVisibilityPolygon(vp, 0, new FillStyle(Color.FromArgb(120, Color.Cyan)));
