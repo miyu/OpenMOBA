@@ -228,8 +228,8 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
             for (var otherCpi = 0; otherCpi < crossoverPoints.Count - 1; otherCpi++) {
                var linkToOther = optimalLinkToCrossovers[otherCpi];
-               var linkFromOther = linkToOther.PriorIndex == PathLink.DirectPathIndex
-                  ? new PathLink { PriorIndex = PathLink.DirectPathIndex, TotalCost = linkToOther.TotalCost }
+               var linkFromOther = linkToOther.PriorIndex < 0
+                  ? new PathLink { PriorIndex = linkToOther.PriorIndex, TotalCost = linkToOther.TotalCost }
                   : new PathLink {
                      PriorIndex = optimalLinkToWaypointsByCrossoverPointIndex[otherCpi][linkToOther.PriorIndex].PriorIndex,
                      TotalCost = linkToOther.TotalCost
@@ -279,13 +279,22 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                   optimalLinkCost = linkCost;
                }
             }
-            ref var optimalLink = ref visibleWaypointLinks[optimalLinkIndex];
-            var (c, d) = (wi, optimalLink.PriorIndex);
-            if (c < d) (c, d) = (d, c);
-            optimalLinkToWaypoints[wi] = new PathLink {
-               PriorIndex = optimalLink.PriorIndex,
-               TotalCost = optimalLink.TotalCost + waypointToWaypointLut[c][d].TotalCost
-            };
+
+            if (optimalLinkIndex == -1) {
+               // todo: this shouldn't happen!
+               optimalLinkToWaypoints[wi] = new PathLink {
+                  PriorIndex = PathLink.ErrorInvalidIndex,
+                  TotalCost = float.PositiveInfinity
+               };
+            } else {
+               ref var optimalLink = ref visibleWaypointLinks[optimalLinkIndex];
+               var (c, d) = (wi, optimalLink.PriorIndex);
+               if (c < d) (c, d) = (d, c);
+               optimalLinkToWaypoints[wi] = new PathLink {
+                  PriorIndex = optimalLink.PriorIndex,
+                  TotalCost = optimalLink.TotalCost + waypointToWaypointLut[c][d].TotalCost
+               };
+            }
          };
 
          // Cost from p to other crossoverPoints...
@@ -339,15 +348,24 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                      optimalLinkToOtherCrossoverPointCost = cost;
                   }
                }
-               ref var optimalLinkToOtherCrossoverPoint = ref visibleWaypointLinks[optimalLinkToOtherCrossoverPointIndex];
 
-               //--
-               var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
-               var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
-               optimalLinkToCrossovers[cpi] = new PathLink {
-                  PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
-                  TotalCost = totalCost
-               };
+               if (optimalLinkToOtherCrossoverPointIndex == -1) {
+                  // Todo: This shouldn't happen!
+                  optimalLinkToCrossovers[cpi] = new PathLink {
+                     PriorIndex = PathLink.ErrorInvalidIndex,
+                     TotalCost = float.PositiveInfinity
+                  };
+               } else {
+                  ref var optimalLinkToOtherCrossoverPoint = ref visibleWaypointLinks[optimalLinkToOtherCrossoverPointIndex];
+
+                  //--
+                  var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
+                  var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
+                  optimalLinkToCrossovers[cpi] = new PathLink {
+                     PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
+                     TotalCost = totalCost
+                  };
+               }
             }
          }
 

@@ -78,7 +78,7 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public override List<EdgeJob> EmitCrossoverJobs(double crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv) {
-         return new List<EdgeJob>();
+//         return new List<EdgeJob>();
 
          var sourceSegmentVector = SourceSegment.First.To(SourceSegment.Second).ToDoubleVector2();
          var destinationSegmentVector = DestinationSegment.First.To(DestinationSegment.Second).ToDoubleVector2();

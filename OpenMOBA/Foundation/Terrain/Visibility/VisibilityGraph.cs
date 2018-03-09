@@ -123,13 +123,17 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
          if (node.visibilityGraphNodeData.AggregateContourWaypoints != null) {
             return node.visibilityGraphNodeData.AggregateContourWaypoints;
          }
-         var sources = new List<IEnumerable<IntVector2>>();
-         sources.Add(FindContourWaypoints(node));
-         sources.Add(node.Childs.SelectMany(FindContourWaypoints));
+
+         var sources = new HashSet<IntVector2>(FindContourWaypoints(node));
+         foreach (var child in node.Childs) {
+            foreach (var waypoint in FindContourWaypoints(child)) {
+               sources.Add(waypoint);
+            }
+         }
 //         if (node.visibilityGraphNodeData.EdgeDescriptions != null) {
 //            sources.Add(node.visibilityGraphNodeData.ErodedCrossoverSegments.SelectMany(c => c.Points));
 //         }
-         return node.visibilityGraphNodeData.AggregateContourWaypoints = sources.SelectMany(x => x).ToArray();
+         return node.visibilityGraphNodeData.AggregateContourWaypoints = sources.ToArray(); //sources.SelectMany(x => x).ToArray();
       }
 
       public static PolyNodeVisibilityGraph ComputeVisibilityGraph(this PolyNode landNode) {
@@ -229,6 +233,7 @@ namespace OpenMOBA.Foundation.Terrain.Visibility {
 
       // for direct link from waypoint to non-waypoint.
       public const int DirectPathIndex = -1337;
+      public const int ErrorInvalidIndex = -21337;
 
       public int PriorIndex;
       public float TotalCost;

@@ -60,7 +60,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          return Enumerable.Select<IntLineSegment2, Polygon2>(Job.CrossoverSegments, segment => {
             var firstToSecond = segment.First.To(segment.Second).ToDoubleVector2();
             var perp = new DoubleVector2(firstToSecond.Y, -firstToSecond.X);
-            var extrusionMagnitude = ActorRadius;
+            var extrusionMagnitude = ActorRadius + 2;
             var extrusion = perp * (extrusionMagnitude / perp.Norm2D());
             var shrink = firstToSecond * (ActorRadius / firstToSecond.Norm2D());
             var points = new List<IntVector2>(new []{

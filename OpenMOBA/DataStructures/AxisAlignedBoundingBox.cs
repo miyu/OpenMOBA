@@ -63,5 +63,24 @@ namespace OpenMOBA.DataStructures {
             Extents = new DoubleVector3((maxX - minX) / 2, (maxY - minY) / 2, (maxZ - minZ) / 2)
          };
       }
+
+      public bool Intersects(AxisAlignedBoundingBox other) {
+         var lbn = Center - Extents;
+         var rtf = Center + Extents;
+
+         var otherLbn = other.Center - other.Extents;
+         var otherRtf = other.Center + other.Extents;
+
+         if (lbn.X > otherRtf.X) return false;
+         if (otherLbn.X > rtf.X) return false;
+
+         if (lbn.Y > otherRtf.Y) return false;
+         if (otherLbn.Y > rtf.Y) return false;
+
+         if (lbn.Z > otherRtf.Z) return false;
+         if (otherLbn.Z > rtf.Z) return false;
+
+         return true;
+      }
    }
 }

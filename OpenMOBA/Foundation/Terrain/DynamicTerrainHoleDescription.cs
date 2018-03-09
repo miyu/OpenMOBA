@@ -31,7 +31,7 @@ namespace OpenMOBA.Foundation.Terrain {
          Trace.Assert(Matrix4x4.Decompose(instanceMetadata.WorldTransform, out var scale, out var rotation, out var translation));
          Trace.Assert(Math.Abs(scale.X - scale.Y) < 1E-9 && Math.Abs(scale.X - scale.Z) < 1E-9);
          var effectiveRadiusWorld = scale.X * Radius;
-         var normalSectorWorld = Vector3.TransformNormal(new Vector3(0, 0, 1), sectorNodeDescription.WorldTransformInv).ToOpenMobaVector();
+         var normalSectorWorld = Vector3.TransformNormal(new Vector3(0, 0, 1), sectorNodeDescription.WorldTransform).ToOpenMobaVector();
          var normalSectorWorldUnit = normalSectorWorld / normalSectorWorld.Norm2D();
          var sectorOriginWorld = Vector3.Transform(new Vector3(0, 0, 0), sectorNodeDescription.WorldTransform).ToOpenMobaVector();
          var distanceWorld = Math.Abs((sectorOriginWorld - translation.ToOpenMobaVector()).Dot(normalSectorWorldUnit));
@@ -47,9 +47,22 @@ namespace OpenMOBA.Foundation.Terrain {
             new Vector3(0, 0, effectiveRadiusWorldOnSectorPlane),
             sectorNodeDescription.InstanceMetadata.WorldTransformInv
          ).Length();
+
+//         if (effectiveRadiusSector < 200) {
+//            projectedHoleIncludedContours = null;
+//            projectedHoleExcludedContours = null;
+//            return false;
+//         } else {
+//            projectedHoleIncludedContours = new List<Polygon2> {
+//               Polygon2.CreateCircle(0, 0, 20)
+//            };
+//            projectedHoleExcludedContours = new List<Polygon2>();
+//            return true;
+//         }
+
          var centerSector = Vector3.Transform(
-            new Vector3(0, 0, 0),
-            instanceMetadata.WorldTransform * sectorNodeDescription.InstanceMetadata.WorldTransformInv
+            translation,
+            sectorNodeDescription.InstanceMetadata.WorldTransformInv
          );
 
          projectedHoleIncludedContours = new List<Polygon2> {
@@ -175,7 +188,13 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public bool EnableDebugHighlight { get; set; }
 
+      public AxisAlignedBoundingBox WorldBounds => InstanceMetadata.WorldAABB;
+
       public void EnhanceLocalGeometryJob(SectorNodeDescription sectorNodeDescription, ref LocalGeometryJob localGeometryRenderJob) {
+         if (!WorldBounds.Intersects(sectorNodeDescription.WorldBounds)) {
+            return;
+         }
+
          IReadOnlyList<Polygon2> projectedHoleIncludedContours, projectedHoleExcludedContours;
          if (!StaticStaticMetadata.TryProjectOnto(InstanceMetadata, sectorNodeDescription, out projectedHoleIncludedContours, out projectedHoleExcludedContours)) {
             return;

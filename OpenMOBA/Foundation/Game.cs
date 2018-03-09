@@ -134,8 +134,14 @@ namespace OpenMOBA.Foundation {
 
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
          // shift by something like -300, 0, 2700
-         //LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
-         //LoadMeshAsMap("Assets/bunny_decimate_0_03.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
+         LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
+//         LoadMeshAsMap("Assets/bunny_decimate_0_03.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
+
+         var sphereHole = TerrainService.CreateHoleDescription(new SphereHoleStaticMetadata { Radius = 500 });
+         sphereHole.WorldTransform = Matrix4x4.CreateTranslation(-561.450012207031f, -1316.31005859375f, -116.25f);
+         GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(100), sphereHole));
+//         GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(200), sphereHole));
+
          //LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
          //LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0), new DoubleVector3(300, 0, -2700), 500);
 
@@ -153,6 +159,7 @@ namespace OpenMOBA.Foundation {
          */
 
 
+         /*
          var sector = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
          sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(1 * 1000 - 1500, 0 * 1000 - 500, 0));
          TerrainService.AddSectorNodeDescription(sector);
@@ -162,6 +169,7 @@ namespace OpenMOBA.Foundation {
          var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
          var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
          TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, left2, left2));
+         */
 
          /*
          var sectorSpanWidth = 3;
@@ -242,6 +250,7 @@ namespace OpenMOBA.Foundation {
          ////            if (i == 5) break;
          //         }
 
+         /*
          for (int i = 0; i < 150; i++) {
             break;
             var x = r.Next(-520, -480);
@@ -278,7 +287,7 @@ namespace OpenMOBA.Foundation {
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(i * 15), sphereHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(i * 15 + 14), sphereHole));
          }
-
+         /**/
 
          //
          //r.NextBytes(new byte[1337]);
