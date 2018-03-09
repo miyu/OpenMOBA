@@ -12,7 +12,7 @@ using Xunit;
 
 namespace CrossoverPointTests {
    public class NameThisEventually {
-      private LocalGeometryView BuildLgv(double holeDilationRadius, params TerrainStaticMetadata[] holeMetadatas) {
+      private LocalGeometryView BuildLgv(double holeDilationRadius, params IHoleStaticMetadata[] holeMetadatas) {
          var store = new SectorGraphDescriptionStore();
          var terrainService = new TerrainService(store, new TerrainSnapshotCompiler(store));
 
@@ -32,7 +32,7 @@ namespace CrossoverPointTests {
          return terrainOverlayNetwork.TerrainNodes.First().LocalGeometryView;
       }
 
-      private TerrainStaticMetadata BuildRectangleHole(int x, int y, int width, int height, long rotationBits = -1) {
+      private IHoleStaticMetadata BuildRectangleHole(int x, int y, int width, int height, long rotationBits = -1) {
          var rotation = rotationBits == -1 ? 0.0 : BitConverter.Int64BitsToDouble(rotationBits);
          var contour = Polygon2.CreateRect(-width / 2, -height / 2, width, height).Points;
          var transform = Matrix3x2.CreateRotation((float)rotation);
@@ -42,7 +42,7 @@ namespace CrossoverPointTests {
 
          var bounds = IntRect2.BoundingPoints(contour.ToArray()).ToDotNetRectangle();
 
-         return new TerrainStaticMetadata {
+         return new PrismHoleStaticMetadata {
             LocalBoundary = bounds,
             LocalIncludedContours = new[] { new Polygon2(contour, false) }
          };

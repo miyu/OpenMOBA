@@ -386,8 +386,8 @@ namespace OpenMOBA.Foundation.Terrain {
          return new SectorNodeDescription(this, metadata);
       }
 
-      public DynamicTerrainHoleDescription CreateHoleDescription(TerrainStaticMetadata metadata) {
-         return new DynamicTerrainHoleDescription(this, metadata);
+      public DynamicTerrainHoleDescription CreateHoleDescription(IHoleStaticMetadata staticMetadata) {
+         return new DynamicTerrainHoleDescription(this, staticMetadata);
       }
 
       public void AddSectorNodeDescription(SectorNodeDescription sectorNodeDescription) {

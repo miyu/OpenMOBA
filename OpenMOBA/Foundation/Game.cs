@@ -243,6 +243,7 @@ namespace OpenMOBA.Foundation {
          //         }
 
          for (int i = 0; i < 150; i++) {
+            break;
             var x = r.Next(-520, -480);
             var y = r.Next(80, 320);
             var width = r.Next(10, 20);
@@ -251,11 +252,6 @@ namespace OpenMOBA.Foundation {
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var rotation = r.NextDouble() * 2 * Math.PI;
 
-//            if (i == 39 || i == 49 || i == 41) goto ok;
-//            continue;
-//            if (i <= 40 || i >= 48) continue;
-
-         ok: 
             var contour = Polygon2.CreateRect(-width / 2, -height / 2, width, height).Points;
             var transform = Matrix3x2.CreateRotation((float)rotation);
             contour = contour.Map(p => Vector2.Transform(p.ToDoubleVector2().ToDotNetVector(), transform).ToOpenMobaVector().LossyToIntVector2())
@@ -264,7 +260,7 @@ namespace OpenMOBA.Foundation {
 
             var bounds = IntRect2.BoundingPoints(contour.ToArray()).ToDotNetRectangle();
 
-            var holeTsm = new TerrainStaticMetadata {
+            var holeTsm = new PrismHoleStaticMetadata {
                LocalBoundary = bounds,
                LocalIncludedContours = new[] { new Polygon2(contour, false) }
             };
@@ -275,6 +271,14 @@ namespace OpenMOBA.Foundation {
             Console.WriteLine($"Event: {x} {y}, {width} {height} {BitConverter.DoubleToInt64Bits(rotation)} @ {startTicks}-{endTicks}");
             //            if (i == 5) break;
          }
+
+         for (var i = 0; i < 40; i++) {
+            var sphereHole = TerrainService.CreateHoleDescription(new SphereHoleStaticMetadata { Radius = 100 });
+            sphereHole.WorldTransform = Matrix4x4.CreateTranslation(-500, 200, -120 + 240 * i / 40);
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(i * 15), sphereHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(i * 15 + 14), sphereHole));
+         }
+
 
          //
          //r.NextBytes(new byte[1337]);
