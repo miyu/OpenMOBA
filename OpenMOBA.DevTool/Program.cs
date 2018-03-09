@@ -106,7 +106,7 @@ namespace OpenMOBA.DevTool {
 		}
 
 		private void RenderDebugFrame() {
-			var holeDilationRadius = 14.0;
+			var holeDilationRadius = 5.0;
 			//Benchmark(holeDilationRadius);
 
 			var terrainSnapshot = TerrainService.CompileSnapshot();
@@ -289,7 +289,7 @@ namespace OpenMOBA.DevTool {
                   var xres = PortalSectorEdgeDescription.X(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)), localGeometryView).ToArray();
                   Console.WriteLine("X size: " + xres.Length);
                   var ps = xres.Map(t => t.Item2).Map(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)).PointAt);
-                  debugCanvas.DrawPoints(ps, new StrokeStyle(Color.Lime, 15));
+                  debugCanvas.DrawPoints(ps, new StrokeStyle(Color.Lime, 5));
                } catch(Exception e) {
                   MessageBox.Show($"!!! {e}");
                   debugCanvas.FillTriangle(new DoubleVector3(20, 20, 0), new DoubleVector3(500, 20, 0), new DoubleVector3(20, 500, 0), new FillStyle(Color.Red));

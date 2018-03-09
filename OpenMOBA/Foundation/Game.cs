@@ -242,11 +242,11 @@ namespace OpenMOBA.Foundation {
          ////            if (i == 5) break;
          //         }
 
-         for (int i = 0; i < 60; i++) {
+         for (int i = 0; i < 150; i++) {
             var x = r.Next(-520, -480);
             var y = r.Next(80, 320);
-            var width = r.Next(5, 10);
-            var height = r.Next(5, 10);
+            var width = r.Next(10, 20);
+            var height = r.Next(10, 20);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
             var rotation = r.NextDouble() * 2 * Math.PI;

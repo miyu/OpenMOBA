@@ -221,10 +221,13 @@ namespace OpenMOBA.Foundation.Terrain {
             if (localBreakpoints.Count % 2 != 0) throw new Exception("Remove this line of code dear god");
 
             localBreakpoints.Sort();
-            for (var i = localBreakpoints.Count - 2; i >= 0; i -= 1) {
-               if (localBreakpoints[i + 1] - localBreakpoints[i] < 1E-9) {
-                  localBreakpoints.RemoveAt(i + 1);
-                  localBreakpoints.RemoveAt(i);
+            for (var it = localBreakpoints.Count - 1; it >= 0; it -= 1) {
+               // if no following element, continue
+               if (it == localBreakpoints.Count - 1) continue;
+
+               if (localBreakpoints[it + 1] - localBreakpoints[it] < 1E-9) {
+                  localBreakpoints.RemoveAt(it + 1);
+                  localBreakpoints.RemoveAt(it);
                }
             }
 
