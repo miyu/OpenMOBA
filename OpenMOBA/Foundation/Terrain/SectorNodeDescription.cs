@@ -160,11 +160,11 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public bool EnableDebugHighlight { get; set; }
 
-      private Vector4[] ComputeExtrudedBoundsLocal() => new[] {
-         new Vector4(StaticMetadata.LocalBoundary.Left, StaticMetadata.LocalBoundary.Top, 0, 1),
-         new Vector4(StaticMetadata.LocalBoundary.Right, StaticMetadata.LocalBoundary.Top, 0, 1),
-         new Vector4(StaticMetadata.LocalBoundary.Right, StaticMetadata.LocalBoundary.Bottom, 0, 1),
-         new Vector4(StaticMetadata.LocalBoundary.Left, StaticMetadata.LocalBoundary.Bottom, 0, 1),
+      private Vector3[] ComputeExtrudedBoundsLocal() => new[] {
+         new Vector3(StaticMetadata.LocalBoundary.Left, StaticMetadata.LocalBoundary.Top, 0),
+         new Vector3(StaticMetadata.LocalBoundary.Right, StaticMetadata.LocalBoundary.Top, 0),
+         new Vector3(StaticMetadata.LocalBoundary.Right, StaticMetadata.LocalBoundary.Bottom, 0),
+         new Vector3(StaticMetadata.LocalBoundary.Left, StaticMetadata.LocalBoundary.Bottom, 0),
 //         new Vector4(StaticMetadata.LocalBoundary.Left, StaticMetadata.LocalBoundary.Top, InstanceMetadata.Height, 1),
 //         new Vector4(StaticMetadata.LocalBoundary.Right, StaticMetadata.LocalBoundary.Top, InstanceMetadata.Height, 1),
 //         new Vector4(StaticMetadata.LocalBoundary.Right, StaticMetadata.LocalBoundary.Bottom, InstanceMetadata.Height, 1),
@@ -176,16 +176,16 @@ namespace OpenMOBA.Foundation.Terrain {
          var transformHoleToSector = InstanceMetadata.WorldTransform * sectorNodeDescription.WorldTransformInv;
 
          // compute projected poly's bounds in sector-local space.
-         var boundsWorld = ComputeExtrudedBoundsLocal().Map(p => Vector4.Transform(p, transformHoleToSector));
+         var boundsWorld = ComputeExtrudedBoundsLocal().Map(p => Vector3.Transform(p, transformHoleToSector));
 
          // test if projected poly is within sector-local space.
          var intersects = boundsWorld.Any(p => sectorNodeDescription.StaticMetadata.LocalBoundary.Contains((int)p.X, (int)p.Y));
          var withinHeight = boundsWorld.Any(p => p.Z >= -1E-3 && p.Z <= InstanceMetadata.Height);
-         if (!intersects || !withinHeight) {
-            projectedHoleIncludedContours = null;
-            projectedHoleExcludedContours = null;
-            return false;
-         }
+//         if (false && () !intersects || !withinHeight) {
+//            projectedHoleIncludedContours = null;
+//            projectedHoleExcludedContours = null;
+//            return false;
+//         }
 
          // Project rest of points into sector-local space.
          projectedHoleIncludedContours = StaticMetadata.LocalIncludedContours.Map(contour =>

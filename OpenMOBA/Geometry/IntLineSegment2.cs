@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -7,6 +8,7 @@ using cInt = System.Int32;
 namespace OpenMOBA.Geometry {
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct IntLineSegment2 {
+      [DebuggerStepThrough]
       public IntLineSegment2(IntVector2 first, IntVector2 second) {
          First = first;
          Second = second;

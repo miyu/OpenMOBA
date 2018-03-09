@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using ClipperLib;
+using OpenMOBA.DataStructures;
 using Poly2Tri.Triangulation.Delaunay;
 
 using cInt = System.Int32;
@@ -44,6 +45,9 @@ namespace OpenMOBA.Geometry {
       public static Vector2 ToDotNetVector(this IntVector2 v) => new Vector2(v.X, v.Y);
       public static Vector2 ToDotNetVector(this DoubleVector2 v) => new Vector2((float)v.X, (float)v.Y);
       public static DoubleVector2 ToOpenMobaVector(this Vector2 v) => new DoubleVector2(v.X, v.Y);
+
+      // todo: this is probablby wrong, sorry.
+      public static Rectangle ToDotNetRectangle(this IntRect2 r) => new Rectangle(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
 
       public static bool IsCollinearWith(this IntLineSegment2 a, IntLineSegment2 b) {
          var a1a2 = a.First.To(a.Second);

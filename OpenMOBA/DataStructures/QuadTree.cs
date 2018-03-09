@@ -152,6 +152,18 @@ namespace OpenMOBA.DataStructures {
          };
       }
 
+      public static IntRect2 BoundingPoints(IntVector2[] points, int startIndexInclusive = 0, int endIndexExclusive = -1) {
+         if (endIndexExclusive == -1) endIndexExclusive = points.Length;
+         cInt minX = cInt.MaxValue, minY = cInt.MaxValue, maxX = cInt.MinValue, maxY = cInt.MinValue;
+         for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+            if (points[i].X < minX) minX = points[i].X;
+            if (points[i].Y < minY) minY = points[i].Y;
+            if (maxX < points[i].X) maxX = points[i].X;
+            if (maxY < points[i].Y) maxY = points[i].Y;
+         }
+         return new IntRect2 { Left = minX, Top = minY, Right = maxX, Bottom = maxY };
+      }
+
       public static IntRect2 BoundingSegments(IntLineSegment2[] subsegments, int startIndexInclusive = 0, int endIndexExclusive = -1) {
          if (endIndexExclusive == -1) endIndexExclusive = subsegments.Length;
          cInt minX = cInt.MaxValue, minY = cInt.MaxValue, maxX = cInt.MinValue, maxY = cInt.MinValue;

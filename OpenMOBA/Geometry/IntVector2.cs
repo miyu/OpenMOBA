@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -91,6 +92,7 @@ namespace OpenMOBA.Geometry {
 
       public const int Size = 2 * sizeof(cInt);
 
+      [DebuggerStepThrough]
       public IntVector2(cInt x, cInt y) {
          X = x;
          Y = y;

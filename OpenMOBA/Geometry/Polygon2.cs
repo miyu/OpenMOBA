@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 
 namespace OpenMOBA.Geometry {
@@ -65,6 +66,8 @@ namespace OpenMOBA.Geometry {
       public List<IntVector2> Points { get; set; }
       public bool IsHole { get; set; }
       public bool IsClosed => true;
+
+      public static Polygon2 CreateRect(Rectangle rectangle) => CreateRect(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
 
       public static Polygon2 CreateRect(int x, int y, int width, int height) {
          var points = new List<IntVector2> {

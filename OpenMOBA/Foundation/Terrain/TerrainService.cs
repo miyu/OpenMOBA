@@ -78,6 +78,8 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       public override List<EdgeJob> EmitCrossoverJobs(double crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv) {
+         return new List<EdgeJob>();
+
          var sourceSegmentVector = SourceSegment.First.To(SourceSegment.Second).ToDoubleVector2();
          var destinationSegmentVector = DestinationSegment.First.To(DestinationSegment.Second).ToDoubleVector2();
 
@@ -159,7 +161,7 @@ namespace OpenMOBA.Foundation.Terrain {
 //         }
       }
 
-      private IEnumerable<(PolyNode, double)> X(IntLineSegment2 seg, LocalGeometryView v) {
+      public static IEnumerable<(PolyNode, double)> X(IntLineSegment2 seg, LocalGeometryView v) {
          var punchedLand = v.PunchedLand;
          punchedLand.AssertIsContourlessRootHolePunchResult();
 
@@ -175,48 +177,66 @@ namespace OpenMOBA.Foundation.Terrain {
 
          punchedLand.Childs.ForEach(R);
 
-         var allBreakpoints = new SortedList<double, (PolyNode, SortedList<double, bool>)>();
+         var allBreakpoints = new SortedList<double, (PolyNode, List<double>)>();
          foreach (var polyNode in punchedLand.EnumerateAllNonrootNodes()) {
-            var localBreakpoints = new SortedList<double, bool>();
+            var localBreakpoints = new List<double>();
 
             for (var i = 0; i < polyNode.Contour.Count; i++) {
                var contourSegment = new IntLineSegment2(
                   i == 0 ? polyNode.Contour.Last() : polyNode.Contour[i - 1],
-                  polyNode.Contour[i]).Dilate(4);
+                  polyNode.Contour[i]); // i = 5 {((24, 619), (-15, 619))}, i = 7
 
                var dcs = contourSegment.First.To(contourSegment.Second);
                var dseg = seg.First.To(seg.Second);
-               var dot = Math.Abs(dcs.ToDoubleVector2().ToUnit().Dot(dseg.ToDoubleVector2().ToUnit()));
-               if (dot > 0.999) {
-                  continue;
-               }
+
+//               var dot = Math.Abs(dcs.ToDoubleVector2().ToUnit().Dot(dseg.ToDoubleVector2().ToUnit()));
+//               if (dot > 0.999) {
+//                  continue;
+//               }
 
                if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
-                  localBreakpoints[t] = true;
+                  var clocknessFirst = GeometryOperations.Clockness(seg.First, seg.Second, contourSegment.First);
+                  var clocknessSecond = GeometryOperations.Clockness(seg.First, seg.Second, contourSegment.Second);
+                  if (clocknessFirst == Clockness.Neither) {
+                     Debug.Assert(clocknessSecond != Clockness.Neither);
+                     if (clocknessSecond == Clockness.Clockwise) continue;
+                  } else if (clocknessSecond == Clockness.Neither) {
+                     Debug.Assert(clocknessFirst != Clockness.Neither);
+                     if (clocknessFirst == Clockness.Clockwise) continue;
+                  }
+
+                  localBreakpoints.Add(t);
                }
             }
 
             if (Clipper.PointInPolygon(seg.First, polyNode.Contour) != PolygonContainmentResult.OutsidePolygon) {
-               localBreakpoints[0.0] = true;
+               localBreakpoints.Add(0.0);
             }
 
             if (Clipper.PointInPolygon(seg.Second, polyNode.Contour) != PolygonContainmentResult.OutsidePolygon) {
-               localBreakpoints[1.0] = true;
+               localBreakpoints.Add(1.0);
             }
 
+            Trace.Assert(localBreakpoints.Count % 2 == 0);
+            if (localBreakpoints.Count % 2 != 0) throw new Exception("Remove this line of code dear god");
+
+            localBreakpoints.Sort();
             for (var i = localBreakpoints.Count - 2; i >= 0; i -= 1) {
-               if (localBreakpoints.Keys[i + 1] - localBreakpoints.Keys[i] < 0.04) {
+               if (localBreakpoints[i + 1] - localBreakpoints[i] < 1E-9) {
+                  localBreakpoints.RemoveAt(i + 1);
                   localBreakpoints.RemoveAt(i);
                }
             }
 
             Trace.Assert(localBreakpoints.Count % 2 == 0);
+            if (localBreakpoints.Count % 2 != 0) throw new Exception("Remove this line of code dear god");
+
             if (localBreakpoints.Count > 0) {
-               allBreakpoints.Add(localBreakpoints.Keys[0], (polyNode, localBreakpoints));
+               allBreakpoints.Add(localBreakpoints[0], (polyNode, localBreakpoints));
             }
          }
 
-         var res = allBreakpoints.SelectMany(kvp => kvp.Value.Item2.Keys.Select(t => (kvp.Value.Item1, t))).ToList();
+         var res = allBreakpoints.SelectMany(kvp => kvp.Value.Item2.Select(t => (kvp.Value.Item1, t))).ToList();
          return res;
 
 //         // TODO: Fix this hack. Eventually. Maybe never. Possibly.

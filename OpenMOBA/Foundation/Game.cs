@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Threading;
 using Canvas3D;
 using ClipperLib;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Geometry;
@@ -134,7 +135,7 @@ namespace OpenMOBA.Foundation {
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
          // shift by something like -300, 0, 2700
          //LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
-         LoadMeshAsMap("Assets/bunny_decimate_0_03.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
+         //LoadMeshAsMap("Assets/bunny_decimate_0_03.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
          //LoadMeshAsMap("Assets/dragon.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 500);
          //LoadMeshAsMap("Assets/dragon_simp_15deg_decimate_collapse_0.01.obj", new DoubleVector3(0.015, -0.10, 0), new DoubleVector3(300, 0, -2700), 500);
 
@@ -151,6 +152,17 @@ namespace OpenMOBA.Foundation {
          //[]
          */
 
+
+         var sector = TerrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
+         sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(1 * 1000 - 1500, 0 * 1000 - 500, 0));
+         TerrainService.AddSectorNodeDescription(sector);
+
+         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
+         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
+         var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
+         TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sector, sector, left2, left2));
+
          /*
          var sectorSpanWidth = 3;
          var sectorSpanHeight = 1;
@@ -158,7 +170,8 @@ namespace OpenMOBA.Foundation {
          for (var y = 0; y < sectorSpanHeight; y++) {
             var rng = new Random(y);
             for (var x = 0; x < sectorSpanWidth; x++) {
-               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
+//               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
+               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
                sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(x * 1000 - 1500, y * 1000 - 500, 0));
@@ -190,31 +203,79 @@ namespace OpenMOBA.Foundation {
             TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up2, down2));
          }
          
-         var donutOriginX = 0;
-         var donutOriginY = 0;
-         var donutThickness = 25;
-         var donutInnerSpan = 35;
-         var holeTsm = new TerrainStaticMetadata {
-            LocalBoundary = new Rectangle(donutOriginX, donutOriginY, 2 * donutThickness + donutInnerSpan, 2 * donutThickness + donutInnerSpan),
-            LocalIncludedContours = new[] { Polygon2.CreateRect(donutOriginX, donutOriginY, 2 * donutThickness + donutInnerSpan, 2 * donutThickness + donutInnerSpan) },
-            LocalExcludedContours = new List<Polygon2> {
-               Polygon2.CreateRect(donutOriginX + donutThickness, donutOriginY + donutThickness, donutInnerSpan, donutInnerSpan)
-            }
-         };
-         var hole = TerrainService.CreateHoleDescription(holeTsm);
-         hole.WorldTransform = Matrix4x4.Identity;
-         TerrainService.AddTemporaryHoleDescription(hole);
+//         var donutOriginX = 0;
+//         var donutOriginY = 0;
+//         var donutThickness = 25;
+//         var donutInnerSpan = 35;
+//         var holeTsm = new TerrainStaticMetadata {
+//            LocalBoundary = new Rectangle(donutOriginX, donutOriginY, 2 * donutThickness + donutInnerSpan, 2 * donutThickness + donutInnerSpan),
+//            LocalIncludedContours = new[] { Polygon2.CreateRect(donutOriginX, donutOriginY, 2 * donutThickness + donutInnerSpan, 2 * donutThickness + donutInnerSpan) },
+//            LocalExcludedContours = new List<Polygon2> {
+//               Polygon2.CreateRect(donutOriginX + donutThickness, donutOriginY + donutThickness, donutInnerSpan, donutInnerSpan)
+//            }
+//         };
+//         var hole = TerrainService.CreateHoleDescription(holeTsm);
+//         hole.WorldTransform = Matrix4x4.Identity;
+//         TerrainService.AddTemporaryHoleDescription(hole);
          /**/
 
          var r = new Random(1);
-         //for (int i = 0; i < 30; i++) {
-         //   var poly = Polygon2.CreateRect(r.Next(0, 800), r.Next(0, 800), r.Next(100, 200), r.Next(100, 200));
-         //   var startTicks = r.Next(0, 500);
-         //   var endTicks = r.Next(startTicks + 20, startTicks + 100);
-         //   var terrainHole = new DynamicTerrainHoleDescription { Polygons = new[] { poly } };
-         //   GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
-         //   GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
-         //}
+         //         for (int i = 0; i < 300; i++) {
+         //            var x = r.Next(0, 3000) - 1500;
+         //            var y = r.Next(0, 1000) - 500;
+         //            var width = r.Next(100, 200);
+         //            var height = r.Next(100, 200);
+         //            var startTicks = r.Next(0, 500);
+         //            var endTicks = r.Next(startTicks + 20, startTicks + 100);
+         //
+         ////            if (i < 83 || i >= 85) continue;
+         ////            if (i != 83) continue;
+         //
+         //            var holeTsm = new TerrainStaticMetadata {
+         //               LocalBoundary = new Rectangle(x, y, width, height),
+         //               LocalIncludedContours = new[] { Polygon2.CreateRect(x, y, width, height) }
+         //            };
+         //            var terrainHole = TerrainService.CreateHoleDescription(holeTsm);
+         //            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+         //            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+         //            Console.WriteLine($"Event: {x} {y}, {width} {height} @ {startTicks}-{endTicks}");
+         ////            if (i == 5) break;
+         //         }
+
+         for (int i = 0; i < 60; i++) {
+            var x = r.Next(-520, -480);
+            var y = r.Next(80, 320);
+            var width = r.Next(5, 10);
+            var height = r.Next(5, 10);
+            var startTicks = r.Next(0, 500);
+            var endTicks = r.Next(startTicks + 20, startTicks + 100);
+            var rotation = r.NextDouble() * 2 * Math.PI;
+
+//            if (i == 39 || i == 49 || i == 41) goto ok;
+//            continue;
+//            if (i <= 40 || i >= 48) continue;
+
+         ok: 
+            var contour = Polygon2.CreateRect(-width / 2, -height / 2, width, height).Points;
+            var transform = Matrix3x2.CreateRotation((float)rotation);
+            contour = contour.Map(p => Vector2.Transform(p.ToDoubleVector2().ToDotNetVector(), transform).ToOpenMobaVector().LossyToIntVector2())
+                             .Map(p => p + new IntVector2(x, y))
+                             .ToList();
+
+            var bounds = IntRect2.BoundingPoints(contour.ToArray()).ToDotNetRectangle();
+
+            var holeTsm = new TerrainStaticMetadata {
+               LocalBoundary = bounds,
+               LocalIncludedContours = new[] { new Polygon2(contour, false) }
+            };
+            var terrainHole = TerrainService.CreateHoleDescription(holeTsm);
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+
+            Console.WriteLine($"Event: {x} {y}, {width} {height} {BitConverter.DoubleToInt64Bits(rotation)} @ {startTicks}-{endTicks}");
+            //            if (i == 5) break;
+         }
+
          //
          //r.NextBytes(new byte[1337]);
          //
@@ -290,8 +351,8 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
             //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 5) {
-               Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds}");
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 20) {
+               Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeService.Ticks}");
                break;
             }
          }

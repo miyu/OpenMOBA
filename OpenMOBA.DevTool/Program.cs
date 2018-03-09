@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Windows.Forms;
 using Canvas3D;
 using ClipperLib;
 using OpenMOBA.DataStructures;
@@ -23,8 +24,8 @@ namespace OpenMOBA.DevTool {
 	public static class Program {
 		public static void Main(string[] args) {
 			var gameFactory = new GameFactory();
-//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
-			gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
+         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
+//			gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
 			OpenMOBA.Program.Main(gameFactory);
 		}
 	}
@@ -52,7 +53,7 @@ namespace OpenMOBA.DevTool {
 			if (GameTimeService.Ticks == 0) {
 				//            AddSquiggleHole();
 			}
-			if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 64 == 0) RenderDebugFrame();
+			if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 16 == 0) RenderDebugFrame();
 		}
 
 		private void AddSquiggleHole() {
@@ -105,7 +106,7 @@ namespace OpenMOBA.DevTool {
 		}
 
 		private void RenderDebugFrame() {
-			var holeDilationRadius = 0.0;
+			var holeDilationRadius = 14.0;
 			//Benchmark(holeDilationRadius);
 
 			var terrainSnapshot = TerrainService.CompileSnapshot();
@@ -117,9 +118,9 @@ namespace OpenMOBA.DevTool {
 			debugCanvas.BatchDraw(() => {
 				debugCanvas.Transform = Matrix4x4.Identity;
 
-				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
-				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
-				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
+//				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(1000, 0, 0), new StrokeStyle(Color.Red, 50));
+//				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 1000, 0), new StrokeStyle(Color.Lime, 50));
+//				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 1000), new StrokeStyle(Color.Blue, 50));
 
             //            return;
 
@@ -186,7 +187,7 @@ namespace OpenMOBA.DevTool {
 				debugCanvas.DrawPoint(destinationPoint, new StrokeStyle(Color.Red, 200));
 				/**/
 
-			   DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, new DoubleVector3(0, -500, 400), new DoubleVector3(0, 500, 400));
+//			   DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, new DoubleVector3(0, -500, 400), new DoubleVector3(0, 500, 400));
 
             var boundsBvh = terrainOverlayNetwork.NodeBvh;
 
@@ -240,7 +241,8 @@ namespace OpenMOBA.DevTool {
 			   //debugCanvas.DrawPoint(new DoubleVector3(0, 0, 500), new StrokeStyle(Color.Red, 50));
 
 
-			   var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
+			   var colors = new[] { Color.White };
+			   //var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
             foreach (var (index, terrainNode) in terrainOverlayNetwork.TerrainNodes.Enumerate()) {
 					var sectorNodeDescription = terrainNode.SectorNodeDescription;
 					var localGeometryView = terrainNode.LocalGeometryView;
@@ -270,110 +272,123 @@ namespace OpenMOBA.DevTool {
 
 					debugCanvas.Transform = sectorNodeDescription.WorldTransform;
 					//debugCanvas.DrawPoint(new DoubleVector3(0, 0, 0), new StrokeStyle(Color.Black, 100));
-					debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(colors[index % colors.Length]));
-//					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+//					debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(colors[index % colors.Length]));
+					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
 
 					//Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
 					foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
 						debugCanvas.DrawPolygonContours(v.holeIncludedContours, StrokeStyle.RedHairLineSolid);
 						debugCanvas.DrawPolygonContours(v.holeExcludedContours, StrokeStyle.RedHairLineSolid);
+                  Console.WriteLine("!");
 					}
 
+               
+               debugCanvas.DrawLine(new DoubleVector3(0, 600, 0), new DoubleVector3(0, 800, 0), new StrokeStyle(Color.Magenta, 1));
+               try {
+                  var xres = PortalSectorEdgeDescription.X(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)), localGeometryView).ToArray();
+                  Console.WriteLine("X size: " + xres.Length);
+                  var ps = xres.Map(t => t.Item2).Map(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)).PointAt);
+                  debugCanvas.DrawPoints(ps, new StrokeStyle(Color.Lime, 15));
+               } catch(Exception e) {
+                  MessageBox.Show($"!!! {e}");
+                  debugCanvas.FillTriangle(new DoubleVector3(20, 20, 0), new DoubleVector3(500, 20, 0), new DoubleVector3(20, 500, 0), new FillStyle(Color.Red));
+               }
 
-//               debugCanvas.DrawLine(new IntVector2(144, -7), new IntVector2(145, 2), new StrokeStyle(Color.Orange));
-//               var x = terrainNode.LandPolyNode.FindContourAndChildHoleBarriers();
-//               var y = terrainNode.CrossoverPointManager.CrossoverPoints;
-//
-//               debugCanvas.DrawLineList(x, new StrokeStyle(Color.Red));
-//
-//
-//               var nodeAndChildrenContours = new[] { terrainNode.LandPolyNode.Contour }
-//                  .Concat(terrainNode.LandPolyNode.Childs.Select(c => c.Contour)).ToArray()
-//                  .Map(c => c.Concat(new[] { c.First() }).ToArray());
-//               var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
-//                                                                     .Include(nodeAndChildrenContours)
-//                                                                     .Dilate(15)
-//                                                                     .Erode(10)
-//                                                                     .Execute();
-//               debugCanvas.DrawPolyTree(dilatedNodeAndChildrenPolytree, new StrokeStyle(Color.Lime), new StrokeStyle(Color.Cyan));
+               //               debugCanvas.DrawLine(new IntVector2(144, -7), new IntVector2(145, 2), new StrokeStyle(Color.Orange));
+               //               var x = terrainNode.LandPolyNode.FindContourAndChildHoleBarriers();
+               //               var y = terrainNode.CrossoverPointManager.CrossoverPoints;
+               //
+               //               debugCanvas.DrawLineList(x, new StrokeStyle(Color.Red));
+               //
+               //
+               //               var nodeAndChildrenContours = new[] { terrainNode.LandPolyNode.Contour }
+               //                  .Concat(terrainNode.LandPolyNode.Childs.Select(c => c.Contour)).ToArray()
+               //                  .Map(c => c.Concat(new[] { c.First() }).ToArray());
+               //               var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
+               //                                                                     .Include(nodeAndChildrenContours)
+               //                                                                     .Dilate(15)
+               //                                                                     .Erode(10)
+               //                                                                     .Execute();
+               //               debugCanvas.DrawPolyTree(dilatedNodeAndChildrenPolytree, new StrokeStyle(Color.Lime), new StrokeStyle(Color.Cyan));
 
-					//               var seg = new IntLineSegment2(new IntVector2(-54, 6), new IntVector2(145, 0));
-					//               foreach (var barrier in x) {
-					//                  if (barrier.Intersects(ref seg)) {
-					//                     throw new Exception("!!");
-					//                  }
-					//               }
+               //               var seg = new IntLineSegment2(new IntVector2(-54, 6), new IntVector2(145, 0));
+               //               foreach (var barrier in x) {
+               //                  if (barrier.Intersects(ref seg)) {
+               //                     throw new Exception("!!");
+               //                  }
+               //               }
 
-//               Console.WriteLine(x + "" + y);
+               //               Console.WriteLine(x + "" + y);
 
-					//               debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
-					//               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
-
-
-					//               if (landPolyNode.FindAggregateContourCrossoverWaypoints().Length > 16) {
-					//                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[7], new StrokeStyle(Color.Lime, 50));
-					//                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[16], new StrokeStyle(Color.Lime, 50));
-					//               }
-
-					//               debugCanvas.DrawLine(new IntVector2(800, 500), new IntVector2(1000, 215), new StrokeStyle(Color.Magenta, 5));
-					//               if (terrainNode != terrainOverlayNetwork.TerrainNodes.Last()) continue;
-
-					//               debugCanvas.DrawLine(new IntVector2(400, 550), new IntVector2(0, 615), new StrokeStyle(Color.Magenta, 1));
-					//               Console.WriteLine("!@#@!#!@#@!@");
-					//               Console.WriteLine("!!!!!!!AAAAAA");
-					//               Console.WriteLine(!terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh().TryIntersect(new IntLineSegment2(new IntVector2(400, 550), new IntVector2(0, 615)), out var qqqq) + " " + qqqq);
-					//               Console.WriteLine("!!!!!!!BBBB");
-					//               Console.WriteLine(terrainNode.LandPolyNode.SegmentInLandPolygonNonrecursive(new IntVector2(400, 550), new IntVector2(0, 615)));
-					//               Console.WriteLine("!!!!!!!CCCC");
-					//               var (_, _, _, sourceOptimalLinkToCrossovers) = terrainNode.CrossoverPointManager.FindOptimalLinksToCrossovers(new IntVector2(400, 550));
-					//               Console.WriteLine("!!!!!!!!");
-					//               Console.WriteLine(sourceOptimalLinkToCrossovers[0].PriorIndex);
-					//               Console.WriteLine("!!!!!!!AAAAAA");
-					//               Console.WriteLine(!terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh().TryIntersect(new IntLineSegment2(new IntVector2(400, 550), new IntVector2(0, 615)), out var zzz) + " " + zzz);
-					//               Console.WriteLine("!!!!!!!BBBB");
-					//               Console.WriteLine(terrainNode.LandPolyNode.SegmentInLandPolygonNonrecursive(new IntVector2(400, 550), new IntVector2(0, 615)));
-					//               Console.WriteLine("!!!!!!!CCCC");
-					//               debugCanvas.DrawBvh(terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh());
-
-					//if (!sectorNodeDescription.EnableDebugHighlight) continue;
-
-					//var outboundEdges = terrainNode.OutboundEdgeGroups.SelectMany(kvp => kvp.Value).ToList();
-					//if (outboundEdges.Count >= 4) {
-					//   var g1 = outboundEdges.First();
-					//   var g2 = outboundEdges.Skip(3).First();
-					//   var e1 = g1.Edges[g1.Edges.Length * 3 / 4];
-					//   var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
-					//   var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
-					//   var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
-					//   if (linkEnter.PriorIndex == PathLink.DirectPathIndex) {
-					//      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke2);
-					//   } else {
-					//      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
-					//      debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
-					//   }
-					//}
-					//foreach (var g in outboundEdges) foreach (var e in g.Edges) debugCanvas.DrawPoint(crossoverPointManager.CrossoverPoints[e.SourceCrossoverIndex], new StrokeStyle(Color.White, 3));
-
-					//var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.ContourBvh;
-					//if (bvh != null) debugCanvas.DrawBvh(bvh);
-
-					//               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)));
-					//               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 190), new DoubleVector2(0, 410)));
-					//               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 600), new DoubleVector2(0, 800)));
-					//               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(1000, 190), new DoubleVector2(1000, 410)));
-					//               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(1000, 590), new DoubleVector2(1000, 810)));
-					//               Console.WriteLine("!!!" + ssws.Length);
-					//               foreach (var ssw in ssws) {
-					//                  var ind = landPolyNode.FindAggregateContourCrossoverWaypoints()[ssw];
-					//                  debugCanvas.DrawPoint(ind, new StrokeStyle(Color.DarkSlateGray, 10));
-					//               }
-
-					//               foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
+               //               debugCanvas.DrawPoints(landPolyNode.FindAggregateContourCrossoverWaypoints(), StrokeStyle.RedThick25Solid);
+               //               debugCanvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
 
 
-					//               terrainNode.CrossoverPointManager.CrossoverPoints
+               //               if (landPolyNode.FindAggregateContourCrossoverWaypoints().Length > 16) {
+               //                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[7], new StrokeStyle(Color.Lime, 50));
+               //                  debugCanvas.DrawPoint(landPolyNode.FindAggregateContourCrossoverWaypoints()[16], new StrokeStyle(Color.Lime, 50));
+               //               }
 
-					continue;
+               //               debugCanvas.DrawLine(new IntVector2(800, 500), new IntVector2(1000, 215), new StrokeStyle(Color.Magenta, 5));
+               //               if (terrainNode != terrainOverlayNetwork.TerrainNodes.Last()) continue;
+
+               //               debugCanvas.DrawLine(new IntVector2(400, 550), new IntVector2(0, 615), new StrokeStyle(Color.Magenta, 1));
+               //               Console.WriteLine("!@#@!#!@#@!@");
+               //               Console.WriteLine("!!!!!!!AAAAAA");
+               //               Console.WriteLine(!terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh().TryIntersect(new IntLineSegment2(new IntVector2(400, 550), new IntVector2(0, 615)), out var qqqq) + " " + qqqq);
+               //               Console.WriteLine("!!!!!!!BBBB");
+               //               Console.WriteLine(terrainNode.LandPolyNode.SegmentInLandPolygonNonrecursive(new IntVector2(400, 550), new IntVector2(0, 615)));
+               //               Console.WriteLine("!!!!!!!CCCC");
+               //               var (_, _, _, sourceOptimalLinkToCrossovers) = terrainNode.CrossoverPointManager.FindOptimalLinksToCrossovers(new IntVector2(400, 550));
+               //               Console.WriteLine("!!!!!!!!");
+               //               Console.WriteLine(sourceOptimalLinkToCrossovers[0].PriorIndex);
+               //               Console.WriteLine("!!!!!!!AAAAAA");
+               //               Console.WriteLine(!terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh().TryIntersect(new IntLineSegment2(new IntVector2(400, 550), new IntVector2(0, 615)), out var zzz) + " " + zzz);
+               //               Console.WriteLine("!!!!!!!BBBB");
+               //               Console.WriteLine(terrainNode.LandPolyNode.SegmentInLandPolygonNonrecursive(new IntVector2(400, 550), new IntVector2(0, 615)));
+               //               Console.WriteLine("!!!!!!!CCCC");
+               //               debugCanvas.DrawBvh(terrainNode.LandPolyNode.FindContourAndChildHoleBarriersBvh());
+
+               //if (!sectorNodeDescription.EnableDebugHighlight) continue;
+
+               //var outboundEdges = terrainNode.OutboundEdgeGroups.SelectMany(kvp => kvp.Value).ToList();
+               //if (outboundEdges.Count >= 4) {
+               //   var g1 = outboundEdges.First();
+               //   var g2 = outboundEdges.Skip(3).First();
+               //   var e1 = g1.Edges[g1.Edges.Length * 3 / 4];
+               //   var e2 = g2.Edges[g2.Edges.Length * 1 / 4];
+               //   var linkEnter = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e1.SourceCrossoverIndex][e2.SourceCrossoverIndex];
+               //   var linkExit = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[e2.SourceCrossoverIndex][e1.SourceCrossoverIndex];
+               //   if (linkEnter.PriorIndex == PathLink.DirectPathIndex) {
+               //      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke2);
+               //   } else {
+               //      debugCanvas.DrawLine(crossoverPointManager.CrossoverPoints[e1.SourceCrossoverIndex], crossoverPointManager.Waypoints[linkEnter.PriorIndex], PathStroke);
+               //      debugCanvas.DrawLine(crossoverPointManager.Waypoints[linkExit.PriorIndex], crossoverPointManager.CrossoverPoints[e2.SourceCrossoverIndex], PathStroke);
+               //   }
+               //}
+               //foreach (var g in outboundEdges) foreach (var e in g.Edges) debugCanvas.DrawPoint(crossoverPointManager.CrossoverPoints[e.SourceCrossoverIndex], new StrokeStyle(Color.White, 3));
+
+               //var bvh = terrainNode.LandPolyNode.visibilityGraphNodeData.ContourBvh;
+               //if (bvh != null) debugCanvas.DrawBvh(bvh);
+
+               //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 200), new DoubleVector2(0, 400)));
+               //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 190), new DoubleVector2(0, 410)));
+               //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(0, 600), new DoubleVector2(0, 800)));
+               //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(1000, 190), new DoubleVector2(1000, 410)));
+               //               var ssws = landPolyNode.ComputeSegmentSeeingWaypoints(new DoubleLineSegment2(new DoubleVector2(1000, 590), new DoubleVector2(1000, 810)));
+               //               Console.WriteLine("!!!" + ssws.Length);
+               //               foreach (var ssw in ssws) {
+               //                  var ind = landPolyNode.FindAggregateContourCrossoverWaypoints()[ssw];
+               //                  debugCanvas.DrawPoint(ind, new StrokeStyle(Color.DarkSlateGray, 10));
+               //               }
+
+               //               foreach (var p in crossoverPointManager.CrossoverPoints) debugCanvas.DrawPoint(p, new StrokeStyle(Color.DarkSlateGray, 10));
+
+
+               //               terrainNode.CrossoverPointManager.CrossoverPoints
+
+               continue;
 
 					var punchedLand = localGeometryView.PunchedLand;
 					var s = new Stack<PolyNode>();
@@ -555,9 +570,11 @@ namespace OpenMOBA.DevTool {
 			var rotation = 95 * Math.PI / 180.0;
 			var scale = 1.0f;
 			var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-			var center = new DoubleVector3(0, 0, 0);
+//			var center = new DoubleVector3(0, 0, 0);
+			var center = new DoubleVector3(-500, 200, 0);
 			var projector = new PerspectiveProjector(
-				center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
+//				center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
+				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
 				center,
 				DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
 				displaySize.Width,
