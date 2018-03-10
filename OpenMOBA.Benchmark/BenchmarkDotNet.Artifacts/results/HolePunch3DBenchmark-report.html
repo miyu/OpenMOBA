@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>HolePunch3DBenchmark</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet=v0.10.13, OS=Windows 10 Redstone 2 [1703, Creators Update] (10.0.15063.909)
+Intel Core i7-4770K CPU 3.50GHz (Haswell), 1 CPU, 8 logical cores and 4 physical cores
+Frequency=3417967 Hz, Resolution=292.5716 ns, Timer=TSC
+  [Host]     : .NET Framework 4.6.2 (CLR 4.0.30319.42000), 64bit RyuJIT-v4.7.2115.0
+  DefaultJob : .NET Framework 4.6.2 (CLR 4.0.30319.42000), 64bit RyuJIT-v4.7.2115.0
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>                          Method</th><th> Mean</th><th>Error</th><th>StdDev</th>
+</tr>
+</thead><tbody><tr><td>LoadBunny</td><td>25.64 ms</td><td>0.5102 ms</td><td>1.203 ms</td>
+</tr><tr><td>CompileBunny</td><td>158.31 ms</td><td>3.0820 ms</td><td>3.027 ms</td>
+</tr><tr><td>IncrementallyRecompileHolePunchedBunny</td><td>2,422.09 ms</td><td>47.8609 ms</td><td>60.529 ms</td>
+</tr></tbody></table>
+</body>
+</html>

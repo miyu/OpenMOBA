@@ -84,7 +84,7 @@ namespace OpenMOBA.DevTool {
 				TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
 			}
 
-			for (var i = 0; i < 100; i++) {
+			for (var i = 0; i < 10; i++) {
 				RunBenchmarkIteration();
 				if (false && i == 0)
 					Console.WriteLine(
@@ -101,15 +101,18 @@ namespace OpenMOBA.DevTool {
 			GC.Collect();
 			var sw = new Stopwatch();
 			sw.Start();
-			for (var i = 0; i < 100; i++) RunBenchmarkIteration();
-			Console.WriteLine("100itr: " + sw.ElapsedMilliseconds + "ms");
+			for (var i = 0; i < 10; i++) RunBenchmarkIteration();
+			Console.WriteLine("10itr: " + sw.ElapsedMilliseconds + "ms");
 		}
 
 		private void RenderDebugFrame() {
 			var holeDilationRadius = 5.0;
-			//Benchmark(holeDilationRadius);
+		   if (GameTimeService.Ticks > 20) {
+		      Benchmark(holeDilationRadius);
+		      return;
+		   }
 
-			var terrainSnapshot = TerrainService.CompileSnapshot();
+		   var terrainSnapshot = TerrainService.CompileSnapshot();
 			var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
 			//terrainOverlayNetwork.Initialize();
 
