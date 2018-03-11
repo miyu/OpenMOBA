@@ -19,13 +19,17 @@ using OpenMOBA.Geometry;
 
 namespace RoboticsMotionPlan {
    public partial class Program {
+      public const int MapWidth = 3168;
+      public const int MapHeight = 1984;
+
       public static void Main(string[] args) {
          Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
-         //MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly");
+//         MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly");
+//         MapPolygonizerForm.Run("gates.png", "gates.poly");
 
          var (landPolys, holePolys) = FileLoader.Load("sieg_floor3.poly");
          var tsm = new TerrainStaticMetadata {
-            LocalBoundary = new Rectangle(0, 0, 32000, 32000),
+            LocalBoundary = new Rectangle(0, 0, MapWidth, MapHeight),
             LocalIncludedContours = landPolys.Map(p => new Polygon2(p, true)),
             LocalExcludedContours = holePolys.Map(p => new Polygon2(p.Select(x => x).Reverse().ToList(), true)),
          };
@@ -69,20 +73,27 @@ namespace RoboticsMotionPlan {
                // draw eroded map
                canvas.DrawPolyTree(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray), new StrokeStyle(Color.DarkRed));
 
-               //var from = new IntVector2(620, 2500);
-               var from = new IntVector2(612, 2504);
-               var to = new IntVector2(2488, 996);
-               canvas.DrawPoint(from, StrokeStyle.LimeThick25Solid);
-               canvas.DrawPoint(to, StrokeStyle.RedThick25Solid);
+               // draw waypoints
+               canvas.DrawPoints(goodWaypoints, new StrokeStyle(Color.Blue, 25));
+               canvas.DrawPoint(goodWaypoints[4], new StrokeStyle(Color.Cyan, 25));
                canvas.DrawPoints(badWaypoints, new StrokeStyle(Color.Red, 25));
 
-               var ok = game.PathfinderCalculator.TryFindPath(terrainNode, from, terrainNode, to, out var roadmap);
-               Trace.Assert(ok);
-               var actions = roadmap.Plan.OfType<MotionRoadmapWalkAction>().ToArray();
-               var bigWaypoints = new[] { actions[0].Source.ToDoubleVector2() }
-                  .Concat(actions.Map(a => a.Destination.ToDoubleVector2())).ToArray();
+               // find big waypoints
+               var bigWaypoints = new List<DoubleVector2>();
+               for (var i = 0; i < goodWaypoints.Count; i++) {
+                  var from = i == 0 ? start : goodWaypoints[i - 1];
+                  var to = goodWaypoints[i];
+
+                  var ok = game.PathfinderCalculator.TryFindPath(terrainNode, from, terrainNode, to, out var roadmap);
+                  Trace.Assert(ok);
+                  var actions = roadmap.Plan.OfType<MotionRoadmapWalkAction>().ToArray();
+                  var waypoints = new[] { actions[0].Source.ToDoubleVector2() }
+                     .Concat(actions.Map(a => a.Destination.ToDoubleVector2())).ToArray();
+                  bigWaypoints.AddRange(waypoints);
+               }
+
                var thetas = bigWaypoints.Zip(bigWaypoints.Skip(1), (a, b) => Math.Atan2(b.Y - a.Y, b.X - a.X))
-                                        .ToArray();
+                                           .ToArray();
                var chamferSpacing = 10;
                var chamferSpacingThreshold = 100;
 
