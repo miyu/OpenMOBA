@@ -20,12 +20,12 @@ namespace RoboticsMotionPlan {
             pb = new PictureBox();
             pb.Image = (Bitmap)baseImage.Clone();
             pb.Location = Point.Empty;
-            var scale = 4;
+            var scale = 2;
             pb.Size = new Size(baseImage.Size.Width / scale, baseImage.Size.Height / scale);
             pb.SizeMode = PictureBoxSizeMode.Zoom;
             Controls.Add(pb);
             ClientSize = pb.Size;
-            pb.MouseMove += (s, e) => { Text = e.X * scale + " " + e.Y * scale; };
+            pb.MouseMove += (s, e) => { Text = e.X * scale + " " + (e.Y * scale); };
          }
 
          public void Render(List<List<IntVector2>> landPolys, List<List<IntVector2>> holePolys, IntVector2 start, List<IntVector2> goodWaypoints, List<IntVector2> badWaypoints) {
@@ -70,7 +70,7 @@ namespace RoboticsMotionPlan {
                   var (landPolys, holePolys) = FileLoader.Load(polygonPath);
                   form.Render(landPolys, holePolys, start, goodWaypoints, badWaypoints);
 
-                  Console.ReadLine();
+//                  Console.ReadLine();
                   Thread.Sleep(100);
                } catch (Exception e) {
                   Console.WriteLine("Parse fail");

@@ -20,11 +20,11 @@ namespace RoboticsMotionPlan {
    public partial class Program {
       public static void Main(string[] args) {
          Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
-//         MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly");
+         //MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly");
 
          var (landPolys, holePolys) = FileLoader.Load("sieg_floor3.poly");
          var tsm = new TerrainStaticMetadata {
-            LocalBoundary = new Rectangle(0, 0, 3200, 3200),
+            LocalBoundary = new Rectangle(0, 0, 32000, 32000),
             LocalIncludedContours = landPolys.Map(p => new Polygon2(p, true)),
             LocalExcludedContours = holePolys.Map(p => new Polygon2(p.Select(x => x).Reverse().ToList(), true)),
          };
@@ -58,7 +58,7 @@ namespace RoboticsMotionPlan {
                var unerodedTerrainNode = unerodedOverlayNetwork.TerrainNodes.First();
 
                // eroded network
-               var overlayNetwork = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(12); //1 unit = 0.02m
+               var overlayNetwork = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15); //1 unit = 0.02m
                Trace.Assert(overlayNetwork.TerrainNodes.Count == 1);
                var terrainNode = overlayNetwork.TerrainNodes.First();
                
@@ -82,28 +82,46 @@ namespace RoboticsMotionPlan {
                for (var i = 0; i < actions.Length; i++) {
                   canvas.DrawLine(actions[i].Source, actions[i].Destination, StrokeStyle.CyanThick3Solid);
                   canvas.DrawPoint(actions[i].Source, StrokeStyle.BlackThick5Solid);
-                  canvas.DrawPoint(actions[i].Destination, StrokeStyle.BlackThick25Solid);
+                  canvas.DrawPoint(actions[i].Destination, StrokeStyle.BlackThick5Solid);
                }
 
                // print plan:
                Console.WriteLine("[");
+               var n = 0;
                for (var i = 0; i < actions.Length; i++) {
                   var seg = new IntLineSegment2(actions[i].Source, actions[i].Destination);
                   var v = seg.First.To(seg.Second);
                   var len = (double)v.Norm2F();
-                  var parts = Math.Max((int)Math.Floor(len * 0.02 / 1.0), 2);
+                  var parts = Math.Max((int)Math.Floor(len * 0.02 / 0.7), 2);
 
-                  void PrintPoint(DoubleVector2 p) => Console.Write("(" + p.X + ", " + p.Y + ")");
+                  void PrintPoint(DoubleVector2 p) => Console.Write("(" + p.X.ToString("F3") + ", " + (3200 - p.Y).ToString("F3") + ")");
+
+                  var curTheta = Math.Atan2(-v.Y, v.X);
+                  var nextTheta = curTheta;
+                  if (i + 1 != actions.Length) {
+                     var ns = new IntLineSegment2(actions[i + 1].Source, actions[i + 1].Destination);
+                     var nv = ns.First.To(ns.Second);
+                     nextTheta = Math.Atan2(-nv.Y, nv.X);
+                  }
 
                   for (var j = 0; j < parts; j++) {
+                     continue;
                      Console.Write("(");
                      PrintPoint(seg.PointAt(j / (double)parts));
                      Console.Write(", ");
                      PrintPoint(seg.PointAt((j + 1) / (double)parts));
+                     Console.Write(", ");
+                     var theta = j + 1 == parts ? ((curTheta + nextTheta) / 2) : curTheta;
+                     Console.Write(theta.ToString("F3"));
                      Console.Write(")");
                      if (i + 1 != actions.Length || j + 1 != parts) Console.Write(", ");
 
-                     canvas.DrawPoint(seg.PointAt(j / (double)parts), StrokeStyle.BlackThick25Solid);
+                     if (n >= 50) {
+                        var p = seg.PointAt((j + 1) / (double)parts);
+                        canvas.DrawPoint(p, StrokeStyle.BlackThick25Solid);
+                        canvas.DrawLine(p, p + DoubleVector2.FromRadiusAngle(25, -theta), new StrokeStyle(Color.Magenta, 3));
+                     }
+                     n++;
                   }
                   if (i + 1 != actions.Length) Console.WriteLine();
                }
