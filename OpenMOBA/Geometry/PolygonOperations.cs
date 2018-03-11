@@ -167,7 +167,7 @@ namespace OpenMOBA.Geometry {
                var polytree = new PolyTree();
                var clipper = new ClipperOffset();
                foreach (var contour in currentContours) {
-                  clipper.AddPath(contour, JoinType.jtRound, EndType.etClosedPolygon);
+                  clipper.AddPath(contour, JoinType.jtMiter, EndType.etClosedPolygon);
                }
                clipper.Execute(ref polytree, offsets[i]);
                if (i + 1 == offsets.Count) {

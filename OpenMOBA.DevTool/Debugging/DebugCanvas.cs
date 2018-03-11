@@ -214,6 +214,15 @@ namespace OpenMOBA.DevTool.Debugging {
          canvas.DrawLineList(segments.Map(ToILS3), strokeStyle);
       }
 
+
+      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(points.Map(ToIV3), strokeStyle);
+      }
+
+      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(points.Map(ToDV3), strokeStyle);
+      }
+
       public static void DrawText(this IDebugCanvas canvas, string text, IntVector2 point) {
          canvas.DrawText(text, ToDV3(point));
       }

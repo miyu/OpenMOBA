@@ -8,6 +8,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using ClipperLib;
 using OpenMOBA;
 using OpenMOBA.DevTool;
 using OpenMOBA.DevTool.Debugging;
@@ -77,8 +78,65 @@ namespace RoboticsMotionPlan {
 
                var ok = game.PathfinderCalculator.TryFindPath(terrainNode, from, terrainNode, to, out var roadmap);
                Trace.Assert(ok);
-
                var actions = roadmap.Plan.OfType<MotionRoadmapWalkAction>().ToArray();
+               var bigWaypoints = new[] { actions[0].Source.ToDoubleVector2() }
+                  .Concat(actions.Map(a => a.Destination.ToDoubleVector2())).ToArray();
+               var thetas = bigWaypoints.Zip(bigWaypoints.Skip(1), (a, b) => Math.Atan2(b.Y - a.Y, b.X - a.X))
+                                        .ToArray();
+               var chamferSpacing = 10;
+               var chamferSpacingThreshold = 100;
+
+               void DrawThetaedPoint(DoubleVector2 p, double theta) {
+                  canvas.DrawPoint(p, StrokeStyle.BlackThick25Solid);
+                  canvas.DrawLine(
+                     p,
+                     p + DoubleVector2.FromRadiusAngle(50, theta),
+                     new StrokeStyle(Color.Magenta, 3));
+               }
+
+               var emittedPoints = new List<(DoubleVector2, double)>();
+               for (var i = 0; i < thetas.Length; i++) {
+                  var src = bigWaypoints[i];
+                  var dst = bigWaypoints[i + 1];
+                  var srcToDstTheta = thetas[i];
+
+                  // if close or last goal, don't chamfer
+                  if (i + 1 == thetas.Length) {
+                     emittedPoints.Add((dst, srcToDstTheta));
+                     continue;
+                  }
+
+                  var dstToFollowingTheta = thetas[i + 1];
+                  if (src.To(dst).Norm2D() < chamferSpacingThreshold) {
+                     emittedPoints.Add((dst, dstToFollowingTheta));
+                     continue;
+                  }
+                  var chamfer1 = dst - DoubleVector2.FromRadiusAngle(chamferSpacing, dstToFollowingTheta) - DoubleVector2.FromRadiusAngle(chamferSpacing, srcToDstTheta);
+                  var chamfer2 = dst + DoubleVector2.FromRadiusAngle(chamferSpacing, dstToFollowingTheta) + 2 * DoubleVector2.FromRadiusAngle(chamferSpacing, srcToDstTheta);
+                  emittedPoints.Add((chamfer1, srcToDstTheta));
+                  emittedPoints.Add((chamfer2, dstToFollowingTheta));
+               }
+
+               void PrintPoint(DoubleVector2 p) => Console.Write("(" + p.X.ToString("F3") + ", " + (3200 - p.Y).ToString("F3") + ")");
+
+               Console.WriteLine("[");
+               for (var i = 0; i < emittedPoints.Count; i++) {
+                  var (p, theta) = emittedPoints[i];
+                  DrawThetaedPoint(p, theta);
+                  Console.Write("(");
+                  PrintPoint(p);
+                  Console.Write(", ");
+                  PrintPoint(p);
+                  Console.Write(", ");
+                  Console.Write((-theta).ToString("F3"));
+                  Console.Write(")");
+                  if (i + 1 != emittedPoints.Count) Console.Write(", ");
+                  Console.WriteLine();
+               }
+               Console.WriteLine("]");
+
+               //               canvas.DrawLineStrip(bigWaypoints, StrokeStyle.CyanThick3Solid);
+               return;
                for (var i = 0; i < actions.Length; i++) {
                   canvas.DrawLine(actions[i].Source, actions[i].Destination, StrokeStyle.CyanThick3Solid);
                   canvas.DrawPoint(actions[i].Source, StrokeStyle.BlackThick5Solid);
@@ -94,8 +152,6 @@ namespace RoboticsMotionPlan {
                   var len = (double)v.Norm2F();
                   var parts = Math.Max((int)Math.Floor(len * 0.02 / 0.7), 2);
 
-                  void PrintPoint(DoubleVector2 p) => Console.Write("(" + p.X.ToString("F3") + ", " + (3200 - p.Y).ToString("F3") + ")");
-
                   var curTheta = Math.Atan2(-v.Y, v.X);
                   var nextTheta = curTheta;
                   if (i + 1 != actions.Length) {
@@ -105,7 +161,6 @@ namespace RoboticsMotionPlan {
                   }
 
                   for (var j = 0; j < parts; j++) {
-                     continue;
                      Console.Write("(");
                      PrintPoint(seg.PointAt(j / (double)parts));
                      Console.Write(", ");
