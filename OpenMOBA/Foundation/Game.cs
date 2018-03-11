@@ -128,10 +128,8 @@ namespace OpenMOBA.Foundation {
          return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHoleDescription);
       }
 
-      public void Run() {
-         var sw = new Stopwatch();
-         sw.Start();
-
+      public void Initialize() {
+         return;
          // shift by something like -300, 0, 2700
          TerrainService.LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
          // TerrainService.LoadMeshAsMap("Assets/bunny_decimate_0_03.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
@@ -340,6 +338,11 @@ namespace OpenMOBA.Foundation {
 
          //         var optimal = CreateTestEntity(new DoubleVector3(50 + 9 * 10*2, 500, 0.0), 10, benchmarkUnitBaseSpeed);
          //         MovementSystemService.Pathfind(optimal, benchmarkDestination);
+      }
+
+      public void Run() {
+         var sw = new Stopwatch();
+         sw.Start();
 
          IntMath.Sqrt(0); // init static
 

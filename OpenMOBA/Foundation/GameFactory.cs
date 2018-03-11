@@ -30,6 +30,7 @@ namespace OpenMOBA.Foundation {
             MovementSystemService = movementSystemService,
             GameLogicFacade = gameLogicFacade
          };
+         gameInstance.Initialize();
          GameCreated?.Invoke(this, gameInstance);
          return gameInstance;
       }

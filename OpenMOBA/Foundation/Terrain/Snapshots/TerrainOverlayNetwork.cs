@@ -246,56 +246,9 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          //links.Resize(crossoverPoints.Count);
          //return (new PathLink[0], 0, new PathLink[waypoints.Length], links);
 
-         candidateWaypoints = candidateWaypoints ?? allWaypointIndices;
-
-         // Find cost from p to visible waypoints - crazy inefficient (has visibility poly, atan)!
-         var visibleWaypointLinks = new PathLink[candidateWaypoints.Length];
-         var visibleWaypointLinksLength = 0;
-         for (var i = 0; i < candidateWaypoints.Length; i++) {
-            Interlocked.Increment(ref FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck);
-            var wi = candidateWaypoints[i];
-            var costSquared = waypoints[wi].To(p).SquaredNorm2();
-            VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
-            if (visibilityPolygon.Contains(p)) {
-               visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };
-               visibleWaypointLinksLength++;
-            }
-         }
-
-         // Cost from p to all waypoints. Below is an unrolled map
-         var optimalLinkToWaypoints = new PathLink[waypoints.Length];
-         for (var wi = 0; wi < waypoints.Length; wi++) {
-            Interlocked.Increment(ref FindOptimalLinksToCrossovers_CostToWaypointCount);
-            // unrolled from minby loop for 25% perf gain
-            var optimalLinkIndex = -1;
-            var optimalLinkCost = float.PositiveInfinity;
-            for (var i = 0; i < visibleWaypointLinksLength; i++) {
-               ref var link = ref visibleWaypointLinks[i];
-               var (a, b) = (wi, link.PriorIndex);
-               if (a < b) (a, b) = (b, a);
-               var linkCost = link.TotalCost + waypointToWaypointLut[a][b].TotalCost;
-               if (linkCost < optimalLinkCost) {
-                  optimalLinkIndex = i;
-                  optimalLinkCost = linkCost;
-               }
-            }
-
-            if (optimalLinkIndex == -1) {
-               // todo: this shouldn't happen!
-               optimalLinkToWaypoints[wi] = new PathLink {
-                  PriorIndex = PathLink.ErrorInvalidIndex,
-                  TotalCost = float.PositiveInfinity
-               };
-            } else {
-               ref var optimalLink = ref visibleWaypointLinks[optimalLinkIndex];
-               var (c, d) = (wi, optimalLink.PriorIndex);
-               if (c < d) (c, d) = (d, c);
-               optimalLinkToWaypoints[wi] = new PathLink {
-                  PriorIndex = optimalLink.PriorIndex,
-                  TotalCost = optimalLink.TotalCost + waypointToWaypointLut[c][d].TotalCost
-               };
-            }
-         };
+         int visibleWaypointLinksLength;
+         PathLink[] optimalLinkToWaypoints;
+         var visibleWaypointLinks = FindVisibleWaypointLinks(p, candidateWaypoints, out visibleWaypointLinksLength, out optimalLinkToWaypoints);
 
          // Cost from p to other crossoverPoints...
          var optimalLinkToCrossovers = new ExposedArrayList<PathLink>(Math.Max(128, crossoverPoints.Count));
@@ -389,6 +342,61 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             }
          }
          return (visibleWaypointLinks, visibleWaypointLinksLength, optimalLinkToWaypoints, optimalLinkToCrossovers);
+      }
+
+      public PathLink[] FindVisibleWaypointLinks(IntVector2 p, int[] candidateWaypoints, out int visibleWaypointLinksLength, out PathLink[] optimalLinkToWaypoints) {
+         candidateWaypoints = candidateWaypoints ?? allWaypointIndices;
+
+         // Find cost from p to visible waypoints - crazy inefficient (has visibility poly, atan)!
+         var visibleWaypointLinks = new PathLink[candidateWaypoints.Length];
+         visibleWaypointLinksLength = 0;
+         for (var i = 0; i < candidateWaypoints.Length; i++) {
+            Interlocked.Increment(ref FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck);
+            var wi = candidateWaypoints[i];
+            var costSquared = waypoints[wi].To(p).SquaredNorm2();
+            VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
+            if (visibilityPolygon.Contains(p)) {
+               visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };
+               visibleWaypointLinksLength++;
+            }
+         }
+
+         // Cost from p to all waypoints. Below is an unrolled map
+         optimalLinkToWaypoints = new PathLink[waypoints.Length];
+         for (var wi = 0; wi < waypoints.Length; wi++) {
+            Interlocked.Increment(ref FindOptimalLinksToCrossovers_CostToWaypointCount);
+            // unrolled from minby loop for 25% perf gain
+            var optimalLinkIndex = -1;
+            var optimalLinkCost = float.PositiveInfinity;
+            for (var i = 0; i < visibleWaypointLinksLength; i++) {
+               ref var link = ref visibleWaypointLinks[i];
+               var (a, b) = (wi, link.PriorIndex);
+               if (a < b) (a, b) = (b, a);
+               var linkCost = link.TotalCost + waypointToWaypointLut[a][b].TotalCost;
+               if (linkCost < optimalLinkCost) {
+                  optimalLinkIndex = i;
+                  optimalLinkCost = linkCost;
+               }
+            }
+
+            if (optimalLinkIndex == -1) {
+               // todo: this shouldn't happen!
+               optimalLinkToWaypoints[wi] = new PathLink {
+                  PriorIndex = PathLink.ErrorInvalidIndex,
+                  TotalCost = float.PositiveInfinity
+               };
+            } else {
+               ref var optimalLink = ref visibleWaypointLinks[optimalLinkIndex];
+               var (c, d) = (wi, optimalLink.PriorIndex);
+               if (c < d) (c, d) = (d, c);
+               optimalLinkToWaypoints[wi] = new PathLink {
+                  PriorIndex = optimalLink.PriorIndex,
+                  TotalCost = optimalLink.TotalCost + waypointToWaypointLut[c][d].TotalCost
+               };
+            }
+         }
+         ;
+         return visibleWaypointLinks;
       }
 
 

@@ -105,7 +105,10 @@ namespace OpenMOBA.DevTool {
 			Console.WriteLine("10itr: " + sw.ElapsedMilliseconds + "ms");
 		}
 
-		private void RenderDebugFrame() {
+	   public delegate void RenderHookEvent(GameDebugger debugger, IDebugCanvas canvas);
+	   public RenderHookEvent RenderHook;
+
+      private void RenderDebugFrame() {
 			var holeDilationRadius = 5.0;
 		   if (GameTimeService.Ticks > 20) {
 		      Benchmark(holeDilationRadius);
@@ -119,7 +122,11 @@ namespace OpenMOBA.DevTool {
 			var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
 			//         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
 			debugCanvas.BatchDraw(() => {
-				debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.Transform = Matrix4x4.Identity;
+			   RenderHook?.Invoke(this, debugCanvas);
+			   if (RenderHook != null) return;
+
+            debugCanvas.Transform = Matrix4x4.Identity;
 
 //				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(10000, 0, 0), new StrokeStyle(Color.Red, 50));
 //				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 10000, 0), new StrokeStyle(Color.Lime, 50));
@@ -130,12 +137,10 @@ namespace OpenMOBA.DevTool {
             //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
 
-
-            debugCanvas.DrawPoint(new DoubleVector3(-561.450012207031, -1316.31005859375, -116.25), new StrokeStyle(Color.Gray, 850));
-
-            
+            /*
 				// FOR BUNNY
 				// Paths from Source [808.800476074219, -2133.13989257813, 466.265472412109] to [-496.957489013672, 566.484985351563, 3515.56762695313]
+            debugCanvas.DrawPoint(new DoubleVector3(-561.450012207031, -1316.31005859375, -116.25), new StrokeStyle(Color.Gray, 850));
 				Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
 				var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
 					var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
@@ -297,7 +302,7 @@ namespace OpenMOBA.DevTool {
 //               }
                debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(fillColor));
 //					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-//               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
+               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
 
 					//Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
 //					foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
@@ -589,15 +594,15 @@ namespace OpenMOBA.DevTool {
 			}
 		}
 
-		public static void AttachToWithSoftwareRendering(Game game) {
+		public static GameDebugger AttachToWithSoftwareRendering(Game game) {
 			var rotation = 95 * Math.PI / 180.0;
 			var scale = 1.0f;
 			var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
 //			var center = new DoubleVector3(0, 0, 0);
-			var center = new DoubleVector3(-500, 200, 0);
+			var center = new DoubleVector3(1600, 1600, 0);
 			var projector = new PerspectiveProjector(
-//				center + DoubleVector3.FromRadiusAngleAroundXAxis(800, rotation),
-				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
+				center + DoubleVector3.FromRadiusAngleAroundXAxis(1000, rotation),
+//				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
 				center,
 				DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
 				displaySize.Width,
@@ -608,17 +613,19 @@ namespace OpenMOBA.DevTool {
 				displaySize,
 				new Point(100, 100),
 				projector);
-			AttachTo(game, debugMultiCanvasHost);
+			return AttachTo(game, debugMultiCanvasHost);
 		}
 
-		public static void AttachToWithHardwareRendering(Game game) {
+		public static GameDebugger AttachToWithHardwareRendering(Game game) {
 			var debugMultiCanvasHost = Canvas3DDebugMultiCanvasHost.CreateAndShowCanvas(new Size(1280, 720));
-			AttachTo(game, debugMultiCanvasHost);
+			return AttachTo(game, debugMultiCanvasHost);
 		}
 
-		public static void AttachTo(Game game, IDebugMultiCanvasHost debugMultiCanvasHost) {
+		public static GameDebugger AttachTo(Game game, IDebugMultiCanvasHost debugMultiCanvasHost) {
 			var debugger = new GameDebugger(game, debugMultiCanvasHost);
 			game.Debuggers.Add(debugger);
+		   return debugger;
+
 		}
 	}
 }
