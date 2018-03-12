@@ -19,15 +19,18 @@ using OpenMOBA.Geometry;
 
 namespace RoboticsMotionPlan {
    public partial class Program {
-      public const int MapWidth = 3168;
-      public const int MapHeight = 1984;
+      public const int MapWidth = 3200;
+      public const int MapHeight = 3200;
+//      public const int MapWidth = 3168;
+//      public const int MapHeight = 1984;
 
       public static void Main(string[] args) {
          Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
-//         MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly");
+         MapPolygonizerForm.Run(@"C:\Users\Warty\occ.txt", "sieg_floor3.poly", "sieg_plan.plan");
+         MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly", "sieg_plan.plan");
 //         MapPolygonizerForm.Run("gates.png", "gates.poly");
 
-         var (landPolys, holePolys) = FileLoader.Load("sieg_floor3.poly");
+         var (landPolys, holePolys) = FileLoader.LoadMap("sieg_floor3.poly");
          var tsm = new TerrainStaticMetadata {
             LocalBoundary = new Rectangle(0, 0, MapWidth, MapHeight),
             LocalIncludedContours = landPolys.Map(p => new Polygon2(p, true)),
@@ -75,11 +78,20 @@ namespace RoboticsMotionPlan {
 
                // draw waypoints
                canvas.DrawPoints(goodWaypoints, new StrokeStyle(Color.Blue, 25));
-               canvas.DrawPoint(goodWaypoints[4], new StrokeStyle(Color.Cyan, 25));
                canvas.DrawPoints(badWaypoints, new StrokeStyle(Color.Red, 25));
 
+               void DrawThetaedPoint(DoubleVector2 p, double theta, bool highlight) {
+                  canvas.DrawPoint(p, highlight ? StrokeStyle.OrangeThick35Solid : StrokeStyle.BlackThick25Solid);
+                  canvas.DrawLine(
+                     p,
+                     p + DoubleVector2.FromRadiusAngle(50, theta),
+                     new StrokeStyle(Color.Magenta, 3));
+               }
+
+               var emittedPoints = new List<(DoubleVector2, double, bool)>();
+
                // find big waypoints
-               var bigWaypoints = new List<DoubleVector2>();
+               var bigWaypoints = new List<(DoubleVector2, bool)>();
                for (var i = 0; i < goodWaypoints.Count; i++) {
                   var from = i == 0 ? start : goodWaypoints[i - 1];
                   var to = goodWaypoints[i];
@@ -89,107 +101,57 @@ namespace RoboticsMotionPlan {
                   var actions = roadmap.Plan.OfType<MotionRoadmapWalkAction>().ToArray();
                   var waypoints = new[] { actions[0].Source.ToDoubleVector2() }
                      .Concat(actions.Map(a => a.Destination.ToDoubleVector2())).ToArray();
-                  bigWaypoints.AddRange(waypoints);
+                  bigWaypoints.AddRange(waypoints.Map((w, ind) => (w, ind == waypoints.Length - 1)));
                }
 
-               var thetas = bigWaypoints.Zip(bigWaypoints.Skip(1), (a, b) => Math.Atan2(b.Y - a.Y, b.X - a.X))
-                                           .ToArray();
+               var thetas = bigWaypoints.Zip(bigWaypoints.Skip(1), (a, b) => Math.Atan2(b.Item1.Y - a.Item1.Y, b.Item1.X - a.Item1.X))
+                                          .ToArray();
                var chamferSpacing = 10;
                var chamferSpacingThreshold = 100;
-
-               void DrawThetaedPoint(DoubleVector2 p, double theta) {
-                  canvas.DrawPoint(p, StrokeStyle.BlackThick25Solid);
-                  canvas.DrawLine(
-                     p,
-                     p + DoubleVector2.FromRadiusAngle(50, theta),
-                     new StrokeStyle(Color.Magenta, 3));
-               }
-
-               var emittedPoints = new List<(DoubleVector2, double)>();
                for (var i = 0; i < thetas.Length; i++) {
-                  var src = bigWaypoints[i];
-                  var dst = bigWaypoints[i + 1];
+                  var (src, srcIsRoi) = bigWaypoints[i];
+                  var (dst, dstIsRoi) = bigWaypoints[i + 1];
                   var srcToDstTheta = thetas[i];
 
                   // if close or last goal, don't chamfer
                   if (i + 1 == thetas.Length) {
-                     emittedPoints.Add((dst, srcToDstTheta));
+                     emittedPoints.Add((dst, srcToDstTheta, dstIsRoi));
                      continue;
                   }
 
                   var dstToFollowingTheta = thetas[i + 1];
                   if (src.To(dst).Norm2D() < chamferSpacingThreshold) {
-                     emittedPoints.Add((dst, dstToFollowingTheta));
+                     emittedPoints.Add((dst, dstToFollowingTheta, dstIsRoi));
                      continue;
                   }
                   var chamfer1 = dst - DoubleVector2.FromRadiusAngle(chamferSpacing, dstToFollowingTheta) - DoubleVector2.FromRadiusAngle(chamferSpacing, srcToDstTheta);
                   var chamfer2 = dst + DoubleVector2.FromRadiusAngle(chamferSpacing, dstToFollowingTheta) + 2 * DoubleVector2.FromRadiusAngle(chamferSpacing, srcToDstTheta);
-                  emittedPoints.Add((chamfer1, srcToDstTheta));
-                  emittedPoints.Add((chamfer2, dstToFollowingTheta));
+                  emittedPoints.Add((chamfer1, srcToDstTheta, false));
+                  if (dstIsRoi) {
+                     emittedPoints.Add((dst, srcToDstTheta, true));
+                  }
+                  emittedPoints.Add((chamfer2, dstToFollowingTheta, false));
                }
 
-               void PrintPoint(DoubleVector2 p) => Console.Write("(" + p.X.ToString("F3") + ", " + (3200 - p.Y).ToString("F3") + ")");
+               for (var i = 0; i < emittedPoints.Count - 1; i++) {
+                  canvas.DrawLine(emittedPoints[i].Item1, emittedPoints[i + 1].Item1, StrokeStyle.CyanThick3Solid);
+               }
+
+               void PrintPoint(DoubleVector2 p) => Console.Write("(" + p.X.ToString("F3") + ", " + (MapHeight - p.Y).ToString("F3") + ")");
 
                Console.WriteLine("[");
                for (var i = 0; i < emittedPoints.Count; i++) {
-                  var (p, theta) = emittedPoints[i];
-                  DrawThetaedPoint(p, theta);
+                  var (p, theta, isRoi) = emittedPoints[i];
+                  DrawThetaedPoint(p, theta, isRoi);
                   Console.Write("(");
                   PrintPoint(p);
                   Console.Write(", ");
-                  PrintPoint(p);
-                  Console.Write(", ");
                   Console.Write((-theta).ToString("F3"));
+                  Console.Write(", ");
+                  Console.Write(isRoi ? "True" : "False");
                   Console.Write(")");
                   if (i + 1 != emittedPoints.Count) Console.Write(", ");
                   Console.WriteLine();
-               }
-               Console.WriteLine("]");
-
-               //               canvas.DrawLineStrip(bigWaypoints, StrokeStyle.CyanThick3Solid);
-               return;
-               for (var i = 0; i < actions.Length; i++) {
-                  canvas.DrawLine(actions[i].Source, actions[i].Destination, StrokeStyle.CyanThick3Solid);
-                  canvas.DrawPoint(actions[i].Source, StrokeStyle.BlackThick5Solid);
-                  canvas.DrawPoint(actions[i].Destination, StrokeStyle.BlackThick5Solid);
-               }
-
-               // print plan:
-               Console.WriteLine("[");
-               var n = 0;
-               for (var i = 0; i < actions.Length; i++) {
-                  var seg = new IntLineSegment2(actions[i].Source, actions[i].Destination);
-                  var v = seg.First.To(seg.Second);
-                  var len = (double)v.Norm2F();
-                  var parts = Math.Max((int)Math.Floor(len * 0.02 / 0.7), 2);
-
-                  var curTheta = Math.Atan2(-v.Y, v.X);
-                  var nextTheta = curTheta;
-                  if (i + 1 != actions.Length) {
-                     var ns = new IntLineSegment2(actions[i + 1].Source, actions[i + 1].Destination);
-                     var nv = ns.First.To(ns.Second);
-                     nextTheta = Math.Atan2(-nv.Y, nv.X);
-                  }
-
-                  for (var j = 0; j < parts; j++) {
-                     Console.Write("(");
-                     PrintPoint(seg.PointAt(j / (double)parts));
-                     Console.Write(", ");
-                     PrintPoint(seg.PointAt((j + 1) / (double)parts));
-                     Console.Write(", ");
-                     var theta = j + 1 == parts ? ((curTheta + nextTheta) / 2) : curTheta;
-                     Console.Write(theta.ToString("F3"));
-                     Console.Write(")");
-                     if (i + 1 != actions.Length || j + 1 != parts) Console.Write(", ");
-
-                     if (n >= 50) {
-                        var p = seg.PointAt((j + 1) / (double)parts);
-                        canvas.DrawPoint(p, StrokeStyle.BlackThick25Solid);
-                        canvas.DrawLine(p, p + DoubleVector2.FromRadiusAngle(25, -theta), new StrokeStyle(Color.Magenta, 3));
-                     }
-                     n++;
-                  }
-                  if (i + 1 != actions.Length) Console.WriteLine();
                }
                Console.WriteLine("]");
             };
@@ -198,7 +160,7 @@ namespace RoboticsMotionPlan {
       }
 
       public static class FileLoader {
-         public static (List<List<IntVector2>>, List<List<IntVector2>>) Load(string path) {
+         public static (List<List<IntVector2>>, List<List<IntVector2>>) LoadMap(string path) {
             var lines = File.ReadAllLines(path).Map(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToArray();
             var landPolys = new List<List<IntVector2>>();
             var holePolys = new List<List<IntVector2>>();
@@ -208,6 +170,8 @@ namespace RoboticsMotionPlan {
                   landPolys.Add(ParsePoly(tokens));
                } else if (tokens[0] == "hole") {
                   holePolys.Add(ParsePoly(tokens));
+               } else if (tokens[0] == "hole_rev") {
+                  holePolys.Add(ParsePoly(tokens).Select(x => x).Reverse().ToList());
                }
             }
             return (landPolys, holePolys);
@@ -232,6 +196,20 @@ namespace RoboticsMotionPlan {
 
          public static List<IntVector2> LoadPoints(string path) {
             return File.ReadAllLines(path).Skip(1).Select(line => ParseIv2(line.Split(',').ToArray())).ToList();
+         }
+
+         public static List<(DoubleVector2, double, bool)> LoadPlan(string path) {
+            var text = File.ReadAllText(path);
+            var lines = text.Trim().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            return lines.Map(line => line.Split(',').Map(tok => tok.Trim('(', ' ', ')', ',')))
+                        .Where(tokens => tokens[0] != "[" && tokens[0] != "]" && !tokens[0].StartsWith("//"))
+                        .ToArray()
+                        .Map(tokens => {
+                           var p = new DoubleVector2(double.Parse(tokens[0]), MapHeight - double.Parse(tokens[1]));
+                           var theta = -double.Parse(tokens[2]);
+                           var isRoi = bool.Parse(tokens[3].ToLower());
+                           return (p, theta, isRoi);
+                        }).ToList();
          }
       }
    }

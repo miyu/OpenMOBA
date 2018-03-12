@@ -84,6 +84,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public static StrokeStyle BlackThick3Solid = new StrokeStyle(Color.Black, 3.0f);
       public static StrokeStyle BlackThick5Solid = new StrokeStyle(Color.Black, 5.0f);
       public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
+      public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
 
       public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {
          Color = color ?? Color.Black;

@@ -1,22 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using OpenMOBA;
 using OpenMOBA.Geometry;
 
 namespace RoboticsMotionPlan {
    public partial class Program {
       public class MapPolygonizerForm : Form {
-         private readonly Image baseImage;
+         private readonly Bitmap baseImage;
          private readonly Pen HolePen = new Pen(Color.Red, 4);
          private readonly Pen LandPen = new Pen(Color.Magenta, 4);
          private readonly PictureBox pb;
 
-         public MapPolygonizerForm(string mapPath) {
-            baseImage = Image.FromFile(mapPath);
+         public unsafe MapPolygonizerForm(string mapPath) {
+            if (mapPath.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) {
+               var lines = File.ReadAllLines(mapPath).Map(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
+               var width = lines[0].Length;
+               var height = lines.Length;
+               baseImage = new Bitmap(width, height, PixelFormat.Format32bppRgb);
+               var data = baseImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppRgb);
+               var pScan0 = (byte*)data.Scan0;
+               for (var y = 0; y < height; y++) {
+                  for (var x = 0; x < width; x++) {
+                     byte* pPixel = pScan0 + data.Stride * y + 4 * x;
+                     *(uint*)pPixel = lines[y][x] == '#' ? 0xFF000000U : 0xFFFFFFFU;
+                  }
+               }
+               baseImage.UnlockBits(data);
+            } else {
+               baseImage = (Bitmap)Bitmap.FromFile(mapPath);
+            }
             pb = new PictureBox();
             pb.Image = (Bitmap)baseImage.Clone();
             pb.Location = Point.Empty;
@@ -25,10 +43,12 @@ namespace RoboticsMotionPlan {
             pb.SizeMode = PictureBoxSizeMode.Zoom;
             Controls.Add(pb);
             ClientSize = pb.Size;
-            pb.MouseMove += (s, e) => { Text = e.X * scale + " " + (e.Y * scale); };
+            pb.MouseMove += (s, e) => { Text = e.X * scale + " " + (Program.MapHeight - e.Y * scale); };
          }
 
-         public void Render(List<List<IntVector2>> landPolys, List<List<IntVector2>> holePolys, IntVector2 start, List<IntVector2> goodWaypoints, List<IntVector2> badWaypoints) {
+         Font font = new Font(FontFamily.GenericSerif, 30);
+
+         public void Render(List<List<IntVector2>> landPolys, List<List<IntVector2>> holePolys, IntVector2 start, List<IntVector2> goodWaypoints, List<IntVector2> badWaypoints, List<(DoubleVector2, double, bool)> plan) {
             var image = (Bitmap)baseImage.Clone();
             using (var g = Graphics.FromImage(image)) {
                foreach (var landPoly in landPolys) DrawPoly(g, landPoly, LandPen);
@@ -36,6 +56,21 @@ namespace RoboticsMotionPlan {
                DrawPoint(g, start, Brushes.Lime);
                goodWaypoints.ForEach(p => DrawPoint(g, p, Brushes.Blue));
                badWaypoints.ForEach(p => DrawPoint(g, p, Brushes.Red));
+
+               foreach (var (i, (p, theta, isRoi)) in plan.Enumerate()) {
+                  g.FillEllipse(
+                     isRoi ? Brushes.Orange : Brushes.Black,
+                     (float)p.X - 5,
+                     (float)p.Y - 5,
+                     10,
+                     10);
+                  var to = p + DoubleVector2.FromRadiusAngle(50, theta);
+                  g.DrawLine(
+                     Pens.Magenta,
+                     (float)p.X, (float)p.Y,
+                     (float)to.X, (float)to.Y);
+                  g.DrawString("#" + i, font, Brushes.Black, (float)p.X, (float)p.Y);
+               }
             }
             BeginInvoke(new Action(() => { pb.Image = image; }));
          }
@@ -48,7 +83,7 @@ namespace RoboticsMotionPlan {
             g.FillRectangle(brush, p.X - 8, p.Y - 8, 16, 16);
          }
 
-         public static void Run(string mapPath, string polygonPath) {
+         public static void Run(string mapPath, string polygonPath, string planPath) {
             MapPolygonizerForm form = null;
             var latch = new ManualResetEvent(false);
 
@@ -67,10 +102,10 @@ namespace RoboticsMotionPlan {
 
             while (true) {
                try {
-                  var (landPolys, holePolys) = FileLoader.Load(polygonPath);
-                  form.Render(landPolys, holePolys, start, goodWaypoints, badWaypoints);
-
-//                  Console.ReadLine();
+                  var (landPolys, holePolys) = FileLoader.LoadMap(polygonPath);
+                  var plan = FileLoader.LoadPlan(planPath);
+                  form.Render(landPolys, holePolys, start, goodWaypoints, badWaypoints, plan);
+                  //                  Console.ReadLine();
                   Thread.Sleep(100);
                } catch (Exception e) {
                   Console.WriteLine("Parse fail");
