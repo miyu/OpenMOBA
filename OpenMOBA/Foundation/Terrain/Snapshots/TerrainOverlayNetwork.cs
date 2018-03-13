@@ -177,6 +177,20 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public static int ProcessCpiInvocation_DirectCount = 0;
       public static int ProcessCpiInvocation_IndirectCount = 0;
 
+      public static void DumpPerformanceCounters() => Console.WriteLine(
+         $"== Perf Counters ==" + Environment.NewLine +
+         $"+ AddMany: " + Environment.NewLine +
+         $"  + ConvexHullsComputed: {AddMany_ConvexHullsComputed}" + Environment.NewLine +
+         $"  + CrossoverPointsAdded: {CrossoverPointsAdded}" + Environment.NewLine +
+         $"  + FindOptimalLinksToCrossovers:" + Environment.NewLine +
+         $"    + Invokes: {FindOptimalLinksToCrossoversInvocationCount}" + Environment.NewLine +
+         $"    + CandidateWaypointVisibilityChecks: {FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck}" + Environment.NewLine +
+         $"    + ProcessCPI:" + Environment.NewLine +
+         $"      + Invokes: {ProcessCpiInvocationCount}" + Environment.NewLine +
+         $"      + CandidateBarrierIntersectCounts: {ProcessCpiInvocation_CandidateBarrierIntersectCount}" + Environment.NewLine +
+         $"      + Directs: {ProcessCpiInvocation_DirectCount}" + Environment.NewLine +
+         $"      + Indirects: {ProcessCpiInvocation_IndirectCount}");
+
       public PolyNodeCrossoverPointManager(PolyNode landPolyNode) {
          this.landPolyNode = landPolyNode;
          waypoints = landPolyNode.FindAggregateContourCrossoverWaypoints();
@@ -194,6 +208,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       // Todo: Can we support DV2s?
 
       public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
+         return points.Map(p => 0);
          var segmentSeeingWaypoints = landPolyNode.ComputeSegmentSeeingWaypoints(edgeSegment);
 
          // It's safe to assume <some> point in points will be new, so preprocess which segments are betwen us and other edge segments
@@ -302,6 +317,13 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          optimalLinkToCrossovers.size = crossoverPoints.Count;
 
          void ProcessCpi(int cpi, IntLineSegment2[] candidateBarriers) {
+            // for bench
+            optimalLinkToCrossovers[cpi] = new PathLink {
+               PriorIndex = PathLink.ErrorInvalidIndex,
+               TotalCost = float.PositiveInfinity
+            };
+            return;
+
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
             if (candidateBarriers == null) {

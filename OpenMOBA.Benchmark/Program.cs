@@ -9,10 +9,23 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using OpenMOBA.Foundation.Terrain.Snapshots;
 
 namespace OpenMOBA.Benchmark {
    public class Program {
       public static void Main(string[] args) {
+         LinqExtensions.DictionaryMapper<string, int, string>.CloneIntArray(new int[0]);
+         return;
+
+         int j = 0;
+         var sww = new Stopwatch();
+         sww.Start();
+         for (var i = 0; i < 1000000; i++) {
+            Interlocked.Increment(ref j);
+         }
+         Console.WriteLine("Done " + sww.ElapsedMilliseconds);
+
          var benchmark = new HolePunch3DBenchmark();
          benchmark._ClearMapAndLoadBunny();
          var sw = new Stopwatch();
@@ -23,10 +36,9 @@ namespace OpenMOBA.Benchmark {
 
             var ton = benchmark.terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
             var terrainNodes = ton.TerrainNodes.ToArray();
-            for (var j = 0; j < terrainNodes.Length; j++) {
-               Console.WriteLine(terrainNodes[j].SectorNodeDescription);
-            }
-            Console.WriteLine(terrainNodes.Length);
+            PolyNodeCrossoverPointManager.DumpPerformanceCounters();
+            Console.WriteLine("@t=" + sw.ElapsedMilliseconds);
+            GC.KeepAlive(terrainNodes);
          }
          Console.WriteLine("10 iters: " + sw.ElapsedMilliseconds);
 

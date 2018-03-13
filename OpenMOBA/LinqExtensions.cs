@@ -2,6 +2,8 @@
 using System.Collections.Generic;
    using System.Diagnostics;
    using System.Linq;
+   using System.Reflection;
+   using System.Reflection.Emit;
    using System.Runtime.CompilerServices;
 
 namespace OpenMOBA {
@@ -67,6 +69,7 @@ namespace OpenMOBA {
          return items.Select((item, key) => new KeyValuePair<int, T>(key, item));
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static U[] Map<T, U>(this IReadOnlyList<T> arr, Func<T, U> map) {
          var result = new U[arr.Count];
          for (int i = 0; i < arr.Count; i++) {
@@ -75,6 +78,7 @@ namespace OpenMOBA {
          return result;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static U[] Map<T, U>(this IReadOnlyList<T> arr, Func<T, int, U> map) {
          var result = new U[arr.Count];
          for (int i = 0; i < arr.Count; i++) {
@@ -83,6 +87,7 @@ namespace OpenMOBA {
          return result;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static U[] Map<T, U>(this T[] arr, Func<T, U> map) {
          var result = new U[arr.Length];
          for (int i = 0; i < arr.Length; i++) {
@@ -91,6 +96,7 @@ namespace OpenMOBA {
          return result;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static U[] Map<T, U>(this T[] arr, Func<T, int, U> map) {
          var result = new U[arr.Length];
          for (int i = 0; i < arr.Length; i++) {
@@ -99,10 +105,12 @@ namespace OpenMOBA {
          return result;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static Dictionary<K, R> Map<K, V, R>(this IReadOnlyDictionary<K, V> dict, Func<K, V, R> map) {
          return dict.ToDictionary(kvp => kvp.Key, kvp => map(kvp.Key, kvp.Value));
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static Dictionary<RK, RV> Map<K, V, RK, RV>(this IReadOnlyDictionary<K, V> dict, Func<K, V, RK> kmap, Func<K, V, RV> vmap) {
          return dict.ToDictionary(kvp => kmap(kvp.Key, kvp.Value), kvp => vmap(kvp.Key, kvp.Value));
       }
@@ -265,6 +273,84 @@ namespace OpenMOBA {
             list.RemoveRange(size, list.Count - size);
          } else if (size > list.Count) {
             list.AddRange(new T[size - list.Count]);
+         }
+      }
+
+//      public static Dictionary<K, V1> Map<K, V1, V2>(this Dictionary<K, V1> dict, Func<V1, V2> mapper) {
+//         var result = new Dictionary<K, V2>();
+//         return result;
+//      }
+
+      public static class DictionaryMapper<K, V1, V2> {
+         static DictionaryMapper() {
+            FieldInfo FindField(Type t, string name) => t.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
+
+            var tInputDict = typeof(Dictionary<K, V1>);
+            var tOutputDict = typeof(Dictionary<K, V2>);
+            var tMapper = typeof(Func<V1, V2>);
+
+            var method = new DynamicMethod("", tOutputDict, new[] { tInputDict, tMapper }, true);
+            var emitter = method.GetILGenerator();
+            
+            //-------------------------------------------------------------------------------------
+            // alloc output dict, store to loc 0 (this allocs w/ capacity 0, null internal store)
+            // the reason we don't call ctor with size overhead is that runs a zeroing init loop.
+            //-------------------------------------------------------------------------------------
+            var tOutputDictConstructor = tOutputDict.GetConstructors().First(c => c.GetParameters().Length == 0);
+            emitter.Emit(OpCodes.Newobj, tOutputDictConstructor);
+            emitter.Emit(OpCodes.Stloc_0);
+            emitter.Emit(OpCodes.Ldfld, FindField(tOutputDict, "entries"));
+            emitter.Emit(OpCodes.Ldlen);
+            emitter.Emit(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new[] { typeof(object) }));
+            emitter.Emit(OpCodes.Ldnull);
+            emitter.Emit(OpCodes.Ret);
+
+            var del = method.CreateDelegate(typeof(Func<Dictionary<K, V1>, Func<V1, V2>, Dictionary<K, V2>>));
+            var res = del.DynamicInvoke(new Dictionary<K, V1>(), null);
+            return;
+
+
+            //-------------------------------------------------------------------------------------
+            // clone buckets (int[]), store into output dict
+            //-------------------------------------------------------------------------------------
+            emitter.Emit(OpCodes.Ldloc_0); // push this onto stack, used later in store.
+
+            // load buckets
+            emitter.Emit(OpCodes.Ldarg_0);
+            emitter.Emit(OpCodes.Ldfld, FindField(tInputDict, "buckets"));
+
+            // clone
+            var cloneIntArray = typeof(DictionaryMapper<K, V1, V2>).GetMethod(nameof(CloneIntArray), BindingFlags.Public | BindingFlags.Static);
+            emitter.Emit(OpCodes.Call, cloneIntArray);
+
+            // store
+            emitter.Emit(OpCodes.Stfld, FindField(tOutputDict, "buckets"));
+
+            //-------------------------------------------------------------------------------------
+            // alloc clone of Dictionary<TKey, TValue>.Entry[] entries, store into output dict
+            //-------------------------------------------------------------------------------------
+            var tInputEntry = tInputDict.GetNestedType("Entry", BindingFlags.NonPublic);
+            var tOutputEntry = tOutputDict.GetNestedType("Entry", BindingFlags.NonPublic);
+
+
+            emitter.Emit(OpCodes.Ldloc_0); // push this onto stack, used later in store.
+
+            // alloc
+            emitter.Emit(OpCodes.Ldarg_0);
+            emitter.Emit(OpCodes.Ldfld, FindField(tInputDict, "buckets"));
+
+            // clone
+//            var cloneIntArray = typeof(DictionaryMapper<K, V1, V2>).GetMethod(nameof(CloneIntArray), BindingFlags.Public | BindingFlags.Static);
+//            emitter.Emit(OpCodes.Call, cloneIntArray);
+//
+//            // store
+//            emitter.Emit(OpCodes.Stfld, FindField(tOutputDict, "buckets"));
+         }
+
+         public static int[] CloneIntArray(int[] input) {
+            var result = new int[input.Length];
+            Buffer.BlockCopy(input, 0, result, 0, input.Length * sizeof(int));
+            return result;
          }
       }
    }
