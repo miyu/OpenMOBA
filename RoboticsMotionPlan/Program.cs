@@ -19,18 +19,18 @@ using OpenMOBA.Geometry;
 
 namespace RoboticsMotionPlan {
    public partial class Program {
-      public const int MapWidth = 3200;
-      public const int MapHeight = 3200;
-//      public const int MapWidth = 3168;
-//      public const int MapHeight = 1984;
+      //public const int MapWidth = 3200;
+      //public const int MapHeight = 3200;
+      public const int MapWidth = 3168;
+      public const int MapHeight = 2752;
 
       public static void Main(string[] args) {
          Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
-         MapPolygonizerForm.Run(@"C:\Users\Warty\occ.txt", "sieg_floor3.poly", "sieg_plan.plan");
-         MapPolygonizerForm.Run("sieg_floor3_marked.png", "sieg_floor3.poly", "sieg_plan.plan");
-//         MapPolygonizerForm.Run("gates.png", "gates.poly");
+         //MapPolygonizerForm.Run(@"C:\Users\Warty\occ.txt", "sieg_floor3.poly", "sieg_plan.plan");
+         MapPolygonizerForm.Run("gates.png", "gates.poly", "gates.plan");
+         //         MapPolygonizerForm.Run("gates.png", "gates.poly");
 
-         var (landPolys, holePolys) = FileLoader.LoadMap("sieg_floor3.poly");
+         var (landPolys, holePolys) = FileLoader.LoadMap("gates.poly");
          var tsm = new TerrainStaticMetadata {
             LocalBoundary = new Rectangle(0, 0, MapWidth, MapHeight),
             LocalIncludedContours = landPolys.Map(p => new Polygon2(p, true)),
@@ -205,7 +205,7 @@ namespace RoboticsMotionPlan {
                         .Where(tokens => tokens[0] != "[" && tokens[0] != "]" && !tokens[0].StartsWith("//"))
                         .ToArray()
                         .Map(tokens => {
-                           var p = new DoubleVector2(double.Parse(tokens[0]), MapHeight - double.Parse(tokens[1]));
+                           var p = new DoubleVector2(double.Parse(tokens[0]), MapHeight - double.Parse(tokens[1]) - 15);
                            var theta = -double.Parse(tokens[2]);
                            var isRoi = bool.Parse(tokens[3].ToLower());
                            return (p, theta, isRoi);

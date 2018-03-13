@@ -37,12 +37,14 @@ namespace RoboticsMotionPlan {
             }
             pb = new PictureBox();
             pb.Image = (Bitmap)baseImage.Clone();
-            pb.Location = Point.Empty;
+            pb.Location = new Point(0, -500);
             var scale = 2;
             pb.Size = new Size(baseImage.Size.Width / scale, baseImage.Size.Height / scale);
+            Console.WriteLine(baseImage.Size);
             pb.SizeMode = PictureBoxSizeMode.Zoom;
             Controls.Add(pb);
             ClientSize = pb.Size;
+            // not flipped for map trace, flipped for plan
             pb.MouseMove += (s, e) => { Text = e.X * scale + " " + (Program.MapHeight - e.Y * scale); };
          }
 
