@@ -64,29 +64,29 @@ namespace OpenMOBA.DevTool.Debugging {
          });
       }
 
-//      public static void FillPolygon(this IDebugCanvas canvas, Polygon3 polygon, FillStyle fillStyle) {
-//         canvas.FillPolygon(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), fillStyle);
-//      }
-//
-//      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon3 polygon, StrokeStyle strokeStyle) {
-//         canvas.DrawPolygonContour(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
-//      }
+      //      public static void FillPolygon(this IDebugCanvas canvas, Polygon3 polygon, FillStyle fillStyle) {
+      //         canvas.FillPolygon(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), fillStyle);
+      //      }
+      //
+      //      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon3 polygon, StrokeStyle strokeStyle) {
+      //         canvas.DrawPolygonContour(polygon.Points.Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
+      //      }
 
-//      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon3> polygons, StrokeStyle strokeStyle) {
-//         canvas.BatchDraw(() => {
-//            foreach (var polygon in polygons) {
-//               canvas.DrawPolygonContour(polygon, strokeStyle);
-//            }
-//         });
-//      }
-//
-//      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<DoubleVector3>> contours, StrokeStyle strokeStyle) {
-//         canvas.BatchDraw(() => {
-//            foreach (var contour in contours) {
-//               canvas.DrawPolygonContour(contour, strokeStyle);
-//            }
-//         });
-//      }
+      //      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon3> polygons, StrokeStyle strokeStyle) {
+      //         canvas.BatchDraw(() => {
+      //            foreach (var polygon in polygons) {
+      //               canvas.DrawPolygonContour(polygon, strokeStyle);
+      //            }
+      //         });
+      //      }
+      //
+      //      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<DoubleVector3>> contours, StrokeStyle strokeStyle) {
+      //         canvas.BatchDraw(() => {
+      //            foreach (var contour in contours) {
+      //               canvas.DrawPolygonContour(contour, strokeStyle);
+      //            }
+      //         });
+      //      }
 
       public static void DrawPolyTree(this IDebugCanvas canvas, PolyTree polytree, StrokeStyle landStroke = null, StrokeStyle holeStroke = null) {
          landStroke = landStroke ?? new StrokeStyle(Color.Orange);

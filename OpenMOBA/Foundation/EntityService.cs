@@ -239,7 +239,79 @@ namespace OpenMOBA.Foundation {
             out roadmap);
       }
 
-      private bool TryFindPath(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint, out MotionRoadmap result) {
+      public bool TryFindPath(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint, out MotionRoadmap result) {
+         var roadmap = new MotionRoadmap();
+
+         void X(TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint) {
+            var cpm = node.CrossoverPointManager;
+            var waypointToWaypointLut = cpm.WaypointToWaypointLut;
+            var sourcePath = new List<PathLink>();
+            var destPath = new List<PathLink>();
+
+            // must query with [a][b] where a > b
+            var sourceFinger = sourceWaypoint;
+            var destinationFinger = destinationWaypoint;
+            while (sourceFinger != destinationFinger) {
+               if (sourceFinger < destinationFinger) {
+                  var link = waypointToWaypointLut[destinationFinger][sourceFinger];
+                  destPath.Add(link);
+                  destinationFinger = link.PriorIndex;
+               } else {
+                  var link = waypointToWaypointLut[sourceFinger][destinationFinger];
+                  sourcePath.Add(link);
+                  sourceFinger = link.PriorIndex;
+               }
+            }
+
+            // extend roadmap
+            var prior = sourceWaypoint;
+            for (var i = 0; i < sourcePath.Count; i++) {
+               var next = sourcePath[i].PriorIndex;
+               roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[next]));
+               prior = next;
+            }
+
+            // skip last item since is link to last of source plan
+            for (var i = destPath.Count - 2; i >= 0; i--) {
+               var next = destPath[i].PriorIndex;
+               roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[next]));
+               prior = next;
+            }
+
+            if (prior != destinationWaypoint) {
+               roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[destinationWaypoint]));
+            }
+         }
+
+         if (sourceNode == destinationNode) {
+            if (sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
+               roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, destinationPoint));
+               result = roadmap; 
+               return true;
+            }
+
+            var sourceVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(sourcePoint, null, out var sourceVisibleWaypointLinksLength, out var sourceOptimalLinkToWaypoints);
+            var destinationVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(destinationPoint, null, out var destinationVisibleWaypointLinksLength, out var destinationOptimalLinkToWaypoints);
+
+            var bestFirstWaypoint = -1;
+            var bestFirstWaypointCost = double.PositiveInfinity;
+            for (var i = 0 ; i < sourceVisibleWaypointLinksLength; i++) {
+               var link = sourceVisibleWaypointLinks[i];
+               var firstWaypoint = link.PriorIndex;
+               var cost = link.TotalCost + destinationOptimalLinkToWaypoints[firstWaypoint].TotalCost;
+               if (cost < bestFirstWaypointCost) {
+                  bestFirstWaypoint = firstWaypoint;
+                  bestFirstWaypointCost = cost;
+               }
+            }
+
+            roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.Waypoints[bestFirstWaypoint]));
+            X(sourceNode, bestFirstWaypoint, destinationOptimalLinkToWaypoints[bestFirstWaypoint].PriorIndex);
+            roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourceNode.CrossoverPointManager.Waypoints[destinationOptimalLinkToWaypoints[bestFirstWaypoint].PriorIndex], destinationPoint));
+            result = roadmap;
+            return true;
+         }
+
          const int SOURCE_POINT_CPI = -100;
          const int DESTINATION_POINT_CPI = -200;
          // todo: special-case if src is dst node
@@ -247,6 +319,7 @@ namespace OpenMOBA.Foundation {
          Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
          var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
          var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
+
 
          var q = new PriorityQueue<(float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>((a, b) => a.Item1.CompareTo(b.Item1));
          var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
@@ -310,49 +383,6 @@ namespace OpenMOBA.Foundation {
                }
 
                // convert path to a motion plan. three cases for motion: moving from start to crossover, crossover to crossover, or crossover to end.
-               var roadmap = new MotionRoadmap();
-
-               void X(TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint) {
-                  var cpm = node.CrossoverPointManager;
-                  var waypointToWaypointLut = cpm.WaypointToWaypointLut;
-                  var sourcePath = new List<PathLink>();
-                  var destPath = new List<PathLink>();
-
-                  // must query with [a][b] where a > b
-                  var sourceFinger = sourceWaypoint;
-                  var destinationFinger = destinationWaypoint;
-                  while (sourceFinger != destinationFinger) {
-                     if (sourceFinger < destinationFinger) {
-                        var link = waypointToWaypointLut[destinationFinger][sourceFinger];
-                        destPath.Add(link);
-                        destinationFinger = link.PriorIndex;
-                     } else {
-                        var link = waypointToWaypointLut[sourceFinger][destinationFinger];
-                        sourcePath.Add(link);
-                        sourceFinger = link.PriorIndex;
-                     }
-                  }
-
-                  // extend roadmap
-                  var prior = sourceWaypoint;
-                  for (var i = 0; i < sourcePath.Count; i++) {
-                     var next = sourcePath[i].PriorIndex;
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[next]));
-                     prior = next;
-                  }
-
-                  // skip last item since is link to last of source plan
-                  for (var i = destPath.Count - 2; i >= 0; i--) {
-                     var next = destPath[i].PriorIndex;
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[next]));
-                     prior = next;
-                  }
-
-                  if (prior != destinationWaypoint) {
-                     roadmap.Plan.Add(new MotionRoadmapWalkAction(node, cpm.Waypoints[prior], cpm.Waypoints[destinationWaypoint]));
-                  }
-               }
-
                // last one not processed, since we process pairwise.
                for (var i = 0; i < path.Count - 1; i++) {
                   if (i == 0) {

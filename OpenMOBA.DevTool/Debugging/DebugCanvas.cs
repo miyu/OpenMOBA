@@ -68,12 +68,23 @@ namespace OpenMOBA.DevTool.Debugging {
       public static float[] Dash5 = new[] { 5.0f, 5.0f };
       public static StrokeStyle LimeHairLineSolid = new StrokeStyle(Color.Lime);
       public static StrokeStyle LimeHairLineDashed5 = new StrokeStyle(Color.Lime, 1.0f, Dash5);
+      public static StrokeStyle LimeThick5Solid = new StrokeStyle(Color.Lime, 5.0f);
+      public static StrokeStyle LimeThick25Solid = new StrokeStyle(Color.Lime, 25.0f);
       public static StrokeStyle RedHairLineSolid = new StrokeStyle(Color.Red);
       public static StrokeStyle RedHairLineDashed5 = new StrokeStyle(Color.Red, 1.0f, Dash5);
       public static StrokeStyle RedThick5Solid = new StrokeStyle(Color.Red, 5.0f);
       public static StrokeStyle RedThick25Solid = new StrokeStyle(Color.Red, 25.0f);
+      public static StrokeStyle CyanHairLineSolid = new StrokeStyle(Color.Cyan);
+      public static StrokeStyle CyanHairLineDashed5 = new StrokeStyle(Color.Cyan, 1.0f, Dash5);
+      public static StrokeStyle CyanThick3Solid = new StrokeStyle(Color.Cyan, 3.0f);
+      public static StrokeStyle CyanThick5Solid = new StrokeStyle(Color.Cyan, 5.0f);
+      public static StrokeStyle CyanThick25Solid = new StrokeStyle(Color.Cyan, 25.0f);
       public static StrokeStyle BlackHairLineSolid = new StrokeStyle(Color.Black);
       public static StrokeStyle BlackHairLineDashed5 = new StrokeStyle(Color.Black, 1.0f, Dash5);
+      public static StrokeStyle BlackThick3Solid = new StrokeStyle(Color.Black, 3.0f);
+      public static StrokeStyle BlackThick5Solid = new StrokeStyle(Color.Black, 5.0f);
+      public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
+      public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
 
       public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {
          Color = color ?? Color.Black;
@@ -202,6 +213,15 @@ namespace OpenMOBA.DevTool.Debugging {
 
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment2> segments, StrokeStyle strokeStyle) {
          canvas.DrawLineList(segments.Map(ToILS3), strokeStyle);
+      }
+
+
+      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(points.Map(ToIV3), strokeStyle);
+      }
+
+      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(points.Map(ToDV3), strokeStyle);
       }
 
       public static void DrawText(this IDebugCanvas canvas, string text, IntVector2 point) {
