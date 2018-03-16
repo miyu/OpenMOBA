@@ -1,21 +1,24 @@
-﻿using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Horology;
-using BenchmarkDotNet.Jobs;
-using OpenMOBA.Foundation;
-using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Geometry;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Numerics;
 using System.Threading;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
 using OpenMOBA.Foundation.Terrain.Snapshots;
 
-namespace OpenMOBA.Benchmark {
+namespace OpenMOBA.Benchmarks {
    public class Program {
       public static void Main(string[] args) {
-         LinqExtensions.DictionaryMapper<string, int, string>.CloneIntArray(new int[0]);
+//         var dict = new Dictionary<int, int> {
+//            [1] = 100,
+//            [2] = 200
+//         };
+//         var res = dict.Map((k, v) => $"A{k}.{v}");
+//         new DictionaryMapBenchmark();
+
+//         LinqExtensions.DictionaryMapper<string, int, string>.CloneIntArrayOrNull(new int[0]);
+         BenchmarkRunner.Run<DictionaryMapBenchmark>();
          return;
 
          int j = 0;
@@ -46,71 +49,26 @@ namespace OpenMOBA.Benchmark {
       }
    }
 
+   public class DictionaryMapBenchmark {
+      private readonly Dictionary<int, int> input = new Dictionary<int, int>();
 
-   [Config(typeof(FastAndDirtyConfig))]
-   public class HolePunch3DBenchmark {
-      public readonly TerrainService terrainService;
-
-      public HolePunch3DBenchmark() {
-         var sectorGraphDescriptionStore = new SectorGraphDescriptionStore();
-         var snapshotCompiler = new TerrainSnapshotCompiler(sectorGraphDescriptionStore);
-         terrainService = new TerrainService(sectorGraphDescriptionStore, snapshotCompiler);
+      public DictionaryMapBenchmark() {
+         for (var i = 0; i < 10000; i++) {
+            input.Add(i, i);
+         }
       }
 
       [Benchmark]
-      public void LoadBunny() => _ClearMapAndLoadBunny();
+      public void FastMapBenchmark() => input.Map(Mapper);
 
       [Benchmark]
-      public void CompileBunny() {
-         _InvalidateCaches();
-         _CompileBunny();
-      }
+      public void ToDictionaryBenchmark() => input.ToDictionary(kvp => kvp.Key, kvp => Mapper(kvp.Key, kvp.Value));
 
-
-      [IterationSetup(Target = nameof(CompileBunny))]
-      void CompileBunny_Setup() => _ClearMapAndLoadBunny();
-
-
-      [Benchmark]
-      public void IncrementallyRecompileHolePunchedBunny() {
-         _PunchHoleIntoBunny();
-         _CompileBunny();
-      }
-
-      [IterationSetup(Target = nameof(IncrementallyRecompileHolePunchedBunny))]
-      public void CompileHolePunchedBunny_Setup() {
-         _ClearMapAndLoadBunny();
-         _CompileBunny();
-      }
-
-      public void _ClearMapAndLoadBunny() {
-         terrainService.Clear();
-         terrainService.LoadMeshAsMap("Assets/bunny.obj", new DoubleVector3(0.015, -0.10, 0.0), new DoubleVector3(0, 0, 0), 30000);
-      }
-
-      public void _InvalidateCaches() => terrainService.SnapshotCompiler.InvalidateCaches();
-
-      public void _CompileBunny() => terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
-
-      public void _PunchHoleIntoBunny() {
-         var sphereHole = terrainService.CreateHoleDescription(new SphereHoleStaticMetadata { Radius = 500 });
-         sphereHole.WorldTransform = Matrix4x4.CreateTranslation(-561.450012207031f, -1316.31005859375f, -116.25f);
-         terrainService.AddTemporaryHoleDescription(sphereHole);
+      private string Mapper(int arg1, int arg2) {
+         return $"A{arg1}.{arg2}";
       }
    }
 
-   public class FastAndDirtyConfig : ManualConfig {
-      public FastAndDirtyConfig() {
-         Add(DefaultConfig.Instance); // *** add default loggers, reporters etc? ***
-
-         Add(Job.Default
-                .WithLaunchCount(1) // benchmark process will be launched only once
-                .WithIterationTime(100 * TimeInterval.Millisecond) // 100ms per iteration
-                .WithWarmupCount(3) // 3 warmup iteration
-                .WithTargetCount(3) // 3 target iteration
-         );
-      }
-   }
 
    //
    //   public class GeometryBenchmark {
