@@ -24,6 +24,7 @@ namespace OpenMOBA.Foundation.Terrain {
    }
 
    public class SectorNodeDescription {
+      private readonly Guid guid = Guid.NewGuid();
       private readonly TerrainService terrainService;
 
       internal SectorNodeDescription(TerrainService terrainService, TerrainStaticMetadata staticMetadata) {
@@ -107,5 +108,7 @@ namespace OpenMOBA.Foundation.Terrain {
          var maxs = origin + nearBottomLeft.MaxWith(nearBottomRight).MaxWith(nearTopLeft).MaxWith(nearTopRight).MaxWith(farBottomLeft).MaxWith(farBottomRight).MaxWith(farTopLeft).MaxWith(farTopRight);
          InstanceMetadata.WorldAABB = AxisAlignedBoundingBox.FromExtents(mins, maxs);
       }
+
+      public override string ToString() => guid.ToString("n").Substring(0, 8);
    }
 }

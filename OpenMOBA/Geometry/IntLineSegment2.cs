@@ -75,7 +75,7 @@ namespace OpenMOBA.Geometry {
       }
 
       public override bool Equals(object obj) {
-         return obj is IntLineSegment2 && Equals((IntLineSegment2)obj);
+         return obj is IntLineSegment2 s && Equals(s);
       }
 
       public override int GetHashCode() {

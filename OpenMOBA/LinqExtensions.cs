@@ -5,6 +5,7 @@ using System.Collections.Generic;
    using System.Reflection;
    using System.Reflection.Emit;
    using System.Runtime.CompilerServices;
+   using OpenMOBA.DataStructures;
 
 namespace OpenMOBA {
    public static class LinqExtensions {
@@ -129,6 +130,15 @@ namespace OpenMOBA {
             }
          }
          return result;
+      }
+
+      public static MultiValueDictionary<K, V> ToMultiValueDictionary<I, K, V>(this IReadOnlyList<I> coll, Func<I, K> keyMapper, Func<I, V> valueMapper) {
+         var dict = new MultiValueDictionary<K, V>();
+         for (var i = 0; i < coll.Count; i++) {
+            var x = coll[i];
+            dict.Add(keyMapper(x), valueMapper(x));
+         }
+         return dict;
       }
 
       public static V Get<K, V>(this Dictionary<K, V> dict, K key) => dict[key];

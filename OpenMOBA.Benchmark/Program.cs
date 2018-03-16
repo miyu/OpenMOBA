@@ -18,29 +18,28 @@ namespace OpenMOBA.Benchmarks {
          sww.Start();
          var s1 = new IntLineSegment2(new IntVector2(10, 20), new IntVector2(50, 50));
          var s2 = new IntLineSegment2(new IntVector2(50, 280), new IntVector2(50213, 502));
+         var d = new Dictionary<int, int>();
          for (var i = 0; i < 8000000; i++) {
-            s1.Intersects(s2);
+            d[i] = i;
+//            s1.Intersects(s2);
 //            Interlocked.Increment(ref j);
          }
          Console.WriteLine("Done " + sww.ElapsedMilliseconds);
 
          var benchmark = new HolePunch3DBenchmark();
          benchmark._ClearMapAndLoadBunny();
-         var sw = new Stopwatch();
-         sw.Start();
-//         benchmark._PunchHoleIntoBunny();
-         for (var i = 0; i < 10; i++) { 
+         for (var i = 0; i < 500; i++) {
             benchmark._InvalidateCaches();
             benchmark._CompileBunny();
 
             if (i == 0)
                PolyNodeCrossoverPointManager.DumpPerformanceCounters();
-
-//            var ton = benchmark.terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
-//            var terrainNodes = ton.TerrainNodes.ToArray();
-//            PolyNodeCrossoverPointManager.DumpPerformanceCounters();
-//            Console.WriteLine("@t=" + sw.ElapsedMilliseconds);
-//            GC.KeepAlive(terrainNodes);d
+         }
+         var sw = new Stopwatch();
+         sw.Start();
+         for (var i = 0; i < 10; i++) {
+            benchmark._InvalidateCaches();
+            benchmark._CompileBunny();
          }
          Console.WriteLine("10 iters: " + sw.ElapsedMilliseconds);
       }

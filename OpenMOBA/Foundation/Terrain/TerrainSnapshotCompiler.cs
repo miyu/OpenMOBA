@@ -3,6 +3,7 @@ using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 using System.Collections.Generic;
 using System.Linq;
+using OpenMOBA.DataStructures;
 
 namespace OpenMOBA.Foundation.Terrain {
    public interface ITerrainSnapshotCompiler {
@@ -62,12 +63,13 @@ namespace OpenMOBA.Foundation.Terrain {
          var edgeDescriptions = descriptionStore.EnumerateSectorEdgeDescriptions().ToList();
          var dynamicHoleDescriptions = descriptionStore.EnumerateDynamicTerrainHoleDescriptions().ToList();
 
+
          //----------------------------------------------------------------------------------------
          // Plan Local Geometry Jobs
          //----------------------------------------------------------------------------------------
-         var edgeDescriptionsByNodeDescription = edgeDescriptions.ToLookup(edge => edge.Source);
+         var edgeDescriptionsByNodeDescription = edgeDescriptions.ToLookup(edge => edge.Source); // 20ms
 
-         var localGeometryRenderJobByNodeDescription = new Dictionary<SectorNodeDescription, LocalGeometryJob>();
+         var localGeometryRenderJobByNodeDescription = new Dictionary<SectorNodeDescription, LocalGeometryJob>(nodeDescriptions.Count);
          foreach (var sectorNodeDescription in nodeDescriptions) {
             var localGeometryRenderJob = new LocalGeometryJob(sectorNodeDescription.StaticMetadata);
             foreach (var edgeDescription in edgeDescriptionsByNodeDescription[sectorNodeDescription]) {
@@ -77,11 +79,12 @@ namespace OpenMOBA.Foundation.Terrain {
                holeDescription.EnhanceLocalGeometryJob(sectorNodeDescription, ref localGeometryRenderJob);
             }
             localGeometryRenderJobByNodeDescription.Add(sectorNodeDescription, localGeometryRenderJob);
-         }
+         } // 80ms
+         return null;
 
-         var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.Distinct().ToDictionary(
+         var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.ToDictionary(
             renderJob => renderJob,
-            renderJob => new LocalGeometryJob(renderJob.TerrainStaticMetadata, renderJob.CrossoverSegments));
+            renderJob => new LocalGeometryJob(renderJob.TerrainStaticMetadata, renderJob.CrossoverSegments)); //110
 
 
          // TODO: Optimization: Pathfind on 'known' hole-less geometry.

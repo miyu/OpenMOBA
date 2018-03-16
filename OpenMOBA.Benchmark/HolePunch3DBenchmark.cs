@@ -48,7 +48,7 @@ namespace OpenMOBA.Benchmarks {
 
       public void _InvalidateCaches() => terrainService.SnapshotCompiler.InvalidateCaches();
 
-      public void _CompileBunny() => terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
+      public void _CompileBunny() => terrainService.CompileSnapshot()?.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
 
       public void _PunchHoleIntoBunny() {
          var sphereHole = terrainService.CreateHoleDescription(new SphereHoleStaticMetadata { Radius = 500 });
