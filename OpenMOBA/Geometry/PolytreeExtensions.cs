@@ -175,13 +175,17 @@ namespace OpenMOBA.Geometry {
          if (!node.IsHole) {
             s.Push(node);
          } else {
-            node.Childs.ForEach(s.Push);
+            foreach (var child in node.Childs) {
+               s.Push(child);
+            }
          }
-         while (s.Any()) {
+         while (s.Count != 0) {
             var landNode = s.Pop();
             yield return landNode;
-            foreach (var subLandNode in landNode.Childs.SelectMany(c => c.Childs)) {
-               s.Push(subLandNode);
+            foreach (var childHoleNode in landNode.Childs) {
+               foreach (var childChildLandNode in childHoleNode.Childs) {
+                  s.Push(childChildLandNode);
+               }
             }
          }
       }

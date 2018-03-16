@@ -78,8 +78,12 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var sourceCrossoverIndices = sourceNode.CrossoverPointManager.AddMany(edgeJob.SourceSegment, sourceCrossoverPoints);
             var destinationCrossoverIndices = destinationNode.CrossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
 
-            var edges = sourceCrossoverIndices.Zip(destinationCrossoverIndices, (sci, dci) => new TerrainOverlayNetworkEdge(sci, dci, 0))
-                                              .ToArray();
+            var edges = new TerrainOverlayNetworkEdge[sourceCrossoverIndices.Length];
+            for (var i = 0; i < edges.Length; i++) {
+               edges[i]= new TerrainOverlayNetworkEdge(sourceCrossoverIndices[i], destinationCrossoverIndices[i], 0);
+            }
+//            var edges = sourceCrossoverIndices.Zip(destinationCrossoverIndices, (sci, dci) => new TerrainOverlayNetworkEdge(sci, dci, 0))
+//                                              .ToArray();
             var edgeGroup = new TerrainOverlayNetworkEdgeGroup(sourceNode, destinationNode, edgeJob, edges);
             sourceNode.OutboundEdgeGroups.Add(destinationNode, edgeGroup);
             destinationNode.InboundEdgeGroups.Add(sourceNode, edgeGroup);

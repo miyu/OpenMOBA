@@ -64,6 +64,24 @@ namespace OpenMOBA.DataStructures {
          return false;
       }
 
+      public List<BvhILS2> FindPotentiallyIntersectingLeaves(IntLineSegment2 seg) {
+         var res = new List<BvhILS2>();
+         FindPotentiallyIntersectingLeavesInternal(ref seg, res);
+         return res;
+      }
+
+      private void FindPotentiallyIntersectingLeavesInternal(ref IntLineSegment2 seg, List<BvhILS2> results) {
+         if (!Bounds.ContainsOrIntersects(ref seg)) {
+            return;
+         }
+         if (First != null) {
+            First.FindPotentiallyIntersectingLeavesInternal(ref seg, results);
+            Second.FindPotentiallyIntersectingLeavesInternal(ref seg, results);
+         } else {
+            results.Add(this);
+         }
+      }
+
       public void DumpToConsole(int indent) {
          Console.WriteLine(new string('\t', indent * 2) + Bounds);
          for (var i = SegmentsStartIndexInclusive; i < SegmentsEndIndexExclusive; i++) {

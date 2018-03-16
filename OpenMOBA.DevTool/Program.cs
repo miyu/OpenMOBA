@@ -234,7 +234,7 @@ namespace OpenMOBA.DevTool {
             }
 
             //				DrawBvhAABB(boundsBvh);
-            //			   foreach (var node in boundsBvh.FindIntersectingLeaves(sourcePoint)) {
+            //			   foreach (var node in boundsBvh.FindPotentiallyIntersectingLeaves(sourcePoint)) {
             //			      debugCanvas.DrawAxisAlignedBoundingBox(node.Bounds, new StrokeStyle(Color.Red, 3));
             //			      for (var i = node.StartIndexInclusive; i < node.EndIndexExclusive; i++) {
             //			         var tonn = node.Values[i];
