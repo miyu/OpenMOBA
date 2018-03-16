@@ -6,6 +6,7 @@ using System.Threading;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using OpenMOBA.Foundation.Terrain.Snapshots;
+using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Benchmarks {
    public class Program {
@@ -15,8 +16,11 @@ namespace OpenMOBA.Benchmarks {
          int j = 0;
          var sww = new Stopwatch();
          sww.Start();
-         for (var i = 0; i < 1000000; i++) {
-            Interlocked.Increment(ref j);
+         var s1 = new IntLineSegment2(new IntVector2(10, 20), new IntVector2(50, 50));
+         var s2 = new IntLineSegment2(new IntVector2(50, 280), new IntVector2(50213, 502));
+         for (var i = 0; i < 8000000; i++) {
+            s1.Intersects(s2);
+//            Interlocked.Increment(ref j);
          }
          Console.WriteLine("Done " + sww.ElapsedMilliseconds);
 
@@ -28,6 +32,9 @@ namespace OpenMOBA.Benchmarks {
          for (var i = 0; i < 10; i++) { 
             benchmark._InvalidateCaches();
             benchmark._CompileBunny();
+
+            if (i == 0)
+               PolyNodeCrossoverPointManager.DumpPerformanceCounters();
 
 //            var ton = benchmark.terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
 //            var terrainNodes = ton.TerrainNodes.ToArray();

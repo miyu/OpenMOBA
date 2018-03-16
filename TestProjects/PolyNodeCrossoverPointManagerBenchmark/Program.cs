@@ -53,7 +53,7 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          // canvas.DrawLine(a, b, intersects ? StrokeStyle.RedHairLineSolid : StrokeStyle.LimeHairLineSolid);
 
          Console.WriteLine(
-            PolyNodeCrossoverPointManager.AddMany_ConvexHullsComputed + " " + 
+            PolyNodeCrossoverPointManager.AddManyConvexHullsComputed + " " + 
             PolyNodeCrossoverPointManager.CrossoverPointsAdded + " " +
             PolyNodeCrossoverPointManager.FindOptimalLinksToCrossoversInvocationCount + " " + 
             PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck + " " + 

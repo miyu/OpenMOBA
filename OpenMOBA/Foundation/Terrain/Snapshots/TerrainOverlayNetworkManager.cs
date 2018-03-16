@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenMOBA;
+using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain.Snapshots {
@@ -47,10 +48,17 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          //----------------------------------------------------------------------------------------
          var edgesBySource = edgeDescriptions.ToLookup(ed => ed.Source);
          var edgesByDestination = edgeDescriptions.ToLookup(ed => ed.Destination);
-         var edgesByEndpoints = edgeDescriptions.Select(ed => ed.Source.PairValue(ed))
-                                                .Concat(edgeDescriptions.Select(ed => ed.Destination.PairValue(ed)))
-                                                .Distinct()
-                                                .ToLookup(kvp => kvp.Key, kvp => kvp.Value);
+         var edgesByEndpoints = MultiValueDictionary<SectorNodeDescription, SectorEdgeDescription>.Create(() => new HashSet<SectorEdgeDescription>());
+         foreach (var (k, edges) in edgesBySource) {
+            foreach (var edge in edges) {
+               edgesByEndpoints.Add(k, edge);
+            }
+         }
+         foreach (var (k, edges) in edgesByDestination) {
+            foreach (var edge in edges) {
+               edgesByEndpoints.Add(k, edge);
+            }
+         }
 
          //----------------------------------------------------------------------------------------
          // Build and Initialize Terrain Overlay Network
