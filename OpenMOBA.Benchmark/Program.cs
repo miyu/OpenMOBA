@@ -10,16 +10,7 @@ using OpenMOBA.Foundation.Terrain.Snapshots;
 namespace OpenMOBA.Benchmarks {
    public class Program {
       public static void Main(string[] args) {
-//         var dict = new Dictionary<int, int> {
-//            [1] = 100,
-//            [2] = 200
-//         };
-//         var res = dict.Map((k, v) => $"A{k}.{v}");
-//         new DictionaryMapBenchmark();
-
-//         LinqExtensions.DictionaryMapper<string, int, string>.CloneIntArrayOrNull(new int[0]);
-         BenchmarkRunner.Run<DictionaryMapBenchmark>();
-         return;
+//         BenchmarkRunner.Run<HolePunch3DBenchmark>();
 
          int j = 0;
          var sww = new Stopwatch();
@@ -33,19 +24,18 @@ namespace OpenMOBA.Benchmarks {
          benchmark._ClearMapAndLoadBunny();
          var sw = new Stopwatch();
          sw.Start();
-         for (var i = 0; i < 10; i++) {
+//         benchmark._PunchHoleIntoBunny();
+         for (var i = 0; i < 10; i++) { 
             benchmark._InvalidateCaches();
             benchmark._CompileBunny();
 
-            var ton = benchmark.terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
-            var terrainNodes = ton.TerrainNodes.ToArray();
-            PolyNodeCrossoverPointManager.DumpPerformanceCounters();
-            Console.WriteLine("@t=" + sw.ElapsedMilliseconds);
-            GC.KeepAlive(terrainNodes);
+//            var ton = benchmark.terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
+//            var terrainNodes = ton.TerrainNodes.ToArray();
+//            PolyNodeCrossoverPointManager.DumpPerformanceCounters();
+//            Console.WriteLine("@t=" + sw.ElapsedMilliseconds);
+//            GC.KeepAlive(terrainNodes);d
          }
          Console.WriteLine("10 iters: " + sw.ElapsedMilliseconds);
-
-//         BenchmarkRunner.Run<HolePunch3DBenchmark>();
       }
    }
 

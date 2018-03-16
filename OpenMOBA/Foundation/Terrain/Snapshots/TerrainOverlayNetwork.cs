@@ -208,7 +208,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       // Todo: Can we support DV2s?
 
       public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
-         return points.Map(p => 0);
+//         return points.Map(p => 0);
          var segmentSeeingWaypoints = landPolyNode.ComputeSegmentSeeingWaypoints(edgeSegment);
 
          // It's safe to assume <some> point in points will be new, so preprocess which segments are betwen us and other edge segments
@@ -275,7 +275,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                PriorIndex = PathLink.ErrorInvalidIndex,
                TotalCost = float.PositiveInfinity
             };
-            return;
 
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;

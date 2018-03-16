@@ -26,21 +26,18 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          //----------------------------------------------------------------------------------------
          // Sector Node Description => Default Local Geometry View
          //----------------------------------------------------------------------------------------
-         var renderedLocalGeometryViewBySectorNodeDescription = localGeometryViewManagerBySectorNodeDescription.ToDictionary(
-            kvp => kvp.Key,
-            kvp => kvp.Value.GetErodedView(agentRadius));
+         var renderedLocalGeometryViewBySectorNodeDescription = localGeometryViewManagerBySectorNodeDescription.Map(
+            (k, v) => v.GetErodedView(agentRadius));
 
-         var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.ToDictionary(
-            kvp => kvp.Key,
-            kvp => (true || kvp.Value.IsPunchedLandEvaluated) ? kvp.Value : kvp.Value.Preview);
+         var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.Map(
+            (k, v) => (true || v.IsPunchedLandEvaluated) ? v : v.Preview);
          
          var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.Distinct().ToDictionary(
             lgv => lgv,
             lgv => lgv.PunchedLand.EnumerateLandNodes().ToList());
 
-         var terrainNodesBySectorNodeDescription = defaultLocalGeometryViewBySectorNodeDescription.ToDictionary(
-            kvp => kvp.Key,
-            kvp => landPolyNodesByDefaultLocalGeometryView[kvp.Value].Map(pn => new TerrainOverlayNetworkNode(kvp.Key, kvp.Value, pn)));
+         var terrainNodesBySectorNodeDescription = defaultLocalGeometryViewBySectorNodeDescription.Map(
+            (k, v) => landPolyNodesByDefaultLocalGeometryView[v].Map(pn => new TerrainOverlayNetworkNode(k, v, pn)));
 
          var terrainNodesBySectorNodeDescriptionAndPolyNode = terrainNodesBySectorNodeDescription.Values.SelectMany(tns => tns).ToDictionary(
             tn => (tn.SectorNodeDescription, tn.LandPolyNode));

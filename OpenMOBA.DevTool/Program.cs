@@ -86,17 +86,8 @@ namespace OpenMOBA.DevTool {
 
          for (var i = 0; i < 10; i++) {
             RunBenchmarkIteration();
-            if (false && i == 0)
-               Console.WriteLine(
-                  PolyNodeCrossoverPointManager.AddMany_ConvexHullsComputed + " " +
-                  PolyNodeCrossoverPointManager.CrossoverPointsAdded + " " +
-                  PolyNodeCrossoverPointManager.FindOptimalLinksToCrossoversInvocationCount + " " +
-                  PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck + " " +
-                  PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CostToWaypointCount + " " +
-                  PolyNodeCrossoverPointManager.ProcessCpiInvocationCount + " " +
-                  PolyNodeCrossoverPointManager.ProcessCpiInvocation_CandidateBarrierIntersectCount + " " +
-                  PolyNodeCrossoverPointManager.ProcessCpiInvocation_DirectCount + " " +
-                  PolyNodeCrossoverPointManager.ProcessCpiInvocation_IndirectCount);
+            if (i == 0)
+               PolyNodeCrossoverPointManager.DumpPerformanceCounters();
          }
          GC.Collect();
          var sw = new Stopwatch();
@@ -118,6 +109,7 @@ namespace OpenMOBA.DevTool {
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
          //terrainOverlayNetwork.Initialize();
+         Console.WriteLine("Rendering");
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
@@ -128,19 +120,19 @@ namespace OpenMOBA.DevTool {
 
             debugCanvas.Transform = Matrix4x4.Identity;
 
-//				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(10000, 0, 0), new StrokeStyle(Color.Red, 50));
-//				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 10000, 0), new StrokeStyle(Color.Lime, 50));
-//				debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 10000), new StrokeStyle(Color.Blue, 50));
+            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(10000, 0, 0), new StrokeStyle(Color.Red, 50));
+            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 10000, 0), new StrokeStyle(Color.Lime, 50));
+            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 10000), new StrokeStyle(Color.Blue, 50));
 
             //            return;
 
             //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
 
-            /*
+            debugCanvas.DrawPoint(new DoubleVector3(-561.450012207031, -1316.31005859375, -116.25), new StrokeStyle(Color.Gray, 850));
+
             // FOR BUNNY
             // Paths from Source [808.800476074219, -2133.13989257813, 466.265472412109] to [-496.957489013672, 566.484985351563, 3515.56762695313]
-            debugCanvas.DrawPoint(new DoubleVector3(-561.450012207031, -1316.31005859375, -116.25), new StrokeStyle(Color.Gray, 850));
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
                var w = Vector3.Transform(new Vector3(n.SectorNodeDescription.StaticMetadata.LocalBoundary.Width / 2.0f, n.SectorNodeDescription.StaticMetadata.LocalBoundary.Height / 2.0f, 0), n.SectorNodeDescription.WorldTransform);
@@ -301,8 +293,9 @@ namespace OpenMOBA.DevTool {
 //                  fillColor = Color.Red;
 //               }
                debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(fillColor));
+               continue;
 //					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
+//               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
 
                //Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
 //					foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
