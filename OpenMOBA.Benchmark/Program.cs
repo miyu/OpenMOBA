@@ -27,16 +27,32 @@ namespace OpenMOBA.Benchmarks {
          var bench = new HolePunch3DBenchmark();
          bench.LoadBunny();
          var snapshot = bench.terrainService.CompileSnapshot();
-         var sw = new Stopwatch();
-         sw.Start();
-         for (var i = 0; i < 1000; i++) {
-            snapshot.OverlayNetworkManager.InvalidateCaches();
-            var ton = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
-            if (i == 0) {
-               Console.WriteLine("Snapshot Nodes: " + snapshot.NodeDescriptions.Count + " Edges: " + snapshot.EdgeDescriptions.Count);
-            }
+         int niters = 1;
+         void RunGC() {
+            for (var i = 0; i < 10; i++)
+               for (var k = 0; k <= GC.MaxGeneration; k++)
+                  GC.Collect(k, GCCollectionMode.Forced, true, true);
          }
-         Console.WriteLine("1000iter: " + sw.ElapsedMilliseconds);
+         for (var j = 0; j < 5; j++) {
+            RunGC();
+            var ers = GC.TryStartNoGCRegion(1024 * 1024 * 192);
+            var initialMemory = GC.GetTotalMemory(false);
+            Console.WriteLine("TryStart: " + ers);
+            var sw = new Stopwatch();
+            sw.Start();
+            int[] GetGcCollections() => Util.GenerateRange(GC.MaxGeneration + 1).Map(GC.CollectionCount);
+            var initialCollections = GetGcCollections();
+            for (var i = 0; i < niters; i++) {
+               snapshot.OverlayNetworkManager.InvalidateCaches();
+               var ton = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
+               //if (i == 0) {
+               //   Console.WriteLine("Snapshot Nodes: " + snapshot.NodeDescriptions.Count + " Edges: " + snapshot.EdgeDescriptions.Count);
+               //}
+            }
+            Console.WriteLine($"{niters}iter: {sw.ElapsedMilliseconds} => {sw.ElapsedMilliseconds / (float)niters}");
+            Console.WriteLine($"GC ~{((GC.GetTotalMemory(false) - initialMemory) / 1000000.0):F2} MB; Collections: " + string.Join(", ", GetGcCollections().Map((x, i) => $"GEN{i} " + (x - initialCollections[i]))));
+            if (ers) GC.EndNoGCRegion();
+         }
       }
    }
 

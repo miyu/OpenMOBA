@@ -80,7 +80,6 @@ namespace OpenMOBA.Foundation.Terrain {
             }
             localGeometryRenderJobByNodeDescription.Add(sectorNodeDescription, localGeometryRenderJob);
          } // 80ms
-         return null;
 
          var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.ToDictionary(
             renderJob => renderJob,

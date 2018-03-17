@@ -299,6 +299,23 @@ namespace OpenMOBA {
       public static Dictionary<K, V2> Map<K, V1, V2>(this Dictionary<K, V1> dict, Func<K, V1, V2> mapper) {
          return DictionaryMapperInternals<K, V1, V2>.dictionaryMapper(dict, mapper);
       }
+
+      public static Dictionary<VIn, VOut> MapByValue<KIn, VIn, VOut>(this Dictionary<KIn, VIn> dict, Func<VIn, VOut> mapper) {
+         var result = new Dictionary<VIn, VOut>(dict.Count);
+         foreach (var (k, v) in dict) {
+            result[v] = mapper(v);
+         }
+         return result;
+      }
+
+      public static Dictionary<T, V> UniqueMap<T, V>(this IReadOnlyList<T> list, Func<T, V> mapper) {
+         var result = new Dictionary<T, V>();
+         for (var i = 0 ; i < list.Count; i++) {
+            var x = list[i];
+            result[x] = mapper(x);
+         }
+         return result;
+      }
    }
 
    public static class DictionaryMapperInternals<K, V1, V2> {

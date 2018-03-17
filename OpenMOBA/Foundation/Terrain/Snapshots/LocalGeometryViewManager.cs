@@ -11,6 +11,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          PreviewViewManager = previewViewManager ?? this;
       }
 
+      public void InvalidateCaches() {
+         views.Clear();
+      }
+
       public LocalGeometryView GetErodedView(double actorRadius) {
          if (views.TryGetValue(actorRadius, out LocalGeometryView cachedView)) return cachedView;
          var preview = PreviewViewManager == this ? null : PreviewViewManager.GetErodedView(actorRadius);
