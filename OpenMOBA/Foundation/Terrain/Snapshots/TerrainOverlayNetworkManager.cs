@@ -18,6 +18,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          this.edgeDescriptions = edgeDescriptions;
       }
 
+      public void InvalidateCaches() {
+         terrainOverlayNetworkCache.Clear();
+      }
+
       public TerrainOverlayNetwork CompileTerrainOverlayNetwork(double agentRadius) {
          if (terrainOverlayNetworkCache.TryGetValue(agentRadius, out TerrainOverlayNetwork existingTerrainOverlayNetwork)) {
             return existingTerrainOverlayNetwork;
@@ -32,10 +36,11 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
          var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.Map(
             (k, v) => (true || v.IsPunchedLandEvaluated) ? v : v.Preview);
-         
+
          var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.Distinct().ToDictionary(
             lgv => lgv,
-            lgv => lgv.PunchedLand.EnumerateLandNodes().ToList());
+            lgv => lgv.PunchedLand.GetLandNodes());
+         return null;
 
          var terrainNodesBySectorNodeDescription = defaultLocalGeometryViewBySectorNodeDescription.Map(
             (k, v) => landPolyNodesByDefaultLocalGeometryView[v].Map(pn => new TerrainOverlayNetworkNode(k, v, pn)));

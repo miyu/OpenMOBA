@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using ClipperLib;
 using OpenMOBA.Foundation.Terrain;
@@ -188,6 +189,22 @@ namespace OpenMOBA.Geometry {
                }
             }
          }
+      }
+
+      public static List<PolyNode> GetLandNodes(this PolyNode node) {
+         var q = new List<PolyNode>();
+         if (!node.IsHole) {
+            q.Add(node);
+         } else {
+            q.AddRange(node.Childs);
+         }
+         for (var i = 0; i < q.Count; i++) {
+            var childHoles = q[i].Childs;
+            for (var j = 0; j < childHoles.Count; j++) {
+               q.AddRange(childHoles[j].Childs);
+            }
+         }
+         return q;
       }
 
       public static IEnumerable<PolyNode> EnumerateAllNonrootNodes(this PolyNode root) {

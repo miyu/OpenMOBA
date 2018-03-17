@@ -11,7 +11,7 @@ using System.Numerics;
 namespace OpenMOBA.Foundation {
    public static class MapLoader {
       public static void LoadMeshAsMap(this TerrainService terrainService, string objPath, DoubleVector3 meshOffset, DoubleVector3 worldOffset, int scaling = 50000) {
-         Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
+         Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
 
          var lines = File.ReadLines(objPath);
          var verts = new List<DoubleVector3>();
