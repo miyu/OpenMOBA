@@ -33,7 +33,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       private PolyTree _punchedLand;
       private Triangulation _triangulation;
 
-      public PolyNode DilatedHolesUnion =>
+      internal PolyNode DilatedHolesUnion =>
          _dilatedHolesUnion ?? (_dilatedHolesUnion =
             PolygonOperations.Offset()
                              .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
@@ -51,13 +51,13 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       //            ? erosionResult
       //            : (IntLineSegment2?)null).ToArray());
 
-      private PolyTree ComputeErodedOuterContour() =>
-         PolygonOperations.Offset().Include((IEnumerable<Polygon2>)Job.TerrainStaticMetadata.LocalIncludedContours)
+      internal PolyTree ComputeErodedOuterContour() =>
+         PolygonOperations.Offset().Include(Job.TerrainStaticMetadata.LocalIncludedContours)
                           .Erode(ActorRadius)
                           .Execute();
 
-      private IEnumerable<Polygon2> ComputeCrossoverLandPolys() {
-         return Enumerable.Select<IntLineSegment2, Polygon2>(Job.CrossoverSegments, segment => {
+      internal IEnumerable<Polygon2> ComputeCrossoverLandPolys() {
+         return Job.CrossoverSegments.Select(segment => {
             var firstToSecond = segment.First.To(segment.Second).ToDoubleVector2();
             var perp = new DoubleVector2(firstToSecond.Y, -firstToSecond.X);
             var extrusionMagnitude = ActorRadius + 2;
@@ -94,8 +94,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                                 .Include(ComputeErodedOuterContour().FlattenToPolygons())
                                 .Include(ComputeCrossoverLandPolys())
                                 .Exclude(DilatedHolesUnion.FlattenToPolygons())
-                                //.Exclude(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)) // we exclude what the hole includes.
-                                //.Include(Job.DynamicHoles.Values.SelectMany(item => item.holeExcludedContours))
                                 .Execute()
             ));
 

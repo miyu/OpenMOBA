@@ -27,7 +27,6 @@ namespace OpenMOBA.Benchmarks {
          var bench = new HolePunch3DBenchmark();
          bench.LoadBunny();
          var snapshot = bench.terrainService.CompileSnapshot();
-         int niters = 1;
          void RunGC() {
             for (var i = 0; i < 10; i++)
                for (var k = 0; k <= GC.MaxGeneration; k++)
@@ -35,7 +34,9 @@ namespace OpenMOBA.Benchmarks {
          }
          for (var j = 0; j < 5; j++) {
             RunGC();
-            var ers = GC.TryStartNoGCRegion(1024 * 1024 * 192);
+            var benchmarkMemoryAllocated = true;
+            int niters = benchmarkMemoryAllocated ? 1 : 10;
+            var ers = benchmarkMemoryAllocated && GC.TryStartNoGCRegion(1024 * 1024 * 240);
             var initialMemory = GC.GetTotalMemory(false);
             Console.WriteLine("TryStart: " + ers);
             var sw = new Stopwatch();
