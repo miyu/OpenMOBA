@@ -47,7 +47,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
          var terrainNodesBySectorNodeDescription = defaultLocalGeometryViewBySectorNodeDescription.Map(
             (k, v) => landPolyNodesByDefaultLocalGeometryView[v].Map(pn => new TerrainOverlayNetworkNode(k, v, pn)));
-         return null;
 
          var terrainNodesBySectorNodeDescriptionAndPolyNode = terrainNodesBySectorNodeDescription.Values.SelectMany(tns => tns).ToDictionary(
             tn => (tn.SectorNodeDescription, tn.LandPolyNode));

@@ -51,12 +51,12 @@ namespace OpenMOBA.Geometry {
          }
 
          //#if DEBUG
-         //         // This test doesn't work while polyline dilate doesn't know about holeness
-         //         for (var i = 0; i < points.Count - 2; i++) {
-         //            var clockness = GeometryOperations.Clockness(points[i].XY, points[i + 1].XY, points[i + 2].XY);
-         //            var expectedClockness = isHole ? Clockness.CounterClockwise : Clockness.Clockwise;
-         //            Debug.Assert(clockness == expectedClockness);
-         //         }
+         //// This test doesn't work while polyline dilate doesn't know about holeness
+         //for (var i = 0; i < points.Count - 2; i++) {
+         //   var clockness = GeometryOperations.Clockness(points[i].XY, points[i + 1].XY, points[i + 2].XY);
+         //   var expectedClockness = isHole ? Clockness.CounterClockwise : Clockness.Clockwise;
+         //   Debug.Assert(clockness == expectedClockness);
+         //}
          //#endif
 
          Points = points;

@@ -24,8 +24,8 @@ namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
          var gameFactory = new GameFactory();
-//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
-         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
+         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
+//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
          OpenMOBA.Program.Main(gameFactory);
       }
    }
@@ -100,7 +100,7 @@ namespace OpenMOBA.DevTool {
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
-         var holeDilationRadius = 5.0;
+         var holeDilationRadius = 15.0;
          if (GameTimeService.Ticks > 20) {
             Benchmark(holeDilationRadius);
             return;
@@ -120,18 +120,19 @@ namespace OpenMOBA.DevTool {
 
             debugCanvas.Transform = Matrix4x4.Identity;
 
-            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(10000, 0, 0), new StrokeStyle(Color.Red, 50));
-            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 10000, 0), new StrokeStyle(Color.Lime, 50));
-            debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 10000), new StrokeStyle(Color.Blue, 50));
+            //debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(10000, 0, 0), new StrokeStyle(Color.Red, 50));
+            //debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 10000, 0), new StrokeStyle(Color.Lime, 50));
+            //debugCanvas.DrawLine(new DoubleVector3(0, 0, 0), new DoubleVector3(0, 0, 10000), new StrokeStyle(Color.Blue, 50));
 
             //            return;
 
             //            DrawTestPathfindingQueries(debugCanvas, holeDilationRadius);
 
 
-            debugCanvas.DrawPoint(new DoubleVector3(-561.450012207031, -1316.31005859375, -116.25), new StrokeStyle(Color.Gray, 850));
 
+            /*
             // FOR BUNNY
+            debugCanvas.DrawPoint(new DoubleVector3(-561.450012207031, -1316.31005859375, -116.25), new StrokeStyle(Color.Gray, 850));
             // Paths from Source [808.800476074219, -2133.13989257813, 466.265472412109] to [-496.957489013672, 566.484985351563, 3515.56762695313]
             Console.WriteLine("# TONs: " + terrainOverlayNetwork.TerrainNodes.Count);
             var sourceNode = terrainOverlayNetwork.TerrainNodes.First(n => {
@@ -292,9 +293,15 @@ namespace OpenMOBA.DevTool {
 //               if (localGeometryView.Job.DynamicHoles.Count > 0) {
 //                  fillColor = Color.Red;
 //               }
-               debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(fillColor));
+//               debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(fillColor));
+					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+               debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.RedHairLineSolid);
+
+//               foreach (var c in visibilityGraphNodeData.EdgeDescriptions) {
+//                  debugCanvas.DrawLine(c.SourceSegment.First, c.SourceSegment.Second, new StrokeStyle(Color.Red, 5));
+//               }
+
                continue;
-//					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
 //               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
 
                //Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
@@ -421,14 +428,14 @@ namespace OpenMOBA.DevTool {
                   var visibilityGraph = landNode.ComputeVisibilityGraph();
                   debugCanvas.DrawVisibilityGraph(visibilityGraph);
 
-                  //                  var visibilityGraphNodeData = landNode.visibilityGraphNodeData;
-                  //                  if (visibilityGraphNodeData.EdgeDescriptions == null) {
-                  //                     continue;
-                  //                  }
-                  //
-                  //                  foreach (var c in visibilityGraphNodeData.EdgeDescriptions) {
-                  //                     debugCanvas.DrawLine(c.SourceSegment.First, c.SourceSegment.Second, new StrokeStyle(Color.Red, 5));
-                  //                  }
+//                  var visibilityGraphNodeData = landNode.visibilityGraphNodeData;
+//                  if (visibilityGraphNodeData.EdgeDescriptions == null) {
+//                     continue;
+//                  }
+//                  
+//                  foreach (var c in visibilityGraphNodeData.EdgeDescriptions) {
+//                     debugCanvas.DrawLine(c.SourceSegment.First, c.SourceSegment.Second, new StrokeStyle(Color.Red, 5));
+//                  }
 
 //                  debugCanvas.DrawVisibilityPolygon(landNode.ComputeWaypointVisibilityPolygons()[25]);
 
@@ -591,8 +598,8 @@ namespace OpenMOBA.DevTool {
          var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-//			var center = new DoubleVector3(0, 0, 0);
-         var center = new DoubleVector3(1600, 1600, 0);
+			var center = new DoubleVector3(0, 0, 0);
+//         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
             center + DoubleVector3.FromRadiusAngleAroundXAxis(1000, rotation),
 //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
