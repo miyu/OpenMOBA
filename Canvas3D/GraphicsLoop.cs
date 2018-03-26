@@ -29,7 +29,7 @@ namespace Canvas3D {
       public bool IsRunning(out IRenderContext renderer) {
          if (RenderLoop.NextFrame()) {
             GraphicsFacade.Device.DoEvents();
-            Statistics.HandleFrameEnter(_initFlags.HasFlag(InitFlags.EnableDebugStats) ? Form : null);
+            Statistics.HandleFrameEnter((_initFlags & InitFlags.EnableDebugStats) != 0 ? Form : null);
             renderer = Renderer;
             return true;
          }
@@ -69,22 +69,22 @@ namespace Canvas3D {
       private readonly TimeSpan[] frameIntervalBuffer = new TimeSpan[60];
 
       public GraphicsLoopStatistics() {
-         StartTime = FrameWallClockTime = DateTime.Now;
+         StartTimeUtc = FrameWallClockTimeUtc = DateTime.UtcNow;
       }
 
-      public DateTime StartTime { get; }
+      public DateTime StartTimeUtc { get; }
       public int Frame { get; private set; }
-      public DateTime FrameWallClockTime { get; private set; }
+      public DateTime FrameWallClockTimeUtc { get; private set; }
       public TimeSpan FrameTime { get; private set; }
       public TimeSpan FrameInterval { get; private set; }
       public TimeSpan AveragedFrameInterval { get; private set; }
 
       internal void HandleFrameEnter(RenderForm formOpt) {
          Frame++;
-         var now = DateTime.Now;
-         FrameInterval = now - FrameWallClockTime;
-         FrameWallClockTime = now;
-         FrameTime = FrameWallClockTime - StartTime;
+         var now = DateTime.UtcNow;
+         FrameInterval = now - FrameWallClockTimeUtc;
+         FrameWallClockTimeUtc = now;
+         FrameTime = FrameWallClockTimeUtc - StartTimeUtc;
          frameIntervalBuffer[Frame % frameIntervalBuffer.Length] = FrameInterval;
 
          if (Frame % frameIntervalBuffer.Length == 0) {
