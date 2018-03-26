@@ -1,9 +1,13 @@
+#define PERMIT_STACKALLOC_OPTIMIZATIONS
+
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Canvas3D.LowLevel;
 using Canvas3D.LowLevel.Direct3D;
 using Canvas3D.LowLevel.Helpers;
@@ -42,6 +46,7 @@ namespace Canvas3D {
    }
 
    public class Scene : IScene {
+      private static readonly ConcurrentQueue<SceneSnapshot> snapshotPool = new ConcurrentQueue<SceneSnapshot>();
       private AddOnlyOrderedHashSet<IShaderResourceView> textures = new AddOnlyOrderedHashSet<IShaderResourceView>();
       private ExposedArrayList<InternalMaterialResourcesDescription> materials = new ExposedArrayList<InternalMaterialResourcesDescription>();
       private Dictionary<IMesh, RenderJobBatch> defaultRenderJobBatchesByMesh = new Dictionary<IMesh, RenderJobBatch>();
@@ -152,7 +157,13 @@ namespace Canvas3D {
       }
 
       public ISceneSnapshot ExportSnapshot() {
-         var snapshot = new SceneSnapshot();
+         if (!snapshotPool.TryDequeue(out var snapshot)) {
+            snapshot = new SceneSnapshot();
+         }
+
+         Trace.Assert(snapshot.HandleCount == 0);
+         snapshot.HandleCount++;
+
          ExportSnapshot(snapshot);
          return snapshot;
       }
@@ -181,10 +192,14 @@ namespace Canvas3D {
                   if (job.MaterialResourcesIndex >= snapshot.Materials.Count)
                      throw new InvalidOperationException();
       }
+
+      internal static void ReturnSnapshot(SceneSnapshot sceneSnapshot) {
+         snapshotPool.Enqueue(sceneSnapshot);
+      }
    }
 
    internal class RenderContext : IRenderContext {
-      private const int kShadowMapWidthHeight = 2048 * 4;
+      private const int kShadowMapWidthHeight = 256 * 4;
       private const int kBatchNoMaterialIndexOverride = -1;
       private const int kBaseTextureSlotId = 48;
       private const int kTextureBindLimit = 80; // Slots [48, 127)
@@ -245,6 +260,7 @@ namespace Canvas3D {
       }
 
       public unsafe void RenderScene(ISceneSnapshot scene) {
+         scene.AddReference();
          _graphicsDevice.ImmediateContext.GetBackBufferViews(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
 
          var renderContext = _graphicsDevice.ImmediateContext; // : _graphicsDevice.CreateDeferredRenderContext();
@@ -263,6 +279,7 @@ namespace Canvas3D {
 
          _graphicsDevice.ImmediateContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          _graphicsDevice.ImmediateContext.Present();
+         scene.ReleaseReference();
       }
 
       private void RenderScene_Forward(IDeviceContext context, SceneSnapshot scene, IDepthStencilView backBufferDepthStencilView, IRenderTargetView backBufferRenderTargetView) {
@@ -323,23 +340,41 @@ namespace Canvas3D {
 
       private unsafe void RenderBatch_MaterialPerInstance(IDeviceContext context, SceneSnapshot scene, RenderJobBatch batch) {
          // sort jobs by MRI
+#if PERMIT_STACKALLOC_OPTIMIZATIONS
+         var mris = stackalloc int[batch.Jobs.store.Length];
+         var jobIndexer = stackalloc int[batch.Jobs.store.Length];
+#else
          var mris = new int[batch.Jobs.store.Length];
          var jobIndexer = new int[batch.Jobs.store.Length];
+#endif
          for (var i = 0; i < batch.Jobs.store.Length; i++) {
             mris[i] = batch.Jobs.store[i].MaterialResourcesIndex;
             jobIndexer[i] = i;
          }
+
+#if PERMIT_STACKALLOC_OPTIMIZATIONS
+         UnmanagedCollections.IndirectSort(mris, jobIndexer, 0, batch.Jobs.store.Length);
+#else
          fixed (int* pmris = mris)
             fixed(int* pjobIndexer = jobIndexer)
                UnmanagedCollections.IndirectSort(pmris, pjobIndexer, 0, batch.Jobs.store.Length);
-//         UnmanagedCollections.IndirectSort(mris, jobIndexer, 0, batch.Jobs.store.Length);
+#endif
+         //         UnmanagedCollections.IndirectSort(mris, jobIndexer, 0, batch.Jobs.store.Length);
 
+#if PERMIT_STACKALLOC_OPTIMIZATIONS
+         var boundTextureSlotByTextureIndex = stackalloc int[scene.Textures.Count]; // todo: stackalloc
+#else
          var boundTextureSlotByTextureIndex = new int[scene.Textures.Count]; // todo: stackalloc
+#endif
          for (var i = 0; i < scene.Textures.Count; i++) {
             boundTextureSlotByTextureIndex[i] = -1;
          }
-         
+
+#if PERMIT_STACKALLOC_OPTIMIZATIONS
+         var mriBound = stackalloc int[scene.Materials.Count];
+#else
          var mriBound = new int[scene.Materials.Count]; // todo: stackalloc
+#endif
          for (var i = 0; i < scene.Materials.Count; i++) {
             mriBound[i] = -1;
          }
@@ -607,7 +642,10 @@ namespace Canvas3D {
       }
    }
 
-   public interface ISceneSnapshot { }
+   public interface ISceneSnapshot {
+      ISceneSnapshot AddReference();
+      ISceneSnapshot ReleaseReference();
+   }
 
    internal class SceneSnapshot : ISceneSnapshot {
       public AddOnlyOrderedHashSet<IShaderResourceView> Textures = new AddOnlyOrderedHashSet<IShaderResourceView>();
@@ -619,6 +657,29 @@ namespace Canvas3D {
       public Vector3 CameraEye;
       public Matrix ProjView;
       public Matrix ProjViewInv;
+
+      internal int HandleCount;
+
+      public ISceneSnapshot AddReference() {
+         var next = Interlocked.Increment(ref HandleCount);
+         Trace.Assert(next >= 2); // can't addref something with 0 handle count;
+         return this;
+      }
+
+      public ISceneSnapshot ReleaseReference() {
+         var next = Interlocked.Decrement(ref HandleCount);
+         Trace.Assert(next >= 0);
+
+         if (next == 0) {
+            Textures.Clear();
+            Materials.Clear();
+            RenderJobBatches.Clear();
+            SpotlightInfos.Clear();
+
+            Scene.ReturnSnapshot(this);
+         }
+         return this;
+      }
    }
 
    [StructLayout(LayoutKind.Sequential, Pack = 1)]

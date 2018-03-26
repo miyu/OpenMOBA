@@ -86,7 +86,9 @@ namespace Canvas3D {
             scene.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), Vector3.Up, (float)Math.PI / 8.0f, Color.White, 0.1f, 100.0f, 3.0f, 6.0f, 1.0f);
 
             // Draw the scene
-            renderer.RenderScene(scene.ExportSnapshot());
+            var snapshot = scene.ExportSnapshot();
+            renderer.RenderScene(snapshot);
+            snapshot.ReleaseReference();
          }
       }
 

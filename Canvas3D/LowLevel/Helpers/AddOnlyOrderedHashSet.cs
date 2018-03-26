@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 // Duplicated with OpenMoba's AddOnlyOrderedHashSet and ItzWarty.Commons
 namespace Canvas3D.LowLevel.Helpers {
@@ -23,7 +24,8 @@ namespace Canvas3D.LowLevel.Helpers {
          return true;
       }
 
-      public IEnumerator<T> GetEnumerator() => list.GetEnumerator();
+      public ExposedArrayList<T>.Enumerator GetEnumerator() => list.GetEnumerator();
+      IEnumerator<T> IEnumerable<T>.GetEnumerator() => list.GetEnumerator();
       IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
       public void Clear() {
