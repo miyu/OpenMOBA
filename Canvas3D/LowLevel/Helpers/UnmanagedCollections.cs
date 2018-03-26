@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Canvas3D.LowLevel.Helpers {
    public static unsafe class UnmanagedCollections {
+      [ThreadStatic] private static Stack<(int, int)> __tlsStackStore;
+      private static Stack<(int, int)> GetTlsStack() => __tlsStackStore ?? (__tlsStackStore = new Stack<(int, int)>());
+
+
       // See: https://en.wikipedia.org/wiki/Quicksort#Algorithm
       public static void IndirectSort(int* arr, int* indexMapper, int offset, int length) {
 //         void QuickSort(int lo, int hi) {
@@ -29,7 +35,9 @@ namespace Canvas3D.LowLevel.Helpers {
             return i + 1;
          }
 
-         var s = new Stack<(int, int)>();
+         var s = GetTlsStack();
+         Trace.Assert(s.Count == 0);
+
          s.Push((offset, offset + length - 1));
          while (s.Count != 0) {
             var (lo, hi) = s.Pop();
@@ -39,6 +47,7 @@ namespace Canvas3D.LowLevel.Helpers {
                s.Push((lo, p - 1));
             }
          }
+         Trace.Assert(s.Count == 0);
       }
    }
 }

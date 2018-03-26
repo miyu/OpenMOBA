@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Canvas3D.LowLevel;
@@ -506,9 +508,14 @@ namespace Canvas3D {
          context.Update(_spotlightDescriptionsBuffer, (IntPtr)spotlightDescriptions, scene.SpotlightInfos.Count);
 
          // Clear shadow map buffers.
-         var lightDepthStencilViewCleared = new bool[_lightDepthStencilViews.Length]; // todo: stackalloc
+#if PERMIT_STACKALLOC_OPTIMIZATIONS
+         var lightDepthStencilViewCleared = stackalloc bool[_lightDepthStencilViews.Length];
+#else
+         var lightDepthStencilViewCleared = new bool[_lightDepthStencilViews.Length];
+#endif
          for (var i = 0; i < scene.SpotlightInfos.Count; i++) {
             var ldsvIndex = (int)spotlightDescriptions[i].AtlasLocation.Position.Z;
+            if (ldsvIndex >= _lightDepthStencilViews.Length) throw new IndexOutOfRangeException();
             if (lightDepthStencilViewCleared[ldsvIndex]) continue;
             lightDepthStencilViewCleared[ldsvIndex] = true;
             context.SetRenderTargets(_lightDepthStencilViews[ldsvIndex], null);
@@ -729,11 +736,43 @@ namespace Canvas3D {
       internal InternalMaterialResourcesDescription ToInternal(int baseTextureIndex) {
          return new InternalMaterialResourcesDescription {
             BaseTextureIndex = baseTextureIndex,
-            BaseColor = Fallback(BaseColor, Color4.White)
+            BaseColor = Fallback<Color4>.Helper(BaseColor, Color4.White)
          };
       }
 
-      private static T Fallback<T>(T val, T fallback) where T : struct => val.Equals(default(T)) ? fallback : val;
+      public static class Fallback<T> where T : struct {
+         private static readonly Func<T, T, T> func;
+
+         static Fallback() {
+            var method = new DynamicMethod("", typeof(T), new[] { typeof(T), typeof(T) }, true);
+            var emitter = method.GetILGenerator();
+            var defaultLocal = emitter.DeclareLocal(typeof(T));
+            emitter.Emit(OpCodes.Ldarg_0);
+            emitter.Emit(OpCodes.Ldloca_S, defaultLocal);
+            emitter.Emit(OpCodes.Initobj, typeof(T));
+            emitter.Emit(OpCodes.Ldloc, defaultLocal);
+            emitter.Emit(OpCodes.Call, typeof(T).GetMethod("op_Equality", BindingFlags.Public | BindingFlags.Static));
+
+            // Jump to return fallback if arg was equal to default
+            var labelReturnFallback = emitter.DefineLabel();
+            emitter.Emit(OpCodes.Brtrue_S, labelReturnFallback);
+
+            // Otherwise return val;
+            emitter.Emit(OpCodes.Ldarg_0);
+            emitter.Emit(OpCodes.Ret);
+
+            // arg was equal to default, ret fallback
+            emitter.MarkLabel(labelReturnFallback);
+            emitter.Emit(OpCodes.Ldarg_1);
+            emitter.Emit(OpCodes.Ret);
+            /**/
+
+            func = (Func<T, T, T>)method.CreateDelegate(typeof(Func<T, T, T>));
+         }
+
+         // note: val.Equals(default(T)) ? fallback : val allocs!
+         public static T Helper(T val, T fallback) => func(val, fallback);
+      }
 
       public override bool Equals(object obj) {
          return obj is MaterialResourcesDescription o &&
