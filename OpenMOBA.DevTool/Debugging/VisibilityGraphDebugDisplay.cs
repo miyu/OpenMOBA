@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 using System.Linq;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.DevTool.Debugging {

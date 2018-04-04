@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace OpenMOBA.Foundation.Terrain.Snapshots {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public class LocalGeometryViewManager {
       public readonly LocalGeometryJob Job;
       public readonly LocalGeometryViewManager PreviewViewManager;

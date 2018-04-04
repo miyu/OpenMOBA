@@ -1,28 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
 using System.Numerics;
 using OpenMOBA.DataStructures;
-using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 
-namespace OpenMOBA.Foundation.Terrain {
-   public class TerrainStaticMetadata {
-      public Rectangle LocalBoundary;
-      public IReadOnlyList<Polygon2> LocalIncludedContours = new List<Polygon2>();
-      public IReadOnlyList<Polygon2> LocalExcludedContours = new List<Polygon2>();
-   }
-
-   public class SectorInstanceMetadata {
-      public Matrix4x4 WorldTransform = Matrix4x4.Identity;
-      public Matrix4x4 WorldTransformInv = Matrix4x4.Identity;
-
-      public float WorldToLocalScalingFactor = 1.0f;
-      public float LocalToWorldScalingFactor = 1.0f;
-
-      public AxisAlignedBoundingBox WorldAABB = null;
-   }
-
+namespace OpenMOBA.Foundation.Terrain.Declarations {
    public class SectorNodeDescription {
       private readonly Guid guid = Guid.NewGuid();
       private readonly TerrainService terrainService;

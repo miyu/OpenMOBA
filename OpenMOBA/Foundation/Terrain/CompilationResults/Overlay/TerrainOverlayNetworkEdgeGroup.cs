@@ -1,4 +1,4 @@
-﻿namespace OpenMOBA.Foundation.Terrain.Snapshots {
+﻿namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetworkEdgeGroup {
       public readonly TerrainOverlayNetworkNode Source;
       public readonly TerrainOverlayNetworkNode Destination;

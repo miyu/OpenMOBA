@@ -4,11 +4,10 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using ClipperLib;
 using OpenMOBA.DataStructures;
-using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
 
-namespace OpenMOBA.Foundation.Terrain.Visibility {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public struct PolyNodeVisbilityGraphTreeData {
    }
 

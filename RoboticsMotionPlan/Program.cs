@@ -14,7 +14,7 @@ using OpenMOBA.DevTool;
 using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace RoboticsMotionPlan {

@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using OpenMOBA.Foundation.Terrain.Declarations;
 
 namespace OpenMOBA.Foundation {
    public static class MapLoader {

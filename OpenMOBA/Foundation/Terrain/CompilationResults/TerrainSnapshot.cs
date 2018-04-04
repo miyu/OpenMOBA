@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using OpenMOBA.Foundation.Terrain.Declarations;
 
-namespace OpenMOBA.Foundation.Terrain.Snapshots {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults {
    public class TerrainSnapshot {
       public int Version { get; set; }
       public IReadOnlyList<SectorNodeDescription> NodeDescriptions { get; set; }

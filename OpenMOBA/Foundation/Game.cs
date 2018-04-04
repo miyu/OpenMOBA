@@ -11,6 +11,7 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation {

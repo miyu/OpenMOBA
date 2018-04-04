@@ -1,9 +1,4 @@
-using System.Linq;
-using ClipperLib;
-using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Geometry;
-
-namespace OpenMOBA.Foundation.Terrain {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults {
 // TODO: !!
 //   public static class TerrainQueryOperations {
 //      public static bool TryFindSector(this TerrainSnapshot terrainSnapshot, IntVector3 queryWorld, out SectorSnapshot result) {

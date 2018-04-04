@@ -1,27 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ClipperLib;
 using OpenMOBA;
-using OpenMOBA.DataStructures;
 using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace PolyNodeCrossoverPointManagerBenchmark {
    public static class Program {
       private static readonly Size bounds = new Size(720, 720);
       private static readonly Random random = new Random(3);
+
       private static readonly DebugMultiCanvasHost host = DebugMultiCanvasHost.CreateAndShowCanvas(
-         bounds, 
-         new Point(50, 50), 
+         bounds,
+         new Point(50, 50),
          new OrthographicXYProjector(0.7));
 
       public static void Main(string[] args) {
@@ -53,34 +51,32 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          // canvas.DrawLine(a, b, intersects ? StrokeStyle.RedHairLineSolid : StrokeStyle.LimeHairLineSolid);
 
          Console.WriteLine(
-            PolyNodeCrossoverPointManager.AddManyConvexHullsComputed + " " + 
+            PolyNodeCrossoverPointManager.AddManyConvexHullsComputed + " " +
             PolyNodeCrossoverPointManager.CrossoverPointsAdded + " " +
-            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossoversInvocationCount + " " + 
-            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck + " " + 
-            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CostToWaypointCount + " " + 
-            PolyNodeCrossoverPointManager.ProcessCpiInvocationCount + " " + 
-            PolyNodeCrossoverPointManager.ProcessCpiInvocation_CandidateBarrierIntersectCount + " " + 
-            PolyNodeCrossoverPointManager.ProcessCpiInvocation_DirectCount + " " + 
+            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossoversInvocationCount + " " +
+            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck + " " +
+            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CostToWaypointCount + " " +
+            PolyNodeCrossoverPointManager.ProcessCpiInvocationCount + " " +
+            PolyNodeCrossoverPointManager.ProcessCpiInvocation_CandidateBarrierIntersectCount + " " +
+            PolyNodeCrossoverPointManager.ProcessCpiInvocation_DirectCount + " " +
             PolyNodeCrossoverPointManager.ProcessCpiInvocation_IndirectCount);
 
          while (true) {
             const int ntrials = 100;
             var sw = new Stopwatch();
             sw.Start();
-            for (var i = 0; i < ntrials; i++) {
-               BenchmarkAddCrossoverPoints(terrainStaticMetadata);
-            }
+            for (var i = 0; i < ntrials; i++) BenchmarkAddCrossoverPoints(terrainStaticMetadata);
             Console.WriteLine($"{ntrials} trials in {sw.ElapsedMilliseconds} ms");
          }
       }
 
       private static (LocalGeometryView, PolyNode, PolyNodeCrossoverPointManager) BenchmarkAddCrossoverPoints(TerrainStaticMetadata terrainStaticMetadata) {
-         var crossoverSegments = new IntLineSegment2[] {
+         var crossoverSegments = new[] {
             new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0)),
             new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0)),
             new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000)),
             new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000)),
-            
+
             new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
             new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
             new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
@@ -112,7 +108,7 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
             cs = new DoubleLineSegment2(cs.First + shrink, cs.Second - shrink);
             AddCrossoverPoints(crossoverPointManager, cs, spacing);
          }
-         
+
          //Console.WriteLine(crossoverPointManager.CrossoverPoints.Count + " " + crossoverPointManager.CrossoverPoints.Count / 8);
 
          return (localGeometryView, landPolyNode, crossoverPointManager);

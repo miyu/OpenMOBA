@@ -1,8 +1,9 @@
-using System;
 using ClipperLib;
 using OpenMOBA.DataStructures;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.Declarations;
 
-namespace OpenMOBA.Foundation.Terrain.Snapshots {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetworkNode {
       public TerrainOverlayNetworkNode(SectorNodeDescription sectorNodeDescription, LocalGeometryView localGeometryView, PolyNode landPolyNode) {
          SectorNodeDescription = sectorNodeDescription;

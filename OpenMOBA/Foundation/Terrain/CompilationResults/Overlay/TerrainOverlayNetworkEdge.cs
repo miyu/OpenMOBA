@@ -1,4 +1,4 @@
-﻿namespace OpenMOBA.Foundation.Terrain.Snapshots {
+﻿namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetworkEdge {
       public TerrainOverlayNetworkEdge(int sourceCrossoverIndex, int destinationCrossoverIndex, int cost) {
          SourceCrossoverIndex = sourceCrossoverIndex;

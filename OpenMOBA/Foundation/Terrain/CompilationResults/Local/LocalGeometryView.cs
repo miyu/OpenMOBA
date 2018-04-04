@@ -5,7 +5,7 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 
-namespace OpenMOBA.Foundation.Terrain.Snapshots {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public class LocalGeometryView {
       private const int kCrossoverAdditionalPathingDilation = 2;
 

@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using ClipperLib;
-using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain {

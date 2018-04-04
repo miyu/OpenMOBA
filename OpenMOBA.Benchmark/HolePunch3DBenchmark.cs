@@ -2,6 +2,7 @@
 using BenchmarkDotNet.Attributes;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Benchmarks {

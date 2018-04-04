@@ -1,5 +1,5 @@
 ﻿namespace OpenMOBA.Foundation.Terrain {
-   public class TerrainConstants {
+   internal static class InternalTerrainCompilationConstants {
       /// <summary>
       ///    Note that no matter how vector (0, 3.0) is rotated, one component is greater than 1.
       ///    Technically sqrt(2) would work, but integer truncation happens in visibility graph computation

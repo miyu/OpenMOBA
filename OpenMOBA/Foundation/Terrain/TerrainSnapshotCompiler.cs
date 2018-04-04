@@ -1,9 +1,12 @@
 ﻿using System;
-using OpenMOBA.Foundation.Terrain.Snapshots;
 using OpenMOBA.Geometry;
 using System.Collections.Generic;
 using System.Linq;
 using OpenMOBA.DataStructures;
+using OpenMOBA.Foundation.Terrain.CompilationResults;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using OpenMOBA.Foundation.Terrain.Declarations;
 
 namespace OpenMOBA.Foundation.Terrain {
    public interface ITerrainSnapshotCompiler {

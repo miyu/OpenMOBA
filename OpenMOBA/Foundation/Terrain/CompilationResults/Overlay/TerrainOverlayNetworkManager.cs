@@ -1,18 +1,17 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenMOBA;
 using OpenMOBA.DataStructures;
-using OpenMOBA.Geometry;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.Declarations;
 
-namespace OpenMOBA.Foundation.Terrain.Snapshots {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetworkManager {
-      private readonly Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription;
       private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
+      private readonly Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription;
       private readonly Dictionary<double, TerrainOverlayNetwork> terrainOverlayNetworkCache = new Dictionary<double, TerrainOverlayNetwork>();
 
       public TerrainOverlayNetworkManager(
-         Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription, 
+         Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription,
          IReadOnlyList<SectorEdgeDescription> edgeDescriptions
       ) {
          this.localGeometryViewManagerBySectorNodeDescription = localGeometryViewManagerBySectorNodeDescription;
@@ -21,15 +20,11 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
       public void InvalidateCaches() {
          terrainOverlayNetworkCache.Clear();
-         foreach (var lgvm in localGeometryViewManagerBySectorNodeDescription.Values) {
-            lgvm.InvalidateCaches();
-         }
+         foreach (var lgvm in localGeometryViewManagerBySectorNodeDescription.Values) lgvm.InvalidateCaches();
       }
 
       public TerrainOverlayNetwork CompileTerrainOverlayNetwork(double agentRadius) {
-         if (terrainOverlayNetworkCache.TryGetValue(agentRadius, out TerrainOverlayNetwork existingTerrainOverlayNetwork)) {
-            return existingTerrainOverlayNetwork;
-         }
+         if (terrainOverlayNetworkCache.TryGetValue(agentRadius, out var existingTerrainOverlayNetwork)) return existingTerrainOverlayNetwork;
 
          //         Console.WriteLine($"Compiling Terrain Overlay Network for Agent Radius {agentRadius}.");
          //----------------------------------------------------------------------------------------
@@ -39,7 +34,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             (k, v) => v.GetErodedView(agentRadius));
 
          var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.Map(
-            (k, v) => (true || v.IsPunchedLandEvaluated) ? v : v.Preview);
+            (k, v) => true || v.IsPunchedLandEvaluated ? v : v.Preview);
 
          var landPolyNodesByDefaultLocalGeometryView = defaultLocalGeometryViewBySectorNodeDescription.Values.Distinct().ToDictionary(
             lgv => lgv,
@@ -57,22 +52,18 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var edgesBySource = edgeDescriptions.ToLookup(ed => ed.Source);
          var edgesByDestination = edgeDescriptions.ToLookup(ed => ed.Destination);
          var edgesByEndpoints = MultiValueDictionary<SectorNodeDescription, SectorEdgeDescription>.Create(() => new HashSet<SectorEdgeDescription>());
-         foreach (var (k, edges) in edgesBySource) {
-            foreach (var edge in edges) {
-               edgesByEndpoints.Add(k, edge);
-            }
-         }
-         foreach (var (k, edges) in edgesByDestination) {
-            foreach (var edge in edges) {
-               edgesByEndpoints.Add(k, edge);
-            }
-         }
+         foreach (var (k, edges) in edgesBySource)
+         foreach (var edge in edges)
+            edgesByEndpoints.Add(k, edge);
+         foreach (var (k, edges) in edgesByDestination)
+         foreach (var edge in edges)
+            edgesByEndpoints.Add(k, edge);
 
          //----------------------------------------------------------------------------------------
          // Build and Initialize Terrain Overlay Network
          //----------------------------------------------------------------------------------------
          var terrainOverlayNetwork = new TerrainOverlayNetwork(
-            agentRadius, 
+            agentRadius,
             defaultLocalGeometryViewBySectorNodeDescription,
             terrainNodesBySectorNodeDescription,
             landPolyNodesByDefaultLocalGeometryView,

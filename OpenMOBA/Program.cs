@@ -4,7 +4,7 @@ using System;
 using System.Drawing;
 using System.Linq;
 using OpenMOBA.Foundation;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 
 namespace OpenMOBA {
    public class Program {

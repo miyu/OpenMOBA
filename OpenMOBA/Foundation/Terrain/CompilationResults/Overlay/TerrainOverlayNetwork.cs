@@ -5,35 +5,34 @@ using System.Linq;
 using System.Threading;
 using ClipperLib;
 using OpenMOBA.DataStructures;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
-namespace OpenMOBA.Foundation.Terrain.Snapshots {
+namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetwork {
-      private readonly double agentRadius;
-
       private readonly Dictionary<SectorNodeDescription, LocalGeometryView> activeLocalGeometryViewBySectorNodeDescription;
       private readonly Dictionary<SectorNodeDescription, TerrainOverlayNetworkNode[]> activeTerrainNodesBySectorNodeDescription;
+      private readonly double agentRadius;
+
+      private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
+      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination;
+      private readonly MultiValueDictionary<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByEndpoints;
+      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsBySource;
+
+      private readonly Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>> edgeJobCache = new Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>>();
       private readonly Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView;
       private readonly Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode;
 
-      private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
-      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsBySource;
-      private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination;
-      private readonly MultiValueDictionary<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByEndpoints;
-
-      private readonly Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>> edgeJobCache = new Dictionary<(SectorEdgeDescription, LocalGeometryView, LocalGeometryView), List<EdgeJob>>();
-      private BvhTreeAABB<TerrainOverlayNetworkNode> nodeBvh;
-
       public TerrainOverlayNetwork(
-         double agentRadius, 
-         Dictionary<SectorNodeDescription, LocalGeometryView> activeLocalGeometryViewBySectorNodeDescription, 
+         double agentRadius,
+         Dictionary<SectorNodeDescription, LocalGeometryView> activeLocalGeometryViewBySectorNodeDescription,
          Dictionary<SectorNodeDescription, TerrainOverlayNetworkNode[]> activeTerrainNodesBySectorNodeDescription,
          Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView,
          Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode,
          IReadOnlyList<SectorEdgeDescription> edgeDescriptions,
-         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsBySource, 
-         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination, 
+         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsBySource,
+         ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination,
          MultiValueDictionary<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByEndpoints
       ) {
          this.agentRadius = agentRadius;
@@ -48,13 +47,11 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       }
 
       public IReadOnlyCollection<TerrainOverlayNetworkNode> TerrainNodes => terrainNodesBySectorNodeDescriptionAndPolyNode.Values;
-      public BvhTreeAABB<TerrainOverlayNetworkNode> NodeBvh => nodeBvh;
+      public BvhTreeAABB<TerrainOverlayNetworkNode> NodeBvh { get; private set; }
 
       public void Initialize() {
-         nodeBvh = BvhTreeAABB<TerrainOverlayNetworkNode>.Build(TerrainNodes.Select(n => n.SectorNodeDescription.WorldBounds.PairValue(n)));
-         foreach (var edge in edgeDescriptions) {
-            UpdateEdge(edge, false);
-         }
+         NodeBvh = BvhTreeAABB<TerrainOverlayNetworkNode>.Build(TerrainNodes.Select(n => n.SectorNodeDescription.WorldBounds.PairValue(n)));
+         foreach (var edge in edgeDescriptions) UpdateEdge(edge, false);
       }
 
       private void UpdateEdge(SectorEdgeDescription edgeDescription, bool forceRender) {
@@ -79,22 +76,20 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             var destinationCrossoverIndices = destinationNode.CrossoverPointManager.AddMany(edgeJob.DestinationSegment, destinationCrossoverPoints);
 
             var edges = new TerrainOverlayNetworkEdge[sourceCrossoverIndices.Length];
-            for (var i = 0; i < edges.Length; i++) {
-               edges[i]= new TerrainOverlayNetworkEdge(sourceCrossoverIndices[i], destinationCrossoverIndices[i], 0);
-            }
-//            var edges = sourceCrossoverIndices.Zip(destinationCrossoverIndices, (sci, dci) => new TerrainOverlayNetworkEdge(sci, dci, 0))
-//                                              .ToArray();
+            for (var i = 0; i < edges.Length; i++) edges[i] = new TerrainOverlayNetworkEdge(sourceCrossoverIndices[i], destinationCrossoverIndices[i], 0);
+            //            var edges = sourceCrossoverIndices.Zip(destinationCrossoverIndices, (sci, dci) => new TerrainOverlayNetworkEdge(sci, dci, 0))
+            //                                              .ToArray();
             var edgeGroup = new TerrainOverlayNetworkEdgeGroup(sourceNode, destinationNode, edgeJob, edges);
             sourceNode.OutboundEdgeGroups.Add(destinationNode, edgeGroup);
             destinationNode.InboundEdgeGroups.Add(sourceNode, edgeGroup);
          }
 
          // Flag Source/Destination PolyNodes as dirty.
-//         JSSGCPNWM j = null;
-//         foreach (var (sourcePolyNode, destinationPolyNode, sourcePoint, destinationPoint) in edgeJobs.CrossoverJobs) {
-//            var sourceTerrainNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Source, sourcePolyNode)];
-//            var destinationTerrainNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Destination, destinationPolyNode)];
-//         }
+         //         JSSGCPNWM j = null;
+         //         foreach (var (sourcePolyNode, destinationPolyNode, sourcePoint, destinationPoint) in edgeJobs.CrossoverJobs) {
+         //            var sourceTerrainNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Source, sourcePolyNode)];
+         //            var destinationTerrainNode = terrainNodesBySectorNodeDescriptionAndPolyNode[(edgeDescription.Destination, destinationPolyNode)];
+         //         }
       }
 
       private (IntVector2[], IntVector2[]) ComputeEdgeCrossoverPoints(DoubleLineSegment2 sourceSegment, DoubleLineSegment2 destinationSegment) {
@@ -108,94 +103,78 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var crossoverPointSpacing = 50;
          var points = (int)Math.Ceiling(longestSegmentLength / crossoverPointSpacing) + 1;
 
-         var sourceCrossoverPoints = new IntVector2[points]; 
-         var destinationCrossoverPoints = new IntVector2[points]; 
+         var sourceCrossoverPoints = new IntVector2[points];
+         var destinationCrossoverPoints = new IntVector2[points];
          for (var i = 0; i < points; i++) {
             var t = i / (double)(points - 1);
             sourceCrossoverPoints[i] = (sourceSegment.First + t * sourceSegmentVector).LossyToIntVector2();
             destinationCrossoverPoints[i] = (destinationSegment.First + t * destinationSegmentVector).LossyToIntVector2();
          }
+
          return (sourceCrossoverPoints, destinationCrossoverPoints);
       }
 
       private void Dijkstra(TerrainOverlayNetworkNode node) {
-//         node.CrossoverPointManager
+         //         node.CrossoverPointManager
       }
    }
 
    /// <summary>
-   /// Handles finding optimal path between crossoverpoints in a given terrainNode
-   /// Waypoints refer to waypoints in the polynode visibility graph.
-   /// CrossoverPoints are a tacked on concept by the terrain engine.
+   ///    Handles finding optimal path between crossoverpoints in a given terrainNode
+   ///    Waypoints refer to waypoints in the polynode visibility graph.
+   ///    CrossoverPoints are a tacked on concept by the terrain engine.
    /// </summary>
    public class PolyNodeCrossoverPointManager {
-      private readonly PolyNode landPolyNode;
-
       //-------------------------------------------------------------------------------------------
-      // Data from the PolyNode
+      // For debugging computational complexity
       //-------------------------------------------------------------------------------------------
-      private readonly IntVector2[] waypoints;
+      public static int AddManyInvocationCount;
+      public static int AddManyConvexHullsComputed = 0;
+      public static int CrossoverPointsAdded;
+      public static int FindOptimalLinksToCrossoversInvocationCount;
+      public static int FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck;
+      public static int FindOptimalLinksToCrossovers_CostToWaypointCount;
+      public static int ProcessCpiInvocationCount;
+      public static int ProcessCpiInvocation_CandidateBarrierIntersectCount;
+      public static int ProcessCpiInvocation_DirectCount;
+      public static int ProcessCpiInvocation_IndirectCount;
       private readonly int[] allWaypointIndices;
-      private readonly PolyNodeVisibilityGraph visibilityGraph;
-
-      /// <summary>
-      /// [DestinationWaypointIndex][SourceWaypointIndex] => (next hop, total path cost)
-      /// </summary>
-      private readonly PathLink[][] waypointToWaypointLut;
 
       //-------------------------------------------------------------------------------------------
       // Data about Crossover Points
       //-------------------------------------------------------------------------------------------
       private readonly AddOnlyOrderedHashSet<IntVector2> crossoverPoints = new AddOnlyOrderedHashSet<IntVector2>();
 
-      /// <summary>
-      /// [CrossoverIndex] => visible waypoint links of (visible waypoint index, cost from crossover point to waypoint)[]
-      /// </summary>
-      // private readonly List<PathLink[]> visibleWaypointLinksByCrossoverPointIndex = new List<PathLink[]>();
+      private readonly Dictionary<DoubleLineSegment2, int[]> indicesBySegment = new Dictionary<DoubleLineSegment2, int[]>();
+      private readonly PolyNode landPolyNode;
 
       /// <summary>
-      /// [CrossoverIndex][WaypointIndex] => links of (next hop, total path cost)
-      /// Note: final hop will be a waypoint to itself of nonzero cost. This should hop to the crossover point.
-      /// </summary>
-      private readonly List<PathLink[]> optimalLinkToWaypointsByCrossoverPointIndex = new List<PathLink[]>();
-
-      /// <summary>
-      /// [SourceCrossoverIndex][DestCrossoverIndex] = (first hop, total path cost),
-      /// probably followed by a lookup of [DestCrossoverIndex][first hop] in optimalLinkToWaypointsByCrossoverPointIndex
+      ///    [SourceCrossoverIndex][DestCrossoverIndex] = (first hop, total path cost),
+      ///    probably followed by a lookup of [DestCrossoverIndex][first hop] in optimalLinkToWaypointsByCrossoverPointIndex
       /// </summary>
       private readonly List<ExposedArrayList<PathLink>> optimalLinkToOtherCrossoversByCrossoverPointIndex = new List<ExposedArrayList<PathLink>>();
 
-      private readonly Dictionary<DoubleLineSegment2, int[]> indicesBySegment = new Dictionary<DoubleLineSegment2, int[]>();
+      /// <summary>
+      ///    [CrossoverIndex] => visible waypoint links of (visible waypoint index, cost from crossover point to waypoint)[]
+      /// </summary>
+      /// <summary>
+      ///    [CrossoverIndex][WaypointIndex] => links of (next hop, total path cost)
+      ///    Note: final hop will be a waypoint to itself of nonzero cost. This should hop to the crossover point.
+      /// </summary>
+      private readonly List<PathLink[]> optimalLinkToWaypointsByCrossoverPointIndex = new List<PathLink[]>();
+
       private readonly Dictionary<IntVector2, DoubleLineSegment2> segmentByCrossoverPoint = new Dictionary<IntVector2, DoubleLineSegment2>();
+      private readonly PolyNodeVisibilityGraph visibilityGraph;
 
       //-------------------------------------------------------------------------------------------
-      // For debugging computational complexity
+      // Data from the PolyNode
       //-------------------------------------------------------------------------------------------
-      public static int AddManyInvocationCount = 0;
-      public static int AddManyConvexHullsComputed = 0;
-      public static int CrossoverPointsAdded = 0;
-      public static int FindOptimalLinksToCrossoversInvocationCount = 0;
-      public static int FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck = 0;
-      public static int FindOptimalLinksToCrossovers_CostToWaypointCount = 0;
-      public static int ProcessCpiInvocationCount = 0;
-      public static int ProcessCpiInvocation_CandidateBarrierIntersectCount = 0;
-      public static int ProcessCpiInvocation_DirectCount = 0;
-      public static int ProcessCpiInvocation_IndirectCount = 0;
+      private readonly IntVector2[] waypoints;
 
-      public static void DumpPerformanceCounters() => Console.WriteLine(
-         $"== Perf Counters ==" + Environment.NewLine +
-         $"+ AddMany: " + Environment.NewLine +
-         $"  + Invokes: {AddManyInvocationCount}" + Environment.NewLine +
-         $"  + ConvexHullsComputed: {AddManyConvexHullsComputed}" + Environment.NewLine +
-         $"  + CrossoverPointsAdded: {CrossoverPointsAdded}" + Environment.NewLine +
-         $"  + FindOptimalLinksToCrossovers:" + Environment.NewLine +
-         $"    + Invokes: {FindOptimalLinksToCrossoversInvocationCount}" + Environment.NewLine +
-         $"    + CandidateWaypointVisibilityChecks: {FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck}" + Environment.NewLine +
-         $"    + ProcessCPI:" + Environment.NewLine +
-         $"      + Invokes: {ProcessCpiInvocationCount}" + Environment.NewLine +
-         $"      + CandidateBarrierIntersectCounts: {ProcessCpiInvocation_CandidateBarrierIntersectCount}" + Environment.NewLine +
-         $"      + Directs: {ProcessCpiInvocation_DirectCount}" + Environment.NewLine +
-         $"      + Indirects: {ProcessCpiInvocation_IndirectCount}");
+      /// <summary>
+      ///    [DestinationWaypointIndex][SourceWaypointIndex] => (next hop, total path cost)
+      /// </summary>
+      private readonly PathLink[][] waypointToWaypointLut;
 
       public PolyNodeCrossoverPointManager(PolyNode landPolyNode) {
          this.landPolyNode = landPolyNode;
@@ -211,6 +190,23 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
       public IReadOnlyList<PathLink[]> OptimalLinkToWaypointsByCrossoverPointIndex => optimalLinkToWaypointsByCrossoverPointIndex;
       public PathLink[][] WaypointToWaypointLut => waypointToWaypointLut;
 
+      public static void DumpPerformanceCounters() {
+         Console.WriteLine(
+            $"== Perf Counters ==" + Environment.NewLine +
+            $"+ AddMany: " + Environment.NewLine +
+            $"  + Invokes: {AddManyInvocationCount}" + Environment.NewLine +
+            $"  + ConvexHullsComputed: {AddManyConvexHullsComputed}" + Environment.NewLine +
+            $"  + CrossoverPointsAdded: {CrossoverPointsAdded}" + Environment.NewLine +
+            $"  + FindOptimalLinksToCrossovers:" + Environment.NewLine +
+            $"    + Invokes: {FindOptimalLinksToCrossoversInvocationCount}" + Environment.NewLine +
+            $"    + CandidateWaypointVisibilityChecks: {FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck}" + Environment.NewLine +
+            $"    + ProcessCPI:" + Environment.NewLine +
+            $"      + Invokes: {ProcessCpiInvocationCount}" + Environment.NewLine +
+            $"      + CandidateBarrierIntersectCounts: {ProcessCpiInvocation_CandidateBarrierIntersectCount}" + Environment.NewLine +
+            $"      + Directs: {ProcessCpiInvocation_DirectCount}" + Environment.NewLine +
+            $"      + Indirects: {ProcessCpiInvocation_IndirectCount}");
+      }
+
       // Todo: Can we support DV2s?
 
       public int[] AddMany(DoubleLineSegment2 edgeSegment, IntVector2[] points) {
@@ -221,27 +217,26 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          // It's safe to assume <some> point in points will be new, so preprocess which segments are betwen us and other edge segments
          var barriers = landPolyNode.FindContourAndChildHoleBarriers();
          Dictionary<DoubleLineSegment2, IntLineSegment2[]> barriersBySegment = null;
-//         indicesBySegment.Map((s, _) => {
-//            Interlocked.Increment(ref AddManyConvexHullsComputed);
-//            var hull = GeometryOperations.ConvexHull4(s.First, s.Second, edgeSegment.First, edgeSegment.Second);
-//            return barriers.Where(b => {
-//               var barrierDv2 = new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2());
-//               return GeometryOperations.SegmentIntersectsConvexPolygonInterior(barrierDv2, hull);
-//            }).ToArray();
-//         });
-         
+         //         indicesBySegment.Map((s, _) => {
+         //            Interlocked.Increment(ref AddManyConvexHullsComputed);
+         //            var hull = GeometryOperations.ConvexHull4(s.First, s.Second, edgeSegment.First, edgeSegment.Second);
+         //            return barriers.Where(b => {
+         //               var barrierDv2 = new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2());
+         //               return GeometryOperations.SegmentIntersectsConvexPolygonInterior(barrierDv2, hull);
+         //            }).ToArray();
+         //         });
+
          return indicesBySegment[edgeSegment] = points.Map(p => {
-            if (TryAdd(p, out int cpi)) {
+            if (TryAdd(p, out var cpi)) {
                Interlocked.Increment(ref CrossoverPointsAdded);
                segmentByCrossoverPoint[p] = edgeSegment;
             }
+
             return cpi;
          });
 
          bool TryAdd(IntVector2 crossoverPoint, out int crossoverPointIndex) {
-            if (!crossoverPoints.TryAdd(crossoverPoint, out crossoverPointIndex)) {
-               return false;
-            }
+            if (!crossoverPoints.TryAdd(crossoverPoint, out crossoverPointIndex)) return false;
             return true;
 
             var (visibleWaypointLinks, visibleWaypointLinksLength, optimalLinkToWaypoints, optimalLinkToCrossovers) = FindOptimalLinksToCrossovers(crossoverPoint, segmentSeeingWaypoints, barriersBySegment);
@@ -260,6 +255,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                   };
                optimalLinkToOtherCrossoversByCrossoverPointIndex[otherCpi].Add(linkFromOther);
             }
+
             return true;
          }
       }
@@ -288,10 +284,10 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
             if (candidateBarriers == null) {
-//               Console.WriteLine($"Try intersect {cpi}: {p} to {crossoverPoints[cpi]}");
+               //               Console.WriteLine($"Try intersect {cpi}: {p} to {crossoverPoints[cpi]}");
                var isDirectPath1 = !landPolyNode.FindContourAndChildHoleBarriersBvh().Intersects(new IntLineSegment2(p, crossoverPoints[cpi]));
-//               var isDirectPath2 = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
-//               Console.WriteLine($" => res {isDirectPath1} vs {isDirectPath2}");
+               //               var isDirectPath2 = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);
+               //               Console.WriteLine($" => res {isDirectPath1} vs {isDirectPath2}");
                isDirectPath = isDirectPath1;
             } else {
                // below is equivalent to (and shaved off 22% execution time relative to):
@@ -301,9 +297,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                for (var bi = 0; bi < candidateBarriers.Length && isDirectPath; bi++) {
                   Interlocked.Increment(ref ProcessCpiInvocation_CandidateBarrierIntersectCount);
 
-                  if (seg.Intersects(ref candidateBarriers[bi])) {
-                     isDirectPath = false;
-                  }
+                  if (seg.Intersects(ref candidateBarriers[bi])) isDirectPath = false;
                }
             }
 
@@ -354,23 +348,22 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
 
          if (candidateBarriersByDestinationSegment == null) {
             Console.WriteLine("Warning: candidateBarriersByDestinationSegment null?");
-            for (var cpi = 0; cpi < crossoverPoints.Count; cpi++) {
-               ProcessCpi(cpi, null);
-            }
+            for (var cpi = 0; cpi < crossoverPoints.Count; cpi++) ProcessCpi(cpi, null);
          } else {
             var isCpiVisited = new bool[crossoverPoints.Count];
-            foreach (var (segment, barriers) in candidateBarriersByDestinationSegment) {
-               foreach (var cpi in indicesBySegment[segment]) {
-                  if (isCpiVisited[cpi]) continue;
-                  ProcessCpi(cpi, barriers);
-                  isCpiVisited[cpi] = true;
-               }
+            foreach (var (segment, barriers) in candidateBarriersByDestinationSegment)
+            foreach (var cpi in indicesBySegment[segment]) {
+               if (isCpiVisited[cpi]) continue;
+               ProcessCpi(cpi, barriers);
+               isCpiVisited[cpi] = true;
             }
+
             for (var cpi = 0; cpi < isCpiVisited.Length; cpi++) {
                if (isCpiVisited[cpi]) continue;
                ProcessCpi(cpi, new IntLineSegment2[0]);
             }
          }
+
          return (visibleWaypointLinks, visibleWaypointLinksLength, optimalLinkToWaypoints, optimalLinkToCrossovers);
       }
 
@@ -384,7 +377,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
             Interlocked.Increment(ref FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck);
             var wi = candidateWaypoints[i];
             var costSquared = waypoints[wi].To(p).SquaredNorm2();
-            VisibilityPolygon visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
+            var visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
             if (visibilityPolygon.Contains(p)) {
                visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };
                visibleWaypointLinksLength++;
@@ -425,6 +418,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                };
             }
          }
+
          ;
          return visibleWaypointLinks;
       }
@@ -435,7 +429,7 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
          var destPath = new List<PathLink>();
 
          // must query with [a][b] where a > b
-         while (sourceWaypoint != destinationWaypoint) {
+         while (sourceWaypoint != destinationWaypoint)
             if (sourceWaypoint < destinationWaypoint) {
                // grow destination, query with [destinationWaypoint][sourceWaypoint]
                var link = waypointToWaypointLut[destinationWaypoint][sourceWaypoint];
@@ -447,8 +441,6 @@ namespace OpenMOBA.Foundation.Terrain.Snapshots {
                sourcePath.Add(link);
                sourceWaypoint = link.PriorIndex;
             }
-         }
-
       }
    }
 }

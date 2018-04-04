@@ -7,8 +7,9 @@ using System.Runtime.CompilerServices;
 using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
-using OpenMOBA.Foundation.Terrain.Snapshots;
-using OpenMOBA.Foundation.Terrain.Visibility;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
 
@@ -544,7 +545,7 @@ namespace OpenMOBA.Foundation {
          throw new NotImplementedException();
          var movementComponent = entity.MovementComponent;
 
-         var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + TerrainConstants.AdditionalHoleDilationRadius;
+         var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius;
 //         List<DoubleVector3> pathPoints;
 //         if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) movementComponent.PathingBreadcrumbs.Clear();
 //         else movementComponent.PathingBreadcrumbs = pathPoints;
@@ -557,7 +558,7 @@ namespace OpenMOBA.Foundation {
 
          foreach (var entity in AssociatedEntities) {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
-            var paddedHoleDilationRadius = characterRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
+            var paddedHoleDilationRadius = characterRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
             if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) FixEntityInHole(entity);
          }
       }
