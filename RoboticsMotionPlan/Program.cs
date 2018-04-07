@@ -21,13 +21,14 @@ namespace RoboticsMotionPlan {
    public partial class Program {
       //public const int MapWidth = 3200;
       //public const int MapHeight = 3200;
-      public const int MapWidth = 3168;
-      public const int MapHeight = 2752;
+      public static int MapWidth = 801;
+      public static int MapHeight = 798;
 
       public static void Main(string[] args) {
          Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
          //MapPolygonizerForm.Run(@"C:\Users\Warty\occ.txt", "sieg_floor3.poly", "sieg_plan.plan");
-         MapPolygonizerForm.Run("gates.png", "gates.poly", "gates.plan");
+         //MapPolygonizerForm.Run("gates.png", "gates.poly", "gates.plan");
+         MapPolygonizerForm.Run("de_dust2.png", "de_dust2.poly", "de_dust2.plan");
          //         MapPolygonizerForm.Run("gates.png", "gates.poly");
 
          var (landPolys, holePolys) = FileLoader.LoadMap("gates.poly");

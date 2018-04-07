@@ -34,7 +34,7 @@ namespace OpenMOBA.Benchmarks {
          }
          for (var j = 0; j < 5; j++) {
             RunGC();
-            var benchmarkMemoryAllocated = true;
+            var benchmarkMemoryAllocated = false;
             int niters = benchmarkMemoryAllocated ? 1 : 10;
             var ers = benchmarkMemoryAllocated && GC.TryStartNoGCRegion(1024 * 1024 * 240);
             var initialMemory = GC.GetTotalMemory(false);

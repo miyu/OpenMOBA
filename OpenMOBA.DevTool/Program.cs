@@ -13,6 +13,7 @@ using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 using SharpDX;
 using Color = System.Drawing.Color;
