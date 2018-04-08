@@ -38,6 +38,31 @@ namespace OpenMOBA.Geometry {
          return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
       }
 
+      public bool Contains(IntVector2 q) => Contains(ref q);
+
+      public bool Contains(ref IntVector2 q) => Contains(First, Second, q);
+
+      public static bool Contains(IntVector2 p1, IntVector2 p2, IntVector2 q) => Contains(ref p1, ref p2, ref q);
+
+      public static bool Contains(ref IntVector2 p1, ref IntVector2 p2, ref IntVector2 q) {
+         var p1p2 = p1.To(p2);
+         var p1q = p1.To(q);
+
+         // not on line between p1 p2
+         if (GeometryOperations.Clockness(p1p2, p1q) != Clockness.Neither) return false;
+
+         var a = p1p2.Dot(p1q);
+         var b = p1p2.SquaredNorm2();
+
+         // outside segment p1-p2 on the side of p1
+         if (a < 0) return false;
+
+         // outside segment p1-p2 on the side of p2
+         if (a > b) return false;
+
+         return true;
+      }
+
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy) {
          // // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect

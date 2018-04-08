@@ -220,13 +220,8 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       private static void H3(IntLineSegment2 seg, PolyNode polyNode, SortedList<double, List<(PolyNode, double)>> allBreakpoints, List<(PolyNode, double)> localBreakpoints) {
-         if (Clipper.PointInPolygon(seg.First, polyNode.Contour) != PolygonContainmentResult.OutsidePolygon) {
-            localBreakpoints.Add((polyNode, 0.0));
-         }
-
-         if (Clipper.PointInPolygon(seg.Second, polyNode.Contour) != PolygonContainmentResult.OutsidePolygon) {
-            localBreakpoints.Add((polyNode, 1.0));
-         }
+         R(seg.First, seg.Second, 0.0, polyNode, localBreakpoints);
+         R(seg.Second, seg.First, 1.0, polyNode, localBreakpoints);
 
          Trace.Assert(localBreakpoints.Count % 2 == 0);
          if (localBreakpoints.Count % 2 != 0) throw new Exception("Remove this line of code dear god");
@@ -250,6 +245,38 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
+      private static void R(IntVector2 q, IntVector2 potato, double t, PolyNode polyNode, List<(PolyNode, double)> localBreakpoints) {
+         var pipResult = Clipper.PointInPolygon(q, polyNode.Contour);
+         switch (pipResult) {
+            case PolygonContainmentResult.OutsidePolygon:
+               return;
+            case PolygonContainmentResult.InPolygon:
+               localBreakpoints.Add((polyNode, t));
+               return;
+            case PolygonContainmentResult.OnPolygon:
+               var contour = polyNode.Contour;
+               for (var i = 0; i < contour.Count; i++) {
+                  var p1 = contour[i];
+                  var p2 = contour[i == contour.Count - 1 ? 0 : i + 1];
+                  if (!IntLineSegment2.Contains(p1, p2, q)) continue;
+
+                  var clockP1P2Potato = GeometryOperations.Clockness(p1, p2, potato);
+
+                  // Neither case: The segment is overlapping with a segment on the contour.
+                  // Insertion didn't happen prior (segment-segment intersection doesn't allow overlapping segments)
+                  if (clockP1P2Potato == Clockness.Neither || clockP1P2Potato == Clockness.CounterClockwise) {
+                     localBreakpoints.Add((polyNode, t));
+
+                     // todo: does this return make sense. Dear god I ahve no clue what I'm doing.
+                     return;
+                  }
+               }
+               return;
+            default:
+               throw new InvalidStateException();
+         }
+      }
+
       private static void H2(IntLineSegment2 seg, PolyNode polyNode, List<(PolyNode, double)> localBreakpoints) {
          for (var i = 0; i < polyNode.Contour.Count; i++) {
             var contourSegment = new IntLineSegment2(
@@ -261,7 +288,8 @@ namespace OpenMOBA.Foundation.Terrain {
       }
 
       private static void H(ref IntLineSegment2 seg, PolyNode polyNode, ref IntLineSegment2 contourSegment, List<(PolyNode, double)> localBreakpoints) {
-         if (GeometryOperations.TryFindSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
+         // if seg and contourSegment collinear, then this will find no intersection.
+         if (GeometryOperations.TryFindNonoverlappingSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
             var clocknessFirst = GeometryOperations.Clockness(seg.First, seg.Second, contourSegment.First);
             var clocknessSecond = GeometryOperations.Clockness(seg.First, seg.Second, contourSegment.Second);
             if (clocknessFirst == Clockness.Neither) {

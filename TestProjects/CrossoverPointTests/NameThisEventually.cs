@@ -21,13 +21,15 @@ namespace CrossoverPointTests {
          new NameThisEventually().B();
          new NameThisEventually().C();
          new NameThisEventually().D();
+         new NameThisEventually().E();
+         new NameThisEventually().F();
       }
 
-      private LocalGeometryView BuildLgv(double holeDilationRadius, params IHoleStaticMetadata[] holeMetadatas) {
+      private LocalGeometryView BuildLgv(TerrainStaticMetadata mapStaticMetadata, double holeDilationRadius, params IHoleStaticMetadata[] holeMetadatas) {
          var store = new SectorGraphDescriptionStore();
          var terrainService = new TerrainService(store, new TerrainSnapshotCompiler(store));
 
-         var sector = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
+         var sector = terrainService.CreateSectorNodeDescription(mapStaticMetadata);
          sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-500, -500, 0));
          terrainService.AddSectorNodeDescription(sector);
 
@@ -61,7 +63,7 @@ namespace CrossoverPointTests {
 
       [Fact]
       public void A() {
-         var localGeometryView = BuildLgv(15, BuildRectangleHole(-486, 213, 119, 164));
+         var localGeometryView = BuildLgv(SectorMetadataPresets.Blank2D, 15, BuildRectangleHole(-486, 213, 119, 164));
          var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
          DebugRenderLocalGeometryView(localGeometryView, seg);
          var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
@@ -70,7 +72,7 @@ namespace CrossoverPointTests {
 
       [Fact]
       public void B() {
-         var localGeometryView = BuildLgv(14, BuildRectangleHole(-486, 213, 119, 164));
+         var localGeometryView = BuildLgv(SectorMetadataPresets.Blank2D, 14, BuildRectangleHole(-486, 213, 119, 164));
          var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
          DebugRenderLocalGeometryView(localGeometryView, seg);
          var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
@@ -79,7 +81,7 @@ namespace CrossoverPointTests {
 
       [Fact]
       public void C() {
-         var localGeometryView = BuildLgv(14, BuildRectangleHole(-664, 133, 174, 188));
+         var localGeometryView = BuildLgv(SectorMetadataPresets.Blank2D, 14, BuildRectangleHole(-664, 133, 174, 188));
          var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
          DebugRenderLocalGeometryView(localGeometryView, seg);
          var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
@@ -89,6 +91,7 @@ namespace CrossoverPointTests {
       [Fact]
       public void D() {
          var localGeometryView = BuildLgv(
+            SectorMetadataPresets.Blank2D,
             14,
             BuildRectangleHole(-517, 107, 5, 5, 4607552631852924299),
             BuildRectangleHole(-506, 100, 6, 7, 4613867344244209246),
@@ -98,6 +101,30 @@ namespace CrossoverPointTests {
          var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
          DebugRenderLocalGeometryView(localGeometryView, seg);
          Assert.Equal(2, results.Length);
+      }
+
+      [Fact]
+      public void E() {
+         var localGeometryView = BuildLgv(
+            SectorMetadataPresets.HashCircle2,
+            0
+         );
+         var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
+         DebugRenderLocalGeometryView(localGeometryView, seg);
+         Assert.Equal(results.Map(x => x.Item2), new[] { 0.0, 1.0 });
+      }
+
+      [Fact]
+      public void F() {
+         var localGeometryView = BuildLgv(
+            SectorMetadataPresets.HashCircle2,
+            0
+         );
+         var seg = new IntLineSegment2(new IntVector2(-2, 620), new IntVector2(-2, 780));
+         var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
+         DebugRenderLocalGeometryView(localGeometryView, seg);
+         Assert.Equal(results.Map(x => x.Item2), new[] { 0.0, 1.0 });
       }
 
       private void DebugRenderLocalGeometryView(LocalGeometryView localGeometryView, params IntLineSegment2[] segs) {
