@@ -40,30 +40,41 @@ namespace FogOfWarTests {
             leftSnd, centerSnd,
             new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800)),
             new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800))));
-         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
-            centerSnd, leftSnd,
-            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
-            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
+//         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
+//            centerSnd, leftSnd,
+//            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
+//            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
 
          var terrainSnapshot = terrainService.CompileSnapshot();
          var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
          var canvas = host.CreateAndAddCanvas(0);
          foreach (var terrainNode in overlayNetwork.TerrainNodes) {
             canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
-            canvas.DrawPolyNode(terrainNode.LandPolyNode);
+            canvas.DrawPolyNode(terrainNode.LandPolyNode, StrokeStyle.BlackHairLineSolid, StrokeStyle.DarkRedHairLineSolid);
+         }
 
-            Console.WriteLine(terrainNode.OutboundEdgeGroups.Count + " " + terrainNode.InboundEdgeGroups.Count);
+         foreach (var terrainNode in overlayNetwork.TerrainNodes) {
+            canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
             foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
                foreach (var outboundEdge in outboundEdgeGroup.Value) {
-                  canvas.DrawLine(outboundEdge.EdgeJob.SourceSegment, StrokeStyle.RedHairLineSolid);
+                  Console.WriteLine(outboundEdge.EdgeJob.SourceSegment);
+                  canvas.DrawLine(outboundEdge.EdgeJob.SourceSegment, StrokeStyle.CyanThick3Solid);
                }
             }
+         }
 
+         foreach (var terrainNode in overlayNetwork.TerrainNodes) {
+            canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
             if (!terrainNode.SectorNodeDescription.EnableDebugHighlight) continue;
-
             var visibilityPolygonOrigin = new IntVector2(700, 700);
             canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
             var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
+
+            foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
+               foreach (var outboundEdge in outboundEdgeGroup.Value) {
+//                  visibilityPolygon.RefStab()
+               }
+            }
             canvas.DrawVisibilityPolygon(visibilityPolygon);
          }
       }

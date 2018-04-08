@@ -10,7 +10,7 @@ namespace OpenMOBA.Geometry {
       public double X;
       public double Y;
 
-      public DoubleVector2(double x, double y) {
+      [DebuggerStepThrough] public DoubleVector2(double x, double y) { 
          X = x;
          Y = y;
       }
@@ -46,7 +46,7 @@ namespace OpenMOBA.Geometry {
 
       public DoubleVector2 ToUnit() => this / Norm2D();
 
-      public IntVector2 LossyToIntVector2() => new IntVector2((cInt)Math.Floor(X), (cInt)Math.Floor(Y));
+      [DebuggerStepThrough] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)Math.Floor(X), (cInt)Math.Floor(Y));
 
       public override int GetHashCode() {
          unchecked {
@@ -129,7 +129,7 @@ namespace OpenMOBA.Geometry {
 
       [Pure] public IntVector2 LossyScale(double scale) => new IntVector2((cInt)(X * scale), (cInt)(Y * scale));
 
-      [Pure] public DoubleVector2 ToDoubleVector2() => new DoubleVector2(X, Y);
+      [DebuggerStepThrough] [Pure] public DoubleVector2 ToDoubleVector2() => new DoubleVector2(X, Y);
 
       [Pure] public override int GetHashCode() => unchecked((int)((X * 397) ^ Y));
 

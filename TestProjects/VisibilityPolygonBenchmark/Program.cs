@@ -14,8 +14,9 @@ namespace VisibilityPolygonBenchmark {
       private static int frameCounter = 0;
 
       public static void Main(string[] args) {
-         RenderAlgorithmVisualizationFrames();
-//         Benchmark();
+         // RenderAlgorithmVisualizationFrames();
+         RenderRandomVisualizationFrames();
+         // Benchmark();
       }
 
       private static void RenderAlgorithmVisualizationFrames() {
@@ -45,6 +46,12 @@ namespace VisibilityPolygonBenchmark {
       private static void RenderVisualizationFrame(DoubleVector2 p, IntLineSegment2[] segments, int eventLimit = -1) {
          var canvas = host.CreateAndAddCanvas(frameCounter++);
          var vp = VisibilityPolygon.Create(p, segments, eventLimit);
+
+         vp = new VisibilityPolygon(p);
+         foreach (var seg in segments) {
+            vp.Insert(seg);
+         }
+//         vp.Insert(new IntLineSegment2(p.LossyToIntVector2() + new IntVector2(50, -20), p.LossyToIntVector2() + new IntVector2(50, 20)));
 
          canvas.BatchDraw(() => {
             canvas.DrawVisibilityPolygon(vp, 0, new FillStyle(Color.FromArgb(120, Color.Cyan)));

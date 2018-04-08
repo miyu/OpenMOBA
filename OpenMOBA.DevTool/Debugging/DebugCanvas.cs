@@ -74,6 +74,10 @@ namespace OpenMOBA.DevTool.Debugging {
       public static StrokeStyle RedHairLineDashed5 = new StrokeStyle(Color.Red, 1.0f, Dash5);
       public static StrokeStyle RedThick5Solid = new StrokeStyle(Color.Red, 5.0f);
       public static StrokeStyle RedThick25Solid = new StrokeStyle(Color.Red, 25.0f);
+      public static StrokeStyle DarkRedHairLineSolid = new StrokeStyle(Color.DarkRed);
+      public static StrokeStyle DarkRedHairLineDashed5 = new StrokeStyle(Color.DarkRed, 1.0f, Dash5);
+      public static StrokeStyle DarkRedThick5Solid = new StrokeStyle(Color.DarkRed, 5.0f);
+      public static StrokeStyle DarkRedThick25Solid = new StrokeStyle(Color.DarkRed, 25.0f);
       public static StrokeStyle CyanHairLineSolid = new StrokeStyle(Color.Cyan);
       public static StrokeStyle CyanHairLineDashed5 = new StrokeStyle(Color.Cyan, 1.0f, Dash5);
       public static StrokeStyle CyanThick3Solid = new StrokeStyle(Color.Cyan, 3.0f);
