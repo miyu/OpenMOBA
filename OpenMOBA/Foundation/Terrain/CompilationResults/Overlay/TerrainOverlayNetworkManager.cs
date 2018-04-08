@@ -52,12 +52,16 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          var edgesBySource = edgeDescriptions.ToLookup(ed => ed.Source);
          var edgesByDestination = edgeDescriptions.ToLookup(ed => ed.Destination);
          var edgesByEndpoints = MultiValueDictionary<SectorNodeDescription, SectorEdgeDescription>.Create(() => new HashSet<SectorEdgeDescription>());
-         foreach (var (k, edges) in edgesBySource)
-         foreach (var edge in edges)
-            edgesByEndpoints.Add(k, edge);
-         foreach (var (k, edges) in edgesByDestination)
-         foreach (var edge in edges)
-            edgesByEndpoints.Add(k, edge);
+         foreach (var (k, edges) in edgesBySource) {
+            foreach (var edge in edges) {
+               edgesByEndpoints.Add(k, edge);
+            }
+         }
+         foreach (var (k, edges) in edgesByDestination) {
+            foreach (var edge in edges) {
+               edgesByEndpoints.Add(k, edge);
+            }
+         }
 
          //----------------------------------------------------------------------------------------
          // Build and Initialize Terrain Overlay Network

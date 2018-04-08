@@ -9,6 +9,7 @@ using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 
 namespace FogOfWarTests {
@@ -23,9 +24,26 @@ namespace FogOfWarTests {
          var sectorGraphDescriptionStore = new SectorGraphDescriptionStore();
          var snapshotCompiler = new TerrainSnapshotCompiler(sectorGraphDescriptionStore);
          var terrainService = new TerrainService(sectorGraphDescriptionStore, snapshotCompiler);
-         var sectorNodeDescription = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
-         sectorNodeDescription.WorldTransform = Matrix4x4.CreateTranslation(-500, -500, 0);
-         terrainService.AddSectorNodeDescription(sectorNodeDescription);
+
+         // Add test sectors
+         var leftSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
+         leftSnd.EnableDebugHighlight = true;
+         leftSnd.WorldTransform = Matrix4x4.CreateTranslation(-1500, -500, 0);
+         terrainService.AddSectorNodeDescription(leftSnd);
+
+         var centerSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.Test2D);
+         centerSnd.WorldTransform = Matrix4x4.CreateTranslation(-500, -500, 0);
+         terrainService.AddSectorNodeDescription(centerSnd);
+
+         // edges between test sectors
+         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
+            leftSnd, centerSnd,
+            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800)),
+            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800))));
+         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
+            centerSnd, leftSnd,
+            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
+            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
 
          var terrainSnapshot = terrainService.CompileSnapshot();
          var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
@@ -33,6 +51,15 @@ namespace FogOfWarTests {
          foreach (var terrainNode in overlayNetwork.TerrainNodes) {
             canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
             canvas.DrawPolyNode(terrainNode.LandPolyNode);
+
+            Console.WriteLine(terrainNode.OutboundEdgeGroups.Count + " " + terrainNode.InboundEdgeGroups.Count);
+            foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
+               foreach (var outboundEdge in outboundEdgeGroup.Value) {
+                  canvas.DrawLine(outboundEdge.EdgeJob.SourceSegment, StrokeStyle.RedHairLineSolid);
+               }
+            }
+
+            if (!terrainNode.SectorNodeDescription.EnableDebugHighlight) continue;
 
             var visibilityPolygonOrigin = new IntVector2(700, 700);
             canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);

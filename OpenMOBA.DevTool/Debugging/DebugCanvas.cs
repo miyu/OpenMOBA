@@ -84,6 +84,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public static StrokeStyle BlackThick3Solid = new StrokeStyle(Color.Black, 3.0f);
       public static StrokeStyle BlackThick5Solid = new StrokeStyle(Color.Black, 5.0f);
       public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
+      public static StrokeStyle OrangeHairLineSolid = new StrokeStyle(Color.Orange, 1.0f);
       public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
 
       public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {
@@ -201,6 +202,14 @@ namespace OpenMOBA.DevTool.Debugging {
 
       public static void DrawLine(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, StrokeStyle strokeStyle) {
          canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, IntLineSegment2 segment, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToDV3(segment.First), ToDV3(segment.Second), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, DoubleLineSegment2 segment, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToDV3(segment.First), ToDV3(segment.Second), strokeStyle);
       }
 
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {

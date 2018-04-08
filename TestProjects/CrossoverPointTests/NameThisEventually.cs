@@ -1,23 +1,34 @@
-﻿using System;
-using System.Drawing;
-using System.Linq;
+﻿using OpenMOBA;
+using OpenMOBA.DataStructures;
+using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
-using System.Numerics;
-using OpenMOBA;
-using OpenMOBA.DataStructures;
-using OpenMOBA.Foundation.Terrain.Snapshots;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Numerics;
 using Xunit;
 
 namespace CrossoverPointTests {
    public class NameThisEventually {
+      public const bool kEnableDebugRender = false;
+
+      public static void Main() {
+         new NameThisEventually().A();
+         new NameThisEventually().B();
+         new NameThisEventually().C();
+         new NameThisEventually().D();
+      }
+
       private LocalGeometryView BuildLgv(double holeDilationRadius, params IHoleStaticMetadata[] holeMetadatas) {
          var store = new SectorGraphDescriptionStore();
          var terrainService = new TerrainService(store, new TerrainSnapshotCompiler(store));
 
          var sector = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
-         sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(1 * 1000 - 1500, 0 * 1000 - 500, 0));
+         sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(-500, -500, 0));
          terrainService.AddSectorNodeDescription(sector);
 
          var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
@@ -51,19 +62,28 @@ namespace CrossoverPointTests {
       [Fact]
       public void A() {
          var localGeometryView = BuildLgv(15, BuildRectangleHole(-486, 213, 119, 164));
-         PortalSectorEdgeDescription.X(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)), localGeometryView);
+         var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         DebugRenderLocalGeometryView(localGeometryView, seg);
+         var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
+         Assert.Equal(0, results.Length);
       }
 
       [Fact]
       public void B() {
          var localGeometryView = BuildLgv(14, BuildRectangleHole(-486, 213, 119, 164));
-         PortalSectorEdgeDescription.X(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)), localGeometryView);
+         var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         DebugRenderLocalGeometryView(localGeometryView, seg);
+         var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
+         Assert.Equal(0, results.Length);
       }
 
       [Fact]
       public void C() {
          var localGeometryView = BuildLgv(14, BuildRectangleHole(-664, 133, 174, 188));
-         PortalSectorEdgeDescription.X(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)), localGeometryView);
+         var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         DebugRenderLocalGeometryView(localGeometryView, seg);
+         var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
+         Assert.Equal(2, results.Length);
       }
 
       [Fact]
@@ -74,7 +94,41 @@ namespace CrossoverPointTests {
             BuildRectangleHole(-506, 100, 6, 7, 4613867344244209246),
             BuildRectangleHole(-505, 136, 6, 7, 4615794974257582119)
          );
-         PortalSectorEdgeDescription.X(new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)), localGeometryView);
+         var seg = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+         var results = PortalSectorEdgeDescription.X(seg, localGeometryView).ToArray();
+         DebugRenderLocalGeometryView(localGeometryView, seg);
+         Assert.Equal(2, results.Length);
+      }
+
+      private void DebugRenderLocalGeometryView(LocalGeometryView localGeometryView, params IntLineSegment2[] segs) {
+         if (!kEnableDebugRender) return;
+
+         Size bounds = new Size(1280, 720);
+         var renderScale = 1.0f;
+
+         PerspectiveProjector CreateCanvasProjector() {
+            var rotation = 95 * Math.PI / 180.0;
+            var displaySize = new Size((int)(bounds.Width * renderScale), (int)(bounds.Height * renderScale));
+            var center = new DoubleVector3(0, 0, 0);
+            var projector = new PerspectiveProjector(
+               center + DoubleVector3.FromRadiusAngleAroundXAxis(1000, rotation),
+               center,
+               DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
+               displaySize.Width,
+               displaySize.Height);
+            return projector;
+         }
+
+         DebugMultiCanvasHost host = DebugMultiCanvasHost.CreateAndShowCanvas(bounds, new Point(0, 0), CreateCanvasProjector());
+         var canvas = host.CreateAndAddCanvas(0);
+         canvas.DrawPolyNode(localGeometryView.PunchedLand);
+         foreach (var hole in localGeometryView.Job.DynamicHoles) {
+            canvas.DrawPolygonContours(hole.Value.holeExcludedContours, StrokeStyle.OrangeHairLineSolid);
+            canvas.DrawPolygonContours(hole.Value.holeIncludedContours, StrokeStyle.RedHairLineSolid);
+         }
+         foreach (var seg in segs) {
+            canvas.DrawLine(seg, StrokeStyle.CyanHairLineSolid);
+         }
       }
    }
 }

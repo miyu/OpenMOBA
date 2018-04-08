@@ -13,13 +13,15 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
 
       internal DynamicTerrainHoleDescription(TerrainService terrainService, IHoleStaticMetadata staticMetadata) {
          this.terrainService = terrainService;
-         this.StaticStaticMetadata = staticMetadata;
+         this.StaticMetadata = staticMetadata;
+
+         RecomputeWorldAABB();
       }
 
       // Internals touched by terrain service
       internal int Version;
 
-      public IHoleStaticMetadata StaticStaticMetadata;
+      public IHoleStaticMetadata StaticMetadata;
       internal HoleInstanceMetadata InstanceMetadata = new HoleInstanceMetadata();
 
       // Publics accessible by game logic
@@ -35,10 +37,14 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
                   throw new InvalidOperationException("Unable to invert transformation matrix!?");
                }
 
-               InstanceMetadata.WorldAABB = StaticStaticMetadata.ComputeWorldAABB(value);
+               RecomputeWorldAABB();
                Version++;
             }
          }
+      }
+
+      private void RecomputeWorldAABB() {
+         InstanceMetadata.WorldAABB = StaticMetadata.ComputeWorldAABB(InstanceMetadata.WorldTransform);
       }
 
       public Matrix4x4 WorldTransformInv => InstanceMetadata.WorldTransformInv;
@@ -53,7 +59,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          }
 
          IReadOnlyList<Polygon2> projectedHoleIncludedContours, projectedHoleExcludedContours;
-         if (!StaticStaticMetadata.TryProjectOnto(InstanceMetadata, sectorNodeDescription, out projectedHoleIncludedContours, out projectedHoleExcludedContours)) {
+         if (!StaticMetadata.TryProjectOnto(InstanceMetadata, sectorNodeDescription, out projectedHoleIncludedContours, out projectedHoleExcludedContours)) {
             return;
          }
 

@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{223D18F2-FCE4-4D18-9DF8-A90CEAE4D1A9}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>CrossoverPointTests</RootNamespace>
     <AssemblyName>CrossoverPointTests</AssemblyName>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
@@ -74,6 +74,10 @@
     <ProjectReference Include="..\..\..\..\dargon\dargon\framework\src\NMockito\src\NMockito\NMockito.csproj">
       <Project>{971bae04-552d-40b9-84a0-3e04a71d4c62}</Project>
       <Name>NMockito</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\OpenMOBA.DevTool\OpenMOBA.DevTool.csproj">
+      <Project>{96606F53-3379-4E31-A5C7-4BF0095EDAD0}</Project>
+      <Name>OpenMOBA.DevTool</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\OpenMOBA\OpenMOBA.csproj">
       <Project>{e10b146c-0b98-40a6-8346-d26a62776abf}</Project>
