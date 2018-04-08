@@ -88,7 +88,7 @@ namespace OpenMOBA.DevTool.Debugging {
       //         });
       //      }
 
-      public static void DrawPolyTree(this IDebugCanvas canvas, PolyTree polytree, StrokeStyle landStroke = null, StrokeStyle holeStroke = null) {
+      public static void DrawPolyNode(this IDebugCanvas canvas, PolyNode polytree, StrokeStyle landStroke = null, StrokeStyle holeStroke = null) {
          landStroke = landStroke ?? new StrokeStyle(Color.Orange);
          holeStroke = holeStroke ?? new StrokeStyle(Color.Brown);
 

@@ -25,7 +25,7 @@ namespace RoboticsMotionPlan {
       public static int MapHeight = 798;
 
       public static void Main(string[] args) {
-         Environment.CurrentDirectory = @"C:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
+         Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\RoboticsMotionPlan\Assets";
          //MapPolygonizerForm.Run(@"C:\Users\Warty\occ.txt", "sieg_floor3.poly", "sieg_plan.plan");
          //MapPolygonizerForm.Run("gates.png", "gates.poly", "gates.plan");
          MapPolygonizerForm.Run("de_dust2.png", "de_dust2.poly", "de_dust2.plan");
@@ -72,10 +72,10 @@ namespace RoboticsMotionPlan {
                var terrainNode = overlayNetwork.TerrainNodes.First();
                
                // draw uneroded map
-               canvas.DrawPolyTree(unerodedTerrainNode.LocalGeometryView.PunchedLand, StrokeStyle.BlackHairLineSolid, StrokeStyle.RedHairLineSolid);
+               canvas.DrawPolyNode(unerodedTerrainNode.LocalGeometryView.PunchedLand, StrokeStyle.BlackHairLineSolid, StrokeStyle.RedHairLineSolid);
 
                // draw eroded map
-               canvas.DrawPolyTree(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray), new StrokeStyle(Color.DarkRed));
+               canvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray), new StrokeStyle(Color.DarkRed));
 
                // draw waypoints
                canvas.DrawPoints(goodWaypoints, new StrokeStyle(Color.Blue, 25));

@@ -302,7 +302,7 @@ namespace OpenMOBA.DevTool {
 //               }
 
                continue;
-//               debugCanvas.DrawPolyTree(localGeometryView.PunchedLand);
+//               debugCanvas.DrawPolyNode(localGeometryView.PunchedLand);
 
                //Console.WriteLine("Holes: " + localGeometryView.Job.DynamicHoles.Count);
 //					foreach (var (k, v) in localGeometryView.Job.DynamicHoles) {
@@ -338,7 +338,7 @@ namespace OpenMOBA.DevTool {
                //                                                                     .Dilate(15)
                //                                                                     .Erode(10)
                //                                                                     .Execute();
-               //               debugCanvas.DrawPolyTree(dilatedNodeAndChildrenPolytree, new StrokeStyle(Color.Lime), new StrokeStyle(Color.Cyan));
+               //               debugCanvas.DrawPolyNode(dilatedNodeAndChildrenPolytree, new StrokeStyle(Color.Lime), new StrokeStyle(Color.Cyan));
 
                //               var seg = new IntLineSegment2(new IntVector2(-54, 6), new IntVector2(145, 0));
                //               foreach (var barrier in x) {

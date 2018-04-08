@@ -32,7 +32,7 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
 
          var (localGeometryView, landPolyNode, crossoverPointManager) = BenchmarkAddCrossoverPoints(terrainStaticMetadata);
          var canvas = host.CreateAndAddCanvas(0);
-         //canvas.DrawPolyTree((PolyTree)landPolyNode.Parent);
+         //canvas.DrawPolyNode((PolyTree)landPolyNode.Parent);
          canvas.DrawPoints(crossoverPointManager.CrossoverPoints, StrokeStyle.RedThick5Solid);
          canvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
          canvas.DrawLineList(landPolyNode.FindContourAndChildHoleBarriers(), StrokeStyle.BlackHairLineSolid);
