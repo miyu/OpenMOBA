@@ -175,6 +175,22 @@ namespace OpenMOBA.DevTool.Debugging {
          }
       }
 
+      public static void DrawTriangle(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, IntVector2 p3, StrokeStyle strokeStyle) {
+         canvas.DrawTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), strokeStyle);
+      }
+
+      public static void DrawTriangle(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, DoubleVector2 p3, StrokeStyle strokeStyle) {
+         canvas.DrawTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), strokeStyle);
+      }
+
+      public static void FillTriangle(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, IntVector2 p3, FillStyle fillStyle) {
+         canvas.FillTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), fillStyle);
+      }
+
+      public static void FillTriangle(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, DoubleVector2 p3, FillStyle fillStyle) {
+         canvas.FillTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), fillStyle);
+      }
+
 
       //      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
       //         canvas.DrawPolygonContour(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);

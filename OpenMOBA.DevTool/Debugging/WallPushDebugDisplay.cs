@@ -36,7 +36,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public static void DrawVisibilityPolygon(this IDebugCanvas debugCanvas, VisibilityPolygon avss, double z = 0.0, FillStyle fillStyle = null) {
          fillStyle = fillStyle ?? DefaultFillStyle;
          var oxy = avss.Origin;
-         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_INFINITELY_FAR)) {
+         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_INFINITELY_FAR && range.Id != VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR)) {
             var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
             var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
       
@@ -50,14 +50,8 @@ namespace OpenMOBA.DevTool.Debugging {
                continue;
             }
 
-            debugCanvas.BatchDraw(() => {
-               debugCanvas.FillPolygonTriangulation(new Polygon2(
-                     new List<IntVector2> {
-                        new IntVector2((int)oxy.X, (int)oxy.Y),
-                        new IntVector2((int)visibleStart.X, (int)visibleStart.Y),
-                        new IntVector2((int)visibleEnd.X, (int)visibleEnd.Y)
-                     }, false), 
-                     fillStyle);
+//            debugCanvas.BatchDraw(() => {
+            debugCanvas.FillTriangle(oxy, visibleStart, visibleEnd, fillStyle);
 
                debugCanvas.DrawLine(
                   new DoubleVector3(oxy.X, oxy.Y, z),
@@ -73,7 +67,7 @@ namespace OpenMOBA.DevTool.Debugging {
                   new DoubleVector3(visibleStart.X, visibleStart.Y, z),
                   new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
                   VisibleWallStrokeStyle);
-            });
+//            });
          }
       }
    }
