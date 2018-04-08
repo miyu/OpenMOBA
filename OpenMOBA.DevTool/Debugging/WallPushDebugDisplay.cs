@@ -36,7 +36,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public static void DrawVisibilityPolygon(this IDebugCanvas debugCanvas, VisibilityPolygon avss, double z = 0.0, FillStyle fillStyle = null) {
          fillStyle = fillStyle ?? DefaultFillStyle;
          var oxy = avss.Origin;
-         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_NULL)) {
+         foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_INFINITELY_FAR)) {
             var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
             var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
       

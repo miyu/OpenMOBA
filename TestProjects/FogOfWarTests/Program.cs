@@ -63,19 +63,51 @@ namespace FogOfWarTests {
             }
          }
 
+         int asdfa = 0;
          foreach (var terrainNode in overlayNetwork.TerrainNodes) {
-            canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
-            if (!terrainNode.SectorNodeDescription.EnableDebugHighlight) continue;
-            var visibilityPolygonOrigin = new IntVector2(700, 700);
-            canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
-            var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
+            if (asdfa >= 2) continue;
+            asdfa++;
 
-            foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
-               foreach (var outboundEdge in outboundEdgeGroup.Value) {
-//                  visibilityPolygon.RefStab()
+            canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
+            if (terrainNode.SectorNodeDescription.EnableDebugHighlight) {
+               var visibilityPolygonOrigin = new IntVector2(700, 700);
+               canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
+               var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
+
+//               foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
+//                  foreach (var outboundEdge in outboundEdgeGroup.Value) {
+//                     visibilityPolygon.ClearBeyond(outboundEdge.EdgeJob.SourceSegment.LossyToIntLineSegment2());
+//                  }
+//               }
+               canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 255, 0, 0)));
+            } else {
+               var visibilityPolygonOrigin = new IntVector2(700 - 1000, 700);
+               canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
+               var visibilityPolygon = new VisibilityPolygon(
+                  visibilityPolygonOrigin.ToDoubleVector2(),
+                  new[] {
+                     new VisibilityPolygon.IntervalRange {
+                        Id = VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR,
+                        ThetaStart = 0,
+                        ThetaEnd = VisibilityPolygon.TwoPi
+                     }, 
+                  });
+
+               foreach (var inboundEdgeGroup in terrainNode.InboundEdgeGroups) {
+                  foreach (var inboundEdge in inboundEdgeGroup.Value) {
+                     visibilityPolygon.ClearBefore(inboundEdge.EdgeJob.DestinationSegment.LossyToIntLineSegment2());
+                  }
                }
+
+               foreach (var seg in terrainNode.LandPolyNode.FindContourAndChildHoleBarriers()) {
+                  if (GeometryOperations.Clockness(visibilityPolygon.Origin, seg.First.ToDoubleVector2(), seg.Second.ToDoubleVector2()) == Clockness.CounterClockwise) {
+                     continue;
+                  }
+                  visibilityPolygon.Insert(seg);
+               }
+
+               canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 0, 0, 255)));
             }
-            canvas.DrawVisibilityPolygon(visibilityPolygon);
          }
       }
 

@@ -46,7 +46,7 @@ namespace OpenMOBA.Geometry {
 
       public DoubleVector2 ToUnit() => this / Norm2D();
 
-      [DebuggerStepThrough] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)Math.Floor(X), (cInt)Math.Floor(Y));
+      [DebuggerStepThrough] [Pure] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)Math.Floor(X), (cInt)Math.Floor(Y));
 
       public override int GetHashCode() {
          unchecked {

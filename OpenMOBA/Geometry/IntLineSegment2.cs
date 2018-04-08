@@ -224,6 +224,8 @@ namespace OpenMOBA.Geometry {
          return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
       }
 
+      [DebuggerStepThrough] public IntLineSegment2 LossyToIntLineSegment2() => new IntLineSegment2(First.LossyToIntVector2(), Second.LossyToIntVector2());
+
       public static bool Intersects(double ax, double ay, double bx, double by, double cx, double cy, double dx, double dy) {
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
          var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));

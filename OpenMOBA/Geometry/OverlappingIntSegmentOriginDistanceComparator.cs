@@ -60,14 +60,30 @@ namespace OpenMOBA.Geometry {
       }
 
       public static int Compare(ref DoubleVector2 p, ref IntLineSegment2 a, ref IntLineSegment2 b) {
-#if DEBUG
+//#if DEBUG
          if (GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2) != Clockness.Clockwise) {
             throw new InvalidStateException();
          }
          if (GeometryOperations.Clockness(p.X, p.Y, b.X1, b.Y1, b.X2, b.Y2) != Clockness.Clockwise) {
             throw new InvalidStateException();
          }
-#endif
+//         var clocknessPA1A2 = GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2);
+//         if (clocknessPA1A2 == Clockness.Neither) {
+//            throw new InvalidStateException();
+//         } else if (clocknessPA1A2 == Clockness.CounterClockwise) {
+//            var aFlipped = new IntLineSegment2(a.Second, a.First);
+//            return Compare(ref p, ref aFlipped, ref b);
+//         }
+//
+//         var clocknessPB1B2 = GeometryOperations.Clockness(p.X, p.Y, b.X1, b.Y1, b.X2, b.Y2);
+//         if (clocknessPB1B2 == Clockness.Neither) {
+//            throw new InvalidStateException();
+//         } else if (clocknessPB1B2 == Clockness.CounterClockwise) {
+//            var bFlipped = new IntLineSegment2(b.Second, b.First);
+//            return Compare(ref p, ref a, ref bFlipped);
+//         }
+//#endif
+
          var clk = GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, b.X1, b.Y1);
          if (clk != Clockness.Clockwise) {
             // b before a; b \' a *origin

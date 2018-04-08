@@ -11,31 +11,30 @@ namespace OpenMOBA.Geometry {
    // This can be efficiently implemented with an interval tree = O(logN) runtime.
    // For now, just using a flat unordered list, so quite inefficient.
    public class VisibilityPolygon {
-      public const int RANGE_ID_NULL = -1;
+      public const int RANGE_ID_INFINITESIMALLY_NEAR = -2;
+      public const int RANGE_ID_INFINITELY_FAR = -1; // (The null range id)
       public const int RANGE_ID_INITIAL = 0;
-      private const double TwoPi = 2.0 * Math.PI;
+      public const double TwoPi = 2.0 * Math.PI;
       private const double PiDiv2 = Math.PI / 2.0;
       private readonly DoubleVector2 _origin;
       private IntervalRange[] _intervalRanges;
       private readonly IComparer<IntLineSegment2> _segmentComparer;
       private int rangeIdCounter = RANGE_ID_INITIAL;
 
-      public VisibilityPolygon(DoubleVector2 origin) {
-         _origin = origin;
-         _intervalRanges = new [] {
-            new IntervalRange {
-               Id = RANGE_ID_NULL,
-               ThetaStart = 0.0,
-               ThetaEnd = TwoPi
-            }
-         };
-         _segmentComparer = new OverlappingIntSegmentOriginDistanceComparator(_origin);
-      }
+      public VisibilityPolygon(DoubleVector2 origin)
+         : this(
+            origin, new[] {
+               new IntervalRange {
+                  Id = RANGE_ID_INFINITELY_FAR,
+                  ThetaStart = 0.0,
+                  ThetaEnd = TwoPi
+               }
+            }) { }
 
-      public VisibilityPolygon(DoubleVector2 origin, IntervalRange[] intervalRanges, Comparer<IntLineSegment2> segmentComparer) {
+      public VisibilityPolygon(DoubleVector2 origin, IntervalRange[] intervalRanges, IComparer<IntLineSegment2> segmentComparer = null) {
          _origin = origin;
          _intervalRanges = intervalRanges;
-         _segmentComparer = segmentComparer;
+         _segmentComparer = segmentComparer ?? new OverlappingIntSegmentOriginDistanceComparator(_origin);
       }
 
       public DoubleVector2 Origin => _origin;
@@ -65,10 +64,26 @@ namespace OpenMOBA.Geometry {
 
          if (Math.Abs(theta1 - theta2) > Math.PI) {
             // covered angle range wraps around through theta=0.
-            InsertInternalInternal(s, RANGE_ID_NULL, 0.0, thetaLower, supportOverlappingLines);
-            InsertInternalInternal(s, RANGE_ID_NULL, thetaUpper, TwoPi, supportOverlappingLines);
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, 0.0, thetaLower, supportOverlappingLines, false);
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaUpper, TwoPi, supportOverlappingLines, false);
          } else {
-            InsertInternalInternal(s, RANGE_ID_NULL, thetaLower, thetaUpper, supportOverlappingLines);
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaLower, thetaUpper, supportOverlappingLines, false);
+         }
+      }
+
+      public void ClearBefore(IntLineSegment2 s, bool supportOverlappingLines = false) {
+         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
+
+         var thetaLower = theta1 < theta2 ? theta1 : theta2;
+         var thetaUpper = theta1 < theta2 ? theta2 : theta1;
+
+         if (Math.Abs(theta1 - theta2) > Math.PI) {
+            // covered angle range wraps around through theta=0.
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, 0.0, thetaLower, supportOverlappingLines, true);
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaUpper, TwoPi, supportOverlappingLines, true);
+         } else {
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaLower, thetaUpper, supportOverlappingLines, true);
          }
       }
 
@@ -86,11 +101,10 @@ namespace OpenMOBA.Geometry {
             //return;
          }
          var rangeId = rangeIdCounter++;
-         InsertInternalInternal(s, rangeId, insertionThetaLower, insertionThetaUpper, supportOverlappingLines);
+         InsertInternalInternal(s, rangeId, insertionThetaLower, insertionThetaUpper, supportOverlappingLines, false);
       }
 
-      private void InsertInternalInternal(IntLineSegment2 s, int sRangeId, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines) {
-         var sMidpoint = new DoubleVector2((s.First.X + s.Second.X) / 2.0, (s.First.Y + s.Second.Y) / 2.0);
+      private void InsertInternalInternal(IntLineSegment2 s, int sRangeId, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines, bool furthestSegmentWins) {
          // See distrsxy for why this makes sense.
 //         var sDist = _origin.To(sMidpoint).SquaredNorm2D();
          var srange = new IntervalRange {
@@ -173,7 +187,7 @@ namespace OpenMOBA.Geometry {
          void HandleSplit(IntervalRange range) {
             Debug.Assert(IsRangeOverlap(insertionThetaLower, insertionThetaUpper, range.ThetaStart, range.ThetaEnd));
 
-            if (range.Id == RANGE_ID_NULL) {
+            if (range.Id == RANGE_ID_INFINITELY_FAR) {
                HandleNearFarSplit(srange, range, range.ThetaStart, range.ThetaEnd);
                return;
             }
@@ -219,9 +233,21 @@ namespace OpenMOBA.Geometry {
             // of a polygon.
 
 //            var distrsxy = range.MidpointDistanceToOriginSquared;
-            bool inserteeNearer = range.Id != RANGE_ID_NULL && (sRangeId == RANGE_ID_NULL || _segmentComparer.Compare(s, rsxy) < 0);
+            bool ComputeIsInserteeNearer() {
+               //range.Id != RANGE_ID_INFINITELY_FAR && (sRangeId == RANGE_ID_INFINITELY_FAR || _segmentComparer.Compare(s, rsxy) < 0);
+               if (range.Id == RANGE_ID_INFINITELY_FAR) return true;
+               if (range.Id == RANGE_ID_INFINITESIMALLY_NEAR) return false;
+               if (srange.Id == RANGE_ID_INFINITELY_FAR) return false;
+               if (srange.Id == RANGE_ID_INFINITESIMALLY_NEAR) return true;
+               return _segmentComparer.Compare(s, rsxy) < 0;
+            }
+
+            bool inserteeNearer = ComputeIsInserteeNearer();
             var nearRange = inserteeNearer ? srange : range;
             var farRange = inserteeNearer ? range : srange;
+            if (furthestSegmentWins) {
+               (nearRange, farRange) = (farRange, nearRange);
+            }
             HandleNearFarSplit(nearRange, farRange, range.ThetaStart, range.ThetaEnd);
          }
 
@@ -411,7 +437,7 @@ namespace OpenMOBA.Geometry {
          if (p.ToDoubleVector2() == _origin) return true;
          var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
          ref var rangeAtTheta = ref RefStab(theta);
-         if (rangeAtTheta.Id == RANGE_ID_NULL) {
+         if (rangeAtTheta.Id == RANGE_ID_INFINITELY_FAR) {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
@@ -422,7 +448,7 @@ namespace OpenMOBA.Geometry {
          if (p == _origin) return true;
          var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
          ref var rangeAtTheta = ref RefStab(theta);
-         if (rangeAtTheta.Id == RANGE_ID_NULL) {
+         if (rangeAtTheta.Id == RANGE_ID_INFINITELY_FAR) {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
@@ -572,7 +598,7 @@ namespace OpenMOBA.Geometry {
 
             var (theta, id, add) = events[eventIndices[i]];
             if (theta != lastTheta) {
-               var nearestId = orderedSegments.Count == 0 ? RANGE_ID_NULL : orderedSegments.Peek();
+               var nearestId = orderedSegments.Count == 0 ? RANGE_ID_INFINITELY_FAR : orderedSegments.Peek();
                if (lastOutputRangeIndex != -1 && outputRanges[lastOutputRangeIndex].Id == nearestId) {
                   // extend prev output range
                   // Console.WriteLine($"EXTEND to {theta} {id}");
@@ -583,7 +609,7 @@ namespace OpenMOBA.Geometry {
                   lastOutputRangeIndex++;
                   outputRanges[lastOutputRangeIndex] = new IntervalRange {
                      Id = nearestId,
-                     Segment = nearestId == RANGE_ID_NULL ? default(IntLineSegment2) : barriers[nearestId],
+                     Segment = nearestId == RANGE_ID_INFINITELY_FAR ? default(IntLineSegment2) : barriers[nearestId],
                      ThetaStart = lastTheta,
                      ThetaEnd = theta
                   };
