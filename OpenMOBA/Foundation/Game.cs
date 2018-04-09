@@ -15,11 +15,13 @@ using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation {
+   // Clipper int range: [-32,767, 32,767]
    public static class SectorMetadataPresets {
+      private const int DesiredSectorExtents = (ClipperBase.hiRange / 10000) * 10000;
+
       private const int CrossCirclePathWidth = 200;
       private const int CrossCircleInnerLandRadius = 400;
       private const int CrossCircleInnerHoleRadius = 200;
-
 
       public const int HashCircle2ScalingFactor = 1;
 
@@ -27,7 +29,38 @@ namespace OpenMOBA.Foundation {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new List<Polygon2>()
-      };
+      }.Twitch();
+
+      internal static TerrainStaticMetadata Twitch(this TerrainStaticMetadata tsm) {
+         var offsetX = -(tsm.LocalBoundary.X + tsm.LocalBoundary.Width / 2);
+         var offsetY = -(tsm.LocalBoundary.Y + tsm.LocalBoundary.Height / 2);
+
+         var scaleX = 2 * DesiredSectorExtents / (double)tsm.LocalBoundary.Width;
+         var scaleY = 2 * DesiredSectorExtents / (double)tsm.LocalBoundary.Height;
+
+         void TransformPolygonInPlace(Polygon2 poly) {
+            for (var i = 0; i < poly.Points.Count; i++) {
+               var p = poly.Points[i];
+               var x = (int)((p.X + offsetX) * scaleX);
+               var y = (int)((p.Y + offsetY) * scaleY);
+               poly.Points[i] = new IntVector2(x, y);
+            }
+         }
+
+         tsm.LocalBoundary.Offset(offsetX, offsetY);
+
+         tsm.LocalBoundary = new Rectangle(
+            (int)(tsm.LocalBoundary.X * scaleX), (int)(tsm.LocalBoundary.Y * scaleY),
+            (int)(tsm.LocalBoundary.Width * scaleX), (int)(tsm.LocalBoundary.Height * scaleY));
+
+         foreach (var contour in tsm.LocalIncludedContours) {
+            TransformPolygonInPlace(contour);
+         }
+         foreach (var contour in tsm.LocalExcludedContours) {
+            TransformPolygonInPlace(contour);
+         }
+         return tsm;
+      }
 
       public static readonly TerrainStaticMetadata Test2D = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
@@ -102,7 +135,7 @@ namespace OpenMOBA.Foundation {
          LocalExcludedContours = new[] {
             Polygon2.CreateCircle(500 * HashCircle2ScalingFactor, 500 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor)
          }
-      };
+      }.Twitch();
    }
 
    public interface IGameEventFactory {

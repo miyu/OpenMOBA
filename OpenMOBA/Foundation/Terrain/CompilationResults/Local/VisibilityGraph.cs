@@ -84,6 +84,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
                                                                .Include(nodeAndChildrenContours)
                                                                .Dilate(kBarrierPolyTreeDilationFactor + kBarrierOverDilationFactor)
+                                                               .Cleanup()
                                                                .Erode(kBarrierOverDilationFactor)
                                                                .Execute();
 

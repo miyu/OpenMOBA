@@ -31,67 +31,84 @@ namespace FogOfWarTests {
          // Add test sectors
          var leftSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
 //         leftSnd.EnableDebugHighlight = true;
-         leftSnd.WorldTransform = Matrix4x4.CreateTranslation(-1500, -500, 0);
+         leftSnd.WorldTransform = Matrix4x4.CreateScale(1000.0f / 60000.0f) * Matrix4x4.CreateTranslation(-1000, 0, 0);
          terrainService.AddSectorNodeDescription(leftSnd);
 
          var centerSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
          centerSnd.EnableDebugHighlight = true;
-         centerSnd.WorldTransform = Matrix4x4.CreateTranslation(-500, -500, 0);
+         centerSnd.WorldTransform = Matrix4x4.CreateScale(1000.0f / 60000.0f);
          terrainService.AddSectorNodeDescription(centerSnd);
 
+         /*+		[0]	{(-30000, -18000)}	OpenMOBA.Geometry.IntVector2
++		[1]	{(-30000, -6000)}	OpenMOBA.Geometry.IntVector2
++		[2]	{(-6000, -6000)}	OpenMOBA.Geometry.IntVector2
++		[3]	{(-6000, -18000)}	OpenMOBA.Geometry.IntVector2
++		[4]	{(-30000, -18000)}	OpenMOBA.Geometry.IntVector2
+   */
          var rightSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
-         rightSnd.WorldTransform = Matrix4x4.CreateTranslation(500, -500, 0);
+         rightSnd.WorldTransform = Matrix4x4.CreateScale(1000.0f / 60000.0f) * Matrix4x4.CreateTranslation(1000, 0, 0);
          terrainService.AddSectorNodeDescription(rightSnd);
 
          // edges between test sectors
+
+         var rightTopSegment = new IntLineSegment2(new IntVector2(30000, 6000), new IntVector2(30000, 18000));
+         var leftTopSegment = new IntLineSegment2(new IntVector2(-30000, 6000), new IntVector2(-30000, 18000));
+         var rightBottomSegment = new IntLineSegment2(new IntVector2(30000, -18000), new IntVector2(30000, -6000));
+         var leftBottomSegment = new IntLineSegment2(new IntVector2(-30000, -18000), new IntVector2(-30000, -6000));
+
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             leftSnd, centerSnd,
-            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800)),
-            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800))));
+            rightTopSegment,
+            leftTopSegment));
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             centerSnd, leftSnd,
-            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
-            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
+            leftTopSegment,
+            rightTopSegment));
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             leftSnd, centerSnd,
-            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
-            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400))));
+            rightBottomSegment,
+            leftBottomSegment));
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             centerSnd, leftSnd,
-            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
-            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400))));
+            leftBottomSegment,
+            rightBottomSegment));
 
          //
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             centerSnd, rightSnd,
-            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800)),
-            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800))));
+            rightTopSegment,
+            leftTopSegment));
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             rightSnd, centerSnd,
-            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
-            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
+            leftTopSegment,
+            rightTopSegment));
 
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             centerSnd, rightSnd,
-            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
-            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400))));
+            rightBottomSegment,
+            leftBottomSegment));
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             rightSnd, centerSnd,
-            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
-            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400))));
+            leftBottomSegment,
+            rightBottomSegment));
 
          // add some obstacles
 //         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
 //            HoleStaticMetadata.CreateRectangleHoleMetadata(-500, 250, 60, 60, 0)));
 //         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
 //            HoleStaticMetadata.CreateRectangleHoleMetadata(0, 130, 60, 60, 0)));
-         for (var i = 0; i < 50; i++) {
+         for (var i = 0; i < 100; i++) {
             terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
-               HoleStaticMetadata.CreateRectangleHoleMetadata(random.Next(-1500, 1500), random.Next(-500, 500), random.Next(10, 20), random.Next(10, 20), random.NextDouble() * Math.PI * 2)));
+               HoleStaticMetadata.CreateRectangleHoleMetadata(
+                  random.Next(-1500, 1500), 
+                  random.Next(-500, 500), 
+                  random.Next(10, 50), 
+                  random.Next(10, 50), 
+                  random.NextDouble() * Math.PI * 2)));
          }
 
          var terrainSnapshot = terrainService.CompileSnapshot();
-         var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
+         var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(30);
 
          for (var i = 0; i < 360; i += 10) {
             var canvas = host.CreateAndAddCanvas(i);
@@ -112,17 +129,23 @@ namespace FogOfWarTests {
                   }
                }
 
+               foreach (var terrainNode in overlayNetwork.TerrainNodes) {
+                  canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
+
+                  foreach (var hole in terrainNode.LocalGeometryView.Job.DynamicHoles) {
+                     var (holeIncludedContours, holeExcludedContours) = hole.Value;
+                     canvas.DrawPolygonContours(holeIncludedContours, StrokeStyle.RedHairLineSolid);
+                     canvas.DrawPolygonContours(holeExcludedContours, StrokeStyle.OrangeHairLineSolid);
+                  }
+               }
+
                int asdfa = -1;
                foreach (var terrainNode in overlayNetwork.TerrainNodes) {
                   asdfa++;
-//            if (asdfa != 0 && asdfa != 2) continue;
-//            if (asdfa != 2) continue;
-
                   canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
-                  canvas.DrawRectangle(new IntRect2(0, 0, 30, 30), 0, StrokeStyle.RedHairLineSolid);
 
                   if (terrainNode.SectorNodeDescription.EnableDebugHighlight) {
-                     var visibilityPolygonOrigin = IntVector2.FromRadiusAngle(50, i * Math.PI / 180) + new IntVector2(500, 500);
+                     var visibilityPolygonOrigin = IntVector2.FromRadiusAngle(50 * 60, i * Math.PI / 180) + new IntVector2(0, 0);
                      Y(canvas, terrainNode, visibilityPolygonOrigin);
                   }
                }
@@ -271,3 +294,4 @@ namespace FogOfWarTests {
       }
    }
 }
+ 

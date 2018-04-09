@@ -114,16 +114,23 @@ namespace OpenMOBA.Geometry {
       }
 
       public class OffsetOperation {
+         private readonly double kSpecialOffsetCleanup = double.NegativeInfinity;
          private readonly List<IReadOnlyList<IntVector2>> includedContours = new List<IReadOnlyList<IntVector2>>();
          private readonly List<double> offsets = new List<double>();
 
          /// <param name="delta">Positive dilates, negative erodes</param>
          public OffsetOperation ErodeOrDilate(double delta) {
+            if (double.IsInfinity(delta) || double.IsNaN(delta)) {
+               throw new ArgumentException();
+            }
             offsets.Add(delta);
             return this;
          }
 
          public OffsetOperation Erode(double delta) {
+            if (double.IsInfinity(delta) || double.IsNaN(delta)) {
+               throw new ArgumentException();
+            }
             if (delta < 0) {
                throw new ArgumentOutOfRangeException();
             }
@@ -133,11 +140,19 @@ namespace OpenMOBA.Geometry {
          }
 
          public OffsetOperation Dilate(double delta) {
+            if (double.IsInfinity(delta) || double.IsNaN(delta)) {
+               throw new ArgumentException();
+            }
             if (delta < 0) {
                throw new ArgumentOutOfRangeException();
             }
 
             offsets.Add(delta);
+            return this;
+         }
+
+         public OffsetOperation Cleanup() {
+            offsets.Add(kSpecialOffsetCleanup);
             return this;
          }
 
@@ -164,12 +179,26 @@ namespace OpenMOBA.Geometry {
          public PolyTree Execute() {
             var currentContours = includedContours;
             for (var i = 0; i < offsets.Count; i++) {
+               var offset = offsets[i];
+               
+               // ReSharper disable once CompareOfFloatsByEqualityOperator
+               if (offset == kSpecialOffsetCleanup) {
+                  continue;
+               }
+
                var polytree = new PolyTree();
                var clipper = new ClipperOffset();
                foreach (var contour in currentContours) {
                   clipper.AddPath(contour, JoinType.jtMiter, EndType.etClosedPolygon);
                }
-               clipper.Execute(ref polytree, offsets[i]);
+               clipper.Execute(ref polytree, offset);
+
+               // hack: cleanup
+               while (i + 1 != offsets.Count && offsets[i + 1] == kSpecialOffsetCleanup) {
+                  i++;
+                  polytree.Prune(0);
+               }
+
                if (i + 1 == offsets.Count) {
                   return polytree;
                } else {

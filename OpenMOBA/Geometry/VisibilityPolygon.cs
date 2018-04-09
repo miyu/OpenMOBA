@@ -491,6 +491,10 @@ namespace OpenMOBA.Geometry {
             var theta1 = (float)FindXYRadiansRelativeToOrigin(origin, s.X1, s.Y1);
             var theta2 = (float)FindXYRadiansRelativeToOrigin(origin, s.X2, s.Y2);
 
+            // Even though we check clockness above, thetas can be equal because of floating point error.
+            // ReSharper disable once CompareOfFloatsByEqualityOperator
+            if (theta1 == theta2) continue;
+
             // ensure theta1 < theta2
             if (theta1 > theta2) (theta1, theta2) = (theta2, theta1);
 
@@ -527,6 +531,15 @@ namespace OpenMOBA.Geometry {
             if (res != 0) return res;
             return events[a].Item3.CompareTo(events[b].Item3);
          });
+
+         var temp = new bool[barriers.Length];
+         for (var i = 0; i < eventIndices.Length; i++) {
+            var item = events[eventIndices[i]];
+            if (temp[item.Item2] == item.Item3) {
+               throw new Exception();
+            }
+            temp[item.Item2] = item.Item3;
+         }
 
          var lastTheta = 0.0;
          var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingIntSegmentOriginDistanceComparator.Compare(origin, a, b));
@@ -598,6 +611,8 @@ namespace OpenMOBA.Geometry {
                   FindXYRadiansRelativeToOrigin(origin, barriers[x].X2, barriers[x].Y2) + " " +
                   segmentComparer.Compare(s, barriers[x]) + " " + 
                   segmentComparer.Compare(barriers[x], s));
+            if (DateTime.Now == default(DateTime))
+               return;
             throw new InvalidStateException();
          }
 
