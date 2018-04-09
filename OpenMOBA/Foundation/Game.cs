@@ -209,18 +209,25 @@ namespace OpenMOBA.Foundation {
             var rng = new Random(y);
             for (var x = 0; x < sectorSpanWidth; x++) {
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
-               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
+               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
+//               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
-               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1), Matrix4x4.CreateTranslation(x * 1000 - 1500, y * 1000 - 500, 0));
+               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(x * 1000 - 1000, y * 1000, 0));
                TerrainService.AddSectorNodeDescription(sector);
             }
          }
-         
-         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
-         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
-         var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
-         var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
+
+
+         var left1 = new IntLineSegment2(new IntVector2(-30000, -18000), new IntVector2(-30000, -6000));
+         var left2 = new IntLineSegment2(new IntVector2(-30000, 6000), new IntVector2(-30000, 18000));
+         var right1 = new IntLineSegment2(new IntVector2(30000, -18000), new IntVector2(30000, -6000));
+         var right2 = new IntLineSegment2(new IntVector2(30000, 6000), new IntVector2(30000, 18000));
+
+//         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
+//         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
+//         var right1 = new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400));
+//         var right2 = new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800));
          for (var y = 0; y < sectorSpanHeight; y++)
          for (var x = 1; x < sectorSpanWidth; x++) {
             TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x - 1], sectors[y, x], right1, left1));
@@ -229,17 +236,17 @@ namespace OpenMOBA.Foundation {
             TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y, x - 1], left2, right2));
          }
          
-         var up1 = new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0));
-         var up2 = new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0));
-         var down1 = new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000));
-         var down2 = new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000));
-         for (var y = 1; y < sectorSpanHeight; y++)
-         for (var x = 0; x < sectorSpanWidth; x++) {
-            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y - 1, x], sectors[y, x], down1, up1));
-            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y - 1, x], sectors[y, x], down2, up2));
-            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up1, down1));
-            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up2, down2));
-         }
+//         var up1 = new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0));
+//         var up2 = new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0));
+//         var down1 = new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000));
+//         var down2 = new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000));
+//         for (var y = 1; y < sectorSpanHeight; y++)
+//         for (var x = 0; x < sectorSpanWidth; x++) {
+//            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y - 1, x], sectors[y, x], down1, up1));
+//            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y - 1, x], sectors[y, x], down2, up2));
+//            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up1, down1));
+//            TerrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(sectors[y, x], sectors[y - 1, x], up2, down2));
+//         }
          
 //         var donutOriginX = 0;
 //         var donutOriginY = 0;

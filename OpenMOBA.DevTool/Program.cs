@@ -294,7 +294,7 @@ namespace OpenMOBA.DevTool {
 //                  fillColor = Color.Red;
 //               }
 //               debugCanvas.FillTriangulation(new Triangulator().TriangulateLandNode(landPolyNode), new FillStyle(fillColor));
-					debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
                debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.RedHairLineSolid);
 
 //               foreach (var c in visibilityGraphNodeData.EdgeDescriptions) {
@@ -598,7 +598,7 @@ namespace OpenMOBA.DevTool {
          var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-			var center = new DoubleVector3(0, 0, 0);
+         var center = new DoubleVector3(0, 0, 0);
 //         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
             center + DoubleVector3.FromRadiusAngleAroundXAxis(1000, rotation),
