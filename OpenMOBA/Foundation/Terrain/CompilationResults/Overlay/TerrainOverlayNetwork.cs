@@ -216,15 +216,14 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
 
          // It's safe to assume <some> point in points will be new, so preprocess which segments are betwen us and other edge segments
          var barriers = landPolyNode.FindContourAndChildHoleBarriers();
-         Dictionary<DoubleLineSegment2, IntLineSegment2[]> barriersBySegment = null;
-         //         indicesBySegment.Map((s, _) => {
-         //            Interlocked.Increment(ref AddManyConvexHullsComputed);
-         //            var hull = GeometryOperations.ConvexHull4(s.First, s.Second, edgeSegment.First, edgeSegment.Second);
-         //            return barriers.Where(b => {
-         //               var barrierDv2 = new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2());
-         //               return GeometryOperations.SegmentIntersectsConvexPolygonInterior(barrierDv2, hull);
-         //            }).ToArray();
-         //         });
+         Dictionary<DoubleLineSegment2, IntLineSegment2[]> barriersBySegment = indicesBySegment.Map((s, _) => {
+            Interlocked.Increment(ref AddManyConvexHullsComputed);
+            var hull = GeometryOperations.ConvexHull4(s.First, s.Second, edgeSegment.First, edgeSegment.Second);
+            return barriers.Where(b => {
+               var barrierDv2 = new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2());
+               return GeometryOperations.SegmentIntersectsConvexPolygonInterior(barrierDv2, hull);
+            }).ToArray();
+         });
 
          return indicesBySegment[edgeSegment] = points.Map(p => {
             if (TryAdd(p, out var cpi)) {
@@ -237,7 +236,6 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
 
          bool TryAdd(IntVector2 crossoverPoint, out int crossoverPointIndex) {
             if (!crossoverPoints.TryAdd(crossoverPoint, out crossoverPointIndex)) return false;
-            return true;
 
             var (visibleWaypointLinks, visibleWaypointLinksLength, optimalLinkToWaypoints, optimalLinkToCrossovers) = FindOptimalLinksToCrossovers(crossoverPoint, segmentSeeingWaypoints, barriersBySegment);
             // visibleWaypointLinksByCrossoverPointIndex.Add(visibleWaypointLinks);
@@ -304,6 +302,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
             if (isDirectPath) {
                Interlocked.Increment(ref ProcessCpiInvocation_DirectCount);
                var totalCost = p.To(crossoverPoints[cpi]).Norm2F();
+               Trace.Assert(!double.IsNaN(totalCost));
                optimalLinkToCrossovers[cpi] = new PathLink {
                   PriorIndex = PathLink.DirectPathIndex,
                   TotalCost = totalCost
@@ -338,6 +337,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                   //--
                   var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
                   var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
+                  Trace.Assert(!double.IsNaN(totalCost));
                   optimalLinkToCrossovers[cpi] = new PathLink {
                      PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
                      TotalCost = totalCost

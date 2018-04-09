@@ -10,18 +10,18 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       private const int kCrossoverAdditionalPathingDilation = 2;
 
       public readonly LocalGeometryViewManager LocalGeometryViewManager;
-      public readonly double ActorRadius;
+      public readonly double HoleDilationRadius;
       public readonly LocalGeometryView Preview;
 
       public readonly int CrossoverErosionRadius;
       public readonly int CrossoverDilationFactor;
 
-      public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, double actorRadius, LocalGeometryView preview) {
+      public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, double holeDilationRadius, LocalGeometryView preview) {
          LocalGeometryViewManager = localGeometryViewManager;
-         ActorRadius = actorRadius;
+         HoleDilationRadius = holeDilationRadius;
          Preview = preview ?? this;
 
-         CrossoverErosionRadius = (int)Math.Ceiling((double)(ActorRadius * 2));
+         CrossoverErosionRadius = (int)Math.Ceiling((double)(HoleDilationRadius * 2));
          CrossoverDilationFactor = (CrossoverErosionRadius / 2) + kCrossoverAdditionalPathingDilation;
       }
 
@@ -41,7 +41,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                              .Include(Job.DynamicHoles.Values.SelectMany(item => 
                                  item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList(), true))
                              ))
-                             .Dilate(ActorRadius)
+                             .Dilate(HoleDilationRadius)
                              .Cleanup()
                              .Execute());
 
@@ -55,7 +55,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       public PolyTree ComputeErodedOuterContour() =>
          PolygonOperations.Offset()
                           .Include(Job.TerrainStaticMetadata.LocalIncludedContours)
-                          .Erode(ActorRadius)
+                          .Erode(HoleDilationRadius)
                           .Cleanup()
                           .Execute();
 
@@ -63,9 +63,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          return Job.CrossoverSegments.Select(segment => {
             var firstToSecond = segment.First.To(segment.Second).ToDoubleVector2();
             var perp = new DoubleVector2(firstToSecond.Y, -firstToSecond.X);
-            var extrusionMagnitude = ActorRadius + 2;
+            var extrusionMagnitude = HoleDilationRadius + 2;
             var extrusion = perp * (extrusionMagnitude / perp.Norm2D());
-            var shrink = firstToSecond * (ActorRadius / firstToSecond.Norm2D());
+            var shrink = firstToSecond * (HoleDilationRadius / firstToSecond.Norm2D());
             var points = new List<IntVector2>(new []{
                (segment.First.ToDoubleVector2() - extrusion + shrink).LossyToIntVector2(),
                (segment.First.ToDoubleVector2() + extrusion + shrink).LossyToIntVector2(),
@@ -99,7 +99,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
             node.Childs.ForEach(TagBoundingVolumeHierarchies);
          }
 
-         punchedLand.Prune(ActorRadius);
+         punchedLand.Prune(HoleDilationRadius);
          TagSectorSnapshotAndGeometryContext(punchedLand);
          TagBoundingVolumeHierarchies(punchedLand);
          return punchedLand;

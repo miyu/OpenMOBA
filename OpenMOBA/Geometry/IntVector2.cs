@@ -98,9 +98,9 @@ namespace OpenMOBA.Geometry {
          Y = y;
       }
 
-      [Pure] public cInt Dot(IntVector2 other) => X * other.X + Y * other.Y;
+      [Pure] public long Dot(IntVector2 other) => (long)X * other.X + (long)Y * other.Y;
 
-      [Pure] public cInt SquaredNorm2() => Dot(this);
+      [Pure] public long SquaredNorm2() => Dot(this);
       [Pure] public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
 
       [Pure] public IntVector2 To(IntVector2 other) => other - this;
@@ -123,8 +123,8 @@ namespace OpenMOBA.Geometry {
          var numerator = other.Dot(this);
          var denominator = other.SquaredNorm2();
          return new IntVector2(
-            (other.X * numerator) / denominator,
-            (other.Y * numerator) / denominator);
+            (cInt)((other.X * numerator) / denominator),
+            (cInt)((other.Y * numerator) / denominator));
       }
 
       [Pure] public IntVector2 LossyScale(double scale) => new IntVector2((cInt)(X * scale), (cInt)(Y * scale));
