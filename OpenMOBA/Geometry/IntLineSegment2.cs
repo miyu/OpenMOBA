@@ -81,12 +81,12 @@ namespace OpenMOBA.Geometry {
          var aydy = ay - dy;
          var bxdx = bx - dx;
 
-         var tl = Math.Sign(axcx * bycy - aycy * bxcx);
-         var tr = Math.Sign(axdx * bydy - aydy * bxdx);
+         var tl = Math.Sign((long)axcx * bycy - (long)aycy * bxcx);
+         var tr = Math.Sign((long)axdx * bydy - (long)aydy * bxdx);
          if (tl != -tr) return false;
 
-         var bl = Math.Sign(axcx * aydy - aycy * axdx);
-         var br = Math.Sign(bxcx * bydy - bycy * bxdx);
+         var bl = Math.Sign((long)axcx * aydy - (long)aycy * axdx);
+         var br = Math.Sign((long)bxcx * bydy - (long)bycy * bxdx);
          return bl == -br;
       }
 

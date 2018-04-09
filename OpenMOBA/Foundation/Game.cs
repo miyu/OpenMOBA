@@ -68,7 +68,7 @@ namespace OpenMOBA.Foundation {
          LocalExcludedContours = new[] {
             Polygon2.CreateRect(100, 600, 300, 300),
             Polygon2.CreateRect(400, 700, 100, 100),
-            Polygon2.CreateRect(200, 900, 100, 150),
+            Polygon2.CreateRect(200, 900, 100, 101), // 101 was 150
             Polygon2.CreateRect(600, 100, 300, 300),
             Polygon2.CreateRect(700, 400, 100, 100),
             Polygon2.CreateRect(200, 200, 100, 100),
@@ -78,7 +78,7 @@ namespace OpenMOBA.Foundation {
             Polygon2.CreateRect(600, 600, 300, 50),
             Polygon2.CreateRect(700, 700, 100, 100)
          }
-      };
+      }.Twitch();
 
       public static readonly TerrainStaticMetadata FourSquares2D = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
@@ -89,7 +89,7 @@ namespace OpenMOBA.Foundation {
             Polygon2.CreateRect(600, 200, 200, 200),
             Polygon2.CreateRect(600, 600, 200, 200)
          }
-      };
+      }.Twitch();
 
       public static readonly TerrainStaticMetadata CrossCircle = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
@@ -101,7 +101,7 @@ namespace OpenMOBA.Foundation {
          LocalExcludedContours = new[] {
             Polygon2.CreateCircle(500, 500, CrossCircleInnerHoleRadius)
          }
-      };
+      }.Twitch();
 
       public static readonly TerrainStaticMetadata HashCircle1 = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
@@ -115,7 +115,7 @@ namespace OpenMOBA.Foundation {
             Polygon2.CreateRect(300, 450, 400, 100)
          },
          LocalExcludedContours = new Polygon2[] { }
-      };
+      }.Twitch();
 
       public static readonly TerrainStaticMetadata HashCircle2 = new TerrainStaticMetadata {
          LocalBoundary = new Rectangle(0, 0, 1000 * HashCircle2ScalingFactor, 1000 * HashCircle2ScalingFactor),
@@ -209,7 +209,8 @@ namespace OpenMOBA.Foundation {
             var rng = new Random(y);
             for (var x = 0; x < sectorSpanWidth; x++) {
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
-               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
+//               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
+               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
 //               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
@@ -353,14 +354,14 @@ namespace OpenMOBA.Foundation {
          //}
 
          var a = CreateTestEntity(new DoubleVector3(-800, 300, 0), 30, 80);
-//         var b = CreateTestEntity(new DoubleVector3(675, 175, 0), 15, 70);
-//         var c = CreateTestEntity(new DoubleVector3(50, 900, 0), 15, 60);
-//         var d = CreateTestEntity(new DoubleVector3(50, 500, 0), 15, 50);
+         var b = CreateTestEntity(new DoubleVector3(675 - 500, 175 - 500, 0), 15, 70);
+         var c = CreateTestEntity(new DoubleVector3(50 - 500, 900 - 500, 0), 15, 60);
+         var d = CreateTestEntity(new DoubleVector3(50 - 500, 500 - 500, 0), 15, 50);
 
          MovementSystemService.Pathfind(a, new DoubleVector3(1250, -80, 0));
-//         MovementSystemService.Pathfind(b, new DoubleVector3(825, 300, 0));
-//         MovementSystemService.Pathfind(c, new DoubleVector3(950, 475, 0));
-//         MovementSystemService.Pathfind(d, new DoubleVector3(80, 720, 0));
+         MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, 300 - 500, 0));
+         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
+         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
 
 //         var benchmarkDestination = new DoubleVector3(950, 50, 0.0);
 //         var benchmarkUnitBaseSpeed = 50.0f;

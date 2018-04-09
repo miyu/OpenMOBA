@@ -100,7 +100,7 @@ namespace OpenMOBA.DevTool {
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
-         var agentRadius = 0.0;
+         var agentRadius = 15.0;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
