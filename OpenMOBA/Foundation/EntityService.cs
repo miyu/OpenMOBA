@@ -6,12 +6,14 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using ClipperLib;
 using OpenMOBA.DataStructures;
+using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
+using PqItem = System.ValueTuple<float, float, OpenMOBA.Foundation.Terrain.CompilationResults.Overlay.TerrainOverlayNetworkNode, int, OpenMOBA.Foundation.Terrain.CompilationResults.Overlay.TerrainOverlayNetworkNode, int, OpenMOBA.Foundation.Terrain.CompilationResults.Overlay.TerrainOverlayNetworkEdge>;
 
 namespace OpenMOBA.Foundation {
    public class Entity {
@@ -90,7 +92,7 @@ namespace OpenMOBA.Foundation {
 
    public class MovementComponent : EntityComponent {
       public MovementComponent() : base(EntityComponentType.Movement) { }
-      public DoubleVector3 Position { get; set; }
+      public DoubleVector3 WorldPosition { get; set; }
       public DoubleVector3 LookAt { get; set; } = DoubleVector3.UnitX;
       public float BaseRadius { get; set; }
       public float BaseSpeed { get; set; }
@@ -106,8 +108,8 @@ namespace OpenMOBA.Foundation {
       /// </summary>
       public DoubleVector3 PathingDestination { get; set; }
 
-      // poor datastructure use, but irrelevant for perf 
-      public List<DoubleVector3> PathingBreadcrumbs { get; set; } = new List<DoubleVector3>();
+      public MotionRoadmap PathingRoadmap { get; set; } = null;
+      public int PathingRoadmapProgressIndex = -1;
 
       public Swarm Swarm { get; set; }
       public TriangulationIsland SwarmingIsland { get; set; }
@@ -116,12 +118,10 @@ namespace OpenMOBA.Foundation {
       public List<Tuple<DoubleVector3, DoubleVector3>> DebugLines { get; set; }
 
       // Values precomputed at entry of movement service
-      public IntVector2 DiscretizedPosition { get; set; }
-
       public int ComputedRadius { get; set; }
       public int ComputedSpeed { get; set; }
-      public DoubleVector2 WeightedSumNBodyForces { get; set; }
-      public double SumWeightsNBodyForces { get; set; }
+//      public DoubleVector2 WeightedSumNBodyForces { get; set; }
+//      public double SumWeightsNBodyForces { get; set; }
 
       // Final computed swarmling velocity
       public DoubleVector2 SwarmlingVelocity { get; set; }
@@ -222,10 +222,10 @@ namespace OpenMOBA.Foundation {
          return Visit(sourceNode);
       }
 
-      public bool TryFindPath(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap) {
+      public bool TryFindPath(double agentRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap, IDebugCanvas debugCanvas = null) {
          roadmap = null;
          var terrainSnapshot = terrainService.CompileSnapshot();
-         var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+         var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode)) return false;
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(destinationWorld.ToDotNetVector(), out var destinationNode)) return false;
 
@@ -237,11 +237,24 @@ namespace OpenMOBA.Foundation {
             sourceLocal.ToOpenMobaVector().LossyToIntVector3().XY, 
             destinationNode, 
             destinationLocal.ToOpenMobaVector().LossyToIntVector3().XY,
-            out roadmap);
+            out roadmap,
+            debugCanvas);
       }
 
-      public bool TryFindPath(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint, out MotionRoadmap result) {
+      public bool TryFindPath(TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint, out MotionRoadmap result, IDebugCanvas debugCanvas = null) {
          var roadmap = new MotionRoadmap();
+
+         if (debugCanvas != null) {
+            debugCanvas.Transform = Matrix4x4.Identity;
+         }
+
+         void DrawLine(TerrainOverlayNetworkNode p1Node, IntVector2 p1Local, TerrainOverlayNetworkNode p2Node, IntVector2 p2Local, StrokeStyle strokeStyle) {
+            if (debugCanvas == null) return;
+            debugCanvas.DrawLine(
+               Vector3.Transform(new Vector3(p1Local.X, p1Local.Y, 0), p1Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector(),
+               Vector3.Transform(new Vector3(p2Local.X, p2Local.Y, 0), p2Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector(),
+               strokeStyle);
+         }
 
          void X(TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint) {
             var cpm = node.CrossoverPointManager;
@@ -322,7 +335,7 @@ namespace OpenMOBA.Foundation {
          var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
 
 
-         var q = new PriorityQueue<(float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>((a, b) => a.Item1.CompareTo(b.Item1));
+         var q = new PriorityQueue<PqItem>((a, b) => a.Item1.CompareTo(b.Item1));
          var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
          var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>(); // visited
 
@@ -330,8 +343,9 @@ namespace OpenMOBA.Foundation {
             foreach (var g in kvp.Value) {
                foreach (var edge in g.Edges) {
                   var cpiLink = sourceOptimalLinkToCrossovers[edge.SourceCrossoverIndex];
-                  priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = cpiLink.TotalCost * sourceNode.SectorNodeDescription.LocalToWorldScalingFactor;
-                  q.Enqueue((cpiLink.TotalCost, cpiLink.TotalCost, sourceNode, SOURCE_POINT_CPI, sourceNode, edge.SourceCrossoverIndex, null));
+                  var worldCpiLinkCost = cpiLink.TotalCost * sourceNode.SectorNodeDescription.LocalToWorldScalingFactor;
+                  priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = worldCpiLinkCost;
+                  q.Enqueue((worldCpiLinkCost, worldCpiLinkCost, sourceNode, SOURCE_POINT_CPI, sourceNode, edge.SourceCrossoverIndex, null));
                   Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + edge.SourceCrossoverIndex + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
                }
             }
@@ -349,10 +363,24 @@ namespace OpenMOBA.Foundation {
             return Vector3.Distance(destinationWorld, cpw) * 1.0f;
          }
 
+         void DrawPqItem(PqItem item, StrokeStyle strokeStyle) {
+            var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = item;
+            DrawLine(
+               nsrcnode,
+               nsrccpi == SOURCE_POINT_CPI ? sourcePoint : nsrcnode.CrossoverPointManager.CrossoverPoints[nsrccpi],
+               ndstnode,
+               ndstcpi == DESTINATION_POINT_CPI ? destinationPoint : ndstnode.CrossoverPointManager.CrossoverPoints[ndstcpi],
+               strokeStyle);
+         }
+
          while (!q.IsEmpty) {
-            var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = q.Dequeue();
+            var item = q.Dequeue();
             dequeueCount++;
-//            Console.WriteLine($"Deq {ncost} {nsrcnode} {nsrccpi} {ndstnode} {ndstcpi} {nedge}");
+
+            var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = item;
+            DrawPqItem(item, StrokeStyle.RedHairLineSolid);
+
+            //            Console.WriteLine($"Deq {ncost} {nsrcnode} {nsrccpi} {ndstnode} {ndstcpi} {nedge}");
 
             if (predecessor.ContainsKey((ndstnode, ndstcpi))) {
                continue;
@@ -456,8 +484,10 @@ namespace OpenMOBA.Foundation {
                   }
                   priorityUpperBounds[(ndstnode, cpi)] = scost;
 
-                  q.Enqueue((sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null));
+                  PqItem nitem = (sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null);
+                  q.Enqueue(nitem);
                   enqueueCount++;
+                  DrawPqItem(nitem, StrokeStyle.LimeHairLineSolid);
                }
             }
 
@@ -478,8 +508,10 @@ namespace OpenMOBA.Foundation {
                               continue;
                            }
                            priorityUpperBounds[(g.Destination, edge.DestinationCrossoverIndex)] = scost;
-                           q.Enqueue((sprior, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge));
+                           PqItem nitem = (sprior, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge);
+                           q.Enqueue(nitem);
                            enqueueCount++;
+                           DrawPqItem(nitem, StrokeStyle.MagentaHairLineSolid);
                         }
                      }
                   }
@@ -493,8 +525,10 @@ namespace OpenMOBA.Foundation {
 
                var scost = ncost + link.TotalCost * destinationNode.SectorNodeDescription.LocalToWorldScalingFactor;
                var sprior = scost + 0;
-               q.Enqueue((sprior, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null));
+               PqItem nitem = (sprior, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null);
+               q.Enqueue(nitem);
                enqueueCount++;
+               DrawPqItem(nitem, StrokeStyle.CyanHairLineSolid);
 
                if (!terminalEnqueued) {
                   terminalEnqueued = true;
@@ -543,15 +577,13 @@ namespace OpenMOBA.Foundation {
 
       public void Pathfind(Entity entity, DoubleVector3 destination) {
          var movementComponent = entity.MovementComponent;
-         movementComponent.PathingIsInvalidated = true;
          movementComponent.PathingDestination = destination;
 
          var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius;
-         pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out var roadmap);
-
-         // List<DoubleVector3> pathPoints;
-         // if (!pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.Position, destination, out pathPoints)) movementComponent.PathingBreadcrumbs.Clear();
-         // else movementComponent.PathingBreadcrumbs = pathPoints;
+         pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.WorldPosition, destination, out var roadmap);
+         movementComponent.PathingRoadmap = roadmap;
+         movementComponent.PathingIsInvalidated = false;
+         movementComponent.PathingRoadmapProgressIndex = 0;
       }
 
       public void HandleHoleAdded(DynamicTerrainHoleDescription holeDescription) {
@@ -560,14 +592,14 @@ namespace OpenMOBA.Foundation {
          foreach (var entity in AssociatedEntities) {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.Position)) FixEntityInHole(entity);
+            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.WorldPosition)) FixEntityInHole(entity);
          }
       }
 
       private void FixEntityInHole(Entity entity) {
          var computedRadius = statsCalculator.ComputeCharacterRadius(entity);
          var movementComponent = entity.MovementComponent;
-         movementComponent.Position = PushToLand(movementComponent.Position, computedRadius);
+         movementComponent.WorldPosition = PushToLand(movementComponent.WorldPosition, computedRadius);
       }
 
       private DoubleVector3 PushToLand(DoubleVector3 vect, double computedRadius) {
@@ -627,25 +659,44 @@ namespace OpenMOBA.Foundation {
       }
 
       private void ExecutePathNonswarmer(Entity entity, MovementComponent movementComponent) {
-         if (!movementComponent.PathingBreadcrumbs.Any()) return;
+         if (movementComponent.PathingRoadmap == null) return;
 
          var movementSpeed = statsCalculator.ComputeMovementSpeed(entity);
-         var distanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;
-         while (distanceRemaining > 0 && movementComponent.PathingBreadcrumbs.Any()) {
-            // vect from position to next pathing breadcrumb
-            var pb = movementComponent.PathingBreadcrumbs[0] - movementComponent.Position;
-            movementComponent.LookAt = pb;
+         var worldDistanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;
+         var plan = movementComponent.PathingRoadmap.Plan;
 
-            // |pb| - distance to next pathing breadcrumb
-            var d = pb.Norm2D();
+         while (worldDistanceRemaining > 0 && movementComponent.PathingRoadmapProgressIndex < plan.Count) {
+            var action = plan[movementComponent.PathingRoadmapProgressIndex];
+            switch (action) {
+               case MotionRoadmapWalkAction wa:
+                  var currentSectorLocalPositionDotNet = Vector3.Transform(movementComponent.WorldPosition.ToDotNetVector(), wa.Node.SectorNodeDescription.WorldTransformInv).ToOpenMobaVector();
+                  var currentSectorLocalPosition = new DoubleVector2(currentSectorLocalPositionDotNet.X, currentSectorLocalPositionDotNet.Y);
+                  Trace.Assert(Math.Abs(currentSectorLocalPositionDotNet.Z) < 1E-3);
 
-            if (Math.Abs(d) <= float.Epsilon || d <= distanceRemaining) {
-               movementComponent.Position = movementComponent.PathingBreadcrumbs[0];
-               movementComponent.PathingBreadcrumbs.RemoveAt(0);
-               distanceRemaining -= d;
-            } else {
-               movementComponent.Position += pb * distanceRemaining / d;
-               distanceRemaining = 0;
+                  // vect from position to next pathing breadcrumb (in local space)
+                  // todo: set lookat
+                  var pb = currentSectorLocalPosition.To(wa.Destination.ToDoubleVector2());
+
+                  // |pb| - distance to next pathing breadcrumb
+                  var localDistance = pb.Norm2D();
+                  var worldDistance = localDistance * wa.Node.SectorNodeDescription.LocalToWorldScalingFactor;
+
+                  DoubleVector2 nextSectorLocalPosition;
+                  if (worldDistance <= float.Epsilon || worldDistance <= worldDistanceRemaining) {
+                     nextSectorLocalPosition = wa.Destination.ToDoubleVector2();
+                     movementComponent.PathingRoadmapProgressIndex++;
+                     worldDistanceRemaining -= worldDistance;
+                  } else {
+                     nextSectorLocalPosition = currentSectorLocalPosition + pb * worldDistanceRemaining / worldDistance;
+                     worldDistanceRemaining = 0;
+                  }
+
+                  movementComponent.WorldPosition = Vector3.Transform(
+                     new Vector3(nextSectorLocalPosition.ToDotNetVector(), 0), 
+                     wa.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+                  break;
+               default:
+                  throw new NotImplementedException();
             }
          }
       }

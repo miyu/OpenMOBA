@@ -352,12 +352,12 @@ namespace OpenMOBA.Foundation {
          //   GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          //}
 
-//         var a = CreateTestEntity(new DoubleVector3(-800, 300, 0), 15, 80);
+         var a = CreateTestEntity(new DoubleVector3(-800, 300, 0), 30, 80);
 //         var b = CreateTestEntity(new DoubleVector3(675, 175, 0), 15, 70);
 //         var c = CreateTestEntity(new DoubleVector3(50, 900, 0), 15, 60);
 //         var d = CreateTestEntity(new DoubleVector3(50, 500, 0), 15, 50);
 
-//         MovementSystemService.Pathfind(a, new DoubleVector3(0, 0, 0));
+         MovementSystemService.Pathfind(a, new DoubleVector3(1250, -80, 0));
 //         MovementSystemService.Pathfind(b, new DoubleVector3(825, 300, 0));
 //         MovementSystemService.Pathfind(c, new DoubleVector3(950, 475, 0));
 //         MovementSystemService.Pathfind(d, new DoubleVector3(80, 720, 0));
@@ -407,7 +407,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
             //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 2) {
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 30) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeService.Ticks}");
                break;
             }
@@ -424,7 +424,7 @@ namespace OpenMOBA.Foundation {
       private Entity CreateTestEntity(DoubleVector3 initialPosition, float radius, float movementSpeed) {
          var entity = EntityService.CreateEntity();
          EntityService.AddEntityComponent(entity, new MovementComponent {
-            Position = initialPosition,
+            WorldPosition = initialPosition,
             BaseRadius = radius,
             BaseSpeed = movementSpeed
          });

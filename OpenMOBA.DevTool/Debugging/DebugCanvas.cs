@@ -7,11 +7,7 @@ using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
 using ClipperLib;
-using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
-using Poly2Tri;
-using Poly2Tri.Triangulation;
-using Poly2Tri.Triangulation.Polygon;
 
 namespace OpenMOBA.DevTool.Debugging {
    public class DebugCanvasHost {
@@ -62,200 +58,6 @@ namespace OpenMOBA.DevTool.Debugging {
 
    public interface IDebugMultiCanvasHost {
       IDebugCanvas CreateAndAddCanvas(int timestamp);
-   }
-
-   public class StrokeStyle {
-      public static float[] Dash5 = new[] { 5.0f, 5.0f };
-      public static StrokeStyle LimeHairLineSolid = new StrokeStyle(Color.Lime);
-      public static StrokeStyle LimeHairLineDashed5 = new StrokeStyle(Color.Lime, 1.0f, Dash5);
-      public static StrokeStyle LimeThick5Solid = new StrokeStyle(Color.Lime, 5.0f);
-      public static StrokeStyle LimeThick25Solid = new StrokeStyle(Color.Lime, 25.0f);
-      public static StrokeStyle RedHairLineSolid = new StrokeStyle(Color.Red);
-      public static StrokeStyle RedHairLineDashed5 = new StrokeStyle(Color.Red, 1.0f, Dash5);
-      public static StrokeStyle RedThick5Solid = new StrokeStyle(Color.Red, 5.0f);
-      public static StrokeStyle RedThick25Solid = new StrokeStyle(Color.Red, 25.0f);
-      public static StrokeStyle DarkRedHairLineSolid = new StrokeStyle(Color.DarkRed);
-      public static StrokeStyle DarkRedHairLineDashed5 = new StrokeStyle(Color.DarkRed, 1.0f, Dash5);
-      public static StrokeStyle DarkRedThick5Solid = new StrokeStyle(Color.DarkRed, 5.0f);
-      public static StrokeStyle DarkRedThick25Solid = new StrokeStyle(Color.DarkRed, 25.0f);
-      public static StrokeStyle CyanHairLineSolid = new StrokeStyle(Color.Cyan);
-      public static StrokeStyle CyanHairLineDashed5 = new StrokeStyle(Color.Cyan, 1.0f, Dash5);
-      public static StrokeStyle CyanThick3Solid = new StrokeStyle(Color.Cyan, 3.0f);
-      public static StrokeStyle CyanThick5Solid = new StrokeStyle(Color.Cyan, 5.0f);
-      public static StrokeStyle CyanThick25Solid = new StrokeStyle(Color.Cyan, 25.0f);
-      public static StrokeStyle BlackHairLineSolid = new StrokeStyle(Color.Black);
-      public static StrokeStyle BlackHairLineDashed5 = new StrokeStyle(Color.Black, 1.0f, Dash5);
-      public static StrokeStyle BlackThick3Solid = new StrokeStyle(Color.Black, 3.0f);
-      public static StrokeStyle BlackThick5Solid = new StrokeStyle(Color.Black, 5.0f);
-      public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
-      public static StrokeStyle OrangeHairLineSolid = new StrokeStyle(Color.Orange, 1.0f);
-      public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
-
-      public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {
-         Color = color ?? Color.Black;
-         Thickness = thickness;
-         DashPattern = dashPattern;
-      }
-
-      public Color Color;
-      public double Thickness;
-      public float[] DashPattern;
-      public bool DisableStrokePerspective;
-   }
-
-   public class FillStyle {
-      public FillStyle(Color? color = null) {
-         Color = color ?? Color.Black;
-      }
-
-      public Color Color;
-   }
-
-   public interface IDebugCanvas {
-      Matrix4x4 Transform { get; set; }
-      void BatchDraw(Action callback);
-
-      void DrawPoint(DoubleVector3 p, StrokeStyle strokeStyle);
-      void DrawLine(DoubleVector3 p1, DoubleVector3 p2, StrokeStyle strokeStyle);
-      void DrawTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, StrokeStyle strokeStyle);
-      void FillTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, FillStyle fillStyle);
-      void DrawText(string text, DoubleVector3 point);
-   }
-
-   public static class DebugCanvas2DExtensions {
-      private static DoubleVector3 ToDV3(IntVector2 p) => new DoubleVector3(p.ToDoubleVector2());
-      private static DoubleVector3 ToDV3(DoubleVector2 p) => new DoubleVector3(p);
-      private static DoubleVector3 ToDV3(TriangulationPoint p) => new DoubleVector3(p.X, p.Y, 0);
-      private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
-      private static IntLineSegment3 ToILS3(IntLineSegment2 p) => new IntLineSegment3(ToIV3(p.First), ToIV3(p.Second));
-
-      public static void DrawPoint(this IDebugCanvas canvas, IntVector2 p, StrokeStyle strokeStyle) {
-         canvas.DrawPoint(ToDV3(p), strokeStyle);
-      }
-
-      public static void DrawPoint(this IDebugCanvas canvas, DoubleVector2 p, StrokeStyle strokeStyle) {
-         canvas.DrawPoint(ToDV3(p), strokeStyle);
-      }
-
-      public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<IntVector2> p, StrokeStyle strokeStyle) {
-         canvas.DrawPoints(p.Map(ToIV3), strokeStyle);
-      }
-
-      public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> p, StrokeStyle strokeStyle) {
-         canvas.DrawPoints(p.Map(ToDV3), strokeStyle);
-      }
-
-      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
-         for (var i = 0; i < poly.Points.Count - 1; i++) {
-            canvas.DrawLineStrip(poly.Points.Map(ToDV3), strokeStyle);
-         }
-      }
-
-      public static void DrawPolygonContours(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
-         foreach (var poly in polys) {
-            canvas.DrawPolygonContour(poly, strokeStyle);
-         }
-      }
-
-      public static void DrawPolygonTriangulation(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
-         var cps = new Polygon(poly.Points.Map(p => new PolygonPoint(p.X, p.Y)));
-         P2T.Triangulate(cps);
-
-         foreach (var triangle in cps.Triangles) {
-            canvas.DrawTriangle(ToDV3(triangle.Points[0]), ToDV3(triangle.Points[1]), ToDV3(triangle.Points[2]), strokeStyle);
-         }
-      }
-
-      public static void FillPolygonTriangulation(this IDebugCanvas canvas, Polygon2 poly, FillStyle fillStyle) {
-         var cps = new Polygon(poly.Points.Map(p => new PolygonPoint(p.X, p.Y)));
-         P2T.Triangulate(cps);
-
-         foreach (var triangle in cps.Triangles) {
-            canvas.FillTriangle(ToDV3(triangle.Points[0]), ToDV3(triangle.Points[1]), ToDV3(triangle.Points[2]), fillStyle);
-         }
-      }
-
-      public static void DrawTriangle(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, IntVector2 p3, StrokeStyle strokeStyle) {
-         canvas.DrawTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), strokeStyle);
-      }
-
-      public static void DrawTriangle(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, DoubleVector2 p3, StrokeStyle strokeStyle) {
-         canvas.DrawTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), strokeStyle);
-      }
-
-      public static void FillTriangle(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, IntVector2 p3, FillStyle fillStyle) {
-         canvas.FillTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), fillStyle);
-      }
-
-      public static void FillTriangle(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, DoubleVector2 p3, FillStyle fillStyle) {
-         canvas.FillTriangle(ToDV3(p1), ToDV3(p2), ToDV3(p3), fillStyle);
-      }
-
-
-      //      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 polygon, StrokeStyle strokeStyle) {
-      //         canvas.DrawPolygonContour(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), strokeStyle);
-      //      }
-      //
-      //      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, StrokeStyle strokeStyle) {
-      //         canvas.DrawPolygonContour(polygonPoints.Select(ToDV3).ToList(), strokeStyle);
-      //      }
-      //
-      //      public static void FillPolygon(this IDebugCanvas canvas, Polygon2 polygon, FillStyle fillStyle) {
-      //         canvas.FillPolygon(new Polygon3(polygon.Points.Select(ToIV3).ToList(), polygon.IsHole), fillStyle);
-      //      }
-      //
-      //      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> polygonPoints, FillStyle fillStyle) {
-      //         canvas.FillPolygon(polygonPoints.Select(ToDV3).ToList(), fillStyle);
-      //      }
-
-      //      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polygons, StrokeStyle strokeStyle) {
-      //         canvas.DrawPolygons(polygons.Select(p => new Polygon3(p.Points.Select(ToIV3).ToList(), p.IsHole)).ToList(), strokeStyle);
-      //      }
-      //
-      //      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<IReadOnlyList<IntVector2>> polygons, StrokeStyle strokeStyle) {
-      //         canvas.DrawPolygons(polygons.Select(p => p.Select(ToDV3).ToList()).ToList(), strokeStyle);
-      //      }
-
-      public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
-         canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
-      }
-
-      public static void DrawLine(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, StrokeStyle strokeStyle) {
-         canvas.DrawLine(ToDV3(p1), ToDV3(p2), strokeStyle);
-      }
-
-      public static void DrawLine(this IDebugCanvas canvas, IntLineSegment2 segment, StrokeStyle strokeStyle) {
-         canvas.DrawLine(ToDV3(segment.First), ToDV3(segment.Second), strokeStyle);
-      }
-
-      public static void DrawLine(this IDebugCanvas canvas, DoubleLineSegment2 segment, StrokeStyle strokeStyle) {
-         canvas.DrawLine(ToDV3(segment.First), ToDV3(segment.Second), strokeStyle);
-      }
-
-      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
-         canvas.DrawLineList(points.Map(ToDV3), strokeStyle);
-      }
-
-      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
-         canvas.DrawLineList(points.Map(ToDV3), strokeStyle);
-      }
-
-      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment2> segments, StrokeStyle strokeStyle) {
-         canvas.DrawLineList(segments.Map(ToILS3), strokeStyle);
-      }
-
-
-      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(points.Map(ToIV3), strokeStyle);
-      }
-
-      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(points.Map(ToDV3), strokeStyle);
-      }
-
-      public static void DrawText(this IDebugCanvas canvas, string text, IntVector2 point) {
-         canvas.DrawText(text, ToDV3(point));
-      }
    }
 
    public interface IProjector {
@@ -398,7 +200,8 @@ namespace OpenMOBA.DevTool.Debugging {
             var p = Project(point);
             var x = (float)p.X;
             var y = (float)p.Y;
-            var radius = ProjectThickness(point, strokeStyle.Thickness) / 2.0f;
+            var pointTransformed = Vector3.Transform(new Vector3((float)point.X, (float)point.Y, (float)point.Z), Transform).ToOpenMobaVector();
+            var radius = ProjectThickness(pointTransformed, strokeStyle.Thickness) / 2.0f;
             var rect = new RectangleF(x - radius, y - radius, radius * 2, radius * 2);
             using (var brush = new SolidBrush(strokeStyle.Color)) {
                g.FillEllipse(brush, rect);
@@ -511,34 +314,6 @@ namespace OpenMOBA.DevTool.Debugging {
          lock (synchronization) {
             callback(bitmap);
          }
-      }
-   }
-
-   public static class DebugCanvas3DExtensions {
-      public static void DrawAxisAlignedBoundingBox(this IDebugCanvas canvas, AxisAlignedBoundingBox box, StrokeStyle strokeStyle) {
-         var extents = box.Extents;
-         var nbl = box.Center - extents;
-         var ftr = box.Center + extents;
-         canvas.BatchDraw(() => {
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, nbl.Y, nbl.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(nbl.X, ftr.Y, nbl.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(nbl.X, nbl.Y, ftr.Z), strokeStyle);
-
-            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
-
-
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, ftr.Z), new DoubleVector3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, ftr.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
-
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, ftr.Z), new DoubleVector3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, nbl.Z), new DoubleVector3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
-
-            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, ftr.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
-
-            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(ftr.X, ftr.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
-         });
       }
    }
 }

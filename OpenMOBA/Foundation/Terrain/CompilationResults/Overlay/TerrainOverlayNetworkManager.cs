@@ -31,7 +31,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          // Sector Node Description => Default Local Geometry View
          //----------------------------------------------------------------------------------------
          var renderedLocalGeometryViewBySectorNodeDescription = localGeometryViewManagerBySectorNodeDescription.Map(
-            (k, v) => v.GetErodedView(agentRadius));
+            (k, v) => v.GetErodedView(agentRadius * k.WorldToLocalScalingFactor));
 
          var defaultLocalGeometryViewBySectorNodeDescription = renderedLocalGeometryViewBySectorNodeDescription.Map(
             (k, v) => true || v.IsPunchedLandEvaluated ? v : v.Preview);

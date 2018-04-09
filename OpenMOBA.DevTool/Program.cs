@@ -100,7 +100,7 @@ namespace OpenMOBA.DevTool {
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
-         var agentRadius = 15.0;
+         var agentRadius = 0.0;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
@@ -116,10 +116,12 @@ namespace OpenMOBA.DevTool {
 
             debugCanvas.Transform = Matrix4x4.Identity;
 
-            foreach (var entity in Game.EntityService.EnumerateEntities()) {
-               var mc = entity.MovementComponent;
-               debugCanvas.DrawPoint(mc.Position, StrokeStyle.RedThick25Solid);
-            }
+            DrawEntities(debugCanvas);
+            DrawEntityPaths(debugCanvas);
+//            foreach (var entity in Game.EntityService.EnumerateEntities()) {
+//               var mc = entity.MovementComponent;
+//               debugCanvas.DrawPoint(mc.Position, StrokeStyle.RedThick25Solid);
+//            }
 
             var colors = new[] { Color.White };
 //			   var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
@@ -132,10 +134,16 @@ namespace OpenMOBA.DevTool {
                debugCanvas.Transform = Matrix4x4.Identity;
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
                var fillColor = colors[(index / colors.Length) % colors.Length];
-               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-               debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.RedHairLineSolid);
+//               debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
+//               debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.ComputeErodedOuterContour());
+               debugCanvas.DrawPolyNode(terrainNode.LandPolyNode);
+               debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
 
-               DrawTestPathfindingQueries(debugCanvas, agentRadius);
+               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
+
+               debugCanvas.Transform = Matrix4x4.Identity;
+//               DrawTestPathfindingQueries(debugCanvas, agentRadius);
+//               DrawTestPathfindingQueries(debugCanvas, 30);
                continue;
 
                var punchedLand = localGeometryView.PunchedLand;
@@ -189,9 +197,8 @@ namespace OpenMOBA.DevTool {
       private void DrawEntityPaths(IDebugCanvas debugCanvas) {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
-            if (movementComponent == null) continue;
-            var pathPoints = new[] { movementComponent.Position }.Concat(entity.MovementComponent.PathingBreadcrumbs).ToList();
-            debugCanvas.DrawLineStrip(pathPoints, PathStroke);
+            if (movementComponent?.PathingRoadmap == null) continue;
+            DrawRoadmap(debugCanvas, movementComponent.PathingRoadmap);
          }
       }
 
@@ -199,14 +206,14 @@ namespace OpenMOBA.DevTool {
          foreach (var entity in EntityService.EnumerateEntities()) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
-               debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
-               debugCanvas.DrawPoint(movementComponent.Position, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
+               debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
+               debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
 
-               if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
-                  var direction = movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius;
-                  var to = movementComponent.Position + new DoubleVector3(direction.X, direction.Y, 0.0);
-                  debugCanvas.DrawLine(movementComponent.Position, to, new StrokeStyle(Color.Gray));
-               }
+//               if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
+//                  var direction = movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius;
+//                  var to = movementComponent.WorldPosition + new DoubleVector3(direction.X, direction.Y, 0.0);
+//                  debugCanvas.DrawLine(movementComponent.WorldPosition, to, new StrokeStyle(Color.Gray));
+//               }
 
                if (movementComponent.DebugLines != null)
                   debugCanvas.DrawLineList(
@@ -216,11 +223,11 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double holeDilationRadius) {
+      private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double agentRadius) {
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
 //            Tuple.Create(new DoubleVector3(900, 750, 0), new DoubleVector3(2100, 800, 0))
-            Tuple.Create(new DoubleVector3(-1200, -200, 0), new DoubleVector3(1000, 300, 0))
+            Tuple.Create(new DoubleVector3(-800, 300, 0), new DoubleVector3(1250, -80, 0))
 //            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
@@ -229,31 +236,35 @@ namespace OpenMOBA.DevTool {
          };
 
          foreach (var query in testPathFindingQueries) {
-            DrawPathfindingQueryResult(debugCanvas, holeDilationRadius, query.Item1, query.Item2);
+            DrawPathfindingQueryResult(debugCanvas, agentRadius, query.Item1, query.Item2);
          }
       }
 
-      private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double holeDilationRadius, DoubleVector3 source, DoubleVector3 dest) {
-         if (Game.PathfinderCalculator.TryFindPath(holeDilationRadius, source, dest, out var roadmap)) {
+      private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double agentRadius, DoubleVector3 source, DoubleVector3 dest) {
+         if (Game.PathfinderCalculator.TryFindPath(agentRadius, source, dest, out var roadmap, debugCanvas)) {
             Console.WriteLine("Yippee ");
-            foreach (var action in roadmap.Plan) {
-               switch (action) {
-                  case MotionRoadmapWalkAction walk:
-                     debugCanvas.Transform = Matrix4x4.Identity;
-                     var s = Vector3.Transform(new Vector3(walk.Source.X, walk.Source.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
-                     var t = Vector3.Transform(new Vector3(walk.Destination.X, walk.Destination.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
-                     Console.WriteLine("S: " + s + "\t AND T: " + t);
-                     for (var i = 0; i < 100; i++) {
-                        debugCanvas.DrawPoint((s * (100 - i) + t * i) / 100, new StrokeStyle(Color.Cyan, 50));
-                     }
-//                     debugCanvas.DrawLine(s, t, PathStroke);
-                     break;
-               }
-            }
+            DrawRoadmap(debugCanvas, roadmap);
          } else {
             Console.WriteLine("Nope");
             debugCanvas.Transform = Matrix4x4.Identity;
             debugCanvas.DrawLine(source, dest, NoPathStroke);
+         }
+      }
+
+      private static void DrawRoadmap(IDebugCanvas debugCanvas, MotionRoadmap roadmap) {
+         foreach (var action in roadmap.Plan) {
+            switch (action) {
+               case MotionRoadmapWalkAction walk:
+                  debugCanvas.Transform = Matrix4x4.Identity;
+                  var s = Vector3.Transform(new Vector3(walk.Source.X, walk.Source.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+                  var t = Vector3.Transform(new Vector3(walk.Destination.X, walk.Destination.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
+//                     Console.WriteLine("S: " + s + "\t AND T: " + t);
+//                     for (var i = 0; i < 100; i++) {
+//                        debugCanvas.DrawPoint((s * (100 - i) + t * i) / 100, new StrokeStyle(Color.Cyan, 50));
+//                     }
+                  debugCanvas.DrawLine(s, t, PathStroke);
+                  break;
+            }
          }
       }
 

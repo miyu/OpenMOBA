@@ -7,6 +7,7 @@ using System.Numerics;
 using Canvas3D;
 using OpenMOBA;
 using OpenMOBA.DataStructures;
+using OpenMOBA.Debugging;
 using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
@@ -98,6 +99,7 @@ namespace FogOfWarTests {
 //         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
 //            HoleStaticMetadata.CreateRectangleHoleMetadata(0, 130, 60, 60, 0)));
          for (var i = 0; i < 100; i++) {
+            break;
             terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
                HoleStaticMetadata.CreateRectangleHoleMetadata(
                   random.Next(-1500, 1500), 

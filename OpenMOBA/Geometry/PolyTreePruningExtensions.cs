@@ -21,7 +21,7 @@ namespace OpenMOBA.Geometry {
                continue;
             }
 
-            var kMinimumChildRelativeArea = 1 / 1000000.0; // prev 1 / 1000
+            var kMinimumChildRelativeArea = 1 / 1000.0; // prev 1 / 1000, 1 / 1000000 
             child.Prune(actorRadius, Math.Max(kMinAreaPrune, childArea * kMinimumChildRelativeArea));
          }
       }

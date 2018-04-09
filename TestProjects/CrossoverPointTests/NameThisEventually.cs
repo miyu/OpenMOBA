@@ -10,6 +10,7 @@ using System;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using OpenMOBA.Debugging;
 using Xunit;
 
 namespace CrossoverPointTests {

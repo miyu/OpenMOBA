@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using OpenMOBA.DataStructures;
+using OpenMOBA.Debugging;
 
 namespace OpenMOBA.DevTool.Debugging {
    public static class BvhDebugDisplay {
