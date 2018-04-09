@@ -10,6 +10,7 @@ namespace OpenMOBA.Geometry {
    // Everything's in radians, all geometry is reasoned as if relative to _origin.
    // This can be efficiently implemented with an interval tree = O(logN) runtime.
    // For now, just using a flat unordered list, so quite inefficient.
+   // It is a persistent data structure, though.
    public class VisibilityPolygon {
       public const int RANGE_ID_INFINITESIMALLY_NEAR = -2;
       public const int RANGE_ID_INFINITELY_FAR = -1; // (The null range id)
@@ -38,6 +39,7 @@ namespace OpenMOBA.Geometry {
       }
 
       public DoubleVector2 Origin => _origin;
+      public IComparer<IntLineSegment2> SegmentComparer => _segmentComparer;
 
       public void Insert(IntLineSegment2 s, bool supportOverlappingLines = false) {
          var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
@@ -453,6 +455,10 @@ namespace OpenMOBA.Geometry {
          }
          ref var s = ref rangeAtTheta.Segment;
          return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
+      }
+
+      public VisibilityPolygon Clone() {
+         return new VisibilityPolygon(_origin, _intervalRanges, _segmentComparer);
       }
 
       public struct IntervalRange {

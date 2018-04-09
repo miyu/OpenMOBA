@@ -12,6 +12,7 @@ using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace FogOfWarTests {
@@ -28,7 +29,7 @@ namespace FogOfWarTests {
          var terrainService = new TerrainService(sectorGraphDescriptionStore, snapshotCompiler);
 
          // Add test sectors
-         var leftSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.Test2D);
+         var leftSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.HashCircle2);
          leftSnd.EnableDebugHighlight = true;
          leftSnd.WorldTransform = Matrix4x4.CreateTranslation(-1500, -500, 0);
          terrainService.AddSectorNodeDescription(leftSnd);
@@ -51,15 +52,19 @@ namespace FogOfWarTests {
             new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
             new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
 
-         // 
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             centerSnd, rightSnd,
             new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800)),
             new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800))));
-//         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
-//            rightSnd, centerSnd,
-//            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
-//            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
+         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
+            rightSnd, centerSnd,
+            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
+            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
+
+         // add some obstacles
+         var holeDescription = terrainService.CreateHoleDescription(HoleStaticMetadata.CreateRectangleHoleMetadata(
+            -500, 250, 60, 60, 0));
+         terrainService.AddTemporaryHoleDescription(holeDescription);
 
          var terrainSnapshot = terrainService.CompileSnapshot();
          var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
@@ -79,6 +84,131 @@ namespace FogOfWarTests {
             }
          }
 
+         void Y(TerrainOverlayNetworkNode terrainNode) {
+
+            canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
+
+            var visibilityPolygonOrigin = new IntVector2(650, 700);
+            canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
+            var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
+            canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 255, 0, 0)));
+
+            var visibleCrossoverSegmentsByNeighbor = MultiValueDictionary<TerrainOverlayNetworkNode, IntLineSegment2>.Create(() => new HashSet<IntLineSegment2>());
+            foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
+               var otherTerrainNode = outboundEdgeGroup.Key;
+               foreach (var outboundEdge in outboundEdgeGroup.Value) {
+                  var ranges = visibilityPolygon.Get();
+                  var localCrossoverSegment = outboundEdge.EdgeJob.EdgeDescription.SourceSegment;
+                  var rangeIndexIntervals = visibilityPolygon.RangeStab(localCrossoverSegment);
+                  foreach (var (startIndexInclusive, endIndexExclusive) in rangeIndexIntervals) {
+                     for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+                        var seg = ranges[i].Segment;
+
+
+
+//                        var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart);
+//                        var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd);
+//
+//                        DoubleVector2 visibleStart, visibleEnd;
+//                        if (!GeometryOperations.TryFindLineLineIntersection(vpo, oxy + rstart, s1, s2, out visibleStart) ||
+//                            !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
+//                           // wtf?
+//                           continue;
+//                        }
+
+                        if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
+                           canvas.DrawLine(seg, StrokeStyle.LimeThick5Solid);
+                           visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, outboundEdge.EdgeJob.EdgeDescription.DestinationSegment);
+                        } else {
+                           canvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
+                        }
+                     }
+                  }
+               }
+            }
+
+            var visibilityPolygonOriginWorld = Vector3.Transform(new Vector3(visibilityPolygonOrigin.ToDotNetVector(), 0), terrainNode.SectorNodeDescription.WorldTransform);
+            foreach (var (neighbor, inboundCrossoverSegments) in visibleCrossoverSegmentsByNeighbor) {
+               var neighborPolygonOrigin = Vector3.Transform(visibilityPolygonOriginWorld, neighbor.SectorNodeDescription.WorldTransformInv);
+               //visibilityPolygonOrigin
+               Z(new IntVector2((int)neighborPolygonOrigin.X, (int)neighborPolygonOrigin.Y), neighbor, inboundCrossoverSegments, new HashSet<TerrainOverlayNetworkNode>{terrainNode});
+            }
+         }
+
+         void Z(IntVector2 visibilityPolygonOrigin, TerrainOverlayNetworkNode terrainNode, IReadOnlyCollection<IntLineSegment2> inboundCrossoverSegments, HashSet<TerrainOverlayNetworkNode> visited) {
+            var zzz = terrainNode.LandPolyNode.Contour;
+            var zzy = terrainNode.LandPolyNode.Childs.FirstOrDefault()?.Contour;
+            if (zzy != null) {
+               var clkzzz = GeometryOperations.Clockness(zzz[0], zzz[1], zzz[2]);
+               var clkzzy = GeometryOperations.Clockness(zzy[0], zzy[1], zzy[2]);
+                              Console.WriteLine("!");
+            }
+
+            canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
+
+            canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
+            var visibilityPolygon = new VisibilityPolygon(
+               visibilityPolygonOrigin.ToDoubleVector2(),
+               new[] {
+                  new VisibilityPolygon.IntervalRange {
+                     Id = VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR,
+                     ThetaStart = 0,
+                     ThetaEnd = VisibilityPolygon.TwoPi
+                  }, 
+               });
+            
+            foreach (var inboundCrossoverSegment in inboundCrossoverSegments) {
+               visibilityPolygon.ClearBefore(inboundCrossoverSegment);
+            }
+
+            Console.WriteLine("====");
+
+            foreach (var seg in terrainNode.LandPolyNode.FindContourAndChildHoleBarriers()) {
+               if (GeometryOperations.Clockness(visibilityPolygon.Origin, seg.First.ToDoubleVector2(), seg.Second.ToDoubleVector2()) == Clockness.CounterClockwise) {
+                  continue;
+               }
+               visibilityPolygon.Insert(seg);
+               Console.WriteLine(seg);
+            }
+               Console.WriteLine("====");
+
+            canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 0, 0, 255)));
+
+            ///
+            /// 
+            var visibleCrossoverSegmentsByNeighbor = MultiValueDictionary<TerrainOverlayNetworkNode, IntLineSegment2>.Create(() => new HashSet<IntLineSegment2>());
+            foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
+               var otherTerrainNode = outboundEdgeGroup.Key;
+               if (visited.Contains(otherTerrainNode)) continue;
+
+               foreach (var outboundEdge in outboundEdgeGroup.Value) {
+                  var ranges = visibilityPolygon.Get();
+                  var localCrossoverSegment = outboundEdge.EdgeJob.EdgeDescription.SourceSegment;
+                  var rangeIndexIntervals = visibilityPolygon.RangeStab(localCrossoverSegment);
+                  foreach (var (startIndexInclusive, endIndexExclusive) in rangeIndexIntervals) {
+                     for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+                        if (ranges[i].Id == VisibilityPolygon.RANGE_ID_INFINITELY_FAR || ranges[i].Id == VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR) continue;
+                        var seg = ranges[i].Segment;
+                        if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
+                           canvas.DrawLine(seg, StrokeStyle.LimeThick5Solid);
+                           visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, outboundEdge.EdgeJob.EdgeDescription.DestinationSegment);
+                        } else {
+                           canvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
+                        }
+                     }
+                  }
+               }
+            }
+
+            var visibilityPolygonOriginWorld = Vector3.Transform(new Vector3(visibilityPolygonOrigin.ToDotNetVector(), 0), terrainNode.SectorNodeDescription.WorldTransform);
+            foreach (var (neighbor, nextInboundCrossoverSegments) in visibleCrossoverSegmentsByNeighbor) {
+               var neighborPolygonOrigin = Vector3.Transform(visibilityPolygonOriginWorld, neighbor.SectorNodeDescription.WorldTransformInv);
+               //visibilityPolygonOrigin
+               Z(new IntVector2((int)neighborPolygonOrigin.X, (int)neighborPolygonOrigin.Y), neighbor, nextInboundCrossoverSegments,
+                  visited.Concat(new[]{terrainNode}).ToHashSet());
+            }
+         }
+
          int asdfa = -1;
          foreach (var terrainNode in overlayNetwork.TerrainNodes) {
             asdfa++;
@@ -89,43 +219,7 @@ namespace FogOfWarTests {
             canvas.DrawRectangle(new IntRect2(0, 0, 30, 30), 0, StrokeStyle.RedHairLineSolid);
 
             if (terrainNode.SectorNodeDescription.EnableDebugHighlight) {
-               var visibilityPolygonOrigin = new IntVector2(950, 700);
-               canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
-               var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
-
-//               foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
-//                  foreach (var outboundEdge in outboundEdgeGroup.Value) {
-//                     visibilityPolygon.ClearBeyond(outboundEdge.EdgeJob.SourceSegment.LossyToIntLineSegment2());
-//                  }
-//               }
-               canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 255, 0, 0)));
-            } else {
-               var visibilityPolygonOrigin = new IntVector2(950 - 1000, 700);
-               canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
-               var visibilityPolygon = new VisibilityPolygon(
-                  visibilityPolygonOrigin.ToDoubleVector2(),
-                  new[] {
-                     new VisibilityPolygon.IntervalRange {
-                        Id = VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR,
-                        ThetaStart = 0,
-                        ThetaEnd = VisibilityPolygon.TwoPi
-                     }, 
-                  });
-
-               foreach (var inboundEdgeGroup in terrainNode.InboundEdgeGroups) {
-                  foreach (var inboundEdge in inboundEdgeGroup.Value) {
-                     visibilityPolygon.ClearBefore(inboundEdge.EdgeJob.DestinationSegment.LossyToIntLineSegment2());
-                  }
-               }
-
-               foreach (var seg in terrainNode.LandPolyNode.FindContourAndChildHoleBarriers()) {
-                  if (GeometryOperations.Clockness(visibilityPolygon.Origin, seg.First.ToDoubleVector2(), seg.Second.ToDoubleVector2()) == Clockness.CounterClockwise) {
-                     continue;
-                  }
-                  visibilityPolygon.Insert(seg);
-               }
-
-               canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 0, 0, 255)));
+               Y(terrainNode);
             }
          }
       }

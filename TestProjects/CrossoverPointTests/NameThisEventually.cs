@@ -47,18 +47,7 @@ namespace CrossoverPointTests {
 
       private IHoleStaticMetadata BuildRectangleHole(int x, int y, int width, int height, long rotationBits = -1) {
          var rotation = rotationBits == -1 ? 0.0 : BitConverter.Int64BitsToDouble(rotationBits);
-         var contour = Polygon2.CreateRect(-width / 2, -height / 2, width, height).Points;
-         var transform = Matrix3x2.CreateRotation((float)rotation);
-         contour = contour.Map(p => Vector2.Transform(p.ToDoubleVector2().ToDotNetVector(), transform).ToOpenMobaVector().LossyToIntVector2())
-                          .Map(p => p + new IntVector2(x, y))
-                          .ToList();
-
-         var bounds = IntRect2.BoundingPoints(contour.ToArray()).ToDotNetRectangle();
-
-         return new PrismHoleStaticMetadata {
-            LocalBoundary = bounds,
-            LocalIncludedContours = new[] { new Polygon2(contour, false) }
-         };
+         return HoleStaticMetadata.CreateRectangleHoleMetadata(x, y, width, height, rotation);
       }
 
       [Fact]
