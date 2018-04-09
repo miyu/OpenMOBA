@@ -108,6 +108,64 @@ namespace OpenMOBA.Geometry {
          return true;
       }
 
+      // NOTE: Assumes lines are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, lines should not have more than 1 point of intersection.
+      // if lines DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindNonoverlappingLineLineIntersectionT(ref IntLineSegment2 a, ref IntLineSegment2 b, out double tForA) {
+         return TryFindNonoverlappingLineLineIntersectionT(a.First, a.Second, b.First, b.Second, out tForA);
+      }
+
+      public static bool TryFindNonoverlappingLineLineIntersectionT(IntVector2 a1, IntVector2 a2, IntVector2 b1, IntVector2 b2, out double tForA) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var p = a1;
+         var r = a1.To(a2);
+         var q = b1;
+         var s = b1.To(b2);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = Cross(qmp, s) / (double)rxs;
+         tForA = t;
+         return true;
+
+         fail:
+         tForA = Double.NaN;
+         return false;
+      }
+
+      // NOTE: Assumes lines are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, lines should not have more than 1 point of intersection.
+      // if lines DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindNonoverlappingLineLineIntersectionT(ref DoubleLineSegment2 a, ref DoubleLineSegment2 b, out double tForA) {
+         return TryFindNonoverlappingLineLineIntersectionT(a.First, a.Second, b.First, b.Second, out tForA);
+      }
+
+      public static bool TryFindNonoverlappingLineLineIntersectionT(DoubleVector2 a1, DoubleVector2 a2, DoubleVector2 b1, DoubleVector2 b2, out double tForA) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var p = a1;
+         var r = a1.To(a2);
+         var q = b1;
+         var s = b1.To(b2);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) { // iffy?
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = Cross(qmp, s) / (double)rxs;
+         tForA = t;
+         return true;
+
+         fail:
+         tForA = Double.NaN;
+         return false;
+      }
+
       public static bool Intersects(this IntLineSegment2 a, IntLineSegment2 b) {
          return TryFindSegmentSegmentIntersection(ref a, ref b, out DoubleVector2 _);
       }

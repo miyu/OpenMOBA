@@ -107,6 +107,9 @@ namespace OpenMOBA.Geometry {
       }
 
       private void InsertInternalInternal(IntLineSegment2 s, int sRangeId, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines, bool furthestSegmentWins) {
+         // ReSharper disable once CompareOfFloatsByEqualityOperator
+         if (insertionThetaLower == insertionThetaUpper) return;
+
          // See distrsxy for why this makes sense.
 //         var sDist = _origin.To(sMidpoint).SquaredNorm2D();
          var srange = new IntervalRange {

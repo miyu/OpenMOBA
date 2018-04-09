@@ -52,6 +52,7 @@ namespace FogOfWarTests {
             new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
             new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
 
+         //
          terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
             centerSnd, rightSnd,
             new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800)),
@@ -61,10 +62,20 @@ namespace FogOfWarTests {
             new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
             new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))));
 
+         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
+            centerSnd, rightSnd,
+            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
+            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400))));
+         terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(
+            rightSnd, centerSnd,
+            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
+            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400))));
+
          // add some obstacles
-         var holeDescription = terrainService.CreateHoleDescription(HoleStaticMetadata.CreateRectangleHoleMetadata(
-            -500, 250, 60, 60, 0));
-         terrainService.AddTemporaryHoleDescription(holeDescription);
+         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
+            HoleStaticMetadata.CreateRectangleHoleMetadata(-500, 250, 60, 60, 0)));
+         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
+            HoleStaticMetadata.CreateRectangleHoleMetadata(0, 130, 60, 60, 0)));
 
          var terrainSnapshot = terrainService.CompileSnapshot();
          var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
@@ -88,7 +99,7 @@ namespace FogOfWarTests {
 
             canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
 
-            var visibilityPolygonOrigin = new IntVector2(650, 700);
+            var visibilityPolygonOrigin = new IntVector2(800, 700);
             canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
             var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
             canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 255, 0, 0)));
@@ -99,26 +110,38 @@ namespace FogOfWarTests {
                foreach (var outboundEdge in outboundEdgeGroup.Value) {
                   var ranges = visibilityPolygon.Get();
                   var localCrossoverSegment = outboundEdge.EdgeJob.EdgeDescription.SourceSegment;
+                  var remoteCrossoverSegment = outboundEdge.EdgeJob.EdgeDescription.DestinationSegment;
                   var rangeIndexIntervals = visibilityPolygon.RangeStab(localCrossoverSegment);
-                  foreach (var (startIndexInclusive, endIndexExclusive) in rangeIndexIntervals) {
-                     for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+                  foreach (var (startIndexInclusive, endIndexInclusive) in rangeIndexIntervals) {
+                     for (var i = startIndexInclusive; i <= endIndexInclusive; i++) {
                         var seg = ranges[i].Segment;
 
+                        var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart);
+                        var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd);
 
-
-//                        var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart);
-//                        var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd);
-//
 //                        DoubleVector2 visibleStart, visibleEnd;
-//                        if (!GeometryOperations.TryFindLineLineIntersection(vpo, oxy + rstart, s1, s2, out visibleStart) ||
-//                            !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
-//                           // wtf?
-//                           continue;
-//                        }
+                        double visibleStartT, visibleEndT;
+                        if (!GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rstart, out visibleStartT) ||
+                            !GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rend, out visibleEndT)) {
+                           // wtf?
+                           Console.WriteLine("???");
+                           continue;
+                        }
 
                         if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
                            canvas.DrawLine(seg, StrokeStyle.LimeThick5Solid);
-                           visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, outboundEdge.EdgeJob.EdgeDescription.DestinationSegment);
+                           var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT);
+                           var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT);
+
+                           canvas.FillTriangle(
+                              visibilityPolygonOrigin.ToDoubleVector2(),
+                              localVisibleStart,
+                              localVisibleEnd,
+                              new FillStyle(Color.FromArgb(120, 0, 255, 255)));
+
+                           var remoteVisibleStart = remoteCrossoverSegment.PointAt(visibleStartT);
+                           var remoteVisibleEnd = remoteCrossoverSegment.PointAt(visibleEndT);
+                           visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, new IntLineSegment2(remoteVisibleStart.LossyToIntVector2(), remoteVisibleEnd.LossyToIntVector2()));
                         } else {
                            canvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
                         }
@@ -184,14 +207,39 @@ namespace FogOfWarTests {
                foreach (var outboundEdge in outboundEdgeGroup.Value) {
                   var ranges = visibilityPolygon.Get();
                   var localCrossoverSegment = outboundEdge.EdgeJob.EdgeDescription.SourceSegment;
+                  var remoteCrossoverSegment = outboundEdge.EdgeJob.EdgeDescription.DestinationSegment;
                   var rangeIndexIntervals = visibilityPolygon.RangeStab(localCrossoverSegment);
-                  foreach (var (startIndexInclusive, endIndexExclusive) in rangeIndexIntervals) {
-                     for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
+                  foreach (var (startIndexInclusive, endIndexInclusive) in rangeIndexIntervals) {
+                     for (var i = startIndexInclusive; i <= endIndexInclusive; i++) {
                         if (ranges[i].Id == VisibilityPolygon.RANGE_ID_INFINITELY_FAR || ranges[i].Id == VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR) continue;
                         var seg = ranges[i].Segment;
+
+                        var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart);
+                        var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd);
+
+                        //                        DoubleVector2 visibleStart, visibleEnd;
+                        double visibleStartT, visibleEndT;
+                        if (!GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rstart, out visibleStartT) ||
+                            !GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rend, out visibleEndT)) {
+                           // wtf?
+                           Console.WriteLine("???");
+                           continue;
+                        }
+
                         if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
                            canvas.DrawLine(seg, StrokeStyle.LimeThick5Solid);
-                           visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, outboundEdge.EdgeJob.EdgeDescription.DestinationSegment);
+                           var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT);
+                           var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT);
+
+                           canvas.FillTriangle(
+                              visibilityPolygonOrigin.ToDoubleVector2(),
+                              localVisibleStart,
+                              localVisibleEnd,
+                              new FillStyle(Color.FromArgb(120, 0, 255, 255)));
+
+                           var remoteVisibleStart = remoteCrossoverSegment.PointAt(visibleStartT);
+                           var remoteVisibleEnd = remoteCrossoverSegment.PointAt(visibleEndT);
+                           visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, new IntLineSegment2(remoteVisibleStart.LossyToIntVector2(), remoteVisibleEnd.LossyToIntVector2()));
                         } else {
                            canvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
                         }
