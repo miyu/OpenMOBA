@@ -35,6 +35,7 @@ namespace FogOfWarTests {
          terrainService.AddSectorNodeDescription(leftSnd);
 
          var centerSnd = terrainService.CreateSectorNodeDescription(SectorMetadataPresets.Blank2D);
+//         centerSnd.EnableDebugHighlight = true;
          centerSnd.WorldTransform = Matrix4x4.CreateTranslation(-500, -500, 0);
          terrainService.AddSectorNodeDescription(centerSnd);
 
@@ -72,10 +73,10 @@ namespace FogOfWarTests {
             new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400))));
 
          // add some obstacles
-         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
-            HoleStaticMetadata.CreateRectangleHoleMetadata(-500, 250, 60, 60, 0)));
-         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
-            HoleStaticMetadata.CreateRectangleHoleMetadata(0, 130, 60, 60, 0)));
+//         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
+//            HoleStaticMetadata.CreateRectangleHoleMetadata(-500, 250, 60, 60, 0)));
+//         terrainService.AddTemporaryHoleDescription(terrainService.CreateHoleDescription(
+//            HoleStaticMetadata.CreateRectangleHoleMetadata(0, 130, 60, 60, 0)));
 
          var terrainSnapshot = terrainService.CompileSnapshot();
          var overlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(15);
@@ -96,10 +97,9 @@ namespace FogOfWarTests {
          }
 
          void Y(TerrainOverlayNetworkNode terrainNode) {
-
             canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
 
-            var visibilityPolygonOrigin = new IntVector2(800, 700);
+            var visibilityPolygonOrigin = new IntVector2(650, 700);
             canvas.DrawPoint(visibilityPolygonOrigin, StrokeStyle.RedThick25Solid);
             var visibilityPolygon = VisibilityPolygon.Create(visibilityPolygonOrigin.ToDoubleVector2(), terrainNode.LandPolyNode.FindContourAndChildHoleBarriers());
             canvas.DrawVisibilityPolygon(visibilityPolygon, fillStyle: new FillStyle(Color.FromArgb(120, 255, 0, 0)));
@@ -127,11 +127,12 @@ namespace FogOfWarTests {
                            Console.WriteLine("???");
                            continue;
                         }
+                        if (visibleStartT < 0 || visibleEndT > 1) continue;
 
                         if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
-                           canvas.DrawLine(seg, StrokeStyle.LimeThick5Solid);
                            var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT);
                            var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT);
+                           canvas.DrawLine(new DoubleLineSegment2(localVisibleStart, localVisibleEnd), StrokeStyle.LimeThick5Solid);
 
                            canvas.FillTriangle(
                               visibilityPolygonOrigin.ToDoubleVector2(),
@@ -225,6 +226,8 @@ namespace FogOfWarTests {
                            Console.WriteLine("???");
                            continue;
                         }
+                        if (visibleStartT < 0 || visibleEndT > 1) continue;
+
 
                         if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
                            canvas.DrawLine(seg, StrokeStyle.LimeThick5Solid);
