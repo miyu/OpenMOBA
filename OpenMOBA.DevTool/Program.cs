@@ -141,7 +141,9 @@ namespace OpenMOBA.DevTool {
 //               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
 
                debugCanvas.Transform = Matrix4x4.Identity;
-//               DrawTestPathfindingQueries(debugCanvas, agentRadius);
+               DrawTestPathfindingQueries(debugCanvas, agentRadius);
+               continue;
+
 //               DrawTestPathfindingQueries(debugCanvas, 33);
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
@@ -257,10 +259,25 @@ namespace OpenMOBA.DevTool {
       }
 
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double agentRadius) {
+         var pathfinderResultContext = Game.PathfinderCalculator.UniformCostSearch(
+            agentRadius,
+            new DoubleVector3(-800, 300, 0),
+            new[] {
+               new DoubleVector3(1250, -80, 0),
+               new DoubleVector3(1250, -280, 0)
+            },
+            true);
+         for (var i = 0; i < 2; i++) {
+            var roadmap = pathfinderResultContext.ComputeRoadmap(i);
+            DrawRoadmap(debugCanvas, roadmap);
+         }
+         return;
+
          var testPathFindingQueries = new[] {
             //            Tuple.Create(new DoubleVector3(-600, 300, 0), new DoubleVector3(950, 950, 0)),
 //            Tuple.Create(new DoubleVector3(900, 750, 0), new DoubleVector3(2100, 800, 0))
-            Tuple.Create(new DoubleVector3(-800, 300, 0), new DoubleVector3(1250, -80, 0))
+            Tuple.Create(new DoubleVector3(1250, -80, 0), new DoubleVector3(-800, 300, 0)),
+//            Tuple.Create(new DoubleVector3(-800, 300, 0), new DoubleVector3(1250, -80, 0))
 //            Tuple.Create(new DoubleVector3(200, 700, 0), new DoubleVector3(2200, 200, 0))
             //            Tuple.Create(new DoubleVector3(60, 40, 0), new DoubleVector3(930, 300, 0)),
             //            Tuple.Create(new DoubleVector3(675, 175, 0), new DoubleVector3(825, 300, 0)),
