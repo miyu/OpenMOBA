@@ -263,18 +263,23 @@ namespace OpenMOBA.Foundation {
             var destPath = new List<PathLink>();
 
             // must query with [a][b] where a > b
+            // recall waypointToWaypointLut is [destination][source]
             var sourceFinger = sourceWaypoint;
             var destinationFinger = destinationWaypoint;
             while (sourceFinger != destinationFinger) {
-               if (sourceFinger < destinationFinger) {
-                  var link = waypointToWaypointLut[destinationFinger][sourceFinger];
+               if (sourceFinger > destinationFinger) {
+                  var link = waypointToWaypointLut[sourceFinger][destinationFinger];
                   destPath.Add(link);
+                  if (link.PriorIndex == destinationFinger) break;
                   destinationFinger = link.PriorIndex;
                } else {
-                  var link = waypointToWaypointLut[sourceFinger][destinationFinger];
+                  var link = waypointToWaypointLut[destinationFinger][sourceFinger];
                   sourcePath.Add(link);
+                  if (link.PriorIndex == sourceFinger) break;
                   sourceFinger = link.PriorIndex;
                }
+               // todo: this sometimes happens with the floyd-warshall implementation but not dijkstras
+//               Trace.Assert(sourceFinger != destinationFinger);
             }
 
             // extend roadmap

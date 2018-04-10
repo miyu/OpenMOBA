@@ -100,12 +100,11 @@ namespace OpenMOBA.DevTool {
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
-         var agentRadius = 15.0;
+         var agentRadius = 0.0;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
          //terrainOverlayNetwork.Initialize();
-         Console.WriteLine("Rendering");
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
@@ -139,22 +138,59 @@ namespace OpenMOBA.DevTool {
                debugCanvas.DrawPolyNode(terrainNode.LandPolyNode);
                debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
 
-               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
+//               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
 
                debugCanvas.Transform = Matrix4x4.Identity;
 //               DrawTestPathfindingQueries(debugCanvas, agentRadius);
-//               DrawTestPathfindingQueries(debugCanvas, 30);
+//               DrawTestPathfindingQueries(debugCanvas, 33);
+
+               debugCanvas.Transform = sectorNodeDescription.WorldTransform;
+               if (false) {
+                  var punchedLand = localGeometryView.PunchedLand;
+                  var s = new Stack<PolyNode>();
+                  punchedLand.Childs.ForEach(s.Push);
+                  while (s.Any()) {
+                     var landNode = s.Pop();
+                     foreach (var subLandNode in landNode.Childs.SelectMany(child => child.Childs)) s.Push(subLandNode);
+
+                     var visibilityGraph = landNode.ComputeVisibilityGraph();
+                     debugCanvas.DrawVisibilityGraph(visibilityGraph);
+                  }
+               }
+
+               debugCanvas.DrawPoints(crossoverPointManager.Waypoints, StrokeStyle.RedThick25Solid);
+               if (index == 1)
+                  Console.WriteLine("!");
+               
                continue;
 
-               var punchedLand = localGeometryView.PunchedLand;
-               var s = new Stack<PolyNode>();
-               punchedLand.Childs.ForEach(s.Push);
-               while (s.Any()) {
-                  var landNode = s.Pop();
-                  foreach (var subLandNode in landNode.Childs.SelectMany(child => child.Childs)) s.Push(subLandNode);
+               if (index == 1) {
+                  var a = crossoverPointManager.CrossoverPoints[11];
+                  var b = crossoverPointManager.CrossoverPoints[29];
+                  debugCanvas.DrawPoint(a, StrokeStyle.RedThick25Solid);
+                  debugCanvas.DrawPoint(b, StrokeStyle.RedThick25Solid);
+                  var optimalLink = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[29][11];
+                  if (optimalLink.PriorIndex == PathLink.DirectPathIndex) {
+                     debugCanvas.DrawLine(a, b, StrokeStyle.RedThick5Solid);
+                  } else {
+                     var bPrior = crossoverPointManager.Waypoints[optimalLink.PriorIndex]; // 0
+                     debugCanvas.DrawLine(bPrior, b, StrokeStyle.LimeThick5Solid);
+                     var aSuccWi = crossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[11][optimalLink.PriorIndex].PriorIndex;
+                     var aSucc = crossoverPointManager.Waypoints[aSuccWi]; // 10
+                     debugCanvas.DrawLine(a, aSucc, StrokeStyle.LimeThick5Solid);
 
-                  var visibilityGraph = landNode.ComputeVisibilityGraph();
-                  debugCanvas.DrawVisibilityGraph(visibilityGraph);
+                     var bPriorPriorLink = crossoverPointManager.WaypointToWaypointLut[10][0]; // 21
+                     var bPriorPrior = crossoverPointManager.Waypoints[bPriorPriorLink.PriorIndex];
+                     debugCanvas.DrawLine(bPriorPrior, bPrior, StrokeStyle.LimeThick5Solid);
+
+                     var bPriorPriorPriorLink = crossoverPointManager.WaypointToWaypointLut[21][10]; // 20
+                     var bPriorPriorPrior = crossoverPointManager.Waypoints[bPriorPriorPriorLink.PriorIndex];
+                     debugCanvas.DrawLine(bPriorPriorPrior, bPriorPrior, StrokeStyle.LimeThick5Solid);
+
+                     var bPriorPriorPriorPriorLink = crossoverPointManager.WaypointToWaypointLut[20][10]; // 20
+                     var bPriorPriorPriorPrior = crossoverPointManager.Waypoints[bPriorPriorPriorPriorLink.PriorIndex];
+                     debugCanvas.DrawLine(bPriorPriorPriorPrior, bPriorPriorPrior, StrokeStyle.LimeThick5Solid);
+                  }
                }
             }
          });
@@ -241,7 +277,7 @@ namespace OpenMOBA.DevTool {
       }
 
       private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double agentRadius, DoubleVector3 source, DoubleVector3 dest) {
-         if (Game.PathfinderCalculator.TryFindPath(agentRadius, source, dest, out var roadmap, debugCanvas)) {
+         if (Game.PathfinderCalculator.TryFindPath(agentRadius, source, dest, out var roadmap)) {
             Console.WriteLine("Yippee ");
             DrawRoadmap(debugCanvas, roadmap);
          } else {

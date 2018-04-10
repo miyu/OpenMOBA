@@ -323,14 +323,22 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       // Note: Dijkstra's over adjacency list is O(ElogN), so Floyd's algorithm for All Pairwise Shortest Path (APSP)
       // is potentially more efficient at O(N^3) given we have quite dense graphs and it doesn't use a PQ.
       // TODO: could improve locality via [,] instead of [][]?
+      // Returns something that should be looked up as [destination][source]
       public PathLink[][] BuildWaypointToWaypointLut() {
+//         return BuildWaypointToWaypointLutDijkstras();
          return BuildWaypointToWaypointLutFloydWarshall();
       }
 
 
       // TODO: this is doing double work given we have a symmetric matrix.
       // See https://www.cs.rochester.edu/~nelson/courses/csc_173/graphs/apsp.html
+      // The above link is wrong - it reconstructs path (preds) incorrectly.
+      // Also note floyd-warshall gives paths "forward" (as in, if I want to go from s to t,
+      // then take this from s) whereas Dijkstras gives paths "backwards" (as in, if I want to go from s
+      // to t, then backtrack from the pred(t)...)
       public PathLink[][] BuildWaypointToWaypointLutFloydWarshall() {
+         // res[i][j]; i >= j
+         /*
          var res = new PathLink[Waypoints.Length][];
          if (Waypoints.Length != Offsets.Length - 1) throw new InvalidStateException();
          for (var swi = 0; swi < Waypoints.Length; swi++) {
@@ -343,33 +351,67 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                ref var edge = ref Edges[j];
 
                // edges are undirected and duplicated as directed, so only process one
-               if (edge.NextIndex < res[swi].Length) {
-                  res[swi][edge.NextIndex].PriorIndex = edge.NextIndex;
+               if (swi >= edge.NextIndex) {
+                  res[swi][edge.NextIndex].PriorIndex = swi;
                   res[swi][edge.NextIndex].TotalCost = edge.Cost;
                }
             }
          }
-            /*
+         */
+         var res = new PathLink[Waypoints.Length][];
+         if (Waypoints.Length != Offsets.Length - 1) throw new InvalidStateException();
+         for (var swi = 0; swi < Waypoints.Length; swi++) {
+            res[swi] = Util.Repeat(Waypoints.Length, new PathLink { PriorIndex = PathLink.Uninitialized, TotalCost = float.PositiveInfinity });
+            res[swi][swi].TotalCost = 0;
+            res[swi][swi].PriorIndex = swi;
+         }
+         for (var swi = 0; swi < Offsets.Length - 1; swi++) {
             for (var j = Offsets[swi]; j < Offsets[swi + 1]; j++) {
                ref var edge = ref Edges[j];
-               var (a, b) = (swi, edge.NextIndex);
-               if (a < b) (a, b) = (b, a);
-               res[a][b].TotalCost = edge.Cost;
-               res[a][b].PriorIndex = -1;
-            }*/
+
+               // edges are undirected and duplicated as directed, so only process one
+//               if (swi >= edge.NextIndex) {
+               res[swi][edge.NextIndex].PriorIndex = edge.NextIndex;
+               res[swi][edge.NextIndex].TotalCost = edge.Cost;
+//               }
+            }
+         }
+         /*
+         for (var j = Offsets[swi]; j < Offsets[swi + 1]; j++) {
+            ref var edge = ref Edges[j];
+            var (a, b) = (swi, edge.NextIndex);
+            if (a < b) (a, b) = (b, a);
+            res[a][b].TotalCost = edge.Cost;
+            res[a][b].PriorIndex = -1;
+         }*/
 
          // Optimized of vanilla floyd warshall since we have symmetry
-         // for (var k = 0; k < Waypoints.Length; k++) {
-         //    for (var i = 0; i < Waypoints.Length; i++) {
-         //       for (var j = 0; j < Waypoints.Length; j++) {
-         //          if (res[i][k].TotalCost + res[k][j].TotalCost < res[i][j].TotalCost) {
-         //             res[i][j].TotalCost = res[i][k].TotalCost + res[k][j].TotalCost;
-         //             res[i][j].PriorIndex = k;
-         //          }
-         //       }
-         //    }
-         // }
+         for (var k = 0; k < Waypoints.Length; k++) {
+            for (var i = 0; i < Waypoints.Length; i++) {
+               for (var j = 0; j < Waypoints.Length; j++) {
+//                  if (!(i >= k && k >= j && i >= j)) {
+//                     continue;
+//                  }
+                  if (res[i][k].TotalCost + res[k][j].TotalCost < res[i][j].TotalCost) {
+                     res[i][j].TotalCost = res[i][k].TotalCost + res[k][j].TotalCost;
+                     res[i][j].PriorIndex = res[i][k].PriorIndex;
+                  }
+               }
+            }
+         }
+
+         var flippedres = Util.Generate(Waypoints.Length, () => new PathLink[Waypoints.Length]);
+         for (var y = 0; y < Waypoints.Length; y++) {
+            for (var x = 0; x < Waypoints.Length; x++) {
+               flippedres[y][x].TotalCost = res[x][y].TotalCost;
+               flippedres[y][x].PriorIndex = res[x][y].PriorIndex;
+            }
+         }
+         return flippedres;
+
+
          // See https://stackoverflow.com/questions/2037735/optimise-floyd-warshall-for-symmetric-adjacency-matrix
+         /*
          for (int k = 0; k < Waypoints.Length; ++k) {
             for (int i = 0; i < k; ++i) {
                for (int j = 0; j <= i; ++j) {
@@ -400,6 +442,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                }
             }
          }
+         */
          return res;
       }
 
@@ -430,7 +473,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          var bvh = wvp == null ? polyNode.FindContourAndChildHoleBarriersBvh() : null;
 
          var neighborsToCosts = new List<(int, float)>[waypoints.Length];
-         for (var i = 0; i < waypoints.Length; i++) neighborsToCosts[i] = new List<(int, float)>();
+         for (var i = 0; i < waypoints.Length; i++) {
+            neighborsToCosts[i] = new List<(int, float)>();
+         }
          for (var i = 0; i < waypoints.Length - 1; i++) {
             var wvpi = wvp?[i];
 

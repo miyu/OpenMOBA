@@ -27,8 +27,8 @@ namespace OpenMOBA.Geometry {
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(cInt bax, cInt bay, cInt bcx, cInt bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
 
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static cInt Cross(this IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static cInt Cross(cInt ax, cInt ay, cInt bx, cInt by) => ax * by - ay * bx;
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static long Cross(this IntVector2 a, IntVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static long Cross(cInt ax, cInt ay, cInt bx, cInt by) => (long)ax * by - (long)ay * bx;
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(DoubleVector2 ba, DoubleVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);

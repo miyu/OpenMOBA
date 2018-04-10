@@ -28,6 +28,10 @@ namespace OpenMOBA.DevTool.Debugging {
             canvas.DrawPoints(
                visibilityGraph.Waypoints.Select(p => new IntVector3(p)).ToList(),
                WaypointStrokeStyle);
+
+            foreach (var (i, waypoint) in visibilityGraph.Waypoints.Enumerate()) {
+               canvas.DrawText("" + i, waypoint);
+            }
          }
       }
    }

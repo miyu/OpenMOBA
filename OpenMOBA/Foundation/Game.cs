@@ -210,6 +210,7 @@ namespace OpenMOBA.Foundation {
             for (var x = 0; x < sectorSpanWidth; x++) {
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
+//               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
                var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
 //               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
