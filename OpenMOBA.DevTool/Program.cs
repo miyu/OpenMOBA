@@ -31,7 +31,7 @@ namespace OpenMOBA.DevTool {
    }
 
    public class GameDebugger : IGameDebugger {
-      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 5.0);
+      private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 1.0);
       private static readonly StrokeStyle PathStroke2 = new StrokeStyle(Color.DarkGreen, 15.0);
       private static readonly StrokeStyle NoPathStroke = new StrokeStyle(Color.Red, 15.0, new[] { 1.0f, 1.0f });
       private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
@@ -159,9 +159,6 @@ namespace OpenMOBA.DevTool {
                }
 
                debugCanvas.DrawPoints(crossoverPointManager.Waypoints, StrokeStyle.RedThick25Solid);
-               if (index == 1)
-                  Console.WriteLine("!");
-               
                continue;
 
                if (index == 1) {

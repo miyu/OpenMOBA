@@ -354,33 +354,33 @@ namespace OpenMOBA.Foundation {
          //   GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          //}
 
-         var a = CreateTestEntity(new DoubleVector3(-800, 300, 0), 30, 80);
-         var b = CreateTestEntity(new DoubleVector3(675 - 500, 175 - 500, 0), 15, 70);
-         var c = CreateTestEntity(new DoubleVector3(50 - 500, 900 - 500, 0), 15, 60);
-         var d = CreateTestEntity(new DoubleVector3(50 - 500, 500 - 500, 0), 15, 50);
+         //var a = CreateTestEntity(new DoubleVector3(-800, 300, 0), 30, 80);
+         //var b = CreateTestEntity(new DoubleVector3(675 - 500, 175 - 500, 0), 15, 70);
+         //var c = CreateTestEntity(new DoubleVector3(50 - 500, 900 - 500, 0), 15, 60);
+         //var d = CreateTestEntity(new DoubleVector3(50 - 500, 500 - 500, 0), 15, 50);
+         //
+         //MovementSystemService.Pathfind(a, new DoubleVector3(1250, -80, 0));
+         //MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, 300 - 500, 0));
+         //MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
+         //MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
 
-         MovementSystemService.Pathfind(a, new DoubleVector3(1250, -80, 0));
-         MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, 300 - 500, 0));
-         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
-         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
+         var benchmarkDestination = new DoubleVector3(450, 450, 0.0);
+         var benchmarkUnitBaseSpeed = 50.0f;
+         var swarm = new Swarm { Destination = benchmarkDestination };
+         var swarmMeanRadius = 10.0f;
+         for (var y = 0; y < 10; y++)
+         for (var x = 0; x < 10; x++) {
+            // var swarmlingRadius = 10f;
+            var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
+            var p = new DoubleVector3(-450, -150, 0);
+            var offset = new DoubleVector3(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2, 0);
+            var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
+            swarmling.MovementComponent.Swarm = swarm;
+            swarm.Entities.Add(swarmling);
+         }
 
-//         var benchmarkDestination = new DoubleVector3(950, 50, 0.0);
-//         var benchmarkUnitBaseSpeed = 50.0f;
-//         var swarm = new Swarm { Destination = benchmarkDestination };
-//         var swarmMeanRadius = 10.0f;
-//         for (var y = 0; y < 10; y++)
-//         for (var x = 0; x < 10; x++) {
-//            // var swarmlingRadius = 10f;
-//            var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
-//            var p = new DoubleVector3(50, 500, 0);
-//            var offset = new DoubleVector3(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2, 0);
-//            //               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
-//            //               swarmling.MovementComponent.Swarm = swarm;
-//            //               swarm.Entities.Add(swarmling);
-//         }
-
-         //         var optimal = CreateTestEntity(new DoubleVector3(50 + 9 * 10*2, 500, 0.0), 10, benchmarkUnitBaseSpeed);
-         //         MovementSystemService.Pathfind(optimal, benchmarkDestination);
+         //var optimal = CreateTestEntity(new DoubleVector3(50 + 9 * 10*2, 500, 0.0), 10, benchmarkUnitBaseSpeed);
+         //MovementSystemService.Pathfind(optimal, benchmarkDestination);
       }
 
       public void Run() {
