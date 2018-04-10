@@ -45,11 +45,12 @@ namespace OpenMOBA.DevTool.Debugging {
             if (e.KeyCode != Keys.Space) {
                return;
             }
+            var speedup = 1;
             if (e.Shift) {
                new Thread(() => {
                   var v = slider.Value;
-                  while (slider.Value == v && v != 30) {
-                     v = Math.Max(v - 5, 30);
+                  while (slider.Value == v && v != 0) {
+                     v = Math.Max(v - 2 * speedup, 0);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
                      Thread.Sleep(12);
                   }
@@ -58,7 +59,7 @@ namespace OpenMOBA.DevTool.Debugging {
                new Thread(() => {
                   var v = slider.Value;
                   while (slider.Value == v && v != slider.Maximum) {
-                     v = Math.Min(v + 2, (int)slider.Maximum);
+                     v = Math.Min(v + 5 * speedup, (int)slider.Maximum);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
                      Thread.Sleep(12);
                   }

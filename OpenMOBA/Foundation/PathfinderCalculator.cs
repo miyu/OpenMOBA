@@ -272,12 +272,12 @@ namespace OpenMOBA.Foundation {
          path.Reverse();
 
          foreach (var x in path) {
-            Console.WriteLine("PATH: " + x);
+//            Console.WriteLine("PATH: " + x);
             if (x.Item2 >= 0) {
                var cp = x.Item1.CrossoverPointManager.CrossoverPoints[x.Item2];
-               Console.WriteLine("   " + cp + " => " + Vector3.Transform(new Vector3(cp.X, cp.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
+//               Console.WriteLine("   " + cp + " => " + Vector3.Transform(new Vector3(cp.X, cp.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
             } else if (x.Item2 == DESTINATION_POINT_CPI) {
-               Console.WriteLine("   " + destinationPoint + " => " + Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
+//               Console.WriteLine("   " + destinationPoint + " => " + Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
             }
          }
 
@@ -569,8 +569,8 @@ namespace OpenMOBA.Foundation {
       }
 
       public class PathfinderResultContext {
-         private readonly (TerrainOverlayNetworkNode, IntVector2) Source;
-         private readonly (TerrainOverlayNetworkNode, IntVector2)[] Destinations;
+         public readonly (TerrainOverlayNetworkNode, IntVector2) Source;
+         public readonly (TerrainOverlayNetworkNode, IntVector2)[] Destinations;
          private readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)> Predecessors;
          private readonly ExposedArrayList<PathLink> SourceOptimalLinkToCrossovers;
          private readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
