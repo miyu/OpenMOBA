@@ -14,6 +14,13 @@ namespace OpenMOBA.Geometry {
          Second = second;
       }
 
+
+      [DebuggerStepThrough]
+      public IntLineSegment2(cInt ax, cInt ay, cInt bx, cInt by) {
+         First = new IntVector2(ax, ay);
+         Second = new IntVector2(bx, by);
+      }
+
       public readonly IntVector2 First;
       public cInt X1 => First.X;
       public cInt Y1 => First.Y;
@@ -65,29 +72,22 @@ namespace OpenMOBA.Geometry {
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy) {
-         // // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
-         // var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
-         // var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
-         // var bl = Math.Sign((cx - ax) * (dy - ay) - (cy - ay) * (dx - ax));
-         // var br = Math.Sign((cx - bx) * (dy - by) - (cy - by) * (dx - bx));
+         // https://www.cdn.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
+         // Note, didn't do SO variant because not robust to collinear segments
+         // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
+         var o1 = GeometryOperations.Clockness(ax, ay, bx, by, cx, cy);
+         var o2 = GeometryOperations.Clockness(ax, ay, bx, by, dx, dy);
+         var o3 = GeometryOperations.Clockness(cx, cy, dx, dy, ax, ay);
+         var o4 = GeometryOperations.Clockness(cx, cy, dx, dy, bx, by);
 
-         var axcx = ax - cx;
-         var bycy = by - cy;
-         var aycy = ay - cy;
-         var bxcx = bx - cx;
+         if (o1 != o2 && o3 != o4) return true;
 
-         var axdx = ax - dx;
-         var bydy = by - dy;
-         var aydy = ay - dy;
-         var bxdx = bx - dx;
+         if (o1 == 0 && new IntLineSegment2(ax, ay, bx, by).Contains(new IntVector2(cx, cy))) return true;
+         if (o2 == 0 && new IntLineSegment2(ax, ay, bx, by).Contains(new IntVector2(dx, dy))) return true;
+         if (o3 == 0 && new IntLineSegment2(cx, cy, dx, dy).Contains(new IntVector2(ax, ay))) return true;
+         if (o4 == 0 && new IntLineSegment2(cx, cy, dx, dy).Contains(new IntVector2(bx, by))) return true;
 
-         var tl = Math.Sign((long)axcx * bycy - (long)aycy * bxcx);
-         var tr = Math.Sign((long)axdx * bydy - (long)aydy * bxdx);
-         if (tl != -tr) return false;
-
-         var bl = Math.Sign((long)axcx * aydy - (long)aycy * axdx);
-         var br = Math.Sign((long)bxcx * bydy - (long)bycy * bxdx);
-         return bl == -br;
+         return false;
       }
 
       public Rectangle ToBoundingBox() {
