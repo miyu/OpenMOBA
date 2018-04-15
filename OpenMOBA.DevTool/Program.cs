@@ -84,14 +84,17 @@ namespace OpenMOBA.DevTool {
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
-            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
+            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.White));
             RenderHook?.Invoke(this, debugCanvas);
             if (RenderHook != null) return;
 
             debugCanvas.Transform = Matrix4x4.Identity;
 
             DrawEntities(debugCanvas);
-            DrawEntityPaths(debugCanvas);
+//            return;
+//            DrawEntityPaths(debugCanvas);
+            DrawTestPathfindingQueries(debugCanvas, 0.0);
+//            return;
 
             var colors = new[] { Color.White };
 //			   var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
@@ -106,6 +109,8 @@ namespace OpenMOBA.DevTool {
                var fillColor = colors[(index / colors.Length) % colors.Length];
                debugCanvas.DrawPolyNode(terrainNode.LandPolyNode);
                debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
+
+               continue;
 
                debugCanvas.Transform = Matrix4x4.Identity;
 
@@ -220,11 +225,13 @@ namespace OpenMOBA.DevTool {
             agentRadius,
             new DoubleVector3(-800, 300, 0),
             new[] {
-               new DoubleVector3(1250, -80, 0),
-               new DoubleVector3(1250, -280, 0)
+               new DoubleVector3(-810, 300, 0)
+//               new DoubleVector3(1250, -80, 0),
+//               new DoubleVector3(1250, -280, 0)
             },
-            true);
-         for (var i = 0; i < 2; i++) {
+            true,
+            debugCanvas);
+         for (var i = 0; i < 1; i++) {
             var roadmap = pathfinderResultContext.ComputeRoadmap(i);
             DrawRoadmap(debugCanvas, roadmap);
          }

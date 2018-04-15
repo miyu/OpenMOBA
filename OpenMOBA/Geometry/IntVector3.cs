@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using cInt = System.Int32;
 
@@ -8,9 +9,9 @@ namespace OpenMOBA.Geometry {
       public double Y;
       public double Z;
 
-      public DoubleVector3(DoubleVector2 v, double z = 0) : this(v.X, v.Y, z) { }
+      [DebuggerStepThrough] public DoubleVector3(DoubleVector2 v, double z = 0) : this(v.X, v.Y, z) { }
 
-      public DoubleVector3(double x, double y, double z) {
+      [DebuggerStepThrough] public DoubleVector3(double x, double y, double z) {
          X = x;
          Y = y;
          Z = z;

@@ -59,9 +59,9 @@ namespace OpenMOBA.Foundation {
          var destinationLocal = Vector3.Transform(destinationWorld.ToDotNetVector(), destinationNode.SectorNodeDescription.WorldTransformInv);
 
          return TryFindPath(
-            sourceNode, 
-            sourceLocal.ToOpenMobaVector().LossyToIntVector3().XY, 
-            destinationNode, 
+            sourceNode,
+            sourceLocal.ToOpenMobaVector().LossyToIntVector3().XY,
+            destinationNode,
             destinationLocal.ToOpenMobaVector().LossyToIntVector3().XY,
             out roadmap,
             debugCanvas);
@@ -76,7 +76,7 @@ namespace OpenMOBA.Foundation {
             var roadmap = new MotionRoadmap();
             if (sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
                roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, destinationPoint));
-               result = roadmap; 
+               result = roadmap;
                return true;
             }
 
@@ -112,7 +112,7 @@ namespace OpenMOBA.Foundation {
 
          var q = new PriorityQueue<ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge>>((a, b) => a.Item1.CompareTo(b.Item1));
          var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
-         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>(); // visited
+         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>(); // visited
 
          foreach (var kvp in sourceNode.OutboundEdgeGroups) {
             foreach (var g in kvp.Value) {
@@ -161,7 +161,7 @@ namespace OpenMOBA.Foundation {
             if (predecessor.ContainsKey((ndstnode, ndstcpi))) {
                continue;
             }
-            predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge);
+            predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge, ncost);
 
             if (ndstcpi == DESTINATION_POINT_CPI) {
                Console.WriteLine("Success! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
@@ -253,33 +253,23 @@ namespace OpenMOBA.Foundation {
       }
 
       public static MotionRoadmap Backtrack(
-         TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint, 
-         TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint, 
-         Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)> predecessor, 
-         int DESTINATION_POINT_CPI, 
-         ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, 
+         TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint,
+         TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint,
+         Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessor,
+         int DESTINATION_POINT_CPI,
+         ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers,
          ExposedArrayList<PathLink> destinationOptimalLinkToCrossovers
       ) {
          // build high-level plan of path
-         var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>();
-         var cur = (destinationNode, DESTINATION_POINT_CPI, (TerrainOverlayNetworkEdge)null);
+         var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>();
+         var cur = (destinationNode, DESTINATION_POINT_CPI, (TerrainOverlayNetworkEdge)null, 0.0f);
          while (predecessor.TryGetValue((cur.Item1, cur.Item2), out var pred)) {
             path.Add(cur);
-            var (psrcnode, psrccpi, pedge) = pred;
+            var (psrcnode, psrccpi, pedge, psrcCpiTotalCost) = pred;
             cur = pred;
          }
          path.Add(cur);
          path.Reverse();
-
-         foreach (var x in path) {
-//            Console.WriteLine("PATH: " + x);
-            if (x.Item2 >= 0) {
-               var cp = x.Item1.CrossoverPointManager.CrossoverPoints[x.Item2];
-//               Console.WriteLine("   " + cp + " => " + Vector3.Transform(new Vector3(cp.X, cp.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
-            } else if (x.Item2 == DESTINATION_POINT_CPI) {
-//               Console.WriteLine("   " + destinationPoint + " => " + Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), x.Item1.SectorNodeDescription.WorldTransform));
-            }
-         }
 
          // convert path to a motion plan. three cases for motion: moving from start to crossover, crossover to crossover, or crossover to end.
          // last one not processed, since we process pairwise.
@@ -288,6 +278,13 @@ namespace OpenMOBA.Foundation {
             if (i == 0) {
                // moving from start to crossover
                var nextCpi = path[1].Item2;
+
+               // special case: move directly from start to goal
+               if (nextCpi == DESTINATION_POINT_CPI) {
+                  roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, destinationPoint));
+                  continue;
+               }
+
                var firstLink = sourceOptimalLinkToCrossovers[nextCpi];
                if (firstLink.PriorIndex == PathLink.DirectPathIndex) {
                   roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.CrossoverPoints[nextCpi]));
@@ -371,7 +368,7 @@ namespace OpenMOBA.Foundation {
          }
 
          // predecessor, but in the sense that we're 
-         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)>(); // visited
+         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>(); // visited
 
          var isDestinationVisited = new bool[destinations.Length];
          var destinationsRemaining = destinations.Length;
@@ -386,8 +383,12 @@ namespace OpenMOBA.Foundation {
             destinationsRemaining--;
 
             // try direct path
+            if (debugCanvas != null) {
+               //debugCanvas.Transform = destinationNode.SectorNodeDescription.WorldTransform;
+               //debugCanvas.DrawLine(sourcePoint, destinationPoint, StrokeStyle.LimeThick25Solid);
+            }
             if (sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
-               predecessor[(destinationNode, destinationIndex)] = (sourceNode, SOURCE_POINT_CPI, null);
+               predecessor[(destinationNode, ComputeDestinationIndexCpi(destinationIndex))] = (sourceNode, SOURCE_POINT_CPI, null, sourcePoint.To(destinationPoint).Norm2F());
                continue;
             }
 
@@ -396,7 +397,7 @@ namespace OpenMOBA.Foundation {
             var destinationVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(destinationPoint, null, out var destinationVisibleWaypointLinksLength, out var destinationOptimalLinkToWaypoints);
 
             var bestFirstWaypointIndex = -1;
-            var bestFirstWaypointCost = double.PositiveInfinity;
+            var bestFirstWaypointCost = float.PositiveInfinity;
             for (var i = 0; i < sourceVisibleWaypointLinksLength; i++) {
                var link = sourceVisibleWaypointLinks[i];
                var firstWaypoint = link.PriorIndex;
@@ -406,9 +407,29 @@ namespace OpenMOBA.Foundation {
                   bestFirstWaypointCost = cost;
                }
             }
-            predecessor[(destinationNode, bestFirstWaypointIndex)] = (sourceNode, SOURCE_POINT_CPI, null);
-            AddInterTerrainOverlayNetworkNodeWaypointToWaypointRoadmapActions2(predecessor, sourceNode, bestFirstWaypointIndex, destinationOptimalLinkToWaypoints[bestFirstWaypointIndex].PriorIndex);
-            predecessor[(destinationNode, ComputeDestinationIndexCpi(destinationIndex))] = (sourceNode, destinationOptimalLinkToWaypoints[bestFirstWaypointIndex].PriorIndex, null);
+            var costToFirstWaypoint = sourceVisibleWaypointLinks[bestFirstWaypointIndex].TotalCost;
+
+            // populate predecessor (fills cost to node with zeros)
+            predecessor[(destinationNode, bestFirstWaypointIndex)] = (sourceNode, SOURCE_POINT_CPI, null, costToFirstWaypoint);
+            AddInterTerrainOverlayNetworkNodeWaypointToWaypointRoadmapActions2(predecessor, sourceNode, bestFirstWaypointIndex, destinationOptimalLinkToWaypoints[bestFirstWaypointIndex].PriorIndex, costToFirstWaypoint);
+            var destinationTuple = (destinationNode, ComputeDestinationIndexCpi(destinationIndex));
+            predecessor[destinationTuple] = (sourceNode, destinationOptimalLinkToWaypoints[bestFirstWaypointIndex].PriorIndex, null, 0.0f);
+
+            // populate predecessor costs (backtrack from destination cpi, propagating path costs improvement)
+            var currentBacktrackCost = bestFirstWaypointCost;
+            var currentBacktrackTuple = destinationTuple;
+            while (predecessor[currentBacktrackTuple].Item2 != SOURCE_POINT_CPI) {
+               var item = predecessor[currentBacktrackTuple];
+               item.Item4 = currentBacktrackCost;
+               predecessor[currentBacktrackTuple] = item;
+
+               var waypoint = currentBacktrackTuple.Item2 == destinationTuple.Item2 
+                  ? destinationPoint
+                  : currentBacktrackTuple.Item1.CrossoverPointManager.Waypoints[currentBacktrackTuple.Item2];
+               //debugCanvas?.DrawText(item.Item4 + "", waypoint);
+
+               currentBacktrackTuple = (predecessor[currentBacktrackTuple].Item1, predecessor[currentBacktrackTuple].Item2);
+            }
          }
 
          Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
@@ -474,7 +495,7 @@ namespace OpenMOBA.Foundation {
             if (predecessor.ContainsKey((ndstnode, ndstcpi))) {
                continue;
             }
-            predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge);
+            predecessor[(ndstnode, ndstcpi)] = (nsrcnode, nsrccpi, nedge, ncost);
 
             if (ndstcpi != SOURCE_POINT_CPI && ndstcpi < 0) {
                // visit destination!
@@ -564,20 +585,22 @@ namespace OpenMOBA.Foundation {
             }
          }
 
-         Console.WriteLine("Failure! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
+         if (destinationsRemaining > 0) {
+            Console.WriteLine("Failure! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
+         }
          return new PathfinderResultContext(source, destinations, predecessor, sourceOptimalLinkToCrossovers, destinationOptimalLinkToCrossoversByDestinationIndex);
       }
 
       public class PathfinderResultContext {
          public readonly (TerrainOverlayNetworkNode, IntVector2) Source;
          public readonly (TerrainOverlayNetworkNode, IntVector2)[] Destinations;
-         private readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)> Predecessors;
+         private readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> Predecessors;
          private readonly ExposedArrayList<PathLink> SourceOptimalLinkToCrossovers;
          private readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
 
          private readonly MotionRoadmap[] roadmapCache;
 
-         public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)> predecessors, ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, ExposedArrayList<PathLink>[] destinationOptimalLinkToCrossoversByDestinationIndex) {
+         public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessors, ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, ExposedArrayList<PathLink>[] destinationOptimalLinkToCrossoversByDestinationIndex) {
             Source = source;
             Destinations = destinations;
             Predecessors = predecessors;
@@ -644,7 +667,7 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      void AddInterTerrainOverlayNetworkNodeWaypointToWaypointRoadmapActions2(Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge)> predecessor, TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint) {
+      void AddInterTerrainOverlayNetworkNodeWaypointToWaypointRoadmapActions2(Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessor, TerrainOverlayNetworkNode node, int sourceWaypoint, int destinationWaypoint, float costToSourceWaypoint) {
          var cpm = node.CrossoverPointManager;
          var waypointToWaypointLut = cpm.WaypointToWaypointLut;
          var sourcePath = new List<PathLink>();
@@ -674,19 +697,19 @@ namespace OpenMOBA.Foundation {
          var prior = sourceWaypoint;
          for (var i = 0; i < sourcePath.Count; i++) {
             var next = sourcePath[i].PriorIndex;
-            predecessor[(node, next)] = (node, prior, null);
+            predecessor[(node, next)] = (node, prior, null, 0.0f);
             prior = next;
          }
 
          // skip last item since is link to last of source plan
          for (var i = destPath.Count - 2; i >= 0; i--) {
             var next = destPath[i].PriorIndex;
-            predecessor[(node, next)] = (node, prior, null);
+            predecessor[(node, next)] = (node, prior, null, 0.0f);
             prior = next;
          }
 
          if (prior != destinationWaypoint) {
-            predecessor[(node, destinationWaypoint)] = (node, prior, null);
+            predecessor[(node, destinationWaypoint)] = (node, prior, null, 0.0f);
          }
       }
 
