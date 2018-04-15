@@ -106,7 +106,7 @@ namespace OpenMOBA.Foundation {
          const int DESTINATION_POINT_CPI = -200;
          // todo: special-case if src is dst node
 
-         Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
+//         Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
          var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
          var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
 
@@ -121,7 +121,7 @@ namespace OpenMOBA.Foundation {
                   var worldCpiLinkCost = cpiLink.TotalCost * sourceNode.SectorNodeDescription.LocalToWorldScalingFactor;
                   priorityUpperBounds[(sourceNode, edge.SourceCrossoverIndex)] = worldCpiLinkCost;
                   q.Enqueue((worldCpiLinkCost, worldCpiLinkCost, sourceNode, SOURCE_POINT_CPI, sourceNode, edge.SourceCrossoverIndex, null));
-                  Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + edge.SourceCrossoverIndex + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
+                  //Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + edge.SourceCrossoverIndex + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
                }
             }
          }
@@ -353,7 +353,7 @@ namespace OpenMOBA.Foundation {
          return roadmap;
       }
 
-      public PathfinderResultContext UniformCostSearch(double agentRadius, DoubleVector3 sourceWorld, DoubleVector3[] destinationWorlds, bool followEdgesReversed, IDebugCanvas debugCanvas = null) {
+      public PathfinderResultContext UniformCostSearch(double agentRadius, DoubleVector3 sourceWorld, DoubleVector3[] destinationWorlds, bool followEdgesReversed, PathfinderResultContext pathfinderResultContext = null, IDebugCanvas debugCanvas = null) {
          var terrainSnapshot = terrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode, out var pSourceLocal)) return null;
@@ -369,11 +369,15 @@ namespace OpenMOBA.Foundation {
             (sourceNode, new IntVector2((int)pSourceLocal.X, (int)pSourceLocal.Y)),
             destinationTuples,
             followEdgesReversed,
+            pathfinderResultContext,
             debugCanvas);
       }
 
-      public PathfinderResultContext UniformCostSearch((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, bool followEdgesReversed, IDebugCanvas debugCanvas = null) {
+      public PathfinderResultContext UniformCostSearch((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, bool followEdgesReversed, PathfinderResultContext pathfinderResultContext = null, IDebugCanvas debugCanvas = null) {
          var (sourceNode, sourcePoint) = source;
+         if (pathfinderResultContext != null && !source.Equals(pathfinderResultContext.Source)) {
+            throw new InvalidOperationException("Source differed pls");
+         }
 
          const int SOURCE_POINT_CPI = int.MinValue;
          int ComputeDestinationIndexCpi(int destinationIndex) => -1 - destinationIndex;
@@ -413,7 +417,7 @@ namespace OpenMOBA.Foundation {
             }
          }
 
-         Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
+//         Console.WriteLine("Src had " + sourceNode.CrossoverPointManager.CrossoverPoints.Count + " : " + string.Join(", ", sourceNode.CrossoverPointManager.CrossoverPoints));
          var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
 
          var destinationOptimalLinkToCrossoversByDestinationIndex = new ExposedArrayList<PathLink>[destinations.Length];
@@ -430,6 +434,7 @@ namespace OpenMOBA.Foundation {
          var q = new PriorityQueue<ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge>>((a, b) => a.Item1.CompareTo(b.Item1));
          var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
 
+         // populate q with initial expansion from start node (even if reusing prior work)
          foreach (var kvp in PickTraversedEdgeGroups(sourceNode)) {
             foreach (var g in kvp.Value) {
                foreach (var edge in g.Edges) {
@@ -437,8 +442,28 @@ namespace OpenMOBA.Foundation {
                   var worldCpiLinkCost = cpiLink.TotalCost * sourceNode.SectorNodeDescription.LocalToWorldScalingFactor;
                   priorityUpperBounds[(sourceNode, PickFromCpi__(edge))] = worldCpiLinkCost;
                   q.Enqueue((worldCpiLinkCost, worldCpiLinkCost, sourceNode, SOURCE_POINT_CPI, sourceNode, PickFromCpi__(edge), null));
-                  Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + PickFromCpi__(edge) + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
+//                  Console.WriteLine("Init link: " + cpiLink.TotalCost + " " + PickFromCpi__(edge) + " of " + sourceNode.CrossoverPointManager.CrossoverPoints.Count);
                }
+            }
+         }
+
+         // populate q with our fringe (if reusing prior work)
+         if (pathfinderResultContext != null) {
+            foreach (var (cur, predInfo) in pathfinderResultContext.Predecessors) {
+               TerrainOverlayNetworkEdge FindMatchingEdge() {
+                  foreach (var edgeGroup in predInfo.Item1.OutboundEdgeGroups[cur.Item1]) {
+                     foreach (var candidateEdge in edgeGroup.Edges) {
+                        if (candidateEdge.SourceCrossoverIndex == predInfo.Item2 && candidateEdge.DestinationCrossoverIndex == cur.Item2) {
+                           return candidateEdge;
+                        }
+                     }
+                  }
+                  throw new NotImplementedException();
+               }
+
+               // our keys will be prior-visited (and therefore cost-weighted) nodes.
+               // look at all neighbors, then if unvisited, add to our fringe.
+               priorityUpperBounds[cur] = predInfo.Item4 * 1.001f;
             }
          }
 
@@ -464,7 +489,7 @@ namespace OpenMOBA.Foundation {
                strokeStyle);
          }
 
-         while (!q.IsEmpty) {
+         while (!q.IsEmpty && destinationsRemaining > 0) {
             var item = q.Dequeue();
             dequeueCount++;
 
@@ -575,9 +600,9 @@ namespace OpenMOBA.Foundation {
       public class PathfinderResultContext {
          public readonly (TerrainOverlayNetworkNode, IntVector2) Source;
          public readonly (TerrainOverlayNetworkNode, IntVector2)[] Destinations;
-         private readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> Predecessors;
-         private readonly ExposedArrayList<PathLink> SourceOptimalLinkToCrossovers;
-         private readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
+         internal readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> Predecessors;
+         internal readonly ExposedArrayList<PathLink> SourceOptimalLinkToCrossovers;
+         internal readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
 
          private readonly MotionRoadmap[] roadmapCache;
 

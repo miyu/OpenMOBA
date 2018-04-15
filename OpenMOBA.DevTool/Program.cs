@@ -220,6 +220,7 @@ namespace OpenMOBA.DevTool {
       }
 
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double agentRadius) {
+         Console.WriteLine("!@#@!#!@#!@#!");
          var pathfinderResultContext = Game.PathfinderCalculator.UniformCostSearch(
             agentRadius,
             new DoubleVector3(-800, 300, 0),
@@ -230,8 +231,27 @@ namespace OpenMOBA.DevTool {
                new DoubleVector3(1250, -280, 0)
             },
             true);
+
+         Console.WriteLine("!@!@#!#@#!@#!@!@!@!@#!#@!#!@#!@#!");
+
+         var prc2 = Game.PathfinderCalculator.UniformCostSearch(
+            agentRadius,
+            new DoubleVector3(-800, 300, 0),
+            new[] {
+               new DoubleVector3(-1220, 330, 0),
+               new DoubleVector3(-1250, -300, 0),
+               new DoubleVector3(1290, -80, 0),
+               new DoubleVector3(1250, -380, 0)
+            },
+            true,
+            pathfinderResultContext);
+         Console.WriteLine("!@#@");
+
          for (var i = 0; i < 4; i++) {
             var roadmap = pathfinderResultContext.ComputeRoadmap(i);
+            DrawRoadmap(debugCanvas, roadmap);
+
+            roadmap = prc2.ComputeRoadmap(i);
             DrawRoadmap(debugCanvas, roadmap);
          }
          return;
