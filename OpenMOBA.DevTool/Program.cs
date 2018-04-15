@@ -109,25 +109,24 @@ namespace OpenMOBA.DevTool {
                var fillColor = colors[(index / colors.Length) % colors.Length];
                debugCanvas.DrawPolyNode(terrainNode.LandPolyNode);
                debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
-
                continue;
 
-               debugCanvas.Transform = Matrix4x4.Identity;
-
-               foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
-                  var mc = entity.MovementComponent;
-                  var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(2);
-                  if (!ton.TryFindTerrainOverlayNode(mc.WorldPosition, out var tonn, out var plocal)) continue;
-                  if (i == 2 || i == 1) continue;
-                  var color = Color.FromArgb(20, new[] {
-                     Color.Red,
-                     Color.Magenta,
-                     Color.Yellow,
-                     Color.Lime,
-                     Color.Blue,
-                  }[i]);
-                  debugCanvas.DrawCrossSectorVisibilityPolygon(tonn, new IntVector2((int)plocal.X, (int)plocal.Y), new FillStyle(color));
-               }
+//               debugCanvas.Transform = Matrix4x4.Identity;
+//
+//               foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
+//                  var mc = entity.MovementComponent;
+//                  var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(2);
+//                  if (!ton.TryFindTerrainOverlayNode(mc.WorldPosition, out var tonn, out var plocal)) continue;
+//                  if (i == 2 || i == 1) continue;
+//                  var color = Color.FromArgb(20, new[] {
+//                     Color.Red,
+//                     Color.Magenta,
+//                     Color.Yellow,
+//                     Color.Lime,
+//                     Color.Blue,
+//                  }[i]);
+//                  debugCanvas.DrawCrossSectorVisibilityPolygon(tonn, new IntVector2((int)plocal.X, (int)plocal.Y), new FillStyle(color));
+//               }
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
             }
@@ -225,13 +224,13 @@ namespace OpenMOBA.DevTool {
             agentRadius,
             new DoubleVector3(-800, 300, 0),
             new[] {
-               new DoubleVector3(-810, 300, 0)
-//               new DoubleVector3(1250, -80, 0),
-//               new DoubleVector3(1250, -280, 0)
+               new DoubleVector3(-1200, 300, 0),
+               new DoubleVector3(-1250, 0, 0),
+               new DoubleVector3(1250, -80, 0),
+               new DoubleVector3(1250, -280, 0)
             },
-            true,
-            debugCanvas);
-         for (var i = 0; i < 1; i++) {
+            true);
+         for (var i = 0; i < 4; i++) {
             var roadmap = pathfinderResultContext.ComputeRoadmap(i);
             DrawRoadmap(debugCanvas, roadmap);
          }

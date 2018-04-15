@@ -281,7 +281,29 @@ namespace OpenMOBA.Foundation {
 
                // special case: move directly from start to goal
                if (nextCpi == DESTINATION_POINT_CPI) {
-                  roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, destinationPoint));
+                  if (sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
+                     roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, destinationPoint));
+                     continue;
+                  }
+
+                  var sourceVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(sourcePoint, null, out var sourceVisibleWaypointLinksLength, out var sourceOptimalLinkToWaypoints);
+                  var destinationVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(destinationPoint, null, out var destinationVisibleWaypointLinksLength, out var destinationOptimalLinkToWaypoints);
+
+                  var bestFirstWaypoint = -1;
+                  var bestFirstWaypointCost = double.PositiveInfinity;
+                  for (var j = 0; j < sourceVisibleWaypointLinksLength; j++) {
+                     var link = sourceVisibleWaypointLinks[j];
+                     var firstWaypoint = link.PriorIndex;
+                     var cost = link.TotalCost + destinationOptimalLinkToWaypoints[firstWaypoint].TotalCost;
+                     if (cost < bestFirstWaypointCost) {
+                        bestFirstWaypoint = firstWaypoint;
+                        bestFirstWaypointCost = cost;
+                     }
+                  }
+
+                  roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, sourceNode.CrossoverPointManager.Waypoints[bestFirstWaypoint]));
+                  AddInterTerrainOverlayNetworkNodeWaypointToWaypointRoadmapActions(roadmap, sourceNode, bestFirstWaypoint, destinationOptimalLinkToWaypoints[bestFirstWaypoint].PriorIndex);
+                  roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourceNode.CrossoverPointManager.Waypoints[destinationOptimalLinkToWaypoints[bestFirstWaypoint].PriorIndex], destinationPoint));
                   continue;
                }
 
@@ -371,6 +393,7 @@ namespace OpenMOBA.Foundation {
          var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>(); // visited
 
          var isDestinationVisited = new bool[destinations.Length];
+         var isDestinationDirectPath = new bool[destinations.Length];
          var destinationsRemaining = destinations.Length;
 
          // Handle finding path breadcrumbs where source and destination nodes are equal.
@@ -382,53 +405,11 @@ namespace OpenMOBA.Foundation {
             isDestinationVisited[destinationIndex] = true;
             destinationsRemaining--;
 
+            predecessor[(destinationNode, ComputeDestinationIndexCpi(destinationIndex))] = (sourceNode, SOURCE_POINT_CPI, null, sourcePoint.To(destinationPoint).Norm2F());
+
             // try direct path
-            if (debugCanvas != null) {
-               //debugCanvas.Transform = destinationNode.SectorNodeDescription.WorldTransform;
-               //debugCanvas.DrawLine(sourcePoint, destinationPoint, StrokeStyle.LimeThick25Solid);
-            }
             if (sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
-               predecessor[(destinationNode, ComputeDestinationIndexCpi(destinationIndex))] = (sourceNode, SOURCE_POINT_CPI, null, sourcePoint.To(destinationPoint).Norm2F());
-               continue;
-            }
-
-            // path goes through waypoint
-            var sourceVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(sourcePoint, null, out var sourceVisibleWaypointLinksLength, out var sourceOptimalLinkToWaypoints);
-            var destinationVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(destinationPoint, null, out var destinationVisibleWaypointLinksLength, out var destinationOptimalLinkToWaypoints);
-
-            var bestFirstWaypointIndex = -1;
-            var bestFirstWaypointCost = float.PositiveInfinity;
-            for (var i = 0; i < sourceVisibleWaypointLinksLength; i++) {
-               var link = sourceVisibleWaypointLinks[i];
-               var firstWaypoint = link.PriorIndex;
-               var cost = link.TotalCost + destinationOptimalLinkToWaypoints[firstWaypoint].TotalCost;
-               if (cost < bestFirstWaypointCost) {
-                  bestFirstWaypointIndex = firstWaypoint;
-                  bestFirstWaypointCost = cost;
-               }
-            }
-            var costToFirstWaypoint = sourceVisibleWaypointLinks[bestFirstWaypointIndex].TotalCost;
-
-            // populate predecessor (fills cost to node with zeros)
-            predecessor[(destinationNode, bestFirstWaypointIndex)] = (sourceNode, SOURCE_POINT_CPI, null, costToFirstWaypoint);
-            AddInterTerrainOverlayNetworkNodeWaypointToWaypointRoadmapActions2(predecessor, sourceNode, bestFirstWaypointIndex, destinationOptimalLinkToWaypoints[bestFirstWaypointIndex].PriorIndex, costToFirstWaypoint);
-            var destinationTuple = (destinationNode, ComputeDestinationIndexCpi(destinationIndex));
-            predecessor[destinationTuple] = (sourceNode, destinationOptimalLinkToWaypoints[bestFirstWaypointIndex].PriorIndex, null, 0.0f);
-
-            // populate predecessor costs (backtrack from destination cpi, propagating path costs improvement)
-            var currentBacktrackCost = bestFirstWaypointCost;
-            var currentBacktrackTuple = destinationTuple;
-            while (predecessor[currentBacktrackTuple].Item2 != SOURCE_POINT_CPI) {
-               var item = predecessor[currentBacktrackTuple];
-               item.Item4 = currentBacktrackCost;
-               predecessor[currentBacktrackTuple] = item;
-
-               var waypoint = currentBacktrackTuple.Item2 == destinationTuple.Item2 
-                  ? destinationPoint
-                  : currentBacktrackTuple.Item1.CrossoverPointManager.Waypoints[currentBacktrackTuple.Item2];
-               //debugCanvas?.DrawText(item.Item4 + "", waypoint);
-
-               currentBacktrackTuple = (predecessor[currentBacktrackTuple].Item1, predecessor[currentBacktrackTuple].Item2);
+               isDestinationDirectPath[destinationIndex] = true;
             }
          }
 
@@ -438,7 +419,7 @@ namespace OpenMOBA.Foundation {
          var destinationOptimalLinkToCrossoversByDestinationIndex = new ExposedArrayList<PathLink>[destinations.Length];
          var destinationWorldByDestinationIndex = new Vector3[destinations.Length];
          for (var destinationIndex = 0; destinationIndex < destinations.Length; destinationIndex++) {
-            if (isDestinationVisited[destinationIndex]) continue;
+            if (isDestinationDirectPath[destinationIndex]) continue;
 
             var (destinationNode, destinationPoint) = destinations[destinationIndex];
             var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
