@@ -14,7 +14,12 @@ namespace OpenMOBA.DevTool.Debugging {
    public static class CrossSectorVisibilityPolygonDebugDisplay {
       private static readonly FillStyle kDefaultFillStyle = new FillStyle(Color.FromArgb(130, 255, 255, 0));
 
-      public static void DrawCrossSectorVisibilityPolygon(this IDebugCanvas canvas, TerrainOverlayNetworkNode terrainNode, IntVector2 visibilityPolygonOrigin, FillStyle fillStyle = null) {
+      public static void DrawCrossSectorVisibilityPolygon(
+         this IDebugCanvas canvas,
+         TerrainOverlayNetworkNode terrainNode,
+         IntVector2 visibilityPolygonOrigin,
+         FillStyle fillStyle = null
+      ) {
          fillStyle = fillStyle ?? kDefaultFillStyle;
 
          canvas.Transform = terrainNode.SectorNodeDescription.WorldTransform;
@@ -79,7 +84,6 @@ namespace OpenMOBA.DevTool.Debugging {
          VisibilityPolygon visibilityPolygon,
          IntVector2 visibilityPolygonOrigin,
          HashSet<TerrainOverlayNetworkNode> visited = null) {
-
          var visibleCrossoverSegmentsByNeighbor = MultiValueDictionary<TerrainOverlayNetworkNode, IntLineSegment2>.Create(() => new HashSet<IntLineSegment2>());
          foreach (var outboundEdgeGroup in terrainNode.OutboundEdgeGroups) {
             var otherTerrainNode = outboundEdgeGroup.Key;
@@ -98,16 +102,16 @@ namespace OpenMOBA.DevTool.Debugging {
 
                // todo: clamp visibleStartT, visibleEndT to account for agent radius eroding crossover segmetmentnt
                var rangeIndexIntervals = visibilityPolygon.RangeStab(localCrossoverSegment);
+               var locallyClearedSegments = new List<IntLineSegment2>();
                foreach (var (startIndexInclusive, endIndexInclusive) in rangeIndexIntervals) {
                   for (var i = startIndexInclusive; i <= endIndexInclusive; i++) {
                      if (ranges[i].Id == VisibilityPolygon.RANGE_ID_INFINITELY_FAR || ranges[i].Id == VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR) continue;
 
                      var seg = ranges[i].Segment;
 
-                     var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart);
-                     var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd);
+                     var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart) * 100;
+                     var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd) * 100;
 
-                     //                        DoubleVector2 visibleStart, visibleEnd;
                      double visibleStartT, visibleEndT;
                      if (!GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rstart, out visibleStartT) ||
                          !GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rend, out visibleEndT)) {
@@ -115,27 +119,27 @@ namespace OpenMOBA.DevTool.Debugging {
                         Console.WriteLine("???");
                         continue;
                      }
-                     if (visibleStartT < 0 || visibleEndT > 1) continue;
+
+                     // Todo: I don't actually understand why visibleEndT > 1 is a thing?
+                     // t values are for parameterization of crossover line segment, so must be within [0, 1]
+                     if ((visibleStartT < 0 && visibleEndT < 0) || (visibleStartT > 1 && visibleEndT > 1)) continue;
+                     visibleStartT = Math.Min(1.0, Math.Max(0.0, visibleStartT));
+                     visibleEndT = Math.Min(1.0, Math.Max(0.0, visibleEndT));
 
                      if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
                         var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT);
                         var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT);
-                        visibilityPolygon.ClearBefore(new IntLineSegment2(localVisibleStart.LossyToIntVector2(), localVisibleEnd.LossyToIntVector2()));
-//                        canvas.DrawLine(new DoubleLineSegment2(localVisibleStart, localVisibleEnd), StrokeStyle.LimeThick5Solid);
-
-                        //                        canvas.FillTriangle(
-                        //                           visibilityPolygonOrigin.ToDoubleVector2(),
-                        //                           localVisibleStart,
-                        //                           localVisibleEnd,
-                        //                           new FillStyle(Color.FromArgb(120, 0, 255, 255)));
+                        var locallyClearedSegment = new IntLineSegment2(localVisibleStart.LossyToIntVector2(), localVisibleEnd.LossyToIntVector2());
+                        locallyClearedSegments.Add(locallyClearedSegment);
 
                         var remoteVisibleStart = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleStartT : 1.0 - visibleStartT);
                         var remoteVisibleEnd = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleEndT : 1.0 - visibleEndT);
                         visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, new IntLineSegment2(remoteVisibleStart.LossyToIntVector2(), remoteVisibleEnd.LossyToIntVector2()));
-                     } else {
-//                        canvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
                      }
                   }
+               }
+               foreach (var locallyClearedSegment in locallyClearedSegments) {
+                  visibilityPolygon.ClearBefore(locallyClearedSegment);
                }
             }
          }

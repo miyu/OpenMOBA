@@ -209,8 +209,8 @@ namespace OpenMOBA.Foundation {
             var rng = new Random(y);
             for (var x = 0; x < sectorSpanWidth; x++) {
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
-//               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
+//               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
                var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
 //               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
@@ -359,6 +359,7 @@ namespace OpenMOBA.Foundation {
          var c = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 900) - 500, 0), 25, 60); //675 - 500 - 10, 175 - 500 - 10
          var d = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 500) - 500, 0), 25, 50); //675 - 500 - 10, 175 - 500 - 10
          var e = CreateTestEntity(new DoubleVector3(-1350, 200, 0), 30, 100);
+//         var e = CreateTestEntity(new DoubleVector3(-650, 180, 0), 30, 100);
                                                                        //         var c = CreateTestEntity(new DoubleVector3(50 - 500, 900 - 500, 0), 15, 60);
                                                                        //         var d = CreateTestEntity(new DoubleVector3(50 - 500, 500 - 500, 0), 15, 50);
 

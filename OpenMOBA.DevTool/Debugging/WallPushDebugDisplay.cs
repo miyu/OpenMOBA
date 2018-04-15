@@ -46,29 +46,26 @@ namespace OpenMOBA.DevTool.Debugging {
             var s2 = s.Second.ToDoubleVector2();
             DoubleVector2 visibleStart, visibleEnd;
             if (!GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rstart, s1, s2, out visibleStart) ||
-                  !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
-               // wtf?
+                !GeometryOperations.TryFindLineLineIntersection(oxy, oxy + rend, s1, s2, out visibleEnd)) {
                continue;
             }
-
-//            debugCanvas.BatchDraw(() => {
+            
             debugCanvas.FillTriangle(oxy, visibleStart, visibleEnd, fillStyle);
 
-               debugCanvas.DrawLine(
-                  new DoubleVector3(oxy.X, oxy.Y, z),
-                  new DoubleVector3(visibleStart.X, visibleStart.Y, z),
-                  angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
+            debugCanvas.DrawLine(
+               new DoubleVector3(oxy.X, oxy.Y, z),
+               new DoubleVector3(visibleStart.X, visibleStart.Y, z),
+               angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
 
-               debugCanvas.DrawLine(
-                  new DoubleVector3(oxy.X, oxy.Y, z),
-                  new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
-                  angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
+            debugCanvas.DrawLine(
+               new DoubleVector3(oxy.X, oxy.Y, z),
+               new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
+               angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
 
-               debugCanvas.DrawLine(
-                  new DoubleVector3(visibleStart.X, visibleStart.Y, z),
-                  new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
-                  visibleWallStrokeStyle ?? DefaultVisibleWallStrokeStyle);
-//            });
+            debugCanvas.DrawLine(
+               new DoubleVector3(visibleStart.X, visibleStart.Y, z),
+               new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
+               visibleWallStrokeStyle ?? DefaultVisibleWallStrokeStyle);
          }
       }
    }

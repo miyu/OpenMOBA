@@ -9,6 +9,7 @@ namespace OpenMOBA.DevTool.Debugging {
       public static StrokeStyle LimeThick25Solid = new StrokeStyle(Color.Lime, 25.0f);
       public static StrokeStyle RedHairLineSolid = new StrokeStyle(Color.Red);
       public static StrokeStyle RedHairLineDashed5 = new StrokeStyle(Color.Red, 1.0f, Dash5);
+      public static StrokeStyle RedThick3Solid = new StrokeStyle(Color.Red, 3.0f);
       public static StrokeStyle RedThick5Solid = new StrokeStyle(Color.Red, 5.0f);
       public static StrokeStyle RedThick10Solid = new StrokeStyle(Color.Red, 10.0f);
       public static StrokeStyle RedThick25Solid = new StrokeStyle(Color.Red, 25.0f);
@@ -21,14 +22,17 @@ namespace OpenMOBA.DevTool.Debugging {
       public static StrokeStyle CyanThick3Solid = new StrokeStyle(Color.Cyan, 3.0f);
       public static StrokeStyle CyanThick5Solid = new StrokeStyle(Color.Cyan, 5.0f);
       public static StrokeStyle CyanThick25Solid = new StrokeStyle(Color.Cyan, 25.0f);
+      public static StrokeStyle WhiteThick3Solid = new StrokeStyle(Color.White, 3.0f);
       public static StrokeStyle BlackHairLineSolid = new StrokeStyle(Color.Black);
       public static StrokeStyle BlackHairLineDashed5 = new StrokeStyle(Color.Black, 1.0f, Dash5);
       public static StrokeStyle BlackThick3Solid = new StrokeStyle(Color.Black, 3.0f);
       public static StrokeStyle BlackThick5Solid = new StrokeStyle(Color.Black, 5.0f);
       public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
       public static StrokeStyle OrangeHairLineSolid = new StrokeStyle(Color.Orange, 1.0f);
+      public static StrokeStyle OrangeThick3Solid = new StrokeStyle(Color.Orange, 3.0f);
       public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
       public static StrokeStyle MagentaHairLineSolid = new StrokeStyle(Color.Magenta);
+      public static StrokeStyle MagentaThick3Solid = new StrokeStyle(Color.Magenta, 3.0f);
       public static StrokeStyle None = new StrokeStyle(Color.Transparent, 0);
 
       public StrokeStyle(Color? color = null, double thickness = 1.0, float[] dashPattern = null) {

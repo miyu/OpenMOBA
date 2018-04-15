@@ -50,32 +50,7 @@ namespace OpenMOBA.DevTool {
       private EntityService EntityService => Game.EntityService;
 
       public void HandleFrameEnd(FrameEndStatistics frameStatistics) {
-         if (GameTimeService.Ticks == 0) {
-            //            AddSquiggleHole();
-         }
          if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 4 == 0) RenderDebugFrame();
-      }
-
-      private void AddSquiggleHole() {
-         var holeSquiggle = PolylineOperations.ExtrudePolygon(
-            new[] {
-               new IntVector2(100, 50),
-               new IntVector2(100, 100),
-               new IntVector2(200, 100),
-               new IntVector2(200, 150),
-               new IntVector2(200, 200),
-               new IntVector2(400, 250),
-               new IntVector2(200, 300),
-               new IntVector2(400, 315),
-               new IntVector2(200, 330),
-               new IntVector2(210, 340),
-               new IntVector2(220, 350),
-               new IntVector2(220, 400),
-               new IntVector2(221, 400)
-            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
-         Console.WriteLine("NI: AddSquiggleHole");
-         throw new NotImplementedException();
-         //TerrainService.AddTemporaryHoleDescription(new DynamicTerrainHoleDescription { Polygons = holeSquiggle });
       }
 
       private void Benchmark(double holeDilationRadius) {
@@ -97,6 +72,7 @@ namespace OpenMOBA.DevTool {
       }
 
       public delegate void RenderHookEvent(GameDebugger debugger, IDebugCanvas canvas);
+
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
@@ -104,10 +80,8 @@ namespace OpenMOBA.DevTool {
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
-         //terrainOverlayNetwork.Initialize();
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
-         //         var temporaryHolePolygons = terrainSnapshot.TemporaryHoles.SelectMany(th => th.Polygons).ToList();
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
             debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
@@ -116,26 +90,8 @@ namespace OpenMOBA.DevTool {
 
             debugCanvas.Transform = Matrix4x4.Identity;
 
-            if (false) {
-               var mccs = EntityService.EnumerateEntities().Select(e => e.MovementComponent).Where(x => x != null);
-               var worldPositions = mccs.Select(mc => mc.WorldPosition);
-               var pathfinderResultContext = Game.PathfinderCalculator.UniformCostSearch(
-                  20,
-                  new DoubleVector3(1250, -80, 0),
-                  worldPositions.ToArray(),
-                  true);
-               for (var i = 0; i < pathfinderResultContext.Destinations.Length; i++) {
-                  DrawRoadmap(debugCanvas, pathfinderResultContext.ComputeRoadmap(i));
-               }
-            }
-
             DrawEntities(debugCanvas);
             DrawEntityPaths(debugCanvas);
-
-            //            foreach (var entity in Game.EntityService.EnumerateEntities()) {
-            //               var mc = entity.MovementComponent;
-            //               debugCanvas.DrawPoint(mc.Position, StrokeStyle.RedThick25Solid);
-            //            }
 
             var colors = new[] { Color.White };
 //			   var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
@@ -148,18 +104,10 @@ namespace OpenMOBA.DevTool {
                debugCanvas.Transform = Matrix4x4.Identity;
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
                var fillColor = colors[(index / colors.Length) % colors.Length];
-//                debugCanvas.DrawTriangulation(localGeometryView.Triangulation, new StrokeStyle(Color.DarkGray));
-//               debugCanvas.FillTriangulation(localGeometryView.Triangulation, new FillStyle(Color.LightGray));
-               // debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.ComputeErodedOuterContour());
                debugCanvas.DrawPolyNode(terrainNode.LandPolyNode);
                debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
 
-//               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
-
                debugCanvas.Transform = Matrix4x4.Identity;
-//               DrawTestPathfindingQueries(debugCanvas, agentRadius);
-
-//               DrawTestPathfindingQueries(debugCanvas, 33);
 
                foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
                   var mc = entity.MovementComponent;
@@ -177,52 +125,29 @@ namespace OpenMOBA.DevTool {
                }
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
-               if (false) {
-                  var punchedLand = localGeometryView.PunchedLand;
-                  var s = new Stack<PolyNode>();
-                  punchedLand.Childs.ForEach(s.Push);
-                  while (s.Any()) {
-                     var landNode = s.Pop();
-                     foreach (var subLandNode in landNode.Childs.SelectMany(child => child.Childs)) s.Push(subLandNode);
-
-                     var visibilityGraph = landNode.ComputeVisibilityGraph();
-                     debugCanvas.DrawVisibilityGraph(visibilityGraph);
-                  }
-               }
-
-//               debugCanvas.DrawPoints(crossoverPointManager.Waypoints, StrokeStyle.RedThick25Solid);
-               continue;
-
-               if (index == 1) {
-                  var a = crossoverPointManager.CrossoverPoints[11];
-                  var b = crossoverPointManager.CrossoverPoints[29];
-                  debugCanvas.DrawPoint(a, StrokeStyle.RedThick25Solid);
-                  debugCanvas.DrawPoint(b, StrokeStyle.RedThick25Solid);
-                  var optimalLink = crossoverPointManager.OptimalLinkToOtherCrossoversByCrossoverPointIndex[29][11];
-                  if (optimalLink.PriorIndex == PathLink.DirectPathIndex) {
-                     debugCanvas.DrawLine(a, b, StrokeStyle.RedThick5Solid);
-                  } else {
-                     var bPrior = crossoverPointManager.Waypoints[optimalLink.PriorIndex]; // 0
-                     debugCanvas.DrawLine(bPrior, b, StrokeStyle.LimeThick5Solid);
-                     var aSuccWi = crossoverPointManager.OptimalLinkToWaypointsByCrossoverPointIndex[11][optimalLink.PriorIndex].PriorIndex;
-                     var aSucc = crossoverPointManager.Waypoints[aSuccWi]; // 10
-                     debugCanvas.DrawLine(a, aSucc, StrokeStyle.LimeThick5Solid);
-
-                     var bPriorPriorLink = crossoverPointManager.WaypointToWaypointLut[10][0]; // 21
-                     var bPriorPrior = crossoverPointManager.Waypoints[bPriorPriorLink.PriorIndex];
-                     debugCanvas.DrawLine(bPriorPrior, bPrior, StrokeStyle.LimeThick5Solid);
-
-                     var bPriorPriorPriorLink = crossoverPointManager.WaypointToWaypointLut[21][10]; // 20
-                     var bPriorPriorPrior = crossoverPointManager.Waypoints[bPriorPriorPriorLink.PriorIndex];
-                     debugCanvas.DrawLine(bPriorPriorPrior, bPriorPrior, StrokeStyle.LimeThick5Solid);
-
-                     var bPriorPriorPriorPriorLink = crossoverPointManager.WaypointToWaypointLut[20][10]; // 20
-                     var bPriorPriorPriorPrior = crossoverPointManager.Waypoints[bPriorPriorPriorPriorLink.PriorIndex];
-                     debugCanvas.DrawLine(bPriorPriorPriorPrior, bPriorPriorPrior, StrokeStyle.LimeThick5Solid);
-                  }
-               }
             }
          });
+      }
+
+      private void AddSquiggleHole() {
+         var holeSquiggle = PolylineOperations.ExtrudePolygon(
+            new[] {
+               new IntVector2(100, 50),
+               new IntVector2(100, 100),
+               new IntVector2(200, 100),
+               new IntVector2(200, 150),
+               new IntVector2(200, 200),
+               new IntVector2(400, 250),
+               new IntVector2(200, 300),
+               new IntVector2(400, 315),
+               new IntVector2(200, 330),
+               new IntVector2(210, 340),
+               new IntVector2(220, 350),
+               new IntVector2(220, 400),
+               new IntVector2(221, 400)
+            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
+         Console.WriteLine("NI: AddSquiggleHole");
+         throw new NotImplementedException();
       }
 
       private void DrawBvhAABB<TValue>(IDebugCanvas debugCanvas, BvhTreeAABB<TValue> bvhRoot) {
