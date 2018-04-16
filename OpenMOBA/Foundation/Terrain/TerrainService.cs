@@ -468,8 +468,7 @@ namespace OpenMOBA.Foundation.Terrain {
 
    public static class TerrainHoleHelpers {
       public static bool ContainsPoint(this DynamicTerrainHoleDescription dynamicTerrainHoleDescription, double holeDilationRadius, DoubleVector3 point) {
-         Console.WriteLine("NI: ContainsPoint");
-         return false;
+         return dynamicTerrainHoleDescription.StaticMetadata.ContainsPoint(dynamicTerrainHoleDescription.InstanceMetadata, point, holeDilationRadius);
 //         // Padding so that when flooring the point, we don't accidentally say a point isn't
 //         // in the hole when in reality, it is. 
 //         var paddedHoleShapeUnion = PolygonOperations.Offset()

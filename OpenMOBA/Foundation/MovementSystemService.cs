@@ -57,7 +57,10 @@ namespace OpenMOBA.Foundation {
          foreach (var entity in AssociatedEntities) {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.WorldPosition)) FixEntityInHole(entity);
+            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.WorldPosition)) {
+               Console.WriteLine("Out ouf bounds!");
+               FixEntityInHole(entity);
+            }
          }
       }
 

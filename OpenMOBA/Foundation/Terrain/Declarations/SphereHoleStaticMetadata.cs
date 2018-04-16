@@ -68,5 +68,11 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          };
          return AxisAlignedBoundingBox.BoundingPoints(corners.Map(p => Vector3.Transform(p, worldTransform).ToOpenMobaVector()));
       }
+
+      public bool ContainsPoint(HoleInstanceMetadata instanceMetadata, DoubleVector3 pointWorld, double agentRadius) {
+         var pointLocal = Vector3.Transform(pointWorld.ToDotNetVector(), instanceMetadata.WorldTransformInv);
+         var mag = pointLocal.Length();
+         return mag <= Radius + agentRadius;
+      }
    }
 }

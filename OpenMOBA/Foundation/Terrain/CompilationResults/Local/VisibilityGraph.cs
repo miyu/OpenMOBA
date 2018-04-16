@@ -89,7 +89,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                                                                .Execute();
 
          var results = new List<IntLineSegment2>();
-         foreach (var polygon in dilatedNodeAndChildrenPolytree.FlattenToPolygons()) {
+         foreach (var (polygon, isHole) in dilatedNodeAndChildrenPolytree.FlattenToPolygonAndIsHoles()) {
             var pointCount = polygon.IsClosed ? polygon.Points.Count - 1 : polygon.Points.Count;
 
             // skip last point as it's a duplicate of the first.

@@ -54,6 +54,10 @@ namespace OpenMOBA.Geometry {
          }
       }
 
+      public static bool PointInPolytree(this PolyTree polyTree, IntVector2 query, out PolyNode deepestPolyNode) {
+         PickDeepestPolynodeGivenHoleShapePolytree(polyTree, query, out deepestPolyNode, out var isHole);
+         return !isHole;
+      }
 
       /// <summary>
       /// Note: Containment definition varies by hole vs terrain: Containment for holes

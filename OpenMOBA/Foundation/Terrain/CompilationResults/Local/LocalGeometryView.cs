@@ -39,19 +39,22 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       private PolyTree _punchedLand;
       private Triangulation _triangulation;
 
-      public PolyNode DilatedHolesUnion =>
-         _dilatedHolesUnion ?? (_dilatedHolesUnion =
-            PolygonOperations.Offset()
-                             .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
-                             .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)
-                                                             .Select(p => ClipHoleContour(p))
-                                                             .Where(p => p != null))
-                             .Include(Job.DynamicHoles.Values.SelectMany(item => 
-                                 item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList(), true))
-                             ).Select(p => ClipHoleContour(p)).Where(p => p != null))
-                             .Dilate(HoleDilationRadius)
-                             .Cleanup()
-                             .Execute());
+      public PolyNode DilatedHolesUnion {
+         get {
+            return _dilatedHolesUnion ?? (_dilatedHolesUnion =
+                      PolygonOperations.Offset()
+                                       .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
+                                       .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)
+                                                   .Select(p => ClipHoleContour(p))
+                                                   .Where(p => p != null))
+                                       .Include(Job.DynamicHoles.Values.SelectMany(item =>
+                                          item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList()))
+                                       ).Select(p => ClipHoleContour(p)).Where(p => p != null))
+                                       .Dilate(HoleDilationRadius)
+                                       .Cleanup()
+                                       .Execute());
+         }
+      }
 
       private Polygon2 ClipHoleContour(Polygon2 polygon) {
          PolygonOperations.TryConvexClip(polygon, ClipperExtentsHoleClipPolygon, out var result);
@@ -91,7 +94,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                (segment.Second.ToDoubleVector2() + extrusion - shrink).LossyToIntVector2(),
                (segment.Second.ToDoubleVector2() - extrusion - shrink).LossyToIntVector2()
             });
-            return new Polygon2(points, false);
+            return new Polygon2(points);
          }).ToArray();
       }
 
@@ -99,9 +102,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          _punchedLand ?? (_punchedLand =
             PostProcessPunchedLand(
                PolygonOperations.Punch()
-                                .Include(ComputeErodedOuterContour().FlattenToPolygons())
+                                .IncludeOrExclude(ComputeErodedOuterContour().FlattenToPolygonAndIsHoles())
                                 .Include(ComputeCrossoverLandPolys())
-                                .Exclude(DilatedHolesUnion.FlattenToPolygons())
+                                .IncludeOrExclude(DilatedHolesUnion.FlattenToPolygonAndIsHoles(), true)
                                 .Execute()
             ));
 

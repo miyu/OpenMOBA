@@ -1,17 +1,33 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain.Declarations {
    public class PrismHoleStaticMetadata : IHoleStaticMetadata {
-      public Rectangle LocalBoundary;
-      public IReadOnlyList<Polygon2> LocalIncludedContours = new List<Polygon2>();
-      public IReadOnlyList<Polygon2> LocalExcludedContours = new List<Polygon2>();
-      public int Height = 5;
+      public readonly Rectangle LocalBoundary;
+      public readonly IReadOnlyList<Polygon2> LocalIncludedContours;
+      public readonly IReadOnlyList<Polygon2> LocalExcludedContours;
+      public readonly int Height = 5;
+      private readonly PolyTree punchResult;
+      private readonly Dictionary<double, PolyTree> dilatedPunchResultByAgentRadius = new Dictionary<double, PolyTree>();
+
+      public PrismHoleStaticMetadata(Rectangle localBoundary, IReadOnlyList<Polygon2> localIncludedContours, IReadOnlyList<Polygon2> localExcludedContours = null) {
+         this.LocalBoundary = localBoundary;
+         this.LocalIncludedContours = localIncludedContours;
+         this.LocalExcludedContours = localExcludedContours ?? new List<Polygon2>();
+
+         punchResult = PolygonOperations.Punch()
+                          .Include(LocalIncludedContours)
+                          .Exclude(LocalExcludedContours)
+                          .Execute();
+         Trace.Assert(punchResult.Childs.Count > 0);
+      }
 
       private Vector3[] ComputeExtrudedBoundsLocal() => new[] {
          new Vector3(LocalBoundary.Left, LocalBoundary.Top, 0),
@@ -43,12 +59,10 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          // Project rest of points into sector-local space.
          projectedHoleIncludedContours = LocalIncludedContours.Map(contour =>
             new Polygon2(
-               Enumerable.ToList<IntVector2>(contour.Points.Map(p => DotNetVector4ToIV2XY(Vector4.Transform(IV2ToDotNetVector4(p, Height), transformHoleToSector)))),
-               true));
+               contour.Points.Map(p => DotNetVector4ToIV2XY(Vector4.Transform(IV2ToDotNetVector4(p, Height), transformHoleToSector))).ToList()));
          projectedHoleExcludedContours = LocalExcludedContours.Map(contour =>
             new Polygon2(
-               Enumerable.ToList<IntVector2>(contour.Points.Map(p => DotNetVector4ToIV2XY(Vector4.Transform(IV2ToDotNetVector4(p, Height), transformHoleToSector)))),
-               true));
+               contour.Points.Map(p => DotNetVector4ToIV2XY(Vector4.Transform(IV2ToDotNetVector4(p, Height), transformHoleToSector))).ToList()));
          return true;
       }
 
@@ -60,6 +74,21 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          return AxisAlignedBoundingBox.BoundingPoints(boundsWorld);
       }
 
+
+      public bool ContainsPoint(HoleInstanceMetadata instanceMetadata, DoubleVector3 pointWorld, double agentRadius) {
+         var pointLocal3 = Vector3.Transform(pointWorld.ToDotNetVector(), instanceMetadata.WorldTransformInv);
+         var pointLocal = new IntVector2((int)pointLocal3.X, (int)pointLocal3.Y);
+
+         if (!dilatedPunchResultByAgentRadius.TryGetValue(agentRadius, out var dilatedPunchedLand)) {
+            dilatedPunchedLand = PolygonOperations.Offset()
+                                                  .Include(punchResult.FlattenToPolygonAndIsHoles())
+                                                  .Dilate(agentRadius)
+                                                  .Execute();
+            dilatedPunchResultByAgentRadius[agentRadius] = dilatedPunchedLand;
+         }
+
+         return dilatedPunchedLand.PointInPolytree(pointLocal, out var _);
+      }
 
       private static Vector4 IV2ToDotNetVector4(IntVector2 v, int z) => new Vector4(v.X, v.Y, z, 1);
       private static IntVector2 DotNetVector4ToIV2XY(Vector4 v) => new IntVector2((Int32)v.X, (Int32)v.Y);

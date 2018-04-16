@@ -23,7 +23,7 @@ namespace OpenMOBA.Geometry {
       /// Fails if result would be empty
       /// </summary>
       public static bool TryConvexClip(Polygon2 subject, Polygon2 clip, out Polygon2 result) {
-         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.Clockwise;
+         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.CounterClockwise;
 
          List<IntVector2> outputList = subject.Points;
          for (var i = 0; i < clip.Points.Count - 1; i++) {
@@ -61,7 +61,7 @@ namespace OpenMOBA.Geometry {
             outputList.Add(outputList[0]);
          }
 
-         result = new Polygon2(outputList, false);
+         result = new Polygon2(outputList);
          return true;
       }
 
@@ -89,16 +89,21 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      public static List<Polygon2> FlattenToPolygons(this PolyNode polytree, bool includeOuterPolygon = true) {
-         var results = new List<Polygon2>();
+      public static List<(Polygon2 polygon, bool isHole)> FlattenToPolygonAndIsHoles(this PolyNode polytree, bool includeOuterPolygon = true) {
+         var results = new List<(Polygon2, bool)>();
          var depthFilter = includeOuterPolygon ? 0 : 2; // 2 for outer void level and outer land poly level
          FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results, depthFilter);
          return results;
       }
 
-      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<Polygon2> results, int depthFilter) {
+      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<(Polygon2, bool)> results, int depthFilter) {
          if (current.Contour.Count > 0 && depthFilter <= 0) {
-            results.Add(new Polygon2(current.Contour, isHole));
+            var contour = current.Contour;
+            if (isHole) {
+               contour = contour.ToList();
+               contour.Reverse();
+            }
+            results.Add((new Polygon2(contour), isHole));
          }
          foreach (var child in current.Childs) {
             // We avoid node.isHole as that traverses upwards recursively and wastefully.
@@ -128,6 +133,19 @@ namespace OpenMOBA.Geometry {
       public class PunchOperation {
          private readonly Clipper clipper = new Clipper { StrictlySimple = true };
 
+         public PunchOperation IncludeOrExclude(params (Polygon2 polygon, bool isHole)[] polygonAndIsHoles) => IncludeOrExclude((IReadOnlyList<(Polygon2 polygon, bool isHole)>)polygonAndIsHoles);
+
+         public PunchOperation IncludeOrExclude(IReadOnlyList<(Polygon2 polygon, bool isHole)> polygonAndIsHoles, bool includeHolesExcludeLand = false) {
+            foreach (var (polygon, isHole) in polygonAndIsHoles) {
+               if (isHole == includeHolesExcludeLand) {
+                  Include(polygon);
+               } else {
+                  Exclude(polygon);
+               }
+            }
+            return this;
+         }
+
          public PunchOperation Include(params Polygon2[] polygons) => Include((IEnumerable<Polygon2>)polygons);
 
          public PunchOperation Include(IEnumerable<Polygon2> polygons) {
@@ -152,7 +170,7 @@ namespace OpenMOBA.Geometry {
             
             // Used to remove degeneracies where additionalErosion is 0.
             const double baseErosion = 0.05;
-            return Offset().Include(FlattenToPolygons(polytree))
+            return Offset().Include(FlattenToPolygonAndIsHoles(polytree))
                            .Erode(baseErosion)
                            .Dilate(baseErosion)
                            .ErodeOrDilate(additionalErosionDilation)
@@ -219,6 +237,35 @@ namespace OpenMOBA.Geometry {
          public OffsetOperation Include(IEnumerable<IReadOnlyList<IntVector2>> contours) {
             foreach (var contour in contours) {
                includedContours.Add(contour);
+            }
+            return this;
+         }
+
+         public OffsetOperation Include(params (Polygon2 polygon, bool isHole)[] polygons) => Include((IReadOnlyList<(Polygon2, bool)>)polygons);
+
+         public OffsetOperation Include(params (IReadOnlyList<IntVector2>, bool isHole)[] contourAndIsHoles) {
+            foreach (var (contour, isHole) in contourAndIsHoles) {
+               includedContours.Add(contour);
+            }
+            return this;
+         }
+
+         public OffsetOperation Include(IEnumerable<(Polygon2 polygon, bool isHole)> polygonAndIsHoles) {
+            return Include(polygonAndIsHoles.Select(pair => ReverseIfIsHole(pair.polygon.Points, pair.isHole)));
+         }
+
+         private Polygon2 ReverseIfIsHole(IReadOnlyList<IntVector2> points, bool isHole) {
+            if (isHole) {
+               var copy = new List<IntVector2>(points);
+               copy.Reverse();
+               return new Polygon2(copy);
+            }
+            return new Polygon2(points.ToList());
+         }
+
+         public OffsetOperation Include(IEnumerable<(IReadOnlyList<IntVector2> polygon, bool isHole)> polygonAndIsHoles) {
+            foreach (var (polygon, isHole) in polygonAndIsHoles) {
+               includedContours.Add(ReverseIfIsHole(polygon, isHole).Points);
             }
             return this;
          }

@@ -15,10 +15,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
 
          var bounds = IntRect2.BoundingPoints(contour.ToArray()).ToDotNetRectangle();
 
-         return new PrismHoleStaticMetadata {
-            LocalBoundary = bounds,
-            LocalIncludedContours = new[] { new Polygon2(contour, false) }
-         };
+         return new PrismHoleStaticMetadata(bounds, new[] { new Polygon2(contour) });
       }
    }
 }

@@ -21,7 +21,7 @@ namespace OpenMOBA.DevTool.Debugging {
                node.Childs.ForEach(s.Push);
                if (node.Contour.Any()) {
                   canvas.DrawPolygonContour(
-                     new Polygon2(node.Contour.Select(p => new IntVector2(p.X, p.Y)).ToList(), node.IsHole),
+                     new Polygon2(node.Contour.Select(p => new IntVector2(p.X, p.Y)).ToList()),
                      node.IsHole ? holeStroke : landStroke);
                }
             }

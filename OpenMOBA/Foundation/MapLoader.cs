@@ -91,7 +91,7 @@ namespace OpenMOBA.Foundation {
                   var metadata = new TerrainStaticMetadata {
                      LocalBoundary = m < 0 ? new Rectangle((int)(m * localUpscale), 0, (int)((w - m) * localUpscale), (int)(h * localUpscale)) : new Rectangle(0, 0, (int)(w * localUpscale), (int)(h * localUpscale)),
                      LocalIncludedContours = new List<Polygon2> {
-                        new Polygon2(new List<IntVector2> { po, pb, pa, po }, false)
+                        new Polygon2(new List<IntVector2> { po, pb, pa, po })
                      },
                      LocalExcludedContours = new List<Polygon2>()
                   };

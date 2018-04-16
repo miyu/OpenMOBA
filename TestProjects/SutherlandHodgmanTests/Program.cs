@@ -19,21 +19,33 @@ namespace SutherlandHodgmanTests {
       private static int frameCounter = 0;
 
       public static void Main(string[] args) {
+         var canvas = host.CreateAndAddCanvas(0);
+         var smp = SectorMetadataPresets.Test2D;
+         var punchResult = PolygonOperations.Punch()
+                          .Include(smp.LocalIncludedContours)
+                          .Exclude(smp.LocalExcludedContours)
+                          .Exclude(Polygon2.CreateRect(-1000, -1000, 2000, 2000))
+                          .Exclude(Polygon2.CreateRect(-10000, -10000, 20000, 20000))
+                          .Execute();
+
+         canvas.Transform = Matrix4x4.CreateScale(500 / 60000.0f) * Matrix4x4.CreateTranslation(500, 300, 0);
+         canvas.DrawPolyNode(punchResult);
+         return;
+
          //var subjectPolygon = Polygon2.CreateCircle(0, 0, 100, 16);
          var n = 128;
          var random = new Random(0);
          var subjectPolygon = new Polygon2(
             Util.Generate(
                n,
-               i => DoubleVector2.FromRadiusAngle(random.Next(10, 150), i * Math.PI * 2 / n).LossyToIntVector2())
-               .ToList(),
-            true);
+               i => DoubleVector2.FromRadiusAngle(random.Next(10, 150), -i * Math.PI * 2 / n).LossyToIntVector2())
+               .ToList());
 
          var clipPolygon = Polygon2.CreateRect(-80, -80, 160, 160);
          
          RenderSomething(0, subjectPolygon, clipPolygon);
 
-         var offsetSubjectPolygon = new Polygon2(subjectPolygon.Points.Map(p => new IntVector2(0, 220) + p).ToList(), true);
+         var offsetSubjectPolygon = new Polygon2(subjectPolygon.Points.Map(p => new IntVector2(0, 240) + p).ToList());
          RenderSomething(1, offsetSubjectPolygon, clipPolygon);
       }
 

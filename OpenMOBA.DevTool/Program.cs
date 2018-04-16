@@ -115,8 +115,15 @@ namespace OpenMOBA.DevTool {
                debugCanvas.Transform = Matrix4x4.Identity;
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
                var fillColor = colors[(index / colors.Length) % colors.Length];
-               debugCanvas.DrawPolyNode(terrainNode.LandPolyNode);
-               debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
+               //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.ComputeErodedOuterContour(), StrokeStyle.BlackHairLineSolid, StrokeStyle.CyanThick3Solid);
+               //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.DilatedHolesUnion, StrokeStyle.RedHairLineSolid, StrokeStyle.LimeThick5Solid);
+               
+               //foreach (var ((desc, version), (includedContours, excludedContours)) in terrainNode.LocalGeometryView.Job.DynamicHoles) {
+               //   debugCanvas.DrawPolygonContours(includedContours, StrokeStyle.RedHairLineSolid);
+               //   debugCanvas.DrawPolygonContours(excludedContours, StrokeStyle.LimeHairLineSolid);
+               //}
+               debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand);
+               //debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
                continue;
 
 //               debugCanvas.Transform = Matrix4x4.Identity;
@@ -157,7 +164,7 @@ namespace OpenMOBA.DevTool {
                new IntVector2(220, 350),
                new IntVector2(220, 400),
                new IntVector2(221, 400)
-            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
+            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygonAndIsHoles();
          Console.WriteLine("NI: AddSquiggleHole");
          throw new NotImplementedException();
       }

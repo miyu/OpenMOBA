@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using ClipperLib;
 
 namespace OpenMOBA.Geometry {
    public class Polygon3 {
@@ -42,8 +43,9 @@ namespace OpenMOBA.Geometry {
       }
    }
 
+   // polygon2 of rectangle should be counterclockwise
    public class Polygon2 {
-      public Polygon2(List<IntVector2> points, bool isHole) {
+      public Polygon2(List<IntVector2> points) {
          // enforce closed poly
          if (points[0] != points.Last()) {
             //            Console.WriteLine("Warn: Polygon took open (non-closed) poly");
@@ -60,11 +62,9 @@ namespace OpenMOBA.Geometry {
          //#endif
 
          Points = points;
-         IsHole = isHole;
       }
 
       public List<IntVector2> Points { get; set; }
-      public bool IsHole { get; set; }
       public bool IsClosed => true;
 
       public static Polygon2 CreateRect(Rectangle rectangle) => CreateRect(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
@@ -72,19 +72,28 @@ namespace OpenMOBA.Geometry {
       public static Polygon2 CreateRect(int x, int y, int width, int height) {
          var points = new List<IntVector2> {
             new IntVector2(x, y),
-            new IntVector2(x, y + height),
+            new IntVector2(x + width, y),
             new IntVector2(x + width, y + height),
-            new IntVector2(x + width, y)
+            new IntVector2(x, y + height),
          };
-         return new Polygon2(points, true);
+         ValidateHoleClockness(points);
+         return new Polygon2(points);
       }
 
       public static Polygon2 CreateCircle(int x, int y, int radius, int n = 16) {
          var points = new List<IntVector2>();
          for (var i = 0; i < n; i++) {
-            points.Add(new DoubleVector2(x + radius * Math.Sin(i * Math.PI * 2 / n), y + radius * Math.Cos(i * Math.PI * 2 / n)).LossyToIntVector2());
+            points.Add(new DoubleVector2(x + radius * Math.Sin(-i * Math.PI * 2 / n), y + radius * Math.Cos(-i * Math.PI * 2 / n)).LossyToIntVector2());
          }
-         return new Polygon2(points, true);
+         ValidateHoleClockness(points);
+         return new Polygon2(points);
+      }
+
+      private static void ValidateHoleClockness(List<IntVector2> points) {
+         var a = PolygonOperations.Punch()
+                                  .Include(new Polygon2(points))
+                                  .Execute();
+         Trace.Assert(a.Childs.Count == 1);
       }
    }
 }

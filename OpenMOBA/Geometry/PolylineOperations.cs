@@ -31,7 +31,7 @@ namespace OpenMOBA.Geometry {
             polygonPoints.Add(points[i]);
          }
 
-         var inputHairlinePolygon = new Polygon2(polygonPoints, false);
+         var inputHairlinePolygon = new Polygon2(polygonPoints);
          var outputPolygons = PolygonOperations.Offset()
                                                .Include(inputHairlinePolygon)
                                                .Dilate(offset)

@@ -73,7 +73,7 @@ namespace OpenMOBA {
                new IntVector2(220, 350),
                new IntVector2(220, 400),
                new IntVector2(221, 400)
-            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygons();
+            }.Select(iv => new IntVector2(iv.X + 160, iv.Y + 200)).ToArray(), 10).FlattenToPolygonAndIsHoles().Map(t => t.polygon);
          holes = holes.Concat(holeSquiggle).ToArray();
 
          var landPoly = Polygon2.CreateRect(0, 0, 1000, 1000);
@@ -84,7 +84,7 @@ namespace OpenMOBA {
                                                  .Execute();
          var landHolePunchResult = PolygonOperations.Punch()
                                                     .Include(landPoly)
-                                                    .Exclude(holesUnionResult.FlattenToPolygons())
+                                                    .IncludeOrExclude(holesUnionResult.FlattenToPolygonAndIsHoles(), true)
                                                     .Execute();
          var visibilityGraph = landHolePunchResult.ComputeVisibilityGraph();
 //         var debugCanvas = DebugCanvasHost.CreateAndShowCanvas();
