@@ -76,7 +76,7 @@ namespace OpenMOBA.DevTool {
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
-         var agentRadius = 0.0;
+         var agentRadius = 0; //28.005;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
@@ -123,6 +123,8 @@ namespace OpenMOBA.DevTool {
                //   debugCanvas.DrawPolygonContours(excludedContours, StrokeStyle.LimeHairLineSolid);
                //}
                debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand);
+//               if (index == 0)
+               //debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeThick5Solid);
                //debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
                continue;
 

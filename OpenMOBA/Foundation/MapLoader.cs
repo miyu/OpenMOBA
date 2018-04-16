@@ -26,8 +26,9 @@ namespace OpenMOBA.Foundation {
 
             if (previousEdges.TryGetValue((a, b), out var prev)) {
                var (prevNode, prevSeg) = prev;
-               terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(node, prevNode, seg, prevSeg));
-               terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(prevNode, node, prevSeg, seg));
+               throw new NotImplementedException("Need clockness");
+               //terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(node, prevNode, seg, prevSeg));
+               //terrainService.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(prevNode, node, prevSeg, seg));
             } else {
                previousEdges.Add((a, b), (node, seg));
             }

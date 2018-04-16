@@ -81,18 +81,25 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                           .Cleanup()
                           .Execute();
 
-      internal IEnumerable<Polygon2> ComputeCrossoverLandPolys() {
-         return Job.CrossoverSegments.Select(segment => {
+      public IEnumerable<Polygon2> ComputeCrossoverLandPolys() {
+         return Job.CrossoverSegments.Select(tuple => {
+            var (segment, inClockness) = tuple;
             var firstToSecond = segment.First.To(segment.Second).ToDoubleVector2();
             var perp = new DoubleVector2(firstToSecond.Y, -firstToSecond.X);
             var extrusionMagnitude = HoleDilationRadius + 2;
-            var extrusion = perp * (extrusionMagnitude / perp.Norm2D());
+            var inward = perp * (extrusionMagnitude / perp.Norm2D());
+            var outward = perp * (-2 / perp.Norm2D());
+            if (inClockness == Clockness.CounterClockwise) {
+               inward *= -1;
+               outward *= -1;
+            }
+
             var shrink = firstToSecond * (HoleDilationRadius / firstToSecond.Norm2D());
             var points = new List<IntVector2>(new []{
-               (segment.First.ToDoubleVector2() - extrusion + shrink).LossyToIntVector2(),
-               (segment.First.ToDoubleVector2() + extrusion + shrink).LossyToIntVector2(),
-               (segment.Second.ToDoubleVector2() + extrusion - shrink).LossyToIntVector2(),
-               (segment.Second.ToDoubleVector2() - extrusion - shrink).LossyToIntVector2()
+               (segment.First.ToDoubleVector2() + outward + shrink).LossyToIntVector2(),
+               (segment.First.ToDoubleVector2() + inward + shrink).LossyToIntVector2(),
+               (segment.Second.ToDoubleVector2() + inward - shrink).LossyToIntVector2(),
+               (segment.Second.ToDoubleVector2() + outward - shrink).LossyToIntVector2()
             });
             return new Polygon2(points);
          }).ToArray();

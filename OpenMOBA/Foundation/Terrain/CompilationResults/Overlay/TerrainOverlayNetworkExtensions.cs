@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Numerics;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
@@ -37,6 +38,22 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          result = null;
          pLocal = default(Vector3);
          return false;
+      }
+
+      public static DoubleVector3 WorldToLocal(this SectorNodeDescription snd, IntVector3 world) {
+         return Vector3.Transform(world.ToDotNetVector(), snd.WorldTransformInv).ToOpenMobaVector();
+      }
+
+      public static DoubleVector3 WorldToLocal(this SectorNodeDescription snd, DoubleVector3 world) {
+         return Vector3.Transform(world.ToDotNetVector(), snd.WorldTransformInv).ToOpenMobaVector();
+      }
+
+      public static DoubleVector3 LocalToWorld(this SectorNodeDescription snd, IntVector2 local) {
+         return Vector3.Transform(new Vector3(local.X, local.Y, 0), snd.WorldTransform).ToOpenMobaVector();
+      }
+
+      public static DoubleVector3 LocalToWorld(this SectorNodeDescription snd, DoubleVector2 local) {
+         return Vector3.Transform(new Vector3((float)local.X, (float)local.Y, 0), snd.WorldTransform).ToOpenMobaVector();
       }
    }
 }

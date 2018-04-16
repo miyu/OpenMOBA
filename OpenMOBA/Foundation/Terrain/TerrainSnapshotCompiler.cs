@@ -15,12 +15,12 @@ namespace OpenMOBA.Foundation.Terrain {
 
    public struct LocalGeometryJob {
       public readonly TerrainStaticMetadata TerrainStaticMetadata;
-      public readonly HashSet<IntLineSegment2> CrossoverSegments;
+      public readonly HashSet<(IntLineSegment2 segment, Clockness inClockness)> CrossoverSegments;
       public readonly Dictionary<(DynamicTerrainHoleDescription desc, int version), (IReadOnlyList<Polygon2> holeIncludedContours, IReadOnlyList<Polygon2> holeExcludedContours)> DynamicHoles;
 
-      public LocalGeometryJob(TerrainStaticMetadata terrainStaticMetadata, HashSet<IntLineSegment2> crossoverSegments = null) {
+      public LocalGeometryJob(TerrainStaticMetadata terrainStaticMetadata, HashSet<(IntLineSegment2 segment, Clockness inClockness)> crossoverSegments = null) {
          TerrainStaticMetadata = terrainStaticMetadata;
-         CrossoverSegments = crossoverSegments ?? new HashSet<IntLineSegment2>();
+         CrossoverSegments = crossoverSegments ?? new HashSet<(IntLineSegment2 segment, Clockness inClockness)>();
          DynamicHoles = new Dictionary<(DynamicTerrainHoleDescription, int), (IReadOnlyList<Polygon2> holeIncludedContours, IReadOnlyList<Polygon2> holeExcludedContours)>();
       }
 
@@ -84,7 +84,7 @@ namespace OpenMOBA.Foundation.Terrain {
             localGeometryRenderJobByNodeDescription.Add(sectorNodeDescription, localGeometryRenderJob);
          } // 80ms
 
-         var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.ToDictionary(
+         var localGeometryPreviewJobsByRenderJob = localGeometryRenderJobByNodeDescription.Values.Distinct().ToDictionary(
             renderJob => renderJob,
             renderJob => new LocalGeometryJob(renderJob.TerrainStaticMetadata, renderJob.CrossoverSegments)); //110
 

@@ -72,10 +72,12 @@ namespace OpenMOBA.Foundation.Terrain {
 
    public class PortalSectorEdgeDescription : SectorEdgeDescription, ISourceSegmentEdgeDescription {
       public IntLineSegment2 SourceSegment { get; protected set; }
+      public Clockness SourceInClockness { get; protected set; }
       public IntLineSegment2 DestinationSegment { get; protected set; }
+      public Clockness DestinationInClockness { get; protected set; }
 
       public override void EnhanceLocalGeometryJob(ref LocalGeometryJob localGeometryJob) {
-         localGeometryJob.CrossoverSegments.Add(SourceSegment);
+         localGeometryJob.CrossoverSegments.Add((SourceSegment, SourceInClockness));
       }
 
       public override List<EdgeJob> EmitCrossoverJobs(double crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv) {
@@ -304,12 +306,21 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
-      public static PortalSectorEdgeDescription Build(SectorNodeDescription source, SectorNodeDescription destination, IntLineSegment2 sourceSegment, IntLineSegment2 destinationSegment) {
+      public static PortalSectorEdgeDescription Build(
+         SectorNodeDescription source, 
+         SectorNodeDescription destination, 
+         IntLineSegment2 sourceSegment, 
+         Clockness sourceInClockness,
+         IntLineSegment2 destinationSegment,
+         Clockness destinationInClockness
+      ) {
          return new PortalSectorEdgeDescription {
             Source = source,
             Destination = destination,
             SourceSegment = sourceSegment,
-            DestinationSegment = destinationSegment
+            SourceInClockness = sourceInClockness,
+            DestinationSegment = destinationSegment,
+            DestinationInClockness = destinationInClockness
          };
       }
    }

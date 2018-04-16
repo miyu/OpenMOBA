@@ -71,6 +71,8 @@ namespace OpenMOBA.Geometry {
       public override bool Equals(object other) => other is DoubleVector2 && Equals((DoubleVector2)other);
       public bool Equals(DoubleVector2 other) => X == other.X && Y == other.Y;
 
+      public static explicit operator DoubleVector2(DoubleVector3 v) => new DoubleVector2(v.X, v.Y);
+
       public static DoubleVector2 FromRadiusAngle(double radius, double radians) {
          var x = radius * Math.Cos(radians);
          var y = radius * Math.Sin(radians);

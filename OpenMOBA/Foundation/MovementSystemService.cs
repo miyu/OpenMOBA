@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.CompilationResults;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
@@ -70,10 +71,28 @@ namespace OpenMOBA.Foundation {
          movementComponent.WorldPosition = PushToLand(movementComponent.WorldPosition, computedRadius);
       }
 
-      private DoubleVector3 PushToLand(DoubleVector3 vect, double computedRadius) {
-         return vect;
+      private DoubleVector3 PushToLand(DoubleVector3 pWorld, double computedRadius) {
+         var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
+         var terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(paddedHoleDilationRadius);
+         Console.WriteLine("PHDR: " + paddedHoleDilationRadius);
+         var bestWorldDistance = double.PositiveInfinity;
+         var bestWorld = DoubleVector3.Zero;
+         foreach (var terrainOverlayNode in terrainOverlayNetwork.TerrainNodes) {
+            var pLocal = (DoubleVector2)terrainOverlayNode.SectorNodeDescription.WorldToLocal(pWorld);
+            terrainOverlayNode.LocalGeometryView.FindNearestLandPointAndIsInHole(pLocal, out var pNearestLocal);
+
+            // clamp pNearestLocal to be within bounds, not 
+
+
+            var pNearestWorld = terrainOverlayNode.SectorNodeDescription.LocalToWorld(pNearestLocal);
+            var worldDistance = pWorld.To(pNearestWorld).Norm2D();
+            if (worldDistance < bestWorldDistance) {
+               bestWorldDistance = worldDistance;
+               bestWorld = pNearestWorld;
+            }
+         }
+         return bestWorld;
          throw new NotImplementedException();
-         //         var paddedHoleDilationRadius = computedRadius + TerrainConstants.AdditionalHoleDilationRadius + TerrainConstants.TriangleEdgeBufferRadius;
          //         DoubleVector3 nearestLandPoint;
          //         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, vect, out nearestLandPoint)) {
          //            throw new InvalidOperationException("In new hole but not terrain snapshot hole.");
