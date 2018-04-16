@@ -50,7 +50,7 @@ namespace OpenMOBA.DevTool {
       private EntityService EntityService => Game.EntityService;
 
       public void HandleFrameEnd(FrameEndStatistics frameStatistics) {
-         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 4 == 0) RenderDebugFrame();
+         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 16 == 0) RenderDebugFrame();
       }
 
       private void Benchmark(double holeDilationRadius) {
@@ -84,7 +84,7 @@ namespace OpenMOBA.DevTool {
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
-            //debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.White));
+            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
             RenderHook?.Invoke(this, debugCanvas);
             if (RenderHook != null) return;
 
@@ -128,24 +128,23 @@ namespace OpenMOBA.DevTool {
                //debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeHairLineSolid);
                //debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
                //debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
-               continue;
 
-//               debugCanvas.Transform = Matrix4x4.Identity;
-//
-//               foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
-//                  var mc = entity.MovementComponent;
-//                  var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(2);
-//                  if (!ton.TryFindTerrainOverlayNode(mc.WorldPosition, out var tonn, out var plocal)) continue;
-//                  if (i == 2 || i == 1) continue;
-//                  var color = Color.FromArgb(20, new[] {
-//                     Color.Red,
-//                     Color.Magenta,
-//                     Color.Yellow,
-//                     Color.Lime,
-//                     Color.Blue,
-//                  }[i]);
-//                  debugCanvas.DrawCrossSectorVisibilityPolygon(tonn, new IntVector2((int)plocal.X, (int)plocal.Y), new FillStyle(color));
-//               }
+               debugCanvas.Transform = Matrix4x4.Identity;
+
+               foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
+                  var mc = entity.MovementComponent;
+                  var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(2);
+                  if (!ton.TryFindTerrainOverlayNode(mc.WorldPosition, out var tonn, out var plocal)) continue;
+                  if (i == 2 || i == 1) continue;
+                  var color = Color.FromArgb(20, new[] {
+                     Color.Red,
+                     Color.Magenta,
+                     Color.Yellow,
+                     Color.Lime,
+                     Color.Blue,
+                  }[i]);
+                  debugCanvas.DrawCrossSectorVisibilityPolygon(tonn, new IntVector2((int)plocal.X, (int)plocal.Y), new FillStyle(color));
+               }
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
             }
@@ -209,7 +208,7 @@ namespace OpenMOBA.DevTool {
 
       private void DrawEntityPaths(IDebugCanvas debugCanvas) {
          foreach (var (i, entity) in EntityService.EnumerateEntities().Enumerate()) {
-            //if (i == 2 || i == 1) continue;
+            if (i == 2 || i == 1) continue;
             var movementComponent = entity.MovementComponent;
             if (movementComponent?.PathingRoadmap == null) continue;
             DrawRoadmap(debugCanvas, movementComponent.PathingRoadmap, movementComponent);
@@ -218,7 +217,7 @@ namespace OpenMOBA.DevTool {
 
       private void DrawEntities(IDebugCanvas debugCanvas) {
          foreach (var (i, entity) in EntityService.EnumerateEntities().Enumerate()) {
-            //if (i == 2 || i == 1) continue;
+            if (i == 2 || i == 1) continue;
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
                debugCanvas.Transform = Matrix4x4.Identity;

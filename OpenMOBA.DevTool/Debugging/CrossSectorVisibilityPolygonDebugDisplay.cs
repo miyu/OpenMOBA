@@ -127,14 +127,19 @@ namespace OpenMOBA.DevTool.Debugging {
                      visibleEndT = Math.Min(1.0, Math.Max(0.0, visibleEndT));
 
                      if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
-                        var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT);
-                        var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT);
-                        var locallyClearedSegment = new IntLineSegment2(localVisibleStart.LossyToIntVector2(), localVisibleEnd.LossyToIntVector2());
+                        var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT).LossyToIntVector2();
+                        var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT).LossyToIntVector2();
+
+                        var remoteVisibleStart = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleStartT : 1.0 - visibleStartT).LossyToIntVector2();
+                        var remoteVisibleEnd = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleEndT : 1.0 - visibleEndT).LossyToIntVector2();
+
+                        if (localVisibleStart == localVisibleEnd) continue;
+                        if (remoteVisibleStart == remoteVisibleEnd) continue;
+
+                        var locallyClearedSegment = new IntLineSegment2(localVisibleStart, localVisibleEnd);
                         locallyClearedSegments.Add(locallyClearedSegment);
 
-                        var remoteVisibleStart = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleStartT : 1.0 - visibleStartT);
-                        var remoteVisibleEnd = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleEndT : 1.0 - visibleEndT);
-                        visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, new IntLineSegment2(remoteVisibleStart.LossyToIntVector2(), remoteVisibleEnd.LossyToIntVector2()));
+                        visibleCrossoverSegmentsByNeighbor.Add(otherTerrainNode, new IntLineSegment2(remoteVisibleStart, remoteVisibleEnd));
                      }
                   }
                }

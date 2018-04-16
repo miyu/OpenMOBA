@@ -106,7 +106,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                var p1 = new IntVector2(a.X - dx, a.Y - dy);
                var p2 = new IntVector2(b.X + dx, b.Y + dy);
 
-               results.Add(new IntLineSegment2(p1, p2));
+               results.Add(isHole ? new IntLineSegment2(p2, p1) : new IntLineSegment2(p1, p2));
             }
          }
          return node.visibilityGraphNodeData.ContourAndChildHoleBarriers = results.ToArray();
