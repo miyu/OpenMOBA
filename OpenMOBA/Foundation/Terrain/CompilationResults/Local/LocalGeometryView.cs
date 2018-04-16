@@ -8,6 +8,8 @@ using OpenMOBA.Geometry;
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public class LocalGeometryView {
       private const int kCrossoverAdditionalPathingDilation = 2;
+      private static readonly Polygon2 ClipperExtentsHoleClipPolygon = Polygon2.CreateRect(-ClipperBase.loRange + 10, -ClipperBase.loRange + 10, ClipperBase.loRange * 2 - 20, ClipperBase.loRange * 2 - 20);
+
 
       public readonly LocalGeometryViewManager LocalGeometryViewManager;
       public readonly double HoleDilationRadius;
@@ -37,13 +39,17 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          _dilatedHolesUnion ?? (_dilatedHolesUnion =
             PolygonOperations.Offset()
                              .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
-                             .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours))
+                             .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)
+                                                             .Select(p => ClipHoleContour(p))
+                                                             .Where(p => p != null))
                              .Include(Job.DynamicHoles.Values.SelectMany(item => 
                                  item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList(), true))
-                             ))
+                             ).Select(p => ClipHoleContour(p)).Where(p => p != null))
                              .Dilate(HoleDilationRadius)
                              .Cleanup()
                              .Execute());
+
+      private Polygon2 ClipHoleContour(Polygon2 polygon) => PolygonOperations.TryConvexClip(polygon, ClipperExtentsHoleClipPolygon, out var result) ? result : null;
 
       //public IntLineSegment2?[] ErodedBoundaryCrossoverSegments =>
       //   _erodedCrossoverSegments ?? (_erodedCrossoverSegments =

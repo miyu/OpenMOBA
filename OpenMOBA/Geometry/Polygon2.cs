@@ -44,7 +44,7 @@ namespace OpenMOBA.Geometry {
 
    public class Polygon2 {
       public Polygon2(List<IntVector2> points, bool isHole) {
-         // enforce open poly
+         // enforce closed poly
          if (points[0] != points.Last()) {
             //            Console.WriteLine("Warn: Polygon took open (non-closed) poly");
             points.Add(points[0]);

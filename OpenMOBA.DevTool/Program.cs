@@ -91,7 +91,7 @@ namespace OpenMOBA.DevTool {
             debugCanvas.Transform = Matrix4x4.Identity;
 
             DrawEntities(debugCanvas);
-            //            DrawEntityPaths(debugCanvas);
+            DrawEntityPaths(debugCanvas);
             //DrawTestPathfindingQueries(debugCanvas, 0.0);
 
             debugCanvas.Transform = Matrix4x4.Identity;
@@ -224,7 +224,9 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawLineList(
                      movementComponent.DebugLines.SelectMany(pair => new[] { pair.Item1, pair.Item2 }).ToList(),
                      new StrokeStyle(Color.Black));
-               
+
+               continue;
+
                var terrainOverlayNetwork = TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(entity.MovementComponent.BaseRadius);
                if (terrainOverlayNetwork.TryFindTerrainOverlayNode(movementComponent.WorldPosition, out var node, out var plocal)) {
                   debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;

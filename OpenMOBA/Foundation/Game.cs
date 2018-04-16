@@ -268,27 +268,27 @@ namespace OpenMOBA.Foundation {
          /**/
 
          var r = new Random(1);
-         //         for (int i = 0; i < 300; i++) {
-         //            var x = r.Next(0, 3000) - 1500;
-         //            var y = r.Next(0, 1000) - 500;
-         //            var width = r.Next(100, 200);
-         //            var height = r.Next(100, 200);
-         //            var startTicks = r.Next(0, 500);
-         //            var endTicks = r.Next(startTicks + 20, startTicks + 100);
-         //
-         ////            if (i < 83 || i >= 85) continue;
-         ////            if (i != 83) continue;
-         //
-         //            var holeTsm = new TerrainStaticMetadata {
-         //               LocalBoundary = new Rectangle(x, y, width, height),
-         //               LocalIncludedContours = new[] { Polygon2.CreateRect(x, y, width, height) }
-         //            };
-         //            var terrainHole = TerrainService.CreateHoleDescription(holeTsm);
-         //            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
-         //            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
-         //            Console.WriteLine($"Event: {x} {y}, {width} {height} @ {startTicks}-{endTicks}");
-         ////            if (i == 5) break;
-         //         }
+         for (int i = 0; i < 300; i++) {
+            var x = r.Next(0, 3000) - 1500;
+            var y = r.Next(0, 1000) - 500;
+            var width = r.Next(100, 200);
+            var height = r.Next(100, 200);
+            var startTicks = r.Next(0, 500);
+            var endTicks = r.Next(startTicks + 20, startTicks + 100);
+         
+            //if (i < 83 || i >= 85) continue;
+            //if (i != 83) continue;
+         
+            //var holeTsm = new TerrainStaticMetadata {
+            //   LocalBoundary = new Rectangle(x, y, width, height),
+            //   LocalIncludedContours = new[] { Polygon2.CreateRect(x, y, width, height) }
+            //};
+            var terrainHole = TerrainService.CreateHoleDescription(HoleStaticMetadata.CreateRectangleHoleMetadata(x, y, width, height, 0));
+            GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
+            GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
+            Console.WriteLine($"Event: {x} {y}, {width} {height} @ {startTicks}-{endTicks}");
+            //if (i == 5) break;
+         }
 
          /*
          for (int i = 0; i < 150; i++) {
@@ -371,6 +371,7 @@ namespace OpenMOBA.Foundation {
 //         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
 //         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
 
+         return;
          var benchmarkDestination = new DoubleVector3(450, 450, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;
          var swarm = new Swarm { Destination = benchmarkDestination };
