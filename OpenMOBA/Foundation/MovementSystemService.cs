@@ -114,6 +114,7 @@ namespace OpenMOBA.Foundation {
       }
 
       public override void Execute() {
+         return;
          var entities = AssociatedEntities.ToArray();
          var terrainSnapshot = terrainService.CompileSnapshot();
 

@@ -8,8 +8,6 @@ using OpenMOBA.Geometry;
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public class LocalGeometryView {
       private const int kCrossoverAdditionalPathingDilation = 2;
-      private static readonly Polygon2 ClipperExtentsHoleClipPolygon = Polygon2.CreateRect(-ClipperBase.loRange + 10, -ClipperBase.loRange + 10, ClipperBase.loRange * 2 - 20, ClipperBase.loRange * 2 - 20);
-
 
       public readonly LocalGeometryViewManager LocalGeometryViewManager;
       public readonly double HoleDilationRadius;
@@ -18,6 +16,8 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       public readonly int CrossoverErosionRadius;
       public readonly int CrossoverDilationFactor;
 
+      private readonly Polygon2 ClipperExtentsHoleClipPolygon;
+
       public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, double holeDilationRadius, LocalGeometryView preview) {
          LocalGeometryViewManager = localGeometryViewManager;
          HoleDilationRadius = holeDilationRadius;
@@ -25,6 +25,10 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
 
          CrossoverErosionRadius = (int)Math.Ceiling((double)(HoleDilationRadius * 2));
          CrossoverDilationFactor = (CrossoverErosionRadius / 2) + kCrossoverAdditionalPathingDilation;
+
+         var padding = (int)Math.Ceiling(HoleDilationRadius) + 10;
+         ClipperExtentsHoleClipPolygon = Polygon2.CreateRect(
+            -ClipperBase.loRange + padding, -ClipperBase.loRange + padding, ClipperBase.loRange * 2 - padding * 2, ClipperBase.loRange * 2 - padding * 2);
       }
 
       public LocalGeometryJob Job => LocalGeometryViewManager.Job;
@@ -49,7 +53,16 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                              .Cleanup()
                              .Execute());
 
-      private Polygon2 ClipHoleContour(Polygon2 polygon) => PolygonOperations.TryConvexClip(polygon, ClipperExtentsHoleClipPolygon, out var result) ? result : null;
+      private Polygon2 ClipHoleContour(Polygon2 polygon) {
+         PolygonOperations.TryConvexClip(polygon, ClipperExtentsHoleClipPolygon, out var result);
+         if (result != null) {
+            for (var i = 0; i < result.Points.Count; i++) {
+               var t = true;
+               ClipperBase.RangeTest(result.Points[i], ref t);
+            }
+         }
+         return result;
+      }
 
       //public IntLineSegment2?[] ErodedBoundaryCrossoverSegments =>
       //   _erodedCrossoverSegments ?? (_erodedCrossoverSegments =

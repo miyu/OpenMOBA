@@ -672,7 +672,7 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      void RangeTest(IntPoint Pt, ref bool useFullRange) {
+      public static void RangeTest(IntPoint Pt, ref bool useFullRange) {
          if (useFullRange) {
             if (Pt.X > hiRange || Pt.Y > hiRange || -Pt.X > hiRange || -Pt.Y > hiRange)
                throw new ClipperException("Coordinate outside allowed range");

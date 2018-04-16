@@ -354,7 +354,7 @@ namespace OpenMOBA.Foundation {
          //   GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          //}
 
-         //var a = CreateTestEntity(new DoubleVector3(60 - 500, (1000 - 40) - 500, 0), 15, 80); //675 - 500 - 10, 175 - 500 - 10
+         var a = CreateTestEntity(new DoubleVector3(60 - 500, (1000 - 40) - 500, 0), 15, 80); //675 - 500 - 10, 175 - 500 - 10
          //var b = CreateTestEntity(new DoubleVector3(675 - 500, (1000 - 175) - 500, 0), 15, 70); //675 - 500 - 10, 175 - 500 - 10
          //var c = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 900) - 500, 0), 25, 60); //675 - 500 - 10, 175 - 500 - 10
          //var d = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 500) - 500, 0), 25, 50); //675 - 500 - 10, 175 - 500 - 10
