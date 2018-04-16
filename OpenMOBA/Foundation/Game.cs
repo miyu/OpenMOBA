@@ -269,12 +269,18 @@ namespace OpenMOBA.Foundation {
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
-            var x = r.Next(0, 800) - 500;
-            var y = (1000 - r.Next(0, 800)) - 500;
+            var x = r.Next(0, 800);
+            var y = r.Next(0, 800);
             var width = r.Next(100, 200);
             var height = r.Next(100, 200);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
+
+            y = 1000 - y - height;
+
+            x -= 500 - width / 2;
+            y -= 500 - height / 2;
+
             var terrainHole = TerrainService.CreateHoleDescription(HoleStaticMetadata.CreateRectangleHoleMetadata(x, y, width, height, 0));
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
