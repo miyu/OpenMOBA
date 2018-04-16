@@ -18,6 +18,53 @@ namespace OpenMOBA.Geometry {
 
       public static OffsetOperation Offset() => new OffsetOperation();
 
+      /// <summary>
+      /// https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm#Pseudo_code
+      /// Fails if result would be empty
+      /// </summary>
+      public static bool TryConvexClip(Polygon2 subject, Polygon2 clip, out Polygon2 result) {
+         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.Clockwise;
+
+         List<IntVector2> outputList = subject.Points;
+         for (var i = 0; i < clip.Points.Count - 1; i++) {
+            var clipEdge = new IntLineSegment2(clip.Points[i], clip.Points[i + 1]);
+            List<IntVector2> inputList = outputList;
+            outputList = new List<IntVector2>();
+
+            var S = inputList[inputList.Count - 2];
+            for (var j = 0; j < inputList.Count - 1; j++) {
+               var E = inputList[j];
+               if (Inside(E, clipEdge)) {
+                  if (!Inside(S, clipEdge)) {
+                     var SE = new IntLineSegment2(S, E);
+                     if (!GeometryOperations.TryFindLineLineIntersection(SE, clipEdge, out var intersection)) {
+                        throw new NotImplementedException();
+                     }
+                     outputList.Add(intersection.LossyToIntVector2());
+                  }
+                  outputList.Add(E);
+               } else if (Inside(S, clipEdge)) {
+                  var SE = new IntLineSegment2(S, E);
+                  if (!GeometryOperations.TryFindLineLineIntersection(SE, clipEdge, out var intersection)) {
+                     throw new NotImplementedException();
+                  }
+                  outputList.Add(intersection.LossyToIntVector2());
+               }
+               S = E;
+            }
+
+            if (outputList.Count == 0) {
+               result = null;
+               return false;
+            }
+
+            outputList.Add(outputList[0]);
+         }
+
+         result = new Polygon2(outputList, false);
+         return true;
+      }
+
       public static PolyTree CleanPolygons(List<Polygon2> polygons) {
          return Offset().Include(polygons)
                         .Erode(0.05)
