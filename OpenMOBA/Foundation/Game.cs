@@ -433,14 +433,16 @@ namespace OpenMOBA.Foundation {
 
             int eventsProcessed;
             GameEventQueueService.ProcessPendingGameEvents(out eventsProcessed);
+
             EntityService.ProcessSystems();
 
             DebugProfiler.LeaveTick();
 
-            foreach (var debugger in Debuggers)
+            foreach (var debugger in Debuggers) {
                debugger.HandleFrameEnd(new FrameEndStatistics {
                   EventsProcessed = eventsProcessed
                });
+            }
 
 //            List<DoubleVector3> objPath;
 //            PathfinderCalculator.TryFindPath(15, new DoubleVector3(-600, 700, 0), new DoubleVector3(1500, 500, 0), out objPath);
@@ -448,7 +450,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
             //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 28) {
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 32) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeService.Ticks}");
                break;
             }

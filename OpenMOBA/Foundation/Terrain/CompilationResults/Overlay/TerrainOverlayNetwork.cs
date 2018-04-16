@@ -286,7 +286,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
 
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
-            if (candidateBarriers == null) {
+            if (p == crossoverPoints[cpi]) {
+               isDirectPath = true; // degenerate segment
+            } else if (candidateBarriers == null) {
                //               Console.WriteLine($"Try intersect {cpi}: {p} to {crossoverPoints[cpi]}");
                var isDirectPath1 = !landPolyNode.FindContourAndChildHoleBarriersBvh().Intersects(new IntLineSegment2(p, crossoverPoints[cpi]));
                //               var isDirectPath2 = landPolyNode.SegmentInLandPolygonNonrecursive(p, crossoverPoints[cpi]);

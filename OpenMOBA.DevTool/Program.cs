@@ -117,7 +117,7 @@ namespace OpenMOBA.DevTool {
                var fillColor = colors[(index / colors.Length) % colors.Length];
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.ComputeErodedOuterContour(), StrokeStyle.BlackHairLineSolid, StrokeStyle.CyanThick3Solid);
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.DilatedHolesUnion, StrokeStyle.RedHairLineSolid, StrokeStyle.LimeThick5Solid);
-               debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand);
+               debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray));
                
                foreach (var ((desc, version), (includedContours, excludedContours)) in terrainNode.LocalGeometryView.Job.DynamicHoles) {
                   debugCanvas.DrawPolygonContours(includedContours, StrokeStyle.RedHairLineSolid);
@@ -125,9 +125,9 @@ namespace OpenMOBA.DevTool {
                }
 
 //               if (index == 0)
-               debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeHairLineSolid);
+               //debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeHairLineSolid);
                //debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
-               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
+               //debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
                continue;
 
 //               debugCanvas.Transform = Matrix4x4.Identity;

@@ -10,6 +10,11 @@ namespace OpenMOBA.Geometry {
    public struct IntLineSegment2 {
       [DebuggerStepThrough]
       public IntLineSegment2(IntVector2 first, IntVector2 second) {
+#if DEBUG
+         if (first == second) {
+            throw new InvalidStateException();
+         }
+#endif
          First = first;
          Second = second;
       }
@@ -17,6 +22,11 @@ namespace OpenMOBA.Geometry {
 
       [DebuggerStepThrough]
       public IntLineSegment2(cInt ax, cInt ay, cInt bx, cInt by) {
+#if DEBUG
+         if (ax == bx && ay == by) {
+            throw new InvalidStateException();
+         }
+#endif
          First = new IntVector2(ax, ay);
          Second = new IntVector2(bx, by);
       }

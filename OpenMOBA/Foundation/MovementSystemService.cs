@@ -45,11 +45,19 @@ namespace OpenMOBA.Foundation {
          var movementComponent = entity.MovementComponent;
          movementComponent.PathingDestination = destination;
 
-         var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity) + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius;
-         pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.WorldPosition, destination, out var roadmap);
-         movementComponent.PathingRoadmap = roadmap;
-         movementComponent.PathingIsInvalidated = false;
-         movementComponent.PathingRoadmapProgressIndex = 0;
+         var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity);
+         
+         if (pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.WorldPosition, destination, out var roadmap)) {
+            movementComponent.PathingRoadmap = roadmap;
+            movementComponent.PathingIsInvalidated = false;
+            movementComponent.PathingRoadmapProgressIndex = 0;
+            movementComponent.LastFailedPathfindingSnapshot = null;
+         } else {
+            movementComponent.PathingRoadmap = null;
+            movementComponent.PathingIsInvalidated = false;
+            movementComponent.PathingRoadmapProgressIndex = -1;
+            movementComponent.LastFailedPathfindingSnapshot = terrainService.CompileSnapshot();
+         }
       }
 
       public void HandleHoleAdded(DynamicTerrainHoleDescription holeDescription) {
@@ -153,25 +161,13 @@ namespace OpenMOBA.Foundation {
          var nodeIslandAndTriangleIndexesBySwarmAndComputedRadius = MultiValueDictionary<(Swarm, int), NodeIslandAndTriangleIndex>.Create(() => new List<NodeIslandAndTriangleIndex>());
          foreach (var e in entities) {
             var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(e.MovementComponent.ComputedRadius);
+            FindOrFixEntityTerrainNodeAndTriangle(e, out terrainOverlayNetwork, out var terrainOverlayNetworkNode, out var localPosition, out var island, out var triangleIndex);
+
             e.MovementComponent.TerrainOverlayNetwork = terrainOverlayNetwork;
-            if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(
-               e.MovementComponent.WorldPosition, 
-               out var terrainOverlayNetworkNode,
-               out var localPosition)) {
-               throw new InvalidStateException();
-            }
             e.MovementComponent.TerrainOverlayNetworkNode = terrainOverlayNetworkNode;
             e.MovementComponent.LocalPosition = new DoubleVector2(localPosition.X, localPosition.Y);
             terrainOverlayNetworkNodes.Add(terrainOverlayNetworkNode);
 
-            // Additionally determine which triangle entity is sitting on in LGV triangulation.
-            if (!terrainOverlayNetworkNode.LocalGeometryView.Triangulation.TryIntersect(
-               localPosition.X,
-               localPosition.Y,
-               out var island,
-               out var triangleIndex)) {
-               throw new InvalidStateException();
-            }
             e.MovementComponent.SwarmingIsland = island;
             e.MovementComponent.SwarmingTriangleIndex = triangleIndex;
 
@@ -194,11 +190,45 @@ namespace OpenMOBA.Foundation {
          // 2. For each TONN
          foreach (var entity in entities) {
             var movementComponent = entity.MovementComponent;
-            if (movementComponent.PathingIsInvalidated) Pathfind(entity, movementComponent.PathingDestination);
 
-            if (movementComponent.Swarm == null) ExecutePathNonswarmer(entity, movementComponent);
-            else ExecutePathSwarmer(entity, movementComponent);
+            var repath = movementComponent.PathingIsInvalidated || (
+                            movementComponent.LastFailedPathfindingSnapshot != null &&
+                            movementComponent.LastFailedPathfindingSnapshot != terrainService.CompileSnapshot());
+
+            if (repath) {
+               Pathfind(entity, movementComponent.PathingDestination);
+            }
+
+            if (movementComponent.Swarm == null) {
+               ExecutePathNonswarmer(entity, movementComponent);
+            } else {
+               ExecutePathSwarmer(entity, movementComponent);
+            }
          }
+      }
+
+      private void FindOrFixEntityTerrainNodeAndTriangle(Entity e, out TerrainOverlayNetwork terrainOverlayNetwork, out TerrainOverlayNetworkNode terrainOverlayNetworkNode, out DoubleVector3 localPosition, out TriangulationIsland island, out int triangleIndex) {
+         var mc = e.MovementComponent;
+         terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(mc.ComputedRadius);
+
+         for (var i = 0; i < 2; i++) {
+            // which terrain overlay node are we on?
+            if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(mc.WorldPosition, out terrainOverlayNetworkNode, out localPosition)) {
+               FixEntityInHole(e);
+               continue;
+            }
+
+            // Additionally determine which triangle entity is sitting on in LGV triangulation.
+            if (!terrainOverlayNetworkNode.LocalGeometryView.Triangulation.TryIntersect(
+               localPosition.X, localPosition.Y,
+               out island, out triangleIndex)) {
+               FixEntityInHole(e);
+               continue;
+            }
+
+            return;
+         }
+         throw new InvalidStateException();
       }
 
       public static List<PathfinderResultContext> RenderMe;

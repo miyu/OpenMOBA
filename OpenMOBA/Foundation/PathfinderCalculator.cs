@@ -74,7 +74,7 @@ namespace OpenMOBA.Foundation {
 
          if (sourceNode == destinationNode) {
             var roadmap = new MotionRoadmap();
-            if (sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
+            if (sourcePoint == destinationPoint || sourceNode.LandPolyNode.SegmentInLandPolygonNonrecursive(sourcePoint, destinationPoint)) {
                roadmap.Plan.Add(new MotionRoadmapWalkAction(sourceNode, sourcePoint, destinationPoint));
                result = roadmap;
                return true;

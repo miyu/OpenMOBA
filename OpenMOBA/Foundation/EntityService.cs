@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using ClipperLib;
+using OpenMOBA.Foundation.Terrain.CompilationResults;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
@@ -102,6 +103,7 @@ namespace OpenMOBA.Foundation {
 
       public MotionRoadmap PathingRoadmap { get; set; } = null;
       public int PathingRoadmapProgressIndex = -1;
+      public TerrainSnapshot LastFailedPathfindingSnapshot = null;
 
       public Swarm Swarm { get; set; }
 

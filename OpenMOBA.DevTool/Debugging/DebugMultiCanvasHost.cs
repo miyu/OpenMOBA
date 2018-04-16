@@ -50,7 +50,7 @@ namespace OpenMOBA.DevTool.Debugging {
                new Thread(() => {
                   var v = slider.Value;
                   while (slider.Value == v && v != 0) {
-                     v = Math.Max(v - 2 * speedup, 0);
+                     v = Math.Max(v - 5 * speedup, 0);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
                      Thread.Sleep(12);
                   }
@@ -59,7 +59,7 @@ namespace OpenMOBA.DevTool.Debugging {
                new Thread(() => {
                   var v = slider.Value;
                   while (slider.Value == v && v != slider.Maximum) {
-                     v = Math.Min(v + 5 * speedup, (int)slider.Maximum);
+                     v = Math.Min(v + 2 * speedup, (int)slider.Maximum);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
                      Thread.Sleep(12);
                   }
@@ -93,8 +93,11 @@ namespace OpenMOBA.DevTool.Debugging {
       private void HandleSliderValueChanged(object sender, EventArgs e) {
          form.BeginInvoke(new Action(() => {
             lock (synchronization) {
-               Enumerable.Last(frames, f => f.Timestamp <= slider.Value).Canvas.EnterBitmapCriticalSection(
+               var canvasAndTimestamp = Enumerable.Last(frames, f => f.Timestamp <= slider.Value);
+
+               canvasAndTimestamp.Canvas.EnterBitmapCriticalSection(
                   bitmap => {
+                     form.Text = canvasAndTimestamp.Timestamp + "";
                      pb.Image = (Bitmap)bitmap.Clone();
                   }
                );
@@ -110,6 +113,9 @@ namespace OpenMOBA.DevTool.Debugging {
                slider.TickFrequency = 1;
                if (pb.Image == null) {
                   HandleSliderValueChanged(this, EventArgs.Empty);
+               } else if (frames.Count - 3 >= 0 && slider.Value == frames[frames.Count - 3].Timestamp) {
+                  // navigates to frame before last, not last because last is currently drawing.
+                  slider.Value = frames[frames.Count - 2].Timestamp;
                }
             }
          }));
