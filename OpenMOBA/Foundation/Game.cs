@@ -269,19 +269,30 @@ namespace OpenMOBA.Foundation {
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
-            var x = r.Next(0, 800);
-            var y = r.Next(0, 800);
+            var left = r.Next(0, 800);
+            var top = r.Next(0, 800);
             var width = r.Next(100, 200);
             var height = r.Next(100, 200);
             var startTicks = r.Next(0, 500);
             var endTicks = r.Next(startTicks + 20, startTicks + 100);
 
-            y = 1000 - y - height;
+            // account for test2d being flipped on Y back in the day
+            top = 1000 - top - height;
 
-            x -= 500 - width / 2;
-            y -= 500 - height / 2;
+            // account for create rectangle hole taking center x/y
+            left += width / 2;
+            top += height / 2;
 
-            var terrainHole = TerrainService.CreateHoleDescription(HoleStaticMetadata.CreateRectangleHoleMetadata(x, y, width, height, 0));
+            // center
+            left -= 500;
+            top -= 500;
+
+            var holeMetadata = (PrismHoleStaticMetadata)HoleStaticMetadata.CreateRectangleHoleMetadata(left, top, width, height, 0);
+            Trace.Assert(holeMetadata.LocalIncludedContours.Count == 1);
+            var str = string.Join("; ", holeMetadata.LocalIncludedContours.First().Points.Select(p => p.ToString()));
+            Console.WriteLine($"{left} {top} {width} {height} {startTicks} {endTicks} {str}");
+
+            var terrainHole = TerrainService.CreateHoleDescription(holeMetadata);
             GameEventQueueService.AddGameEvent(CreateAddTemporaryHoleEvent(new GameTime(startTicks), terrainHole));
             GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          }
