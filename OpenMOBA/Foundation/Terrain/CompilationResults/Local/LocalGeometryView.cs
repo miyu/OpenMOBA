@@ -101,6 +101,11 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                (segment.Second.ToDoubleVector2() + inward - shrink).LossyToIntVector2(),
                (segment.Second.ToDoubleVector2() + outward - shrink).LossyToIntVector2()
             });
+
+            if (inClockness == Clockness.CounterClockwise) {
+               points.Reverse();
+            }
+
             return new Polygon2(points);
          }).ToArray();
       }
@@ -111,7 +116,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
                PolygonOperations.Punch()
                                 .IncludeOrExclude(ComputeErodedOuterContour().FlattenToPolygonAndIsHoles())
                                 .Include(ComputeCrossoverLandPolys())
-                                .IncludeOrExclude(DilatedHolesUnion.FlattenToPolygonAndIsHoles(), true)
+                                .Exclude(DilatedHolesUnion.FlattenToPolygonAndIsHoles())
                                 .Execute()
             ));
 

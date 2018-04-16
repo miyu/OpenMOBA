@@ -12,7 +12,7 @@ namespace OpenMOBA.Foundation {
       internal readonly ExposedArrayList<PathLink> SourceOptimalLinkToCrossovers;
       internal readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
 
-      private readonly MotionRoadmap[] roadmapCache;
+      private readonly (bool computed, MotionRoadmap roadmap)[] roadmapCache;
 
       public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessors, ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, ExposedArrayList<PathLink>[] destinationOptimalLinkToCrossoversByDestinationIndex) {
          Source = source;
@@ -21,17 +21,24 @@ namespace OpenMOBA.Foundation {
          SourceOptimalLinkToCrossovers = sourceOptimalLinkToCrossovers;
          DestinationOptimalLinkToCrossoversByDestinationIndex = destinationOptimalLinkToCrossoversByDestinationIndex;
 
-         roadmapCache = new MotionRoadmap[destinations.Length];
+         roadmapCache = new (bool, MotionRoadmap)[destinations.Length];
       }
 
-      public MotionRoadmap ComputeRoadmap(int destinationIndex) =>
-         roadmapCache[destinationIndex] ?? (roadmapCache[destinationIndex] =
-            PathfinderCalculator.Backtrack(
+      public bool TryComputeRoadmap(int destinationIndex, out MotionRoadmap roadmap) {
+         if (!roadmapCache[destinationIndex].computed) {
+            roadmapCache[destinationIndex].computed = true;
+            var success = PathfinderCalculator.TryBacktrack(
                Source.Item1, Source.Item2,
                Destinations[destinationIndex].Item1, Destinations[destinationIndex].Item2,
                Predecessors,
                -destinationIndex - 1,
                SourceOptimalLinkToCrossovers,
-               DestinationOptimalLinkToCrossoversByDestinationIndex[destinationIndex]));
+               DestinationOptimalLinkToCrossoversByDestinationIndex[destinationIndex],
+               out roadmap);
+            roadmapCache[destinationIndex] = (true, success ? roadmap : null);
+         }
+         roadmap = roadmapCache[destinationIndex].roadmap;
+         return roadmap != null;
+      }
    }
 }

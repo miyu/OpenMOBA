@@ -172,9 +172,16 @@ namespace OpenMOBA.Foundation {
                Trace.Assert(ndstnode == destinationNode);
                Trace.Assert(ndstcpi == DESTINATION_POINT_CPI);
 
-               var roadmap = Backtrack(sourceNode, sourcePoint, destinationNode, destinationPoint, predecessor, DESTINATION_POINT_CPI, sourceOptimalLinkToCrossovers, destinationOptimalLinkToCrossovers);
-
-               result = roadmap;
+               if (!TryBacktrack(
+                  sourceNode, sourcePoint,
+                  destinationNode, destinationPoint,
+                  predecessor,
+                  DESTINATION_POINT_CPI,
+                  sourceOptimalLinkToCrossovers,
+                  destinationOptimalLinkToCrossovers,
+                  out result)) {
+                  throw new InvalidStateException();
+               }
                return true;
             }
 
@@ -252,14 +259,20 @@ namespace OpenMOBA.Foundation {
          return false;
       }
 
-      public static MotionRoadmap Backtrack(
+      public static bool TryBacktrack(
          TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint,
          TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint,
          Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessor,
          int DESTINATION_POINT_CPI,
          ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers,
-         ExposedArrayList<PathLink> destinationOptimalLinkToCrossovers
+         ExposedArrayList<PathLink> destinationOptimalLinkToCrossovers,
+         out MotionRoadmap roadmap
       ) {
+         if (!predecessor.ContainsKey((destinationNode, DESTINATION_POINT_CPI))) {
+            roadmap = null;
+            return false;
+         }
+
          // build high-level plan of path
          var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>();
          var cur = (destinationNode, DESTINATION_POINT_CPI, (TerrainOverlayNetworkEdge)null, 0.0f);
@@ -268,12 +281,13 @@ namespace OpenMOBA.Foundation {
             var (psrcnode, psrccpi, pedge, psrcCpiTotalCost) = pred;
             cur = pred;
          }
+         Trace.Assert(path.Count > 0);
          path.Add(cur);
          path.Reverse();
 
          // convert path to a motion plan. three cases for motion: moving from start to crossover, crossover to crossover, or crossover to end.
          // last one not processed, since we process pairwise.
-         var roadmap = new MotionRoadmap();
+         roadmap = new MotionRoadmap();
          for (var i = 0; i < path.Count - 1; i++) {
             if (i == 0) {
                // moving from start to crossover
@@ -350,7 +364,7 @@ namespace OpenMOBA.Foundation {
                }
             }
          }
-         return roadmap;
+         return true;
       }
 
       public PathfinderResultContext UniformCostSearch(double agentRadius, DoubleVector3 sourceWorld, DoubleVector3[] destinationWorlds, bool followEdgesReversed, PathfinderResultContext pathfinderResultContext = null, IDebugCanvas debugCanvas = null) {

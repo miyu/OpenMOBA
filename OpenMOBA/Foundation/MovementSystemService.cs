@@ -83,7 +83,6 @@ namespace OpenMOBA.Foundation {
 
             // clamp pNearestLocal to be within bounds, not 
 
-
             var pNearestWorld = terrainOverlayNode.SectorNodeDescription.LocalToWorld(pNearestLocal);
             var worldDistance = pWorld.To(pNearestWorld).Norm2D();
             if (worldDistance < bestWorldDistance) {
@@ -136,7 +135,6 @@ namespace OpenMOBA.Foundation {
       }
 
       public override void Execute() {
-         return;
          var entities = AssociatedEntities.ToArray();
          var terrainSnapshot = terrainService.CompileSnapshot();
 

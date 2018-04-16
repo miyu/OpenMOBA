@@ -89,25 +89,25 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      public static List<(Polygon2 polygon, bool isHole)> FlattenToPolygonAndIsHoles(this PolyNode polytree, bool includeOuterPolygon = true) {
+      public static List<(Polygon2 polygon, bool isHole)> FlattenToPolygonAndIsHoles(this PolyNode polytree, bool includeOuterPolygon = true, bool flipIsHoleResult = false) {
          var results = new List<(Polygon2, bool)>();
          var depthFilter = includeOuterPolygon ? 0 : 2; // 2 for outer void level and outer land poly level
-         FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results, depthFilter);
+         FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results, depthFilter, flipIsHoleResult);
          return results;
       }
 
-      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<(Polygon2, bool)> results, int depthFilter) {
+      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<(Polygon2, bool)> results, int depthFilter, bool flipIsHoleResult) {
          if (current.Contour.Count > 0 && depthFilter <= 0) {
             var contour = current.Contour;
             if (isHole) {
                contour = contour.ToList();
                contour.Reverse();
             }
-            results.Add((new Polygon2(contour), isHole));
+            results.Add((new Polygon2(contour), isHole ^ flipIsHoleResult));
          }
          foreach (var child in current.Childs) {
             // We avoid node.isHole as that traverses upwards recursively and wastefully.
-            FlattenPolyTreeToPolygonsHelper(child, !isHole, results, depthFilter - 1);
+            FlattenPolyTreeToPolygonsHelper(child, !isHole, results, depthFilter - 1, flipIsHoleResult);
          }
       }
 
@@ -163,6 +163,21 @@ namespace OpenMOBA.Geometry {
             }
             return this;
          }
+
+         // excludes the polygon/isHole pairs of holes
+         public PunchOperation Exclude(IReadOnlyList<(Polygon2 polygon, bool isHole)> polygonAndIsHoles) {
+            foreach (var (polygon, isHole) in polygonAndIsHoles) {
+               var points = polygon.Points;
+               if (isHole) {
+                  points = points.ToList();
+                  points.Reverse();
+               }
+               clipper.AddPath(points, PolyType.ptClip, polygon.IsClosed);
+
+            }
+            return this;
+         }
+
 
          public PolyTree Execute(double additionalErosionDilation = 0.0) {
             var polytree = new PolyTree();

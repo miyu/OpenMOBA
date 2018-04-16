@@ -20,13 +20,13 @@ namespace SutherlandHodgmanTests {
 
       public static void Main(string[] args) {
          var canvas = host.CreateAndAddCanvas(0);
-         var smp = SectorMetadataPresets.Test2D;
+         var smp = SectorMetadataPresets.Blank2D;
          var punchResult = PolygonOperations.Punch()
-                          .Include(smp.LocalIncludedContours)
-                          .Exclude(smp.LocalExcludedContours)
-                          .Exclude(Polygon2.CreateRect(-1000, -1000, 2000, 2000))
-                          .Exclude(Polygon2.CreateRect(-10000, -10000, 20000, 20000))
-                          .Execute();
+                                            .Include(smp.LocalIncludedContours)
+//                          .Exclude(smp.LocalExcludedContours)
+                                            .Exclude(Polygon2.CreateRect(-10000, -10000, 20000, 20000))
+                                            .Exclude(new []{(Polygon2.CreateRect(-8000, -8000, 16000, 16000), true)})
+                                            .Execute();
 
          canvas.Transform = Matrix4x4.CreateScale(500 / 60000.0f) * Matrix4x4.CreateTranslation(500, 300, 0);
          canvas.DrawPolyNode(punchResult);
