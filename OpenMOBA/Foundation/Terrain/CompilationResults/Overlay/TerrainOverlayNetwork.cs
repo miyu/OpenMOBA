@@ -352,7 +352,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          }
 
          if (candidateBarriersByDestinationSegment == null) {
-            Console.WriteLine("Warning: candidateBarriersByDestinationSegment null?");
+            // Console.WriteLine("Warning: candidateBarriersByDestinationSegment null?");
             for (var cpi = 0; cpi < crossoverPoints.Count; cpi++) ProcessCpi(cpi, null);
          } else {
             var isCpiVisited = new bool[crossoverPoints.Count];

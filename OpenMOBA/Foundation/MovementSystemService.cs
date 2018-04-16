@@ -10,6 +10,8 @@ using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
 namespace OpenMOBA.Foundation {
+   using NodeIslandAndTriangleIndex = ValueTuple<TerrainOverlayNetworkNode, TriangulationIsland, int>;
+
    public class MovementSystemService : EntitySystemService {
       public enum WalkResult {
          PushInward,
@@ -127,6 +129,7 @@ namespace OpenMOBA.Foundation {
          // 1. Determine Terrain Overlay Network Nodes entities are sitting on (group by)
          // additionally determine local position, triangulation island, and triangle index.
          var terrainOverlayNetworkNodes = new HashSet<TerrainOverlayNetworkNode>();
+         var nodeIslandAndTriangleIndexesBySwarmAndComputedRadius = MultiValueDictionary<(Swarm, int), NodeIslandAndTriangleIndex>.Create(() => new List<NodeIslandAndTriangleIndex>());
          foreach (var e in entities) {
             var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(e.MovementComponent.ComputedRadius);
             e.MovementComponent.TerrainOverlayNetwork = terrainOverlayNetwork;
@@ -150,12 +153,24 @@ namespace OpenMOBA.Foundation {
             }
             e.MovementComponent.SwarmingIsland = island;
             e.MovementComponent.SwarmingTriangleIndex = triangleIndex;
+
+            if (e.MovementComponent.Swarm == null) continue;
+            nodeIslandAndTriangleIndexesBySwarmAndComputedRadius.Add((e.MovementComponent.Swarm, e.MovementComponent.ComputedRadius), (terrainOverlayNetworkNode, island, triangleIndex));
+         }
+
+         RenderMe = new List<PathfinderResultContext>();
+         foreach (var ((swarm, computedRadius), vals) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
+            var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(computedRadius);
+            if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(swarm.Destination, out var destinationNode, out var destinationLocal)) {
+               throw new NotImplementedException();
+            }
+
+            // ReSharper disable once PossibleInvalidCastException
+            var starts = vals.Select(x => (x.Item1, x.Item2.Triangles[x.Item3].Centroid.LossyToIntVector2())).ToArray();
+            RenderMe.Add(pathfinderCalculator.UniformCostSearch((destinationNode, new IntVector2((int)destinationLocal.X, (int)destinationLocal.Y)), starts, true));
          }
 
          // 2. For each TONN
-         foreach (var tonn in terrainOverlayNetworkNodes) {
-         }
-
          foreach (var entity in entities) {
             var movementComponent = entity.MovementComponent;
             if (movementComponent.PathingIsInvalidated) Pathfind(entity, movementComponent.PathingDestination);
@@ -164,6 +179,8 @@ namespace OpenMOBA.Foundation {
             else ExecutePathSwarmer(entity, movementComponent);
          }
       }
+
+      public static List<PathfinderResultContext> RenderMe;
 
       private void ExecutePathNonswarmer(Entity entity, MovementComponent movementComponent) {
          if (movementComponent.PathingRoadmap == null) return;

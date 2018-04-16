@@ -91,10 +91,18 @@ namespace OpenMOBA.DevTool {
             debugCanvas.Transform = Matrix4x4.Identity;
 
             DrawEntities(debugCanvas);
-//            return;
-//            DrawEntityPaths(debugCanvas);
-            DrawTestPathfindingQueries(debugCanvas, 0.0);
-//            return;
+            //            DrawEntityPaths(debugCanvas);
+            //DrawTestPathfindingQueries(debugCanvas, 0.0);
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            if (MovementSystemService.RenderMe != null) {
+               foreach (var pathfinderResultContext in MovementSystemService.RenderMe) {
+                  for (var i = 0; i < pathfinderResultContext.Destinations.Length; i++) {
+                     var roadmap = pathfinderResultContext.ComputeRoadmap(i);
+                     DrawRoadmap(debugCanvas, roadmap);
+                  }
+               }
+            }
 
             var colors = new[] { Color.White };
 //			   var colors = new[] { Color.Red, Color.Lime, Color.Cyan, Color.Magenta, Color.Yellow, Color.Orange, Color.Blue, Color.Indigo, Color.Violet };
@@ -202,6 +210,7 @@ namespace OpenMOBA.DevTool {
             if (i == 2 || i == 1) continue;
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
+               debugCanvas.Transform = Matrix4x4.Identity;
                debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
                debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
 
@@ -215,6 +224,16 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawLineList(
                      movementComponent.DebugLines.SelectMany(pair => new[] { pair.Item1, pair.Item2 }).ToList(),
                      new StrokeStyle(Color.Black));
+               
+               var terrainOverlayNetwork = TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(entity.MovementComponent.BaseRadius);
+               if (terrainOverlayNetwork.TryFindTerrainOverlayNode(movementComponent.WorldPosition, out var node, out var plocal)) {
+                  debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
+                  debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.BlackHairLineSolid);
+                  continue;
+                  if (node.LocalGeometryView.Triangulation.TryIntersect(plocal.X, plocal.Y, out var island, out var triangleIndex)) {
+                     debugCanvas.DrawTriangle(island.Triangles[triangleIndex], StrokeStyle.RedHairLineSolid);
+                  }
+               }
             }
          }
       }
