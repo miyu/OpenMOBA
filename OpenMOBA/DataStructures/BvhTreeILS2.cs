@@ -136,7 +136,6 @@ namespace OpenMOBA.DataStructures {
 
             return new BvhILS2(first, second, outputSegments, startInclusive, endExclusive, bounds);
          }
-
          return BuildInternal(0, inputSegments.Length, true);
       }
    }

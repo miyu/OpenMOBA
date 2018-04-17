@@ -109,7 +109,7 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          var crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
          // return (localGeometryView, landPolyNode, crossoverPointManager);
 
-         var spacing = 50 * 60000 / 1000;
+         var spacing = 50 * (60000 / 1000) / 50;
          foreach (var (crossoverSegment, inClockness) in crossoverSegments) {
             var cs = new DoubleLineSegment2(crossoverSegment.First.ToDoubleVector2(), crossoverSegment.Second.ToDoubleVector2());
             var firstToSecond = cs.First.To(cs.Second);
