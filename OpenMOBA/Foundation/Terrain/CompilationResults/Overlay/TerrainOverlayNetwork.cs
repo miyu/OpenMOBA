@@ -50,6 +50,10 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
       public BvhTreeAABB<TerrainOverlayNetworkNode> NodeBvh { get; private set; }
 
       public void Initialize() {
+         foreach (var node in TerrainNodes) {
+            node.Network = this;
+         }
+
          NodeBvh = BvhTreeAABB<TerrainOverlayNetworkNode>.Build(TerrainNodes.Select(n => n.SectorNodeDescription.WorldBounds.PairValue(n)));
          foreach (var edge in edgeDescriptions) UpdateEdge(edge, false);
       }

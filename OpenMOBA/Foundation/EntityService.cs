@@ -89,6 +89,7 @@ namespace OpenMOBA.Foundation {
       public DoubleVector3 LookAt { get; set; } = DoubleVector3.UnitX;
       public float BaseRadius { get; set; }
       public float BaseSpeed { get; set; }
+      public Swarm Swarm { get; set; }
 
       /// <summary>
       ///    If true, movement will recompute path before updating position
@@ -105,9 +106,7 @@ namespace OpenMOBA.Foundation {
       public int PathingRoadmapProgressIndex = -1;
       public TerrainSnapshot LastFailedPathfindingSnapshot = null;
 
-      public Swarm Swarm { get; set; }
-
-      public List<Tuple<DoubleVector3, DoubleVector3>> DebugLines { get; set; }
+      // public List<Tuple<DoubleVector3, DoubleVector3>> DebugLines { get; set; }
 
       // Values precomputed at entry of movement service
       public int ComputedRadius { get; set; }
@@ -117,6 +116,7 @@ namespace OpenMOBA.Foundation {
       public TerrainOverlayNetwork TerrainOverlayNetwork { get; set; }
       public TerrainOverlayNetworkNode TerrainOverlayNetworkNode { get; set; }
       public DoubleVector2 LocalPosition { get; set; }
+      public IntVector2 LocalPositionIv2 { get; set; }
       public TriangulationIsland SwarmingIsland { get; set; }
       public int SwarmingTriangleIndex { get; set; }
 
