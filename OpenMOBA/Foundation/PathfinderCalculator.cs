@@ -599,7 +599,7 @@ namespace OpenMOBA.Foundation {
 
                   if (!terminalEnqueued) {
                      terminalEnqueued = true;
-                     Console.WriteLine("Terminal Enqueued: Dequeues such far: " + dequeueCount + " and enqueues: " + enqueueCount);
+                     //Console.WriteLine("Terminal Enqueued: Dequeues such far: " + dequeueCount + " and enqueues: " + enqueueCount);
                   }
                }
             }
@@ -607,6 +607,8 @@ namespace OpenMOBA.Foundation {
 
          if (destinationsRemaining > 0) {
             Console.WriteLine("Failure! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
+         } else {
+            //Console.WriteLine("Success! Dequeues: " + dequeueCount + " and enqueues: " + enqueueCount);
          }
          return new PathfinderResultContext(source, destinations, predecessor, sourceOptimalLinkToCrossovers, destinationOptimalLinkToCrossoversByDestinationIndex);
       }

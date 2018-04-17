@@ -11,6 +11,7 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
@@ -384,22 +385,23 @@ namespace OpenMOBA.Foundation {
          //   GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          //}
 
-         //var a = CreateTestEntity(new DoubleVector3(60 - 500, (1000 - 40) - 500, 0), 15, 80); //675 - 500 - 10, 175 - 500 - 10
-         //var b = CreateTestEntity(new DoubleVector3(675 - 500, (1000 - 175) - 500, 0), 15, 70); //675 - 500 - 10, 175 - 500 - 10
-         //var c = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 900) - 500, 0), 25, 60); //675 - 500 - 10, 175 - 500 - 10
-         //var d = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 500) - 500, 0), 25, 50); //675 - 500 - 10, 175 - 500 - 10
-         //var e = CreateTestEntity(new DoubleVector3(-1350, 200, 0), 30, 100);
+         var a = CreateTestEntity(new DoubleVector3(60 - 500, (1000 - 40) - 500, 0), 15, 80); //675 - 500 - 10, 175 - 500 - 10
+         var b = CreateTestEntity(new DoubleVector3(675 - 500, (1000 - 175) - 500, 0), 15, 70); //675 - 500 - 10, 175 - 500 - 10
+         var c = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 900) - 500, 0), 25, 60); //675 - 500 - 10, 175 - 500 - 10
+         var d = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 500) - 500, 0), 25, 50); //675 - 500 - 10, 175 - 500 - 10
+         var e = CreateTestEntity(new DoubleVector3(-1350, 200, 0), 30, 100);
 //         var e = CreateTestEntity(new DoubleVector3(-650, 180, 0), 30, 100);
 //         var c = CreateTestEntity(new DoubleVector3(50 - 500, 900 - 500, 0), 15, 60);
 //         var d = CreateTestEntity(new DoubleVector3(50 - 500, 500 - 500, 0), 15, 50);
 
-         //MovementSystemService.Pathfind(a, new DoubleVector3(930 - 500, (1000 - 300) - 500, 0));
-         //MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, (1000 - 300) - 500, 0));
-         //MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, (1000 - 475) - 500, 0));
-         //MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, (1000 - 720) - 500, 0));
-         //MovementSystemService.Pathfind(e, new DoubleVector3(1250, -80, 0));
+         MovementSystemService.Pathfind(a, new DoubleVector3(930 - 500, (1000 - 300) - 500, 0));
+         MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, (1000 - 300) - 500, 0));
+         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, (1000 - 475) - 500, 0));
+         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, (1000 - 720) - 500, 0));
+         MovementSystemService.Pathfind(e, new DoubleVector3(1250, -80, 0));
 //         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
 //         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
+         return;
 
          var benchmarkDestination = new DoubleVector3(450, 450, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;
@@ -449,7 +451,7 @@ namespace OpenMOBA.Foundation {
             GameTimeService.IncrementTicks();
             //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
             //            if (GameTimeService.Ticks > 80) return;
-            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 240) {
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 120) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeService.Ticks}");
                break;
             }
@@ -475,8 +477,33 @@ namespace OpenMOBA.Foundation {
    }
 
    public class Swarm {
+      private readonly Dictionary<int, (TerrainOverlayNetworkNode, PathfinderResultContext)> pathfinderResultContextByComputedRadius = new Dictionary<int, (TerrainOverlayNetworkNode, PathfinderResultContext)>();
+      private DoubleVector3 destination;
+
       public List<Entity> Entities { get; set; } = new List<Entity>();
-      public DoubleVector3 Destination { get; set; }
+
+      public DoubleVector3 Destination {
+         get => destination;
+         set => SetDestination(value);
+      }
+
+      public void SetDestination(DoubleVector3 value) {
+         destination = value;
+         pathfinderResultContextByComputedRadius.Clear();
+      }
+
+      public PathfinderResultContext GetPriorPathfinderResultContextOrNull(int computedRadius, TerrainOverlayNetworkNode destinationNode) {
+         if (!pathfinderResultContextByComputedRadius.TryGetValue(computedRadius, out var tuple) ||
+             tuple.Item1 != destinationNode) {
+            return null;
+         }
+         Trace.Assert(tuple.Item2 != null);
+         return tuple.Item2;
+      }
+
+      public void SetPriorPathfinderResultContext(int computedRadius, TerrainOverlayNetworkNode destinationNode, PathfinderResultContext pathfinderResultContext) {
+         pathfinderResultContextByComputedRadius[computedRadius] = (destinationNode, pathfinderResultContext);
+      }
    }
 
    public struct FrameEndStatistics {

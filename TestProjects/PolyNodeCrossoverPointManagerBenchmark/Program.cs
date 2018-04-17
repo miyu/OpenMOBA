@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using ClipperLib;
 using OpenMOBA;
 using OpenMOBA.Debugging;
@@ -33,10 +34,11 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
 
          var (localGeometryView, landPolyNode, crossoverPointManager) = BenchmarkAddCrossoverPoints(terrainStaticMetadata);
          var canvas = host.CreateAndAddCanvas(0);
-         //canvas.DrawPolyNode((PolyTree)landPolyNode.Parent);
-         canvas.DrawPoints(crossoverPointManager.CrossoverPoints, StrokeStyle.RedThick5Solid);
+         canvas.Transform = Matrix4x4.CreateScale(1000 / 60000.0f) * Matrix4x4.CreateTranslation(500, 500, 0);
+         canvas.DrawPolyNode((PolyTree)landPolyNode.Parent);
          canvas.DrawVisibilityGraph(landPolyNode.ComputeVisibilityGraph());
          canvas.DrawLineList(landPolyNode.FindContourAndChildHoleBarriers(), StrokeStyle.BlackHairLineSolid);
+         canvas.DrawPoints(crossoverPointManager.CrossoverPoints, StrokeStyle.RedThick5Solid);
 
          // var a = landPolyNode.FindAggregateContourCrossoverWaypoints()[6];
          // var b = landPolyNode.FindAggregateContourCrossoverWaypoints()[13];
@@ -72,16 +74,22 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
       }
 
       private static (LocalGeometryView, PolyNode, PolyNodeCrossoverPointManager) BenchmarkAddCrossoverPoints(TerrainStaticMetadata terrainStaticMetadata) {
-         var crossoverSegments = new[] {
-            new IntLineSegment2(new IntVector2(200, 0), new IntVector2(400, 0)),
-            new IntLineSegment2(new IntVector2(600, 0), new IntVector2(800, 0)),
-            new IntLineSegment2(new IntVector2(200, 1000), new IntVector2(400, 1000)),
-            new IntLineSegment2(new IntVector2(600, 1000), new IntVector2(800, 1000)),
+         /*
+         var left1 = new IntLineSegment2(new IntVector2(-30000, -18000), new IntVector2(-30000, -6000));
+         var left2 = new IntLineSegment2(new IntVector2(-30000, 6000), new IntVector2(-30000, 18000));
+         var right1 = new IntLineSegment2(new IntVector2(30000, -18000), new IntVector2(30000, -6000));
+         var right2 = new IntLineSegment2(new IntVector2(30000, 6000), new IntVector2(30000, 18000));*/
 
-            new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400)),
-            new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800)),
-            new IntLineSegment2(new IntVector2(1000, 200), new IntVector2(1000, 400)),
-            new IntLineSegment2(new IntVector2(1000, 600), new IntVector2(1000, 800))
+         var crossoverSegments = new[] {
+            (new IntLineSegment2(new IntVector2(-18000, -30000), new IntVector2(-6000, -30000)), Clockness.CounterClockwise),
+            (new IntLineSegment2(new IntVector2(6000, -30000), new IntVector2(18000, -30000)), Clockness.CounterClockwise),
+            (new IntLineSegment2(new IntVector2(-18000, 30000), new IntVector2(-6000, 30000)), Clockness.Clockwise),
+            (new IntLineSegment2(new IntVector2(6000, 30000), new IntVector2(18000, 30000)), Clockness.Clockwise),
+
+            (new IntLineSegment2(new IntVector2(-30000, -18000), new IntVector2(-30000, -6000)), Clockness.Clockwise),
+            (new IntLineSegment2(new IntVector2(-30000, 6000), new IntVector2(-30000, 18000)), Clockness.Clockwise),
+            (new IntLineSegment2(new IntVector2(30000, -18000), new IntVector2(30000, -6000)), Clockness.CounterClockwise),
+            (new IntLineSegment2(new IntVector2(30000, 6000), new IntVector2(30000, 18000)), Clockness.CounterClockwise)
          };
 
          var actorRadius = 10.0;
@@ -101,8 +109,8 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          var crossoverPointManager = new PolyNodeCrossoverPointManager(landPolyNode);
          // return (localGeometryView, landPolyNode, crossoverPointManager);
 
-         var spacing = 50;
-         foreach (var crossoverSegment in crossoverSegments) {
+         var spacing = 50 * 60000 / 1000;
+         foreach (var (crossoverSegment, inClockness) in crossoverSegments) {
             var cs = new DoubleLineSegment2(crossoverSegment.First.ToDoubleVector2(), crossoverSegment.Second.ToDoubleVector2());
             var firstToSecond = cs.First.To(cs.Second);
             var shrink = firstToSecond * (actorRadius / firstToSecond.Norm2D());

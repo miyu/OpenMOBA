@@ -197,10 +197,13 @@ namespace OpenMOBA.Foundation {
                centroidIndices[i] = centroidIndex;
             }
 
+            var priorPathfinderResultContext = swarm.GetPriorPathfinderResultContextOrNull(computedRadius, destinationNode);
             var pathfinderResultContext = pathfinderCalculator.UniformCostSearch(
                (destinationNode, new IntVector2((int)destinationLocal.X, (int)destinationLocal.Y)),
                swarmTriangleCentroids.ToArray(),
-               true);
+               true,
+               priorPathfinderResultContext);
+            swarm.SetPriorPathfinderResultContext(computedRadius, destinationNode, pathfinderResultContext);
 
             something.Add((swarm, computedRadius), (pathfinderResultContext, centroidIndices));
             RenderMe.Add(pathfinderResultContext);

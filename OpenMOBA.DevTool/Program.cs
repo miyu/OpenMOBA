@@ -89,7 +89,7 @@ namespace OpenMOBA.DevTool {
             if (RenderHook != null) return;
 
             debugCanvas.Transform = Matrix4x4.Identity;
-//            DrawEntityPaths(debugCanvas);
+            DrawEntityPaths(debugCanvas);
             DrawEntities(debugCanvas);
 //            DrawEntityMotionVectors(debugCanvas);
             //DrawTestPathfindingQueries(debugCanvas, 0.0);
@@ -132,7 +132,6 @@ namespace OpenMOBA.DevTool {
 
                debugCanvas.Transform = Matrix4x4.Identity;
 
-               continue;
                foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
                   var mc = entity.MovementComponent;
                   var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(2);

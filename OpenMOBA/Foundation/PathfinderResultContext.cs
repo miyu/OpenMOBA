@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
@@ -13,6 +14,15 @@ namespace OpenMOBA.Foundation {
       internal readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
 
       private readonly (bool computed, MotionRoadmap roadmap)[] roadmapCache;
+
+      public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source) {
+         Source = source;
+         Destinations = null;
+         Predecessors = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>();
+         SourceOptimalLinkToCrossovers = null;
+         DestinationOptimalLinkToCrossoversByDestinationIndex = null;
+         roadmapCache = null;
+      }
 
       public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessors, ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, ExposedArrayList<PathLink>[] destinationOptimalLinkToCrossoversByDestinationIndex) {
          Source = source;
