@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Drawing;
 using System.Linq;
+using System.Windows.Forms;
 using Canvas3D.LowLevel;
 using SharpDX;
+using SharpDX.DirectInput;
 using Color = SharpDX.Color;
+using Point = System.Drawing.Point;
 
 namespace Canvas3D {
    internal static class Program {
-      private static readonly Vector3 cameraEye = new Vector3(3, 2.5f, 5);
-      private static readonly Matrix view = MatrixCM.ViewLookAtRH(cameraEye, new Vector3(0, 0.5f, 0), new Vector3(0, 1, 0));
+      private static Vector3 cameraTarget = new Vector3(0, 0.5f, 0);
+      private static Vector3 cameraOffset = new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static Vector3 cameraUp = new Vector3(0, 1, 0);
+      private static Matrix view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, cameraUp);
       private static Matrix projView;
 
       private const int NUM_LAYERS = 100;
@@ -30,6 +35,16 @@ namespace Canvas3D {
       public static void Main(string[] args) {
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
+         
+         graphicsLoop.Form.MouseWheel += (s, e) => {
+            var dir = cameraOffset;
+            dir.Normalize();
+            cameraOffset += dir * (-e.Delta / 1000.0f);
+            Console.WriteLine(e.Delta + " " + dir + " " + cameraOffset);
+            view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, new Vector3(0, 1, 0));
+            UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
+         };
+
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          
          var floatingCubesBatch = RenderJobBatch.Create(graphicsLoop.Presets.GetPresetMesh(MeshPreset.UnitCube));
@@ -42,11 +57,51 @@ namespace Canvas3D {
             });
          }
 
+
          var scene = new Scene();
-         for (var frame = 0; graphicsLoop.IsRunning(out var renderer); frame++) {
+         for (var frame = 0; graphicsLoop.IsRunning(out var renderer, out var input); frame++) {
             var t = (float)graphicsLoop.Statistics.FrameTime.TotalSeconds;
+
+            var right = Vector3.Cross(-cameraOffset, cameraUp);
+            right.Normalize();
+
+            var forward = -cameraOffset;
+            forward.Normalize();
+
+            var up = Vector3.Cross(right, forward);
+
+               
+
+            if (input.IsMouseDown(MouseButtons.Left)) {
+               var rotation = Matrix.RotationY(-input.DeltaX * 0.005f) * Matrix.RotationAxis(right, -input.DeltaY * 0.005f);
+               cameraOffset = (Vector3)Vector3.Transform(cameraOffset, rotation);
+            }
+
+            if (input.IsKeyDown(Keys.Left)) {
+               cameraTarget -= right * 0.005f;
+            }
+            if (input.IsKeyDown(Keys.Right)) {
+               cameraTarget += right * 0.005f;
+            }
+            if (input.IsKeyDown(Keys.Up)) {
+               cameraTarget += forward * 0.005f;
+            }
+            if (input.IsKeyDown(Keys.Down)) {
+               cameraTarget -= forward * 0.005f;
+            }
+            if (input.IsKeyDown(Keys.Space)) {
+               cameraTarget += cameraUp * 0.005f * (input.IsKeyDown(Keys.ShiftKey) ? -1 : 1);
+            }
+
+            view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, new Vector3(0, 1, 0));
+            UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
+
             scene.Clear();
-            scene.SetCamera(cameraEye, projView);
+            scene.SetCamera(cameraTarget + cameraOffset, projView);
+
+            if (input.IsKeyDown(Keys.Left)) {
+               Console.WriteLine("L");
+            }
 
             // Draw floor
             scene.AddRenderable(

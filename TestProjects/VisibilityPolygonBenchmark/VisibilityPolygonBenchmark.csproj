@@ -62,10 +62,6 @@
       <Project>{96606f53-3379-4e31-a5c7-4bf0095edad0}</Project>
       <Name>OpenMOBA.DevTool</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\OpenMOBA\OpenMOBA.csproj">
-      <Project>{e10b146c-0b98-40a6-8346-d26a62776abf}</Project>
-      <Name>OpenMOBA</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

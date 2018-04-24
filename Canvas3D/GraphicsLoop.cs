@@ -17,6 +17,7 @@ namespace Canvas3D {
          Renderer = renderer;
          RenderLoop = new RenderLoop(Form);
          Statistics = new GraphicsLoopStatistics();
+         Input = new InputSomethingOSDJFH(Form);
       }
 
       public RenderForm Form { get; }
@@ -25,15 +26,19 @@ namespace Canvas3D {
       private RenderLoop RenderLoop { get; }
       public IPresetsStore Presets => GraphicsFacade.Presets;
       public GraphicsLoopStatistics Statistics { get; }
+      public InputSomethingOSDJFH Input { get; }
 
-      public bool IsRunning(out IRenderContext renderer) {
+      public bool IsRunning(out IRenderContext renderer, out InputSomethingOSDJFH input) {
          if (RenderLoop.NextFrame()) {
             GraphicsFacade.Device.DoEvents();
             Statistics.HandleFrameEnter((_initFlags & InitFlags.EnableDebugStats) != 0 ? Form : null);
+            Input.HandleFrameEnter();
             renderer = Renderer;
+            input = Input;
             return true;
          }
          renderer = null;
+         input = null;
          return false;
       }
 

@@ -24,8 +24,8 @@ namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
          var gameFactory = new GameFactory();
-         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
-//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
+//         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithSoftwareRendering(game); };
+         gameFactory.GameCreated += (s, game) => { GameDebugger.AttachToWithHardwareRendering(game); };
          OpenMOBA.Program.Main(gameFactory);
       }
    }
@@ -84,7 +84,7 @@ namespace OpenMOBA.DevTool {
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
-            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
+            //debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
             RenderHook?.Invoke(this, debugCanvas);
             if (RenderHook != null) return;
 

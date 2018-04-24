@@ -158,7 +158,7 @@ public:
 
 Pool outPtPool{ sizeof(OutPt) };
 
-void OutPt::operator delete(void* memory){ 
+void OutPt::operator delete(void* memory){
    outPtPool.Dealloc(memory);
 };
 

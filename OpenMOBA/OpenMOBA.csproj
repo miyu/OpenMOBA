@@ -5,7 +5,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>OpenMOBA</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>OpenMOBA</PackageId>
+    <PackageId>OpenMxOBA</PackageId>
     <StartupObject>OpenMOBA.Program</StartupObject>
   </PropertyGroup>
 
@@ -41,10 +41,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Canvas3D\Canvas3D.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Reference Include="System.Management" />
     <Reference Include="System.Runtime" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
 
   <ItemGroup>
