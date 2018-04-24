@@ -101,6 +101,21 @@ namespace Canvas3D.LowLevel {
       /// Cull nothing
       /// </summary>
       FillFrontBack,
+
+      /// <summary>
+      /// Cull backfaces, fill polys
+      /// </summary>
+      WireFront,
+
+      /// <summary>
+      /// Cull frontfaces, fill polys
+      /// </summary>
+      WireBack,
+
+      /// <summary>
+      /// Cull nothing
+      /// </summary>
+      WireFrontBack,
    }
 
    public class ShaderCompilationException : Exception {

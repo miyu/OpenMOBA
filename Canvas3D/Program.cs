@@ -48,6 +48,7 @@ namespace Canvas3D {
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          
          var floatingCubesBatch = RenderJobBatch.Create(graphicsLoop.Presets.GetPresetMesh(MeshPreset.UnitCube));
+         floatingCubesBatch.Wireframe = true;
          foreach (var transform in cubeDefaultTransforms) {
             floatingCubesBatch.Jobs.Add(new RenderJobDescription {
                WorldTransform = transform,
@@ -56,7 +57,6 @@ namespace Canvas3D {
                Color = Color.White
             });
          }
-
 
          var scene = new Scene();
          for (var frame = 0; graphicsLoop.IsRunning(out var renderer, out var input); frame++) {
@@ -69,8 +69,6 @@ namespace Canvas3D {
             forward.Normalize();
 
             var up = Vector3.Cross(right, forward);
-
-               
 
             if (input.IsMouseDown(MouseButtons.Left)) {
                var rotation = Matrix.RotationY(-input.DeltaX * 0.005f) * Matrix.RotationAxis(right, -input.DeltaY * 0.005f);

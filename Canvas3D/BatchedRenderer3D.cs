@@ -308,6 +308,8 @@ namespace Canvas3D {
       }
 
       private void RenderBatch(IDeviceContext context, SceneSnapshot scene, RenderJobBatch batch) {
+         context.SetRasterizerConfiguration(batch.Wireframe ? RasterizerConfiguration.WireFrontBack : RasterizerConfiguration.FillFrontBack);
+
          if (batch.MaterialResourcesIndexOverride != -1) {
             RenderBatch_MaterialPerBatch(context, scene, batch);
          } else {
@@ -798,6 +800,7 @@ namespace Canvas3D {
       public Matrix BatchTransform;
       public ExposedArrayList<RenderJobDescription> Jobs;
       public int MaterialResourcesIndexOverride;
+      public bool Wireframe;
 
       public static RenderJobBatch Create(IMesh mesh = null) {
          return new RenderJobBatch {
