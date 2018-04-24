@@ -29,6 +29,7 @@ namespace Canvas3D {
       public InputSomethingOSDJFH Input { get; }
 
       public bool IsRunning(out IRenderContext renderer, out InputSomethingOSDJFH input) {
+         Input.HandlePreWindowingEvents();
          if (RenderLoop.NextFrame()) {
             GraphicsFacade.Device.DoEvents();
             Statistics.HandleFrameEnter((_initFlags & InitFlags.EnableDebugStats) != 0 ? Form : null);

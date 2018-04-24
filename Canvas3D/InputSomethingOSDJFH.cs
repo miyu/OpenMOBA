@@ -34,22 +34,21 @@ namespace Canvas3D {
          };
       }
 
+      public int X => currentMousePosition.X;
+      public int Y => currentMousePosition.Y;
       public int DeltaX => deltaMousePosition.X;
       public int DeltaY => deltaMousePosition.Y;
 
-      public void HandleFrameEnter() {
+      public void HandlePreWindowingEvents() {
          for (var i = 0; i < currentKeyStates.Length; i++) {
             lastKeyStates[i] = currentKeyStates[i];
          }
          for (var i = 0; i < currentMouseStates.Length; i++) {
             lastMouseStates[i] = currentMouseStates[i];
          }
+      }
 
-         // Console.WriteLine(string.Join(" ", currentMouseStates));
-
-//         if (currentMousePosition != lastMousePosition && currentMouseStates[0]) {
-//            Console.WriteLine(currentMousePosition + " " + lastMousePosition);
-//         }
+      public void HandleFrameEnter() {
          deltaMousePosition = new Point(
             currentMousePosition.X - lastMousePosition.X,
             currentMousePosition.Y - lastMousePosition.Y);
