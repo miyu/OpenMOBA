@@ -228,7 +228,11 @@ namespace Canvas3D.LowLevel.Direct3D {
          _deviceContext.UnmapSubresource(box.Buffer, 0);
       }
 
-      public void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct {
+      public void Update<T>(IBuffer<T> buffer, T[] arr, int offset = 0, int count = -1) where T : struct {
+         if (count == -1) {
+            count = arr.Length;
+         }
+
          var box = (BufferBox<T>)buffer;
          if (count > box.Count) {
             throw new ArgumentOutOfRangeException();

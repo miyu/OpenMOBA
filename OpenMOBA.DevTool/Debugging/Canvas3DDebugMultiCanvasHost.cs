@@ -151,7 +151,6 @@ namespace OpenMOBA.DevTool.Debugging {
             this.presets = presets;
             this.scene = scene;
 
-
             unitTriangleMesh = graphicsFacade.CreateMesh(new[] {
                new VertexPositionNormalColorTexture(new Vector3(0, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(0, 0)),
                new VertexPositionNormalColorTexture(new Vector3(1, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(1, 0)),

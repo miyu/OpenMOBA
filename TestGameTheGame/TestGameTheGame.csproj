@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+   <PropertyGroup>
+      <TargetFramework>net462</TargetFramework>
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      <AssemblyName>TestGameTheGame</AssemblyName>
+      <OutputType>Exe</OutputType>
+      <PackageId>TestGameTheGame</PackageId>
+      <StartupObject>TestGameTheGame.Program</StartupObject>
+   </PropertyGroup>
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'" />
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+     <DebugType>full</DebugType>
+     <DebugSymbols>true</DebugSymbols>
+     <LangVersion>latest</LangVersion>
+   </PropertyGroup>
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+     <DebugType>full</DebugType>
+     <DebugSymbols>true</DebugSymbols>
+   </PropertyGroup>
+
+   <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
+      <Reference Include="System.Drawing" />
+      <Reference Include="System.Windows.Forms" />
+      <Reference Include="System" />
+      <Reference Include="Microsoft.CSharp" />
+   </ItemGroup>
+
+   <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+      <PackageReference Include="SharpDX" Version="3.1.1" />
+      <PackageReference Include="SharpDX.D3DCompiler" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Desktop" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Direct3D11" Version="3.1.1" />
+      <PackageReference Include="SharpDX.DirectInput" Version="3.1.1" />
+      <PackageReference Include="SharpDX.Mathematics" Version="3.1.1" />
+      <PackageReference Include="SharpDX.XInput" Version="3.1.1" />
+      <PackageReference Include="System.ValueTuple" Version="4.4.0" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <Folder Include="Properties\" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <ProjectReference Include="..\Canvas3D\Canvas3D.csproj" />
+     <ProjectReference Include="..\OpenMOBA.DevTool\OpenMOBA.DevTool.csproj" />
+     <ProjectReference Include="..\OpenMOBA\OpenMOBA.csproj" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <Reference Include="Microsoft.CSharp" />
+   </ItemGroup>
+
+</Project>

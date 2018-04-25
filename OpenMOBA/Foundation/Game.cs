@@ -27,6 +27,7 @@ namespace OpenMOBA.Foundation {
       public const int HashCircle2ScalingFactor = 1;
 
       public static readonly TerrainStaticMetadata Blank2D = new TerrainStaticMetadata {
+         Name = nameof(Blank2D),
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new List<Polygon2>()
@@ -64,6 +65,7 @@ namespace OpenMOBA.Foundation {
       }
 
       public static readonly TerrainStaticMetadata Test2D = new TerrainStaticMetadata {
+         Name = nameof(Test2D),
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new[] {
@@ -82,6 +84,7 @@ namespace OpenMOBA.Foundation {
       }.Twitch();
 
       public static readonly TerrainStaticMetadata FourSquares2D = new TerrainStaticMetadata {
+         Name = nameof(FourSquares2D),
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
          LocalExcludedContours = new[] {
@@ -93,6 +96,7 @@ namespace OpenMOBA.Foundation {
       }.Twitch();
 
       public static readonly TerrainStaticMetadata CrossCircle = new TerrainStaticMetadata {
+         Name = nameof(CrossCircle),
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] {
             Polygon2.CreateRect((1000 - CrossCirclePathWidth) / 2, 0, CrossCirclePathWidth, 1000),
@@ -105,6 +109,7 @@ namespace OpenMOBA.Foundation {
       }.Twitch();
 
       public static readonly TerrainStaticMetadata HashCircle1 = new TerrainStaticMetadata {
+         Name = nameof(HashCircle1),
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),
          LocalIncludedContours = new[] {
             Polygon2.CreateRect(200, 0, 200, 1000),
@@ -119,6 +124,7 @@ namespace OpenMOBA.Foundation {
       }.Twitch();
 
       public static readonly TerrainStaticMetadata HashCircle2 = new TerrainStaticMetadata {
+         Name = nameof(HashCircle2),
          LocalBoundary = new Rectangle(0, 0, 1000 * HashCircle2ScalingFactor, 1000 * HashCircle2ScalingFactor),
          LocalIncludedContours = new[] {
             Polygon2.CreateRect(0 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor, 400 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor),
@@ -203,7 +209,7 @@ namespace OpenMOBA.Foundation {
          */
 
          /**/
-         var sectorSpanWidth = 3;
+         var sectorSpanWidth = 1;
          var sectorSpanHeight = 1;
          var sectors = new SectorNodeDescription[sectorSpanHeight, sectorSpanWidth];
          for (var y = 0; y < sectorSpanHeight; y++) {
@@ -212,11 +218,13 @@ namespace OpenMOBA.Foundation {
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.FourSquares2D };
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
 //               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Blank2D, SectorMetadataPresets.HashCircle2 };
-               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
+//               var presets = new[] { SectorMetadataPresets.HashCircle2, SectorMetadataPresets.Test2D, SectorMetadataPresets.HashCircle2 };
+               var presets = new[] { SectorMetadataPresets.Test2D };
 //               var presets = new[] { SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D, SectorMetadataPresets.Blank2D };
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
-               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(x * 1000 - 1000, y * 1000, 0));
+               //sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(x * 1000 - 1000, y * 1000, 0));
+               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(0, 0, 0));
                sector.WorldToLocalScalingFactor = 60000.0f / 1000.0f;
                TerrainService.AddSectorNodeDescription(sector);
             }
@@ -401,7 +409,7 @@ namespace OpenMOBA.Foundation {
          //MovementSystemService.Pathfind(e, new DoubleVector3(1250, -80, 0));
 //         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
 //         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
-         //return;
+         return;
 
          var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;
@@ -430,31 +438,11 @@ namespace OpenMOBA.Foundation {
          IntMath.Sqrt(0); // init static
 
          while (true) {
-            DebugProfiler.EnterTick(GameTimeService.Ticks);
-
-            int eventsProcessed;
-            GameEventQueueService.ProcessPendingGameEvents(out eventsProcessed);
-
-            EntityService.ProcessSystems();
-
-            DebugProfiler.LeaveTick();
-
-            foreach (var debugger in Debuggers) {
-               debugger.HandleFrameEnd(new FrameEndStatistics {
-                  EventsProcessed = eventsProcessed
-               });
-            }
-
-//            List<DoubleVector3> objPath;
-//            PathfinderCalculator.TryFindPath(15, new DoubleVector3(-600, 700, 0), new DoubleVector3(1500, 500, 0), out objPath);
-
-            GameTimeService.IncrementTicks();
-            //            Console.WriteLine("At " + GameTimeService.Ticks + " " + TerrainService.BuildSnapshot().TemporaryHoles.Count);
-            //            if (GameTimeService.Ticks > 80) return;
             if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 120) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeService.Ticks}");
                break;
             }
+            Tick();
          }
 
          var latch = new CountdownEvent(1);
@@ -463,6 +451,24 @@ namespace OpenMOBA.Foundation {
             latch.Signal();
          }) { ApartmentState = ApartmentState.STA }.Start();
          latch.Wait();
+      }
+
+      public void Tick() {
+         DebugProfiler.EnterTick(GameTimeService.Ticks);
+
+         GameEventQueueService.ProcessPendingGameEvents(out var eventsProcessed);
+
+         EntityService.ProcessSystems();
+
+         DebugProfiler.LeaveTick();
+
+         foreach (var debugger in Debuggers) {
+            debugger.HandleFrameEnd(new FrameEndStatistics {
+               EventsProcessed = eventsProcessed
+            });
+         }
+
+         GameTimeService.IncrementTicks();
       }
 
       private Entity CreateTestEntity(DoubleVector3 initialPosition, float radius, float movementSpeed) {

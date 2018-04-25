@@ -48,12 +48,28 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          return Vector3.Transform(world.ToDotNetVector(), snd.WorldTransformInv).ToOpenMobaVector();
       }
 
+      public static DoubleVector3 WorldToLocalNormal(this SectorNodeDescription snd, IntVector3 world) {
+         return Vector3.TransformNormal(world.ToDotNetVector(), snd.WorldTransformInv).ToOpenMobaVector();
+      }
+
+      public static DoubleVector3 WorldToLocalNormal(this SectorNodeDescription snd, DoubleVector3 world) {
+         return Vector3.TransformNormal(world.ToDotNetVector(), snd.WorldTransformInv).ToOpenMobaVector();
+      }
+
       public static DoubleVector3 LocalToWorld(this SectorNodeDescription snd, IntVector2 local) {
          return Vector3.Transform(new Vector3(local.X, local.Y, 0), snd.WorldTransform).ToOpenMobaVector();
       }
 
       public static DoubleVector3 LocalToWorld(this SectorNodeDescription snd, DoubleVector2 local) {
          return Vector3.Transform(new Vector3((float)local.X, (float)local.Y, 0), snd.WorldTransform).ToOpenMobaVector();
+      }
+
+      public static DoubleVector3 LocalToWorldNormal(this SectorNodeDescription snd, IntVector3 local) {
+         return Vector3.TransformNormal(new Vector3(local.X, local.Y, local.Z), snd.WorldTransform).ToOpenMobaVector();
+      }
+
+      public static DoubleVector3 LocalToWorldNormal(this SectorNodeDescription snd, DoubleVector3 local, float z = 0) {
+         return Vector3.TransformNormal(new Vector3((float)local.X, (float)local.Y, (float)local.Z), snd.WorldTransform).ToOpenMobaVector();
       }
    }
 }

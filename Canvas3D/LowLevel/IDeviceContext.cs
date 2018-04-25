@@ -41,7 +41,7 @@ namespace Canvas3D.LowLevel {
       IBufferUpdater<T> TakeUpdater<T>(IBuffer<T> buffer) where T : struct;
       void Update<T>(IBuffer<T> buffer, T item) where T : struct;
       void Update<T>(IBuffer<T> buffer, IntPtr data, int count) where T : struct;
-      void Update<T>(IBuffer<T> buffer, T[] arr, int offset, int count) where T : struct;
+      void Update<T>(IBuffer<T> buffer, T[] arr, int offset = 0, int count = -1) where T : struct;
    }
 
    public interface IImmediateDeviceContext : IDeviceContext {

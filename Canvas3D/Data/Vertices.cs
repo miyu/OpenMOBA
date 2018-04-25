@@ -39,5 +39,7 @@ namespace Canvas3D {
          Color = color;
          UV = uv;
       }
+
+      public override string ToString() => $"{Position} {Normal} {Color} {UV}";
    }
 }

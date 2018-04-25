@@ -1,0 +1,195 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Numerics;
+using System.Windows.Forms;
+using Canvas3D;
+using Canvas3D.LowLevel;
+using ClipperLib;
+using OpenMOBA;
+using OpenMOBA.DevTool.Debugging;
+using OpenMOBA.Foundation;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
+using OpenMOBA.Geometry;
+using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using SharpDX;
+using SDPoint = System.Drawing.Point;
+using SDXColor = SharpDX.Color;
+using SDXVector2 = SharpDX.Vector2;
+using SDXVector3 = SharpDX.Vector3;
+using SDXVector4 = SharpDX.Vector4;
+using SDXPlane = SharpDX.Plane;
+using SNVector2 = System.Numerics.Vector2;
+using SNVector3 = System.Numerics.Vector3;
+using SNVector4 = System.Numerics.Vector4;
+using SNPlane = System.Numerics.Plane;
+
+namespace TestGameTheGame {
+   public static class Program {
+      private static readonly MaterialDescription SomewhatRough = new MaterialDescription { Properties = { Metallic = 0, Roughness = 0.04f } };
+
+      private static SDXVector3 cameraTarget = new SDXVector3(0, 0, 0);
+      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 2000;//new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static SDXVector3 cameraUp = new SDXVector3(0, 1, 0);
+
+      private static GraphicsLoop graphicsLoop;
+      private static Game game;
+
+      private static Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas debugCanvas;
+      private static Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>> lgvMeshesByLgvGuid = new Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>>();
+      private static Entity player;
+
+      public static void Main(string[] args) {
+         graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+
+         var gameFactory = new GameFactory();
+         game = gameFactory.Create();
+
+         player = game.EntityService.CreateEntity();
+         game.EntityService.AddEntityComponent(player, new MovementComponent {
+            WorldPosition = DoubleVector3.Zero,
+            BaseRadius = 30,
+            BaseSpeed = 100
+         });
+
+         var scene = new Scene();
+         debugCanvas = new Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas(graphicsLoop.GraphicsFacade, graphicsLoop.Presets, scene);
+
+         for (var frame = 0; graphicsLoop.IsRunning(out var renderer, out var input); frame++) {
+            scene.Clear();
+            Step(graphicsLoop, game, input, scene);
+            Render(scene, renderer);
+         }
+      }
+
+      private static void Step(GraphicsLoop graphicsLoop, Game game, InputSomethingOSDJFH input, Scene scene) {
+         var expectedTicks = (int)(graphicsLoop.Statistics.FrameTime.TotalSeconds * 60);
+         while (game.GameTimeService.Ticks < expectedTicks) {
+            game.Tick();
+         }
+
+         var viewProj = ComputeProjViewMatrix(graphicsLoop.Form.ClientSize);
+         viewProj.Transpose();
+         var ray = Ray.GetPickRay(input.X, input.Y, new ViewportF(0, 0, 1280, 720, 1.0f, 100.0f), viewProj);
+
+         var terrainOverlayNetwork = game.TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+         if (input.IsMouseDown(MouseButtons.Right)) {
+            foreach (var node in terrainOverlayNetwork.TerrainNodes) {
+               var origin = node.SectorNodeDescription.LocalToWorld(DoubleVector2.Zero);
+               var normal = node.SectorNodeDescription.LocalToWorldNormal(DoubleVector3.UnitZ);
+               var plane = new SDXPlane(ToSharpDX(origin), ToSharpDX(normal));
+               if (!plane.Intersects(ref ray, out SDXVector3 intersection)) continue;
+
+               var intersectionLocal = node.SectorNodeDescription.WorldToLocal(intersection.ToOpenMoba());
+               if (!node.LandPolyNode.PointInLandPolygonNonrecursive(intersectionLocal.XY.LossyToIntVector2())) continue;
+
+               // recompute intersectionWorld because floating point error in raycast logic
+               var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
+               game.MovementSystemService.Pathfind(player, intersectionWorld);
+            }
+         }
+         if (input.IsKeyDown(Keys.Q)) {
+            foreach (var node in terrainOverlayNetwork.TerrainNodes) {
+               var origin = node.SectorNodeDescription.LocalToWorld(DoubleVector2.Zero);
+               var normal = node.SectorNodeDescription.LocalToWorldNormal(DoubleVector3.UnitZ);
+               var plane = new SDXPlane(ToSharpDX(origin), ToSharpDX(normal));
+               if (!plane.Intersects(ref ray, out SDXVector3 intersection)) continue;
+
+               var intersectionLocal = node.SectorNodeDescription.WorldToLocal(intersection.ToOpenMoba());
+               if (!node.SectorNodeDescription.StaticMetadata.LocalBoundary.Contains(new SDPoint((int)intersectionLocal.X, (int)intersectionLocal.Y))) continue;
+               if (!node.LandPolyNode.PointInLandPolygonNonrecursive(player.MovementComponent.LocalPositionIv2)) continue;
+
+               // recompute intersectionWorld because floating point error in raycast logic
+               var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
+
+               var barriersBvh = node.LandPolyNode.FindContourAndChildHoleBarriersBvh();
+               var q = new IntLineSegment2(player.MovementComponent.LocalPositionIv2, intersectionLocal.XY.LossyToIntVector2());
+               debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
+               debugCanvas.DrawLine(q, StrokeStyle.RedHairLineSolid);
+               foreach (var seg in barriersBvh.Segments) {
+                  debugCanvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
+               }
+
+
+               var intersectingLeaves = barriersBvh.FindPotentiallyIntersectingLeaves(q);
+               var tFar = 1.0;
+               foreach (var bvhNode in intersectingLeaves) {
+                  for (var i = bvhNode.SegmentsStartIndexInclusive; i < bvhNode.SegmentsEndIndexExclusive; i++) {
+                     if (GeometryOperations.TryFindNonoverlappingSegmentSegmentIntersectionT(ref q, ref bvhNode.Segments[i], out var t)) {
+                        Console.WriteLine(t);
+                        tFar = Math.Min(tFar, t);
+                     }
+                  }
+               }
+
+               debugCanvas.Transform = Matrix4x4.Identity;
+               debugCanvas.DrawLine(player.MovementComponent.WorldPosition, node.SectorNodeDescription.LocalToWorld(q.PointAt(tFar)), StrokeStyle.LimeThick5Solid);
+            }
+         }
+      }
+
+      private static void Render(Scene scene, IRenderContext renderer) {
+         scene.SetCamera(cameraTarget + cameraOffset, ComputeProjViewMatrix(graphicsLoop.Form.ClientSize));
+
+         scene.AddRenderable(
+            graphicsLoop.Presets.UnitCube,
+            Matrix.Identity,
+            SomewhatRough,
+            SDXColor.White);
+
+         var terrainOverlayNetwork = game.TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+         foreach (var node in terrainOverlayNetwork.TerrainNodes) {
+            if (!lgvMeshesByLgvGuid.TryGetValue(node.LocalGeometryView.Guid, out var mesh)) {
+               VertexPositionNormalColorTexture[] F(Triangle3 triangle) => triangle.Points.Map(
+                  p => new VertexPositionNormalColorTexture(
+                     new SDXVector3((float)p.X, (float)p.Y, 0),
+                     -SDXVector3.UnitZ,
+                     SDXColor.White,
+                     new SDXVector2(0, 0)));
+
+               var triangleList = node.LocalGeometryView.Triangulation.Islands
+                                      .SelectMany(i => i.Triangles)
+                                      .SelectMany(triangle => F(triangle).Concat(F(triangle).Reverse()))
+                                      .ToArray();
+
+               mesh = graphicsLoop.GraphicsFacade.CreateMesh(triangleList);
+               lgvMeshesByLgvGuid.Add(node.LocalGeometryView.Guid, mesh);
+            }
+            
+            scene.AddRenderable(
+               mesh,
+               ConvertSystemNumericsToSharpDX(Matrix4x4.Transpose(node.SectorNodeDescription.WorldTransform)),
+               SomewhatRough,
+               SDXColor.White);
+         }
+
+         scene.AddRenderable(
+            graphicsLoop.Presets.UnitSphere,
+            MatrixCM.Translation(player.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(player.MovementComponent.BaseRadius * 2),
+            SomewhatRough,
+            SDXColor.Lime);
+
+         var snapshot = scene.ExportSnapshot();
+         renderer.RenderScene(snapshot);
+         snapshot.ReleaseReference();
+      }
+
+      private static Matrix ComputeProjViewMatrix(Size clientSize) {
+         var verticalFov = (float)Math.PI / 4;
+         var aspect = clientSize.Width / (float)clientSize.Height;
+         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 500.0f, 3000.0f);
+         var view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, cameraUp);
+         return proj * view;
+      }
+
+      private static Matrix ConvertSystemNumericsToSharpDX(Matrix4x4 value) => new Matrix(
+            value.M11, value.M12, value.M13, value.M14,
+            value.M21, value.M22, value.M23, value.M24,
+            value.M31, value.M32, value.M33, value.M34,
+            value.M41, value.M42, value.M43, value.M44);
+
+      public static SDXVector3 ToSharpDX(this DoubleVector3 v) => new SDXVector3((float)v.X, (float)v.Y, (float)v.Z);
+      public static DoubleVector3 ToOpenMoba(this SDXVector3 v) => new DoubleVector3(v.X, v.Y, v.Z);
+   }
+}

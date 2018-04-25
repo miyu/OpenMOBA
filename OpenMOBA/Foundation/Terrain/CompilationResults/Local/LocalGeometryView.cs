@@ -17,6 +17,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       public readonly int CrossoverDilationFactor;
 
       private readonly Polygon2 ClipperExtentsHoleClipPolygon;
+      private readonly Guid guid = Guid.NewGuid();
 
       public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, double holeDilationRadius, LocalGeometryView preview) {
          LocalGeometryViewManager = localGeometryViewManager;
@@ -33,6 +34,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
 
       public LocalGeometryJob Job => LocalGeometryViewManager.Job;
       public bool IsPunchedLandEvaluated => _punchedLand != null;
+      public Guid Guid => guid;
 
       private PolyTree _dilatedHolesUnion;
       //private IntLineSegment2?[] _erodedCrossoverSegments;

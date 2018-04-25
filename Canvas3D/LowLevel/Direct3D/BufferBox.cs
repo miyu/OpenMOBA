@@ -5,5 +5,7 @@ namespace Canvas3D.LowLevel.Direct3D {
       public Buffer Buffer;
       public int Count;
       public int Stride;
+
+      int IBuffer<T>.Count => Count;
    }
 }

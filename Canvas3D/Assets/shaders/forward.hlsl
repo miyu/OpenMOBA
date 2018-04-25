@@ -58,6 +58,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
    float4 materialSampledColor = materialResources.baseColor * SampleTexture(materialResources.baseTextureIndex, input);
    float4 baseAndTransparency = input.color * materialSampledColor;
    float3 base = baseAndTransparency.xyz;
+   return float4(base, 1.0);
    float transparency = baseAndTransparency.w;
    
    float metallic = input.metallic;

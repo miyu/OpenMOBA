@@ -69,14 +69,17 @@ namespace Canvas3D.LowLevel.Direct3D {
       public IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
          var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.VertexBuffer, CpuAccessFlags.Write, 0, sizeOfT);
-         ;
          return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
       }
 
       public IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct {
-         var sizeOfT = Utilities.SizeOf<T>();
-         var buffer = Buffer.Create(InternalD3DDevice, BindFlags.VertexBuffer, content);
-         return new BufferBox<T> { Buffer = buffer, Count = content.Length, Stride = sizeOfT };
+         var buffer = CreateVertexBuffer<T>(content.Length);
+         ImmediateContext.Update(buffer, content);
+         return buffer;
+
+         //var sizeOfT = Utilities.SizeOf<T>();
+         //var buffer = Buffer.Create(InternalD3DDevice, BindFlags.VertexBuffer, content);
+         //return new BufferBox<T> { Buffer = buffer, Count = content.Length, Stride = sizeOfT };
       }
 
       public (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct {

@@ -15,7 +15,9 @@ namespace Canvas3D.LowLevel {
    public interface IPixelShader { }
    public interface IVertexShader { }
 
-   public interface IBuffer<T> where T : struct { }
+   public interface IBuffer<T> where T : struct {
+      int Count { get; }
+   }
 
    public interface IBufferUpdater<T> : IDisposable where T : struct {
       void Write(T val);
