@@ -385,6 +385,7 @@ namespace OpenMOBA.Foundation {
 
       private void ExecutePathNonswarmer(Entity entity, MovementComponent movementComponent) {
          if (movementComponent.PathingRoadmap == null) return;
+         if (!movementComponent.IsPathfindingEnabled) return;
 
          var movementSpeed = statsCalculator.ComputeMovementSpeed(entity);
          var worldDistanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;

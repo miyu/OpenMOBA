@@ -39,6 +39,7 @@ namespace TestGameTheGame {
       private static Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas debugCanvas;
       private static Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>> lgvMeshesByLgvGuid = new Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>>();
       private static Entity player;
+      private static List<Entity> rocks = new List<Entity>();
 
       public static void Main(string[] args) {
          graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
@@ -50,8 +51,21 @@ namespace TestGameTheGame {
          game.EntityService.AddEntityComponent(player, new MovementComponent {
             WorldPosition = DoubleVector3.Zero,
             BaseRadius = 30,
-            BaseSpeed = 100
+            BaseSpeed = 100,
+            IsPathfindingEnabled = true
          });
+
+         var r = new Random(0);
+         for (var i = 0; i < 10; i++) {
+            var rock = game.EntityService.CreateEntity();
+            game.EntityService.AddEntityComponent(rock, new MovementComponent {
+               WorldPosition = new DoubleVector3(r.Next(-500, 500), r.Next(-500, 500), 0),
+               BaseRadius = 10,
+               BaseSpeed = 100,
+               IsPathfindingEnabled = false
+            });
+            rocks.Add(rock);
+         }
 
          var scene = new Scene();
          debugCanvas = new Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas(graphicsLoop.GraphicsFacade, graphicsLoop.Presets, scene);
@@ -74,6 +88,8 @@ namespace TestGameTheGame {
          var ray = Ray.GetPickRay(input.X, input.Y, new ViewportF(0, 0, 1280, 720, 1.0f, 100.0f), viewProj);
 
          var terrainOverlayNetwork = game.TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+
+         // rmb moves
          if (input.IsMouseDown(MouseButtons.Right)) {
             foreach (var node in terrainOverlayNetwork.TerrainNodes) {
                var origin = node.SectorNodeDescription.LocalToWorld(DoubleVector2.Zero);
@@ -89,6 +105,8 @@ namespace TestGameTheGame {
                game.MovementSystemService.Pathfind(player, intersectionWorld);
             }
          }
+
+         // lazaars
          if (input.IsKeyDown(Keys.Q)) {
             foreach (var node in terrainOverlayNetwork.TerrainNodes) {
                var origin = node.SectorNodeDescription.LocalToWorld(DoubleVector2.Zero);
@@ -127,6 +145,18 @@ namespace TestGameTheGame {
                debugCanvas.DrawLine(player.MovementComponent.WorldPosition, node.SectorNodeDescription.LocalToWorld(q.PointAt(tFar)), StrokeStyle.LimeThick5Solid);
             }
          }
+
+         // i love rocks
+         var rocksExisting = new List<Entity>();
+         foreach (var rock in rocks) {
+            var distance = rock.MovementComponent.WorldPosition.To(player.MovementComponent.WorldPosition).Norm2D();
+            if (distance > player.MovementComponent.ComputedRadius) {
+               rocksExisting.Add(rock);
+               continue;
+            }
+            game.EntityService.RemoveEntity(rock);
+         }
+         rocks = rocksExisting;
       }
 
       private static void Render(Scene scene, IRenderContext renderer) {
@@ -169,6 +199,14 @@ namespace TestGameTheGame {
             MatrixCM.Translation(player.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(player.MovementComponent.BaseRadius * 2),
             SomewhatRough,
             SDXColor.Lime);
+
+         foreach (var rock in rocks) {
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(rock.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(rock.MovementComponent.BaseRadius * 2),
+               SomewhatRough,
+               SDXColor.Brown);
+         }
 
          var snapshot = scene.ExportSnapshot();
          renderer.RenderScene(snapshot);

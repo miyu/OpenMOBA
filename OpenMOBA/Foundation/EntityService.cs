@@ -37,11 +37,28 @@ namespace OpenMOBA.Foundation {
          if (entity.ComponentMask.Contains(ComponentMaskUtils.Build(component.Type))) throw new InvalidOperationException("Entity already has component of type " + component.Type);
          entity.ComponentMask = entity.ComponentMask.Or(component.Type);
          entity.ComponentsByType[(int)component.Type] = component;
-         foreach (var system in systems) if (entity.ComponentMask.Contains(system.RequiredComponentsMask)) system.AssociateEntity(entity);
+         foreach (var system in systems) {
+            if (entity.ComponentMask.Contains(system.RequiredComponentsMask)) {
+               system.AssociateEntity(entity);
+            }
+         }
+      }
+
+      public void RemoveEntity(Entity entity) {
+         if (!entities.Remove(entity)) {
+            throw new InvalidOperationException();
+         }
+         foreach (var system in systems) {
+            if (entity.ComponentMask.Contains(system.RequiredComponentsMask)) {
+               system.DisassociateEntity(entity);
+            }
+         }
       }
 
       public void ProcessSystems() {
-         foreach (var system in systems) system.Execute();
+         foreach (var system in systems) {
+            system.Execute();
+         }
       }
    }
 
@@ -101,6 +118,7 @@ namespace OpenMOBA.Foundation {
       ///    once terrain changes, pathing may attempt to resume.
       /// </summary>
       public DoubleVector3 PathingDestination { get; set; }
+      public bool IsPathfindingEnabled { get; set; }
 
       public MotionRoadmap PathingRoadmap { get; set; } = null;
       public int PathingRoadmapProgressIndex = -1;
@@ -138,6 +156,10 @@ namespace OpenMOBA.Foundation {
 
       public void AssociateEntity(Entity entity) {
          associatedEntities.Add(entity);
+      }
+
+      public void DisassociateEntity(Entity entity) {
+         associatedEntities.Remove(entity);
       }
 
       public abstract void Execute();
