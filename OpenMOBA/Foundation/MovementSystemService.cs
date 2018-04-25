@@ -52,13 +52,11 @@ namespace OpenMOBA.Foundation {
             movementComponent.PathingIsInvalidated = false;
             movementComponent.PathingRoadmapProgressIndex = 0;
             movementComponent.LastFailedPathfindingSnapshot = null;
-            Console.WriteLine("Pathfinding succeeded");
          } else {
             movementComponent.PathingRoadmap = null;
             movementComponent.PathingIsInvalidated = false;
             movementComponent.PathingRoadmapProgressIndex = -1;
             movementComponent.LastFailedPathfindingSnapshot = terrainService.CompileSnapshot();
-            Console.WriteLine("Pathfinding Failed");
          }
       }
 

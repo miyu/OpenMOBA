@@ -8,13 +8,16 @@ using Canvas3D;
 using Canvas3D.LowLevel;
 using ClipperLib;
 using OpenMOBA;
+using OpenMOBA.DevTool;
 using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
+using OpenMOBA.Foundation.Terrain.Declarations;
 using SharpDX;
 using SDPoint = System.Drawing.Point;
+using SDRectangle = System.Drawing.Rectangle;
 using SDXColor = SharpDX.Color;
 using SDXVector2 = SharpDX.Vector2;
 using SDXVector3 = SharpDX.Vector3;
@@ -40,6 +43,8 @@ namespace TestGameTheGame {
       private static Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>> lgvMeshesByLgvGuid = new Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>>();
       private static Entity player;
       private static List<Entity> rocks = new List<Entity>();
+
+      private static List<IntVector2> fred = new List<IntVector2>();
 
       public static void Main(string[] args) {
          graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
@@ -129,7 +134,6 @@ namespace TestGameTheGame {
                   debugCanvas.DrawLine(seg, StrokeStyle.RedThick5Solid);
                }
 
-
                var intersectingLeaves = barriersBvh.FindPotentiallyIntersectingLeaves(q);
                var tFar = 1.0;
                foreach (var bvhNode in intersectingLeaves) {
@@ -157,6 +161,53 @@ namespace TestGameTheGame {
             game.EntityService.RemoveEntity(rock);
          }
          rocks = rocksExisting;
+
+         // W draws walls
+         if (input.IsKeyJustDown(Keys.W)) {
+            foreach (var node in terrainOverlayNetwork.TerrainNodes) {
+               var origin = node.SectorNodeDescription.LocalToWorld(DoubleVector2.Zero);
+               var normal = node.SectorNodeDescription.LocalToWorldNormal(DoubleVector3.UnitZ);
+               var plane = new SDXPlane(ToSharpDX(origin), ToSharpDX(normal));
+               if (!plane.Intersects(ref ray, out SDXVector3 intersection)) continue;
+
+               var intersectionLocal = node.SectorNodeDescription.WorldToLocal(intersection.ToOpenMoba());
+               if (!node.SectorNodeDescription.StaticMetadata.LocalBoundary.Contains(new SDPoint((int)intersectionLocal.X, (int)intersectionLocal.Y))) continue;
+
+               // recompute intersectionWorld because floating point error in raycast logic
+               var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
+               fred.Add(intersectionWorld.XY.LossyToIntVector2());
+
+               // todo: we really need to iterate over LGVs rather than tnodes
+               break;
+            }
+         }
+
+         if (input.IsKeyJustDown(Keys.E)) {
+            if (fred.Count > 0) {
+               fred.RemoveAt(fred.Count - 1);
+            }
+         }
+
+         if (input.IsKeyJustDown(Keys.R) && fred.Count >= 2) {
+
+            var polyTree = PolylineOperations.ExtrudePolygon(fred, 10);
+            var boundsLower = fred.Aggregate(new IntVector2(int.MaxValue, int.MaxValue), (a, b) => new IntVector2(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y)));
+            var boundsUpper = fred.Aggregate(new IntVector2(int.MinValue, int.MinValue), (a, b) => new IntVector2(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y)));
+            var bounds = new SDRectangle(boundsLower.X, boundsLower.Y, boundsUpper.X - boundsLower.X, boundsUpper.Y - boundsLower.Y);
+
+            var holeStaticMetadata = new PrismHoleStaticMetadata(
+               bounds,
+               new[] { new Polygon2(polyTree.Childs[0].Contour) },
+               polyTree.Childs[0].Childs.Map(c => new Polygon2(c.Contour)));
+
+            var terrainHole = game.TerrainService.CreateHoleDescription(holeStaticMetadata);
+//            terrainHole.WorldTransform = Matrix4x4.CreateTranslation());
+//            Console.WriteLine(intersectionWorld);
+            
+            game.TerrainService.AddTemporaryHoleDescription(terrainHole);
+
+            fred.Clear();
+         }
       }
 
       private static void Render(Scene scene, IRenderContext renderer) {
@@ -192,7 +243,10 @@ namespace TestGameTheGame {
                ConvertSystemNumericsToSharpDX(Matrix4x4.Transpose(node.SectorNodeDescription.WorldTransform)),
                SomewhatRough,
                SDXColor.White);
+
          }
+         debugCanvas.Transform = Matrix4x4.Identity;
+         debugCanvas.DrawLineStrip(fred, StrokeStyle.RedThick5Solid);
 
          scene.AddRenderable(
             graphicsLoop.Presets.UnitSphere,
@@ -207,6 +261,8 @@ namespace TestGameTheGame {
                SomewhatRough,
                SDXColor.Brown);
          }
+
+         debugCanvas.DrawEntityPaths(game.EntityService);
 
          var snapshot = scene.ExportSnapshot();
          renderer.RenderScene(snapshot);
