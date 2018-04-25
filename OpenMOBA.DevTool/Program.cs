@@ -124,7 +124,7 @@ namespace OpenMOBA.DevTool {
                   debugCanvas.DrawPolygonContours(includedContours, StrokeStyle.RedHairLineSolid);
                   debugCanvas.DrawPolygonContours(excludedContours, StrokeStyle.LimeHairLineSolid);
                }
-
+               continue;
 //               if (index == 0)
                //debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeHairLineSolid);
                //debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);

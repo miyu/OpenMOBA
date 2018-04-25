@@ -186,7 +186,7 @@ namespace OpenMOBA.Foundation {
          foreach (var ((swarm, computedRadius), entityNodeAndTriangleIndexes) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
             var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(computedRadius);
             if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(swarm.Destination, out var destinationNode, out var destinationLocal)) {
-               throw new NotImplementedException();
+               break;
             }
 
             var swarmTriangleCentroids = new AddOnlyOrderedHashSet<(TerrainOverlayNetworkNode, IntVector2)>();
@@ -211,7 +211,8 @@ namespace OpenMOBA.Foundation {
 
          // 3. For each entity, contribute path-following steering behavior
          foreach (var ((swarm, computedRadius), entityNodeAndTriangleIndexes) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
-            var (pathfinderResultContext, centroidIndicesByEntityIndex) = something[(swarm, computedRadius)];
+            if (!something.TryGetValue((swarm, computedRadius), out var res)) continue;
+            var (pathfinderResultContext, centroidIndicesByEntityIndex) = res;
             foreach (var (i, (entity, entityTerrainOverlayNode, island, triangleIndex)) in entityNodeAndTriangleIndexes.Enumerate()) {
                var mc = entity.MovementComponent;
                var centroidIndex = centroidIndicesByEntityIndex[i];
@@ -426,7 +427,7 @@ namespace OpenMOBA.Foundation {
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
          var worldDistanceRemaining = movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick;
          var localDistanceRemaining = movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
-         var dv2 = CPU(
+         var dv2 = ComputePositionUpdate(
             localDistanceRemaining,
             movementComponent.LocalPosition,
             movementComponent.WeightedSumNBodyForces.ToUnit(),
@@ -436,7 +437,7 @@ namespace OpenMOBA.Foundation {
          movementComponent.WorldPosition = movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(dv2);
       }
 
-      private DoubleVector2 CPU(double distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
+      private DoubleVector2 ComputePositionUpdate(double distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
          var allowPushIntoTriangle = true;
          while (distanceRemaining > GeometryOperations.kEpsilon) {
             DoubleVector2 np;

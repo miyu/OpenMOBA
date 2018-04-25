@@ -62,7 +62,7 @@ namespace OpenMOBA.DevTool.Debugging {
             Console.WriteLine(offset);
 
             IScene lastScene = null;
-            while (graphicsLoop.IsRunning(out var renderer)) {
+            while (graphicsLoop.IsRunning(out var renderer, out var input)) {
                while (sceneQueue.TryDequeue(out var res)) {
                   res.SetCamera(Vector3.Zero, Matrix.Identity);
                   scenes.Add(res);

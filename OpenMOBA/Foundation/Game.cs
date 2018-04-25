@@ -385,25 +385,25 @@ namespace OpenMOBA.Foundation {
          //   GameEventQueueService.AddGameEvent(CreateRemoveTemporaryHoleEvent(new GameTime(endTicks), terrainHole));
          //}
 
-         var a = CreateTestEntity(new DoubleVector3(60 - 500, (1000 - 40) - 500, 0), 15, 80); //675 - 500 - 10, 175 - 500 - 10
-         var b = CreateTestEntity(new DoubleVector3(675 - 500, (1000 - 175) - 500, 0), 15, 70); //675 - 500 - 10, 175 - 500 - 10
-         var c = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 900) - 500, 0), 25, 60); //675 - 500 - 10, 175 - 500 - 10
-         var d = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 500) - 500, 0), 25, 50); //675 - 500 - 10, 175 - 500 - 10
-         var e = CreateTestEntity(new DoubleVector3(-1350, 200, 0), 30, 100);
+         //var a = CreateTestEntity(new DoubleVector3(60 - 500, (1000 - 40) - 500, 0), 15, 80); //675 - 500 - 10, 175 - 500 - 10
+         //var b = CreateTestEntity(new DoubleVector3(675 - 500, (1000 - 175) - 500, 0), 15, 70); //675 - 500 - 10, 175 - 500 - 10
+         //var c = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 900) - 500, 0), 25, 60); //675 - 500 - 10, 175 - 500 - 10
+         //var d = CreateTestEntity(new DoubleVector3(50 - 500, (1000 - 500) - 500, 0), 25, 50); //675 - 500 - 10, 175 - 500 - 10
+         //var e = CreateTestEntity(new DoubleVector3(-1350, 200, 0), 30, 100);
 //         var e = CreateTestEntity(new DoubleVector3(-650, 180, 0), 30, 100);
 //         var c = CreateTestEntity(new DoubleVector3(50 - 500, 900 - 500, 0), 15, 60);
 //         var d = CreateTestEntity(new DoubleVector3(50 - 500, 500 - 500, 0), 15, 50);
 
-         MovementSystemService.Pathfind(a, new DoubleVector3(930 - 500, (1000 - 300) - 500, 0));
-         MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, (1000 - 300) - 500, 0));
-         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, (1000 - 475) - 500, 0));
-         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, (1000 - 720) - 500, 0));
-         MovementSystemService.Pathfind(e, new DoubleVector3(1250, -80, 0));
+         //MovementSystemService.Pathfind(a, new DoubleVector3(930 - 500, (1000 - 300) - 500, 0));
+         //MovementSystemService.Pathfind(b, new DoubleVector3(825 - 500, (1000 - 300) - 500, 0));
+         //MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, (1000 - 475) - 500, 0));
+         //MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, (1000 - 720) - 500, 0));
+         //MovementSystemService.Pathfind(e, new DoubleVector3(1250, -80, 0));
 //         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
 //         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
-         return;
+         //return;
 
-         var benchmarkDestination = new DoubleVector3(450, 450, 0.0);
+         var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;
          var swarm = new Swarm { Destination = benchmarkDestination };
          var swarmMeanRadius = 10.0f;

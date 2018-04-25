@@ -19,18 +19,18 @@ namespace SutherlandHodgmanTests {
       private static int frameCounter = 0;
 
       public static void Main(string[] args) {
-         var canvas = host.CreateAndAddCanvas(0);
-         var smp = SectorMetadataPresets.Blank2D;
-         var punchResult = PolygonOperations.Punch()
-                                            .Include(smp.LocalIncludedContours)
-//                          .Exclude(smp.LocalExcludedContours)
-                                            .Exclude(Polygon2.CreateRect(-10000, -10000, 20000, 20000))
-                                            .Exclude(new []{(Polygon2.CreateRect(-8000, -8000, 16000, 16000), true)})
-                                            .Execute();
-
-         canvas.Transform = Matrix4x4.CreateScale(500 / 60000.0f) * Matrix4x4.CreateTranslation(500, 300, 0);
-         canvas.DrawPolyNode(punchResult);
-         return;
+//         var canvas = host.CreateAndAddCanvas(0);
+//         var smp = SectorMetadataPresets.Blank2D;
+//         var punchResult = PolygonOperations.Punch()
+//                                            .Include(smp.LocalIncludedContours)
+////                          .Exclude(smp.LocalExcludedContours)
+//                                            .Exclude(Polygon2.CreateRect(-10000, -10000, 20000, 20000))
+//                                            .Exclude(new []{(Polygon2.CreateRect(-8000, -8000, 16000, 16000), true)})
+//                                            .Execute();
+//
+//         canvas.Transform = Matrix4x4.CreateScale(500 / 60000.0f) * Matrix4x4.CreateTranslation(500, 300, 0);
+//         canvas.DrawPolyNode(punchResult);
+//         return;
 
          //var subjectPolygon = Polygon2.CreateCircle(0, 0, 100, 16);
          var n = 128;
