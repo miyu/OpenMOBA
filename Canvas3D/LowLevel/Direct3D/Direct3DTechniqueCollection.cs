@@ -6,6 +6,7 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       public ITechnique Forward { get; private set; }
       public ITechnique ForwardDepthOnly { get; private set; }
+      public ITechnique ForwardWater { get; private set; }
       public ITechnique DeferredToGBuffer { get; private set; }
       public ITechnique DeferredFromGBuffer { get; private set; }
 
@@ -20,6 +21,11 @@ namespace Canvas3D.LowLevel.Direct3D {
             Passes = 1,
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
             VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
+         };
+         collection.ForwardWater = new Technique {
+            Passes = 1,
+            PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_water", "PSMain"),
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_water", VertexLayout.PositionNormalColorTexture, "VSMain")
          };
          //collection.DeferredToGBuffer = new Technique {
          //   Passes = 1,

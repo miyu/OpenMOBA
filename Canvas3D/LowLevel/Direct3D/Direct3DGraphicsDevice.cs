@@ -13,7 +13,9 @@ using Resource = SharpDX.Direct3D11.Resource;
 
 namespace Canvas3D.LowLevel.Direct3D {
    public class Direct3DGraphicsDevice : IGraphicsDevice {
+      public const Format kUnusedThereforeUnknownFormat = Format.Unknown;
       public const int BackBufferCount = 2;
+
       private static readonly Size kUninitializedBackBufferSize = new Size(16, 16);
       private readonly DepthStencilViewBox _backBufferDepthView = new DepthStencilViewBox { Resolution = kUninitializedBackBufferSize };
       private readonly RenderTargetViewBox _backBufferRenderTargetView = new RenderTargetViewBox { Resolution = kUninitializedBackBufferSize };
@@ -63,13 +65,13 @@ namespace Canvas3D.LowLevel.Direct3D {
       public IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
          var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, 0, sizeOfT);
-         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
+         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT, Format = kUnusedThereforeUnknownFormat };
       }
 
       public IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();
          var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.VertexBuffer, CpuAccessFlags.Write, 0, sizeOfT);
-         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT };
+         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT, Format = kUnusedThereforeUnknownFormat };
       }
 
       public IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct {
@@ -81,6 +83,24 @@ namespace Canvas3D.LowLevel.Direct3D {
          //var buffer = Buffer.Create(InternalD3DDevice, BindFlags.VertexBuffer, content);
          //return new BufferBox<T> { Buffer = buffer, Count = content.Length, Stride = sizeOfT };
       }
+
+      public IBuffer<T> CreateIndexBuffer<T>(int count) where T : struct {
+         var format = 
+            typeof(T) == typeof(int) ? Format.R32_UInt :
+            typeof(T) == typeof(short) ? Format.R16_UInt :
+            throw new ArgumentException();
+
+         var sizeOfT = Utilities.SizeOf<T>();
+         var buffer = new Buffer(InternalD3DDevice, count * sizeOfT, ResourceUsage.Dynamic, BindFlags.IndexBuffer, CpuAccessFlags.Write, 0, sizeOfT);
+         return new BufferBox<T> { Buffer = buffer, Count = count, Stride = sizeOfT, Format = format };
+      }
+
+      public IBuffer<T> CreateIndexBuffer<T>(T[] content) where T : struct {
+         var buffer = CreateIndexBuffer<T>(content.Length);
+         ImmediateContext.Update(buffer, content);
+         return buffer;
+      }
+
 
       public (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct {
          var sizeOfT = Utilities.SizeOf<T>();

@@ -32,11 +32,14 @@ namespace Canvas3D.LowLevel {
       void SetPrimitiveTopology(PrimitiveTopology topology);
       void SetVertexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct;
       void SetVertexBuffer(int slot, int? @null);
+      void SetIndexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct;
+      void SetIndexBuffer(int slot, int? @null);
       void SetConstantBuffer<T>(int slot, IBuffer<T> buffer, RenderStage stages) where T : struct;
       void SetShaderResource(int slot, IShaderResourceView view, RenderStage stages);
 
       void Draw(int vertices, int verticesOffset);
       void DrawInstanced(int vertices, int verticesOffset, int instances, int instancesOffset);
+      void DrawIndexedInstanced(int indexCountPerIndex, int instances, int indicesOffset, int verticesOffset, int instancesOffset);
 
       IBufferUpdater<T> TakeUpdater<T>(IBuffer<T> buffer) where T : struct;
       void Update<T>(IBuffer<T> buffer, T item) where T : struct;

@@ -4,6 +4,8 @@ using System.IO;
 using SharpDX;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
+using SharpDX.DXGI;
+using MapFlags = SharpDX.Direct3D11.MapFlags;
 
 namespace Canvas3D.LowLevel.Direct3D {
    public class BaseDeviceContext : IDeviceContext, IDisposable {
@@ -176,6 +178,15 @@ namespace Canvas3D.LowLevel.Direct3D {
          _deviceContext.InputAssembler.SetVertexBuffers(slot, new VertexBufferBinding());
       }
 
+      public void SetIndexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct {
+         var box = (BufferBox<T>)buffer;
+         _deviceContext.InputAssembler.SetIndexBuffer(box.Buffer, box.Format, 0);
+      }
+
+      public void SetIndexBuffer(int slot, int? @null) {
+         _deviceContext.InputAssembler.SetIndexBuffer(null, Format.Unknown, 0);
+      }
+
       public void SetConstantBuffer<T>(int slot, IBuffer<T> buffer, RenderStage stages) where T : struct {
          var box = (BufferBox<T>)buffer;
          if ((stages & RenderStage.Pixel) != 0) {
@@ -202,6 +213,10 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       public void DrawInstanced(int vertices, int verticesOffset, int instances, int instancesOffset) {
          _deviceContext.DrawInstanced(vertices, instances, verticesOffset, instancesOffset);
+      }
+
+      public void DrawIndexedInstanced(int indexCountPerIndex, int instances, int indicesOffset, int verticesOffset, int instancesOffset) {
+         _deviceContext.DrawIndexedInstanced(indexCountPerIndex, instances, indicesOffset, verticesOffset, instancesOffset);
       }
 
       public IBufferUpdater<T> TakeUpdater<T>(IBuffer<T> buffer) where T : struct {

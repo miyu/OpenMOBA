@@ -12,6 +12,8 @@ namespace Canvas3D.LowLevel {
       IBuffer<T> CreateConstantBuffer<T>(int count) where T : struct;
       IBuffer<T> CreateVertexBuffer<T>(int count) where T : struct;
       IBuffer<T> CreateVertexBuffer<T>(T[] content) where T : struct;
+      IBuffer<T> CreateIndexBuffer<T>(int count) where T : struct;
+      IBuffer<T> CreateIndexBuffer<T>(T[] content) where T : struct;
       (IBuffer<T>, IShaderResourceView) CreateStructuredBufferAndView<T>(int count) where T : struct;
 
       (IRenderTargetView[], IShaderResourceView, IShaderResourceView[]) CreateScreenSizeRenderTarget(int levels);

@@ -232,6 +232,10 @@ namespace Canvas3D {
       private readonly IShaderResourceView _lightShaderResourceView;
       private readonly IShaderResourceView[] _lightShaderResourceViews;
 
+
+      // hack
+      private readonly WaterWip water;
+
       internal RenderContext(IGraphicsFacade graphicsFacade) {
          _graphicsFacade = graphicsFacade;
          _graphicsDevice = graphicsFacade.Device;
@@ -259,6 +263,9 @@ namespace Canvas3D {
          Trace.Assert(Utilities.SizeOf<SpotlightDescription>() == SpotlightDescription.Size);
          Trace.Assert(Utilities.SizeOf<RenderJobDescription>() == RenderJobDescription.Size);
          Trace.Assert(Utilities.SizeOf<InternalMaterialResourcesDescription>() == InternalMaterialResourcesDescription.Size);
+
+         water = new WaterWip(graphicsFacade);
+         water.Initialize();
       }
 
       public unsafe void RenderScene(ISceneSnapshot scene) {
@@ -299,12 +306,31 @@ namespace Canvas3D {
 
          // Forward render pass
          for (var pass = 0; pass < _techniques.Forward.Passes; pass++) {
+            break;
             _techniques.Forward.BeginPass(context, pass);
-
             foreach (var batch in scene.RenderJobBatches) {
                RenderBatch(context, scene, batch);
             }
          }
+
+         _techniques.ForwardWater.BeginPass(context, 0);
+         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count);
+         UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
+         var instancingBuffer = PickInstancingBuffer(1);
+         context.SetVertexBuffer(1, instancingBuffer);
+         context.Update(instancingBuffer, new RenderJobDescription {
+            WorldTransform = MatrixCM.Translation(-5, -5, 0) * MatrixCM.RotationX(-(float)Math.PI / 2.0f),
+            MaterialProperties = { Metallic = 0.0f, Roughness = 1.0f },
+            MaterialResourcesIndex = -1,
+            Color = Color.White,
+         });
+         context.SetShaderResource(30, _graphicsFacade.Presets.SolidTextures[Color4.White], RenderStage.Pixel);
+         var mrbu = context.TakeUpdater(_materialResourcesBuffer);
+         mrbu.Write(new InternalMaterialResourcesDescription() {
+            BaseColor = Color4.White
+         }.Resolve(30));
+         mrbu.UpdateCloseAndDispose();
+         water.Render(context);
       }
 
       private void RenderBatch(IDeviceContext context, SceneSnapshot scene, RenderJobBatch batch) {

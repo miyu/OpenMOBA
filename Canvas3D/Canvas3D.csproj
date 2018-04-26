@@ -48,6 +48,9 @@
    </ItemGroup>
 
    <ItemGroup>
+     <None Update="Assets\shaders\forward_water.hlsl">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
      <None Update="Assets\shaders\forward_depth_only.hlsl">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </None>
