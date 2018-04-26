@@ -11,6 +11,10 @@ namespace Canvas3D {
    public class InputSomethingOSDJFH {
       private bool[] lastKeyStates = new bool[256];
       private bool[] currentKeyStates = new bool[256];
+
+      private bool lastShiftKeyState = false;
+      private bool currentShiftKeyState = false;
+
       private bool[] lastMouseStates = new bool[3];
       private bool[] currentMouseStates = new bool[3];
       private Point currentMousePosition;
@@ -56,7 +60,10 @@ namespace Canvas3D {
       }
 
       private void HandleKeyDownUp(KeyEventArgs e, bool value) {
-         if ((int)e.KeyCode >= currentKeyStates.Length) return;
+         if ((int)e.KeyCode >= currentKeyStates.Length) {
+            Console.WriteLine($"{nameof(InputSomethingOSDJFH)} Not handling " + e.KeyCode);
+            return;
+         }
          currentKeyStates[(int)e.KeyCode] = value;
       }
 

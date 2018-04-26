@@ -42,6 +42,7 @@ namespace TestGameTheGame {
       private static Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas debugCanvas;
       private static Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>> lgvMeshesByLgvGuid = new Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>>();
       private static Entity player;
+      private static Entity baddie;
       private static List<Entity> rocks = new List<Entity>();
 
       private static List<IntVector2> fred = new List<IntVector2>();
@@ -54,10 +55,20 @@ namespace TestGameTheGame {
 
          player = game.EntityService.CreateEntity();
          game.EntityService.AddEntityComponent(player, new MovementComponent {
-            WorldPosition = DoubleVector3.Zero,
+            WorldPosition = new DoubleVector3(-450, -450, 0),
             BaseRadius = 30,
             BaseSpeed = 100,
-            IsPathfindingEnabled = true
+            IsPathfindingEnabled = true,
+            PathingDestination = new DoubleVector3(-450, -450, 0)
+         });
+
+         baddie = game.EntityService.CreateEntity();
+         game.EntityService.AddEntityComponent(baddie, new MovementComponent {
+            WorldPosition = new DoubleVector3(0, 0, 0),
+            BaseRadius = 30,
+            BaseSpeed = 100,
+            IsPathfindingEnabled = true,
+            PathingDestination = new DoubleVector3(0, 0, 0)
          });
 
          var r = new Random(0);
@@ -189,7 +200,6 @@ namespace TestGameTheGame {
          }
 
          if (input.IsKeyJustDown(Keys.R) && fred.Count >= 2) {
-
             var polyTree = PolylineOperations.ExtrudePolygon(fred, 10);
             var boundsLower = fred.Aggregate(new IntVector2(int.MaxValue, int.MaxValue), (a, b) => new IntVector2(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y)));
             var boundsUpper = fred.Aggregate(new IntVector2(int.MinValue, int.MinValue), (a, b) => new IntVector2(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y)));
@@ -198,14 +208,15 @@ namespace TestGameTheGame {
             var holeStaticMetadata = new PrismHoleStaticMetadata(
                bounds,
                new[] { new Polygon2(polyTree.Childs[0].Contour) },
-               polyTree.Childs[0].Childs.Map(c => new Polygon2(c.Contour)));
+               polyTree.Childs[0].Childs.Map(c => new Polygon2(((IEnumerable<IntVector2>)c.Contour).Reverse().ToList())));
 
             var terrainHole = game.TerrainService.CreateHoleDescription(holeStaticMetadata);
-//            terrainHole.WorldTransform = Matrix4x4.CreateTranslation());
-//            Console.WriteLine(intersectionWorld);
-            
             game.TerrainService.AddTemporaryHoleDescription(terrainHole);
 
+            if (!input.IsKeyDown(Keys.ShiftKey)) {
+               var removeEvent = game.CreateRemoveTemporaryHoleEvent(new GameTime(game.GameTimeService.Now.Ticks + 90), terrainHole);
+               game.GameEventQueueService.AddGameEvent(removeEvent);
+            }
             fred.Clear();
          }
       }
@@ -243,8 +254,14 @@ namespace TestGameTheGame {
                ConvertSystemNumericsToSharpDX(Matrix4x4.Transpose(node.SectorNodeDescription.WorldTransform)),
                SomewhatRough,
                SDXColor.White);
-
          }
+
+         if (terrainOverlayNetwork.TryFindTerrainOverlayNode(baddie.MovementComponent.WorldPosition, out var n)) {
+            debugCanvas.DrawCrossSectorVisibilityPolygon(n, baddie.MovementComponent.LocalPositionIv2);
+         } else {
+            Console.WriteLine("Err, can't find pos?");
+         }
+
          debugCanvas.Transform = Matrix4x4.Identity;
          debugCanvas.DrawLineStrip(fred, StrokeStyle.RedThick5Solid);
 
@@ -253,6 +270,12 @@ namespace TestGameTheGame {
             MatrixCM.Translation(player.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(player.MovementComponent.BaseRadius * 2),
             SomewhatRough,
             SDXColor.Lime);
+
+         scene.AddRenderable(
+            graphicsLoop.Presets.UnitSphere,
+            MatrixCM.Translation(baddie.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(baddie.MovementComponent.BaseRadius * 2),
+            SomewhatRough,
+            SDXColor.Red);
 
          foreach (var rock in rocks) {
             scene.AddRenderable(

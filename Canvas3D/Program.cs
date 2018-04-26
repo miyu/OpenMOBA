@@ -48,7 +48,7 @@ namespace Canvas3D {
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          
          var floatingCubesBatch = RenderJobBatch.Create(graphicsLoop.Presets.GetPresetMesh(MeshPreset.UnitCube));
-         floatingCubesBatch.Wireframe = true;
+         //floatingCubesBatch.Wireframe = true;
          foreach (var transform in cubeDefaultTransforms) {
             floatingCubesBatch.Jobs.Add(new RenderJobDescription {
                WorldTransform = transform,
