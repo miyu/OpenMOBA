@@ -12,12 +12,12 @@ namespace Canvas3D {
    using TIndex = Int32;
 
    public class WaterWip {
-      public const int GridResolution = 1024;//128;
-      public const float GridSpacing = 0.01f;
+      public const int GridResolution = 1024 / 1;//128;
+      public const float GridSpacing = 0.03f * 1;
 
       private readonly IGraphicsFacade graphicsFacade;
       private readonly IGraphicsDevice device;
-      private IBuffer<VertexPositionNormalColorTexture> vertexBuffer;
+      private IBuffer<VertexPosition> vertexBuffer;
       private IBuffer<TIndex> indexBuffer;
       private int indexCount;
 
@@ -41,19 +41,15 @@ namespace Canvas3D {
          context.DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
       }
 
-      private static (VertexPositionNormalColorTexture[] vertices, TIndex[] indices) GenerateBufferData() {
+      private static (VertexPosition[] vertices, TIndex[] indices) GenerateBufferData() {
          // convention is X -> y ^ and Z to sky
          // So first verts are at bottom left.
          // front-face is CW
-         var vertices = new VertexPositionNormalColorTexture[GridResolution * GridResolution];
+         var vertices = new VertexPosition[GridResolution * GridResolution];
          var i = 0;
          for (var y = 0; y < GridResolution; y++) {
             for (var x = 0; x < GridResolution; x++) {
-               vertices[i] = new VertexPositionNormalColorTexture(
-                  new Vector3(x * GridSpacing, y * GridSpacing, 0),
-                  new Vector3(0, 0, 1),
-                  Color.White,
-                  new Vector2(x / (float)(GridResolution - 1), y / (float)(GridResolution - 1)));
+               vertices[i] = new VertexPosition(new Vector3(x / (float)(GridResolution - 1), y / (float)(GridResolution - 1), 0));
                i++;
             }
          }

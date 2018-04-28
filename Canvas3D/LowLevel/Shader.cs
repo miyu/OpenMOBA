@@ -33,7 +33,7 @@ namespace Canvas3D.LowLevel {
    public interface ITexture2D { }
 
    public interface IMesh {
-      VertexLayout VertexLayout { get; }
+      InputLayoutFormat InputLayoutFormat { get; }
 
       void Draw(IDeviceContext deviceContext, int instances);
    }

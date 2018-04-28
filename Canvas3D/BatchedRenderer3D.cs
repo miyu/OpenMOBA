@@ -58,6 +58,8 @@ namespace Canvas3D {
       private Vector3 _cameraEye;
       private Matrix _projView, _projViewInv;
 
+      private float _time;
+
       public void Clear() {
          textures.Clear();
          materials.Clear();
@@ -158,6 +160,10 @@ namespace Canvas3D {
          spotlightInfos.Add(info);
       }
 
+      public void SetTime(float t) {
+         _time = t;
+      }
+
       public ISceneSnapshot ExportSnapshot() {
          if (!snapshotPool.TryDequeue(out var snapshot)) {
             snapshot = new SceneSnapshot();
@@ -193,6 +199,8 @@ namespace Canvas3D {
                foreach (var job in batch.Jobs)
                   if (job.MaterialResourcesIndex >= snapshot.Materials.Count)
                      throw new InvalidOperationException();
+
+         snapshot.Time = _time;
       }
 
       internal static void ReturnSnapshot(SceneSnapshot sceneSnapshot) {
@@ -297,7 +305,7 @@ namespace Canvas3D {
          // Restore backbuffer rendertarget + scene constant buffer + srvs.
          context.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          context.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
-         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1.0f), scene.ProjView, scene.ProjViewInv, true, true, scene.SpotlightInfos.Count);
+         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1.0f), scene.ProjView, scene.ProjViewInv, true, true, scene.SpotlightInfos.Count, scene.Time);
 
          // Clear render/depth, bind srvs after setrendertargets
          context.ClearRenderTarget(Color.Gray);
@@ -306,7 +314,6 @@ namespace Canvas3D {
 
          // Forward render pass
          for (var pass = 0; pass < _techniques.Forward.Passes; pass++) {
-            break;
             _techniques.Forward.BeginPass(context, pass);
             foreach (var batch in scene.RenderJobBatches) {
                RenderBatch(context, scene, batch);
@@ -314,12 +321,12 @@ namespace Canvas3D {
          }
 
          _techniques.ForwardWater.BeginPass(context, 0);
-         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count);
+         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count, scene.Time);
          UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
          var instancingBuffer = PickInstancingBuffer(1);
          context.SetVertexBuffer(1, instancingBuffer);
          context.Update(instancingBuffer, new RenderJobDescription {
-            WorldTransform = MatrixCM.Translation(-5, -5, 0) * MatrixCM.RotationX(-(float)Math.PI / 2.0f),
+            WorldTransform = MatrixCM.RotationX(-(float)Math.PI / 2.0f),
             MaterialProperties = { Metallic = 0.0f, Roughness = 1.0f },
             MaterialResourcesIndex = -1,
             Color = Color.White,
@@ -556,7 +563,7 @@ namespace Canvas3D {
             context.SetRenderTargets(_lightDepthStencilViews[(int)spotlightDescription->AtlasLocation.Position.Z], null);
             context.SetViewportRect((Vector2)spotlightDescription->AtlasLocation.Position, kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size);
 
-            UpdateSceneConstantBuffer(context, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, Matrix.Zero, false, false, 0);
+            UpdateSceneConstantBuffer(context, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, Matrix.Zero, false, false, 0, scene.Time);
             for (var pass = 0; pass < _techniques.ForwardDepthOnly.Passes; pass++) {
                _techniques.ForwardDepthOnly.BeginPass(context, pass);
 
@@ -598,7 +605,7 @@ namespace Canvas3D {
          deviceContext.SetVertexBuffer(1, null);
       }
 
-      private void UpdateSceneConstantBuffer(IDeviceContext deviceContext, Vector4 cameraEye, Matrix projView, Matrix projViewInv, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights) {
+      private void UpdateSceneConstantBuffer(IDeviceContext deviceContext, Vector4 cameraEye, Matrix projView, Matrix projViewInv, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights, float time) {
          deviceContext.Update(_sceneBuffer, new SceneConstantBufferData {
             cameraEye = cameraEye,
             projView = projView,
@@ -606,7 +613,7 @@ namespace Canvas3D {
             pbrEnabled = pbrEnabled ? 1 : 0,
             shadowTestEnabled = shadowTestEnabled ? 1 : 0,
             numSpotlights = numSpotlights,
-            padding = 0
+            time = time
          });
       }
 
@@ -638,7 +645,7 @@ namespace Canvas3D {
          public int pbrEnabled;
          public int shadowTestEnabled;
          public int numSpotlights;
-         public int padding;
+         public float time;
 
          public const int Size = 16 + 64 * 2 + 4 * 3 + 4;
       }
@@ -692,6 +699,7 @@ namespace Canvas3D {
       public Vector3 CameraEye;
       public Matrix ProjView;
       public Matrix ProjViewInv;
+      public float Time;
 
       internal int HandleCount;
 

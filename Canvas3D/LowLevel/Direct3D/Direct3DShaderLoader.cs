@@ -24,16 +24,16 @@ namespace Canvas3D.LowLevel.Direct3D {
          return new PixelShaderBox { Shader = shader };
       }
 
-      public IVertexShader LoadVertexShaderFromFile(string relativePath, VertexLayout vertexLayout, string entryPoint = null) {
+      public IVertexShader LoadVertexShaderFromFile(string relativePath, InputLayoutFormat inputLayoutFormat, string entryPoint = null) {
          var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "VS", "vs_5_0");
          var shader = new VertexShader(_device, bytecode);
          var signature = ShaderSignature.GetInputSignature(bytecode);
-         var inputLayout = CreateInputLayout(vertexLayout, signature);
+         var inputLayout = CreateInputLayout(inputLayoutFormat, signature);
          return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
       }
 
-      private InputLayout CreateInputLayout(VertexLayout vertexLayout, ShaderSignature signature) {
-         if (vertexLayout == VertexLayout.PositionNormalColorTexture) {
+      private InputLayout CreateInputLayout(InputLayoutFormat inputLayoutFormat, ShaderSignature signature) {
+         if (inputLayoutFormat == InputLayoutFormat.PositionNormalColorTextureInstanced) {
             return new InputLayout(_device, signature, new[] {
                new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
                new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0, InputClassification.PerVertexData, 0),
@@ -48,8 +48,16 @@ namespace Canvas3D.LowLevel.Direct3D {
                new InputElement("INSTANCE_MATERIAL_RESOURCES_INDEX", 0, Format.R32_SInt, 72, 1, InputClassification.PerInstanceData, 1),
                new InputElement("INSTANCE_COLOR", 0, Format.R8G8B8A8_UNorm, 76, 1, InputClassification.PerInstanceData, 1)
             });
+         } else if (inputLayoutFormat == InputLayoutFormat.Water) {
+            return new InputLayout(_device, signature, new[] {
+               new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
+               new InputElement("INSTANCE_TRANSFORM", 0, Format.R32G32B32A32_Float, 0, 1, InputClassification.PerInstanceData, 1),
+               new InputElement("INSTANCE_TRANSFORM", 1, Format.R32G32B32A32_Float, 16, 1, InputClassification.PerInstanceData, 1),
+               new InputElement("INSTANCE_TRANSFORM", 2, Format.R32G32B32A32_Float, 32, 1, InputClassification.PerInstanceData, 1),
+               new InputElement("INSTANCE_TRANSFORM", 3, Format.R32G32B32A32_Float, 48, 1, InputClassification.PerInstanceData, 1),
+            });
          }
-         throw new NotSupportedException("Unsupported Input Layout: " + vertexLayout);
+         throw new NotSupportedException("Unsupported Input Layout: " + inputLayoutFormat);
       }
 
       private byte[] CompileShaderBytecodeFromFileOrThrow(string path, string entryPoint, string profile) {

@@ -19,6 +19,7 @@ cbuffer Scene : register(REG_SCENE_DATA) {
    int pbrEnabled;
    int shadowTestEnabled;
    int numSpotlights;
+   float iTime;
 }
 
 cbuffer Batch : register(REG_OBJECT_DATA) {

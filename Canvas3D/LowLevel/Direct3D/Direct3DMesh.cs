@@ -6,7 +6,7 @@ namespace Canvas3D.LowLevel.Direct3D {
       public int Vertices;
       public int VertexBufferOffset;
 
-      public VertexLayout VertexLayout { get; internal set; }
+      public InputLayoutFormat InputLayoutFormat { get; internal set; }
 
       public void Draw(IDeviceContext deviceContext, int instances) {
          deviceContext.SetPrimitiveTopology(PrimitiveTopology.TriangleList);

@@ -10,8 +10,8 @@ using Point = System.Drawing.Point;
 
 namespace Canvas3D {
    internal static class Program {
-      private static Vector3 cameraTarget = new Vector3(0, 0.5f, 0);
-      private static Vector3 cameraOffset = new Vector3(0, 1, 1) * 5;//new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static Vector3 cameraTarget = new Vector3(-0.8f, -0.9f, 0.0f);
+      private static Vector3 cameraOffset = new Vector3(0.4f, 0.5f, 1) * 12 * 5;//new Vector3(3, 2.5f, 5) - cameraTarget;
       private static Vector3 cameraUp = new Vector3(0, 1, 0);
       private static Matrix view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, cameraUp);
       private static Matrix projView;
@@ -33,13 +33,14 @@ namespace Canvas3D {
          MatrixCM.RotationY(i)).ToArray();   
 
       public static void Main(string[] args) {
+          Console.ReadLine();
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          
          graphicsLoop.Form.MouseWheel += (s, e) => {
             var dir = cameraOffset;
             dir.Normalize();
-            cameraOffset += dir * (-e.Delta / 1000.0f);
+            cameraOffset += dir * (-e.Delta / 100.0f);
             Console.WriteLine(e.Delta + " " + dir + " " + cameraOffset);
             view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, new Vector3(0, 1, 0));
             UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
@@ -62,6 +63,8 @@ namespace Canvas3D {
          var scene = new Scene();
          for (var frame = 0; graphicsLoop.IsRunning(out var renderer, out var input); frame++) {
             var t = (float)graphicsLoop.Statistics.FrameTime.TotalSeconds;
+            //scene.SetTime((float)Math.Sin(t * 1));
+            scene.SetTime((float)t);
 
             var right = Vector3.Cross(-cameraOffset, cameraUp);
             right.Normalize();
@@ -76,17 +79,18 @@ namespace Canvas3D {
                cameraOffset = (Vector3)Vector3.Transform(cameraOffset, rotation);
             }
 
-            if (input.IsKeyDown(Keys.Left)) {
-               cameraTarget -= right * 0.005f;
+            var v = input.IsKeyDown(Keys.ShiftKey) ? 7.0f : 1.0f;
+            if (input.IsKeyDown(Keys.Left) || input.IsKeyDown(Keys.A)) {
+               cameraTarget -= right * 0.005f * v;
             }
-            if (input.IsKeyDown(Keys.Right)) {
-               cameraTarget += right * 0.005f;
+            if (input.IsKeyDown(Keys.Right) || input.IsKeyDown(Keys.D)) {
+               cameraTarget += right * 0.005f * v;
             }
-            if (input.IsKeyDown(Keys.Up)) {
-               cameraTarget += forward * 0.005f;
+            if (input.IsKeyDown(Keys.Up) || input.IsKeyDown(Keys.W)) {
+               cameraTarget += forward * 0.005f * v;
             }
-            if (input.IsKeyDown(Keys.Down)) {
-               cameraTarget -= forward * 0.005f;
+            if (input.IsKeyDown(Keys.Down) || input.IsKeyDown(Keys.S)) {
+               cameraTarget -= forward * 0.005f * v;
             }
             if (input.IsKeyDown(Keys.Space)) {
                cameraTarget += cameraUp * 0.005f * (input.IsKeyDown(Keys.ShiftKey) ? -1 : 1);
@@ -116,21 +120,29 @@ namespace Canvas3D {
                   Color = Color.Black,
                });
             }
-            scene.AddRenderJobBatch(raySphereBatch);
+            //scene.AddRenderJobBatch(raySphereBatch);
 
             // Draw floor
-            //scene.AddRenderable(
-            //   graphicsLoop.Presets.UnitCube,
-            //   MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
-            //   new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
-            //   Color.White);
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitCube,
+               MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.White);
+            
+            // Draw sun
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(new Vector3(-10, 3, -3) * 3) * MatrixCM.Scaling(10f * 3),
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.Yellow);
+
 
             // Draw center cube / sphere
-            scene.AddRenderable(
-               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(0, 0.5f, 0),
-               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
-               Color.Red);
+//            scene.AddRenderable(
+//               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
+//               MatrixCM.Translation(0, 0.5f, 0),
+//               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+//               Color.Red);
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
@@ -145,7 +157,7 @@ namespace Canvas3D {
                   });
                }
             }
-            scene.AddRenderJobBatch(floatingCubesBatch);
+//            scene.AddRenderJobBatch(floatingCubesBatch);
 
             // Add spotlights
             scene.AddSpotlight(

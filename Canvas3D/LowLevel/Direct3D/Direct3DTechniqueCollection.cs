@@ -15,17 +15,17 @@ namespace Canvas3D.LowLevel.Direct3D {
          collection.Forward = new Technique {
             Passes = 1,
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward", VertexLayout.PositionNormalColorTexture, "VSMain")
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain")
          };
          collection.ForwardDepthOnly = new Technique {
             Passes = 1,
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", VertexLayout.PositionNormalColorTexture, "VSMain")
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain")
          };
          collection.ForwardWater = new Technique {
             Passes = 1,
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_water", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_water", VertexLayout.PositionNormalColorTexture, "VSMain")
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_water", InputLayoutFormat.Water, "VSMain")
          };
          //collection.DeferredToGBuffer = new Technique {
          //   Passes = 1,

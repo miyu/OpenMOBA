@@ -3,8 +3,10 @@ using System.Runtime.InteropServices;
 using SharpDX;
 
 namespace Canvas3D {
-   public enum VertexLayout {
-      PositionNormalColorTexture
+   // consider doing by flags in the future
+   public enum InputLayoutFormat {
+      PositionNormalColorTextureInstanced,
+      Water
    }
 
    public class VertexElementAttribute : Attribute {
@@ -16,8 +18,24 @@ namespace Canvas3D {
    }
 
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+   public struct VertexPosition {
+      public const InputLayoutFormat Layout = InputLayoutFormat.Water;
+
+      [VertexElement("POSITION")]
+      public Vector3 Position;
+
+      public const int Size = 3 * 4;
+
+      public VertexPosition(Vector3 position) {
+         Position = position;
+      }
+
+      public override string ToString() => $"{Position}";
+   }
+
+   [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct VertexPositionNormalColorTexture {
-      public const VertexLayout Layout = VertexLayout.PositionNormalColorTexture;
+      public const InputLayoutFormat Layout = InputLayoutFormat.PositionNormalColorTextureInstanced;
 
       [VertexElement("POSITION")]
       public Vector3 Position;

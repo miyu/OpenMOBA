@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Linq;
+using System.Windows.Forms;
 using Canvas3D.LowLevel;
 using Canvas3D.LowLevel.Direct3D;
 using SharpDX.Windows;
@@ -48,7 +49,7 @@ namespace Canvas3D {
       }
 
       public static GraphicsLoop CreateWithNewWindow(Size clientSize, InitFlags flags = 0) {
-         var renderForm = new RenderForm { ClientSize = clientSize };
+         var renderForm = new RenderForm { ClientSize = clientSize, StartPosition = FormStartPosition.CenterScreen };
          var graphicsFacade = Direct3DGraphicsFacade.Create(renderForm);
          var renderer = new RenderContext(graphicsFacade);
 
