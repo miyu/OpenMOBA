@@ -44,7 +44,7 @@ float3 computeWavePoint(float3 p) {
         float rawNoise = noise(uv * frequency + phaseShift); // [-1, 1]
         float ridge = 1.0f - abs(rawNoise);
         ridge = ridge * ridge;
-        h += amplitude * ridge;
+        h += amplitude * (ridge - 0.5f);
         
         amplitude *= i == 0 ? 0.528f : 0.1828f;
         octaveDirection = normalize(mul(uvScramble2, octaveDirection));
@@ -115,7 +115,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     // darken lower portion of waves, lighten higher portion, iq inspired
     float eyeToP = P - cameraEye;
     float distanceAttenuation = max(1.0 - dot(eyeToP, eyeToP) * 0.001, 0.0);
-    color += SEA_DEEP_COLOR * (P.y * 0.4 - 0.7) * 0.18 * distanceAttenuation;
+    color += SEA_DEEP_COLOR * (P.y * 0.4 - 0.6) * 0.18 * distanceAttenuation;
     
     // specular lighting contribution
     float specular = computeSpecular(Li, N, V, 100.0);
