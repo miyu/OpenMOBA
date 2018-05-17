@@ -10,7 +10,7 @@ using Point = System.Drawing.Point;
 
 namespace Canvas3D {
    internal static class Program {
-      private static Vector3 cameraTarget = new Vector3(-0.8f, -0.9f, 0.0f);
+      private static Vector3 cameraTarget = new Vector3(-0.8f, -0.9f, 0.0f) * 0;
       private static Vector3 cameraOffset = new Vector3(0.4f, 0.5f, 1) * 12 * 5;//new Vector3(3, 2.5f, 5) - cameraTarget;
       private static Vector3 cameraUp = new Vector3(0, 1, 0);
       private static Matrix view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, cameraUp);
@@ -33,7 +33,6 @@ namespace Canvas3D {
          MatrixCM.RotationY(i)).ToArray();   
 
       public static void Main(string[] args) {
-          Console.ReadLine();
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          
@@ -47,6 +46,16 @@ namespace Canvas3D {
          };
 
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
+
+         //var projViewInv = MatrixCM.Invert(projView);
+         //projViewInv.Transpose();
+         //var asdf = Vector4.Transform(new Vector4(0, 0, 1, 1), projViewInv);
+         //Console.WriteLine(asdf / asdf.W);
+         //asdf = Vector4.Transform(new Vector4(1, 0, 1, 1), projViewInv);
+         //Console.WriteLine(asdf / asdf.W);
+         //asdf = Vector4.Transform(new Vector4(0, 1, 1, 1), projViewInv);
+         //Console.WriteLine(asdf / asdf.W);
+         //return;
          
          var floatingCubesBatch = RenderJobBatch.Create(graphicsLoop.Presets.GetPresetMesh(MeshPreset.UnitCube));
          //floatingCubesBatch.Wireframe = true;
@@ -130,19 +139,29 @@ namespace Canvas3D {
                Color.White);
             
             // Draw sun
-            scene.AddRenderable(
-               graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(new Vector3(-10, 3, -3) * 3) * MatrixCM.Scaling(10f * 3),
-               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
-               Color.Yellow);
+//            scene.AddRenderable(
+//               graphicsLoop.Presets.UnitSphere,
+//               MatrixCM.Translation(new Vector3(-10, 3, -3) * 3) * MatrixCM.Scaling(1 * 3),
+//               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+//               Color.Yellow);
 
 
             // Draw center cube / sphere
-//            scene.AddRenderable(
-//               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
-//               MatrixCM.Translation(0, 0.5f, 0),
-//               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
-//               Color.Red);
+            scene.AddRenderable(
+               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(1, 0.5f, 0),
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.Red);
+            scene.AddRenderable(
+               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(0, 1.5f, 0),
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.Lime);
+            scene.AddRenderable(
+               false ? graphicsLoop.Presets.UnitCube : graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(0, 0.5f, 1),
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.Blue);
 
             // Draw floating cubes circling around center cube
             floatingCubesBatch.BatchTransform = MatrixCM.RotationY(t * (float)Math.PI / 10.0f);
@@ -178,7 +197,7 @@ namespace Canvas3D {
       private static void UpdateProjViewMatrix(Size clientSize) {
          var verticalFov = (float)Math.PI / 4;
          var aspect = clientSize.Width / (float)clientSize.Height;
-         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 1.0f, 100.0f);
+         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 1.0f, 500.0f);
          projView = proj * view;
 
          if (zfirst) {

@@ -334,6 +334,10 @@ namespace Canvas3D.LowLevel.Direct3D {
             }
 
             public void Dispose() {
+               if (currentBufferPointer != default(IntPtr)) {
+                  UpdateAndClose();
+               }
+
                // Zero self
                deviceContext = null;
                bufferBox = null;

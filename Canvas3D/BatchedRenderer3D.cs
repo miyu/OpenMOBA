@@ -305,12 +305,69 @@ namespace Canvas3D {
          // Restore backbuffer rendertarget + scene constant buffer + srvs.
          context.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          context.SetViewportRect(new RectangleF(0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height));
-         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1.0f), scene.ProjView, scene.ProjViewInv, true, true, scene.SpotlightInfos.Count, scene.Time);
+         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1.0f), scene.ProjView, scene.ProjViewInv, scene.ProjView, scene.ProjViewInv, true, true, scene.SpotlightInfos.Count, scene.Time);
 
          // Clear render/depth, bind srvs after setrendertargets
          context.ClearRenderTarget(Color.Gray);
          context.ClearDepthBuffer(1.0f);
          BindCommonShaderResourceViews(context);
+
+         // Atmosphere
+         {
+            _techniques.ForwardSkyFromAtmosphere.BeginPass(context, 0);
+            context.SetDepthConfiguration(DepthConfiguration.Disabled);
+            var (orthoProj, world) = ComputeSceneQuadProjWorld(backBufferRenderTargetView.Resolution, 0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height);
+            UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), orthoProj, MatrixCM.Invert(orthoProj), scene.ProjView, MatrixCM.Invert(scene.ProjView), false, false, scene.SpotlightInfos.Count, scene.Time);
+            UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
+            DrawScreenQuad(context, world, null);
+            context.SetDepthConfiguration(DepthConfiguration.Enabled);
+            {
+               var projViewInv = MatrixCM.Invert(scene.ProjView);
+               projViewInv.Transpose();
+               var a = Vector4.Transform(new Vector4(0, 0, 1, 1), projViewInv);
+               a /= a.W;
+               var av = (Vector3)a;
+               av.Normalize();
+               var b = Vector4.Transform(new Vector4(1, 0, 1, 1), projViewInv);
+               b /= b.W;
+               var bv = (Vector3)b;
+               bv.Normalize();
+               var c = Vector4.Transform(new Vector4(0, 1, 1, 1), projViewInv);
+               c /= c.W;
+               var cv = (Vector3)c;
+               cv.Normalize();
+               Console.WriteLine(av + " " + bv + " " + cv);
+            }
+         }
+
+         // Water
+         if (true) {
+            _techniques.ForwardWater.BeginPass(context, 0);
+            UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count, scene.Time);
+            UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
+            var instancingBuffer = PickInstancingBuffer(512);
+            context.SetVertexBuffer(1, instancingBuffer);
+            using (var updater = context.TakeUpdater(instancingBuffer)) {
+               int n = 10;
+               for (var y = -n; y <= n; y++) {
+                  for (var x = -n; x <= n; x++) {
+                     updater.Write(new RenderJobDescription {
+                        WorldTransform = MatrixCM.Scaling(10) * MatrixCM.Translation(x, 0, y) * MatrixCM.RotationX(-(float)Math.PI / 2.0f) * MatrixCM.Translation(-0.5f, -0.5f, 0),
+                        MaterialProperties = { Metallic = 0.0f, Roughness = 1.0f },
+                        MaterialResourcesIndex = -1,
+                        Color = Color.White,
+                     });
+                  }
+               }
+            }
+            context.SetShaderResource(30, _graphicsFacade.Presets.SolidTextures[Color4.White], RenderStage.Pixel);
+            var mrbu = context.TakeUpdater(_materialResourcesBuffer);
+            mrbu.Write(new InternalMaterialResourcesDescription() {
+               BaseColor = Color4.White
+            }.Resolve(30));
+            mrbu.UpdateCloseAndDispose();
+            water.Render(context, 21 * 21);
+         }
 
          // Forward render pass
          for (var pass = 0; pass < _techniques.Forward.Passes; pass++) {
@@ -319,25 +376,6 @@ namespace Canvas3D {
                RenderBatch(context, scene, batch);
             }
          }
-
-         _techniques.ForwardWater.BeginPass(context, 0);
-         UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count, scene.Time);
-         UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
-         var instancingBuffer = PickInstancingBuffer(1);
-         context.SetVertexBuffer(1, instancingBuffer);
-         context.Update(instancingBuffer, new RenderJobDescription {
-            WorldTransform = MatrixCM.RotationX(-(float)Math.PI / 2.0f),
-            MaterialProperties = { Metallic = 0.0f, Roughness = 1.0f },
-            MaterialResourcesIndex = -1,
-            Color = Color.White,
-         });
-         context.SetShaderResource(30, _graphicsFacade.Presets.SolidTextures[Color4.White], RenderStage.Pixel);
-         var mrbu = context.TakeUpdater(_materialResourcesBuffer);
-         mrbu.Write(new InternalMaterialResourcesDescription() {
-            BaseColor = Color4.White
-         }.Resolve(30));
-         mrbu.UpdateCloseAndDispose();
-         water.Render(context);
       }
 
       private void RenderBatch(IDeviceContext context, SceneSnapshot scene, RenderJobBatch batch) {
@@ -563,7 +601,7 @@ namespace Canvas3D {
             context.SetRenderTargets(_lightDepthStencilViews[(int)spotlightDescription->AtlasLocation.Position.Z], null);
             context.SetViewportRect((Vector2)spotlightDescription->AtlasLocation.Position, kShadowMapWidthHeight * spotlightDescription->AtlasLocation.Size);
 
-            UpdateSceneConstantBuffer(context, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, Matrix.Zero, false, false, 0, scene.Time);
+            UpdateSceneConstantBuffer(context, new Vector4(spotlightDescription->SpotlightInfo.Origin, 1.0f), spotlightDescription->SpotlightInfo.ProjViewCM, scene.ProjView, scene.ProjViewInv, Matrix.Zero, false, false, 0, scene.Time);
             for (var pass = 0; pass < _techniques.ForwardDepthOnly.Passes; pass++) {
                _techniques.ForwardDepthOnly.BeginPass(context, pass);
 
@@ -605,11 +643,13 @@ namespace Canvas3D {
          deviceContext.SetVertexBuffer(1, null);
       }
 
-      private void UpdateSceneConstantBuffer(IDeviceContext deviceContext, Vector4 cameraEye, Matrix projView, Matrix projViewInv, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights, float time) {
+      private void UpdateSceneConstantBuffer(IDeviceContext deviceContext, Vector4 cameraEye, Matrix projViewCamera, Matrix projViewCameraInv, Matrix projViewMain, Matrix projViewMainInv, bool pbrEnabled, bool shadowTestEnabled, int numSpotlights, float time) {
          deviceContext.Update(_sceneBuffer, new SceneConstantBufferData {
             cameraEye = cameraEye,
-            projView = projView,
-            projViewInv = projViewInv,
+            projViewCamera = projViewCamera,
+            projViewCameraInv = projViewCameraInv,
+            projViewMain = projViewMain,
+            projViewMainInv = projViewMainInv,
             pbrEnabled = pbrEnabled ? 1 : 0,
             shadowTestEnabled = shadowTestEnabled ? 1 : 0,
             numSpotlights = numSpotlights,
@@ -640,14 +680,16 @@ namespace Canvas3D {
       [StructLayout(LayoutKind.Sequential, Pack = 1)]
       private struct SceneConstantBufferData {
          public Vector4 cameraEye;
-         public Matrix projView;
-         public Matrix projViewInv;
+         public Matrix projViewCamera;
+         public Matrix projViewCameraInv;
+         public Matrix projViewMain; // projview of main camera (if projViewCamera is for something else like screenspace quad)
+         public Matrix projViewMainInv; // projview of main camera (if projViewCamera is for something else like screenspace quad)
          public int pbrEnabled;
          public int shadowTestEnabled;
          public int numSpotlights;
          public float time;
 
-         public const int Size = 16 + 64 * 2 + 4 * 3 + 4;
+         public const int Size = 16 + 64 * 4 + 4 * 3 + 4;
       }
 
       [StructLayout(LayoutKind.Sequential, Pack = 1)]

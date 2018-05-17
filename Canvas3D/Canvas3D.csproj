@@ -48,14 +48,20 @@
    </ItemGroup>
 
    <ItemGroup>
+     <None Update="Assets\shaders\forward_skyfromatomsphere.hlsl">
+       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+     </None>
      <None Update="Assets\shaders\forward_water.hlsl">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
      </None>
      <None Update="Assets\shaders\forward_depth_only.hlsl">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
      </None>
      <None Update="Assets\shaders\forward.hlsl">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+     </None>
+     <None Update="Assets\shaders\helpers\foreach_texture_2d.hlsl">
+       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
      </None>
    </ItemGroup>
 

@@ -37,7 +37,7 @@ PSInput VSMain(
 
    result.positionObject = position;
    result.positionWorld = positionWorld.xyz;
-   result.position = mul(projView, positionWorld);
+   result.position = mul(cameraProjView, positionWorld);
    result.normalObject = normal;
    result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
    result.color = vertexColor * instanceColor;

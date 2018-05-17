@@ -18,7 +18,7 @@ PSInput VSMain(
    PSInput result;
 
    //float4x4 world = float4x4(world_1, world_2, world_3, world_4);
-   result.position = mul(mul(projView, mul(batchTransform, world)), float4(position, 1));
+   result.position = mul(mul(cameraProjView, mul(batchTransform, world)), float4(position, 1));
 
    return result;
 }

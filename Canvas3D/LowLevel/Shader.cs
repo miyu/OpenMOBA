@@ -51,6 +51,7 @@ namespace Canvas3D.LowLevel {
       ITechnique Forward { get; }
       ITechnique ForwardDepthOnly { get; }
       ITechnique ForwardWater { get; }
+      ITechnique ForwardSkyFromAtmosphere { get; }
       ITechnique DeferredToGBuffer { get; }
       ITechnique DeferredFromGBuffer { get; }
    }

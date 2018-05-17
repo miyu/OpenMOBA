@@ -14,8 +14,10 @@
 
 cbuffer Scene : register(REG_SCENE_DATA) {
    float4 cameraEye;
-   float4x4 projView;
-   float4x4 projViewInv;
+   float4x4 cameraProjView; // what we're drawing with
+   float4x4 cameraProjViewInv;
+   float4x4 mainProjView; // what the main camera's drawing with
+   float4x4 mainProjViewInv;
    int pbrEnabled;
    int shadowTestEnabled;
    int numSpotlights;

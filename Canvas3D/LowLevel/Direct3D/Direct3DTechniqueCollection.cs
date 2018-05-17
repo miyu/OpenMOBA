@@ -7,6 +7,7 @@ namespace Canvas3D.LowLevel.Direct3D {
       public ITechnique Forward { get; private set; }
       public ITechnique ForwardDepthOnly { get; private set; }
       public ITechnique ForwardWater { get; private set; }
+      public ITechnique ForwardSkyFromAtmosphere { get; private set; }
       public ITechnique DeferredToGBuffer { get; private set; }
       public ITechnique DeferredFromGBuffer { get; private set; }
 
@@ -26,6 +27,11 @@ namespace Canvas3D.LowLevel.Direct3D {
             Passes = 1,
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_water", "PSMain"),
             VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_water", InputLayoutFormat.Water, "VSMain")
+         };
+         collection.ForwardSkyFromAtmosphere = new Technique {
+            Passes = 1,
+            PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_skyfromatomsphere", "PSMain"),
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_skyfromatomsphere", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain")
          };
          //collection.DeferredToGBuffer = new Technique {
          //   Passes = 1,

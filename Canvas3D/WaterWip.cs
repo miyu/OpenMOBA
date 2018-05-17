@@ -12,8 +12,7 @@ namespace Canvas3D {
    using TIndex = Int32;
 
    public class WaterWip {
-      public const int GridResolution = 1024 / 1;//128;
-      public const float GridSpacing = 0.03f * 1;
+      public const int GridResolution = 256;
 
       private readonly IGraphicsFacade graphicsFacade;
       private readonly IGraphicsDevice device;
@@ -33,12 +32,12 @@ namespace Canvas3D {
          indexCount = indices.Length;
       }
 
-      public void Render(IDeviceContext context) {
-         context.SetRasterizerConfiguration(RasterizerConfiguration.FillFrontBack);
+      public void Render(IDeviceContext context, int instanceCount) {
+         context.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          context.SetVertexBuffer(0, vertexBuffer);
          context.SetIndexBuffer(0, indexBuffer);
          context.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
-         context.DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
+         context.DrawIndexedInstanced(indexCount, instanceCount, 0, 0, 0);
       }
 
       private static (VertexPosition[] vertices, TIndex[] indices) GenerateBufferData() {

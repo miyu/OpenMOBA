@@ -1,17 +1,95 @@
-﻿// See https://gamedev.stackexchange.com/questions/96459/fast-ray-sphere-collision-code
-// See http://www-labs.iro.umontreal.ca/~sherknie/articles/faq_Divers/graphics-algorithms-faq.txt
-//     "Subject 5.07: How do I determine the intersection between a ray and a sphere"
-// Returns ray parameters <tnear, tfar> in order reached by ray.
-// If tnear > tfar, no intersection! If equal, then ray is tangent to sphere.
-float2 findRayAndCenteredSphereIntersections(float2 rayOrigin, float2 rayDirection, float sphereRadius) {
-    float a = dot(rayDirection, rayDirection);
-    float b = 2.0 * dot(rayDirection, rayOrigin);
-    float c = dot(rayOrigin, rayOrigin) - sphereRadius * sphereRadius;
-    float discriminant = b * b - 4 * a * c;
+﻿#ifndef __FORWARD_HLSL__
+#define __FORWARD_HLSL__
 
-	// (-b +- sqrt(b^2 - 4ac)) / 2a
-	if (discriminant < 0) return float2(1E30, -1E30);
-	float rootDiscriminant = sqrt(discriminant);
-	float twoA = 2.0 * a;
-    return vec2((-b - rootDiscriminant) / twoA, (-b + rootDiscriminant) / twoA);
+#include "helpers/atmosphere.hlsl"
+#include "helpers/lighting.hlsl"
+#include "helpers/pbr.hlsl"
+#include "common.hlsl"
+
+struct PSInput {
+   float3 positionObject : POSITION1;
+   float3 positionWorld : POSITION2;
+   float4 position : SV_Position;
+   float3 normalObject : NORMAL1;
+   float3 normalWorld : NORMAL2;
+   float4 color : COLOR;
+   float2 uv : TEXCOORD;
+   float metallic : MATERIAL_METALLIC;
+   float roughness : MATERIAL_ROUGHNESS;
+   int materialResourcesIndex : MATERIAL_INDEX;
+};
+
+PSInput VSMain(
+   float3 position : POSITION, 
+   float3 normal : NORMAL, 
+   float4 vertexColor : VERTEX_COLOR, 
+   float2 uv : TEXCOORD,
+   float4x4 world : INSTANCE_TRANSFORM,
+   float metallic : INSTANCE_METALLIC,
+   float roughness : INSTANCE_ROUGHNESS,
+   int materialResourcesIndex : INSTANCE_MATERIAL_RESOURCES_INDEX,
+   float4 instanceColor : INSTANCE_COLOR
+) {
+   PSInput result;
+
+   float4x4 batchWorld = mul(batchTransform, world);
+   float4 positionWorld = mul(batchWorld, float4(position, 1));
+   float4 normalWorld = mul(batchWorld, float4(normal, 0));
+
+   result.positionObject = position;
+   result.positionWorld = positionWorld.xyz;
+   result.position = mul(cameraProjView, positionWorld);
+   result.normalObject = normal;
+   result.normalWorld = normalize(normalWorld.xyz); // must normalize in PS
+   result.color = vertexColor * instanceColor;
+   result.uv = uv;
+   result.metallic = metallic;
+   result.roughness = roughness;
+   result.materialResourcesIndex = materialResourcesIndex;
+
+   return result;
 }
+
+float4 PSMain(PSInput input) : SV_TARGET {
+    float3 P = input.positionWorld;
+    float3 N = normalize(input.normalWorld);
+
+    // ray points from center of world to atmosphere.
+    float2 uv = input.uv * 2 - 1;
+    uv.y *= -1;
+    float4 rayA = mul(mainProjViewInv, float4(uv, 1.0, 1));
+	rayA /= rayA.w;
+    float4 rayB = mul(mainProjViewInv, float4(uv, 0.1, 1));
+	rayB /= rayB.w;
+
+    float4 rayDirection = rayA - rayB; //mul(mainProjViewInv, float4(uv, 1.0, 1));
+    //rayDirection *= 1.0 / rayDirection.w;
+	rayDirection.xyz = normalize(rayDirection.xyz);
+    //return float4(normalize(rayDirection.xyz).x, 0, 0, 1);
+    //return float4(normalize(rayDirection.xyz), 1);
+
+    float3 aColor;
+    float3 camPos = float3(0.0,6372e3,0.0);
+    float3 uSunPosition = float3(0.0,2.7,-1.0);
+    uSunPosition.y = 0.15 + (sin(iTime * 5.5 * 0.1) + 0.0 * 0.9) * 0.2;
+	//uSunPosition = float3(0, 1, 0);
+	uSunPosition = float3(0, abs(sin(iTime * 0.3)), cos(iTime * 0.3));
+	uSunPosition = normalize(uSunPosition);
+
+    aColor = atmosphere(
+        rayDirection,           		// normalized ray direction
+        camPos,               			// ray origin
+        uSunPosition,                   // position of the sun
+        22.0,                           // intensity of the sun
+        6371e3,                         // radius of the planet in meters
+        6471e3,                         // radius of the atmosphere in meters
+        float3(5.5e-6, 13.0e-6, 22.4e-6), // Rayleigh scattering coefficient
+        21e-6,                          // Mie scattering coefficient
+        32e3,                            // Rayleigh scale height
+        1.2e3,                          // Mie scale height
+        0.758                            // Mie preferred scattering direction
+    );
+    return float4(aColor * 0.2, 1);
+}
+
+#endif // __FORWARD_HLSL__
