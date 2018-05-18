@@ -193,7 +193,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     // // darken lower portion of waves, lighten higher portion, iq inspired
     float eyeToP = P - cameraEye;
     float distanceAttenuation = 0.8 + 0.2 * max(1.0 - dot(eyeToP, eyeToP) * 0.001, 0.0);
-    refracted += SEA_DEEP_COLOR * (P.y * 0.3 - 0.5) * 0.18 * distanceAttenuation;
+    refracted += SEA_DEEP_COLOR * (P.y * 0.25 - 0.4) * 0.18 * distanceAttenuation;
 
     // grayscale - water is clear, color comes from atmosphere.
     refracted =  (refracted.x + refracted.y + refracted.z) * 0.333 *  float3(1, 1, 1) * 3;
