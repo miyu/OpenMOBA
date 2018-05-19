@@ -88,7 +88,7 @@ namespace Canvas3D {
                cameraOffset = (Vector3)Vector3.Transform(cameraOffset, rotation);
             }
 
-            var v = input.IsKeyDown(Keys.ShiftKey) ? 7.0f : 1.0f;
+            var v = (input.IsKeyDown(Keys.ShiftKey) ? 7.0f : 1.0f) * 50;
             if (input.IsKeyDown(Keys.Left) || input.IsKeyDown(Keys.A)) {
                cameraTarget -= right * 0.005f * v;
             }

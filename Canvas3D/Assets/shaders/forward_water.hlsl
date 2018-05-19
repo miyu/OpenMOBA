@@ -77,7 +77,7 @@ float3 computeWavePoint(float3 p) {
         octaveDirection = normalize(mul(uvScramble3, octaveDirection));
         octaveBasePhaseShift = mul(uvScramble, mul(uvScramble3, octaveBasePhaseShift));
     }
-	h *= 1;
+    h *= 1;
     
     return p + float3(0, h, 0);
 }
@@ -124,7 +124,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     float3 L = -V + 2.0f * dot(V, N) * N;       // L is not to sun! Reflective contrib is of environment (atmosphere).
     float3 H = normalize(L + V);                // Halfway between L, V.
     //return float4(N, 1);
-	//return float4(float3(1,1,1) * P.y / 20, 1);
+    //return float4(float3(1,1,1) * P.y / 20, 1);
 
     // Compute fresnel: how much reflection (as opposed to refraction)
     float f0 = 0.05f;

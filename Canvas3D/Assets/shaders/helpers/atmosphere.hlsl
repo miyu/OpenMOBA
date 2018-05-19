@@ -21,7 +21,7 @@ float3 atmosphere(float3 r, float3 r0, float3 pSun, float iSun, float rPlanet, f
     float2 p = findRayAndCenteredSphereIntersections(r0, r, rAtmos);
     if (p.x > p.y) return float3(0,0,0);
     p.y = min(p.y, findRayAndCenteredSphereIntersections(r0, r, rPlanet).x);
-	const int iSteps = 55;
+	const int iSteps = 3;
     float iStepSize = (p.y - p.x) / (float)(iSteps);
 
     // Initialize the primary ray time.
@@ -59,7 +59,7 @@ float3 atmosphere(float3 r, float3 r0, float3 pSun, float iSun, float rPlanet, f
         iOdMie += odStepMie;
 
         // Calculate the step size of the secondary ray.
-		const int jSteps = 16;
+		const int jSteps = 3;
         float jStepSize = findRayAndCenteredSphereIntersections(iPos, pSun, rAtmos).y / (float)(jSteps);
 
         // Initialize the secondary ray time.

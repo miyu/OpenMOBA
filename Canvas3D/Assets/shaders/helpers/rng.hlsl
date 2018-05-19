@@ -1,8 +1,12 @@
 #ifndef __RNG_HLSL__
 #define __RNG_HLSL__
 
+#define TWO_PI (6.28318530718)
+
 float rand(float2 p) {
-   return frac(sin(dot(p, float2(1234.23, 2345.28))) * 21337.21337);
+   float sinarg = dot(p, float2(1234.23, 2345.28));
+   sinarg = fmod(sinarg, TWO_PI);
+   return frac(sin(sinarg) * 21337.21337);
 }
 
 float noise(float2 p) {
