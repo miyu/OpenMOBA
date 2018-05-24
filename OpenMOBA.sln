@@ -40,7 +40,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenMOBA", "OpenMOBA\OpenMO
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestGameTheGame", "TestGameTheGame\TestGameTheGame.csproj", "{256FD7A5-246F-4C47-AE8B-4ECC6BE6DB04}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpSL", "SharpSL\SharpSL.csproj", "{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpSL", "SharpSL\SharpSL.csproj", "{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MatrixMultiplicationPerformanceBenchmark", "TestProjects\MatrixMultiplicationPerformanceBenchmark\MatrixMultiplicationPerformanceBenchmark.csproj", "{645A73F0-820A-48E1-B771-FFC30B06765A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -244,6 +246,18 @@ Global
 		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x64.Build.0 = Release|Any CPU
 		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x86.ActiveCfg = Release|Any CPU
 		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x86.Build.0 = Release|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Debug|x64.Build.0 = Debug|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Debug|x86.Build.0 = Debug|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Release|x64.ActiveCfg = Release|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Release|x64.Build.0 = Release|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Release|x86.ActiveCfg = Release|Any CPU
+		{645A73F0-820A-48E1-B771-FFC30B06765A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -258,6 +272,7 @@ Global
 		{CA0317E1-6DD9-4FE5-B0B2-26E0C2E035C9} = {74294450-A622-43FE-8296-939C6420556C}
 		{223D18F2-FCE4-4D12-9DF8-A90CEAE4D1A9} = {74294450-A622-43FE-8296-939C6420556C}
 		{2A44E380-E355-4C7A-A4A6-697A895A8424} = {74294450-A622-43FE-8296-939C6420556C}
+		{645A73F0-820A-48E1-B771-FFC30B06765A} = {74294450-A622-43FE-8296-939C6420556C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}
