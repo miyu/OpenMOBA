@@ -55,12 +55,16 @@ namespace OpenMOBA.Geometry {
          return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Contains(IntVector2 q) => Contains(ref q);
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Contains(ref IntVector2 q) => Contains(First, Second, q);
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static bool Contains(IntVector2 p1, IntVector2 p2, IntVector2 q) => Contains(ref p1, ref p2, ref q);
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static bool Contains(ref IntVector2 p1, ref IntVector2 p2, ref IntVector2 q) {
          var p1p2 = p1.To(p2);
          var p1q = p1.To(q);
@@ -81,6 +85,28 @@ namespace OpenMOBA.Geometry {
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public static bool Contains(cInt p1x, cInt p1y, cInt p2x, cInt p2y, cInt qx, cInt qy) {
+         var p1p2x = p2x - p1x;
+         var p1p2y = p2y - p1y;
+         var p1qx = qx - p1x;
+         var p1qy = qy - p1y;
+
+         // not on line between p1 p2
+         if (GeometryOperations.Clockness(p1p2x, p1p2y, p1qx, p1qy) != Clockness.Neither) return false;
+
+         var a = (long)p1p2x * p1qx + (long)p1p2y * p1qy; //p1p2.Dot(p1q);
+         var b = (long)p1p2x * p1p2x + (long)p1p2y * p1p2y; //p1p2.SquaredNorm2();
+         
+         // outside segment p1-p2 on the side of p1
+         if (a < 0) return false;
+         
+         // outside segment p1-p2 on the side of p2
+         if (a > b) return false;
+
+         return true;
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy) {
          // https://www.cdn.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
          // Note, didn't do SO variant because not robust to collinear segments
@@ -92,10 +118,11 @@ namespace OpenMOBA.Geometry {
 
          if (o1 != o2 && o3 != o4) return true;
 
-         if (o1 == 0 && new IntLineSegment2(ax, ay, bx, by).Contains(new IntVector2(cx, cy))) return true;
-         if (o2 == 0 && new IntLineSegment2(ax, ay, bx, by).Contains(new IntVector2(dx, dy))) return true;
-         if (o3 == 0 && new IntLineSegment2(cx, cy, dx, dy).Contains(new IntVector2(ax, ay))) return true;
-         if (o4 == 0 && new IntLineSegment2(cx, cy, dx, dy).Contains(new IntVector2(bx, by))) return true;
+         // handle endpoint containment.
+         if (o1 == 0 && Contains(ax, ay, bx, by, cx, cy)) return true;
+         if (o2 == 0 && Contains(ax, ay, bx, by, dx, dy)) return true;
+         if (o3 == 0 && Contains(cx, cy, dx, dy, ax, ay)) return true;
+         if (o4 == 0 && Contains(cx, cy, dx, dy, bx, by)) return true;
 
          return false;
       }

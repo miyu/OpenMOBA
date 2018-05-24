@@ -110,6 +110,7 @@ PSInput VSMain(
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
+    //return float4(1,1,1,1);
     // Vector to directional light.    
     float3 Li = normalize(float3(-10, 3, -3));
     
@@ -123,7 +124,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     float3 V = normalize(cameraEye - P);        // Normalized direction from fragment to eye in world-space.
     float3 L = -V + 2.0f * dot(V, N) * N;       // L is not to sun! Reflective contrib is of environment (atmosphere).
     float3 H = normalize(L + V);                // Halfway between L, V.
-    //return float4(N, 1);
+    return float4(N, 1);
     //return float4(float3(1,1,1) * P.y / 20, 1);
 
     // Compute fresnel: how much reflection (as opposed to refraction)

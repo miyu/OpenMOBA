@@ -287,6 +287,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                PriorIndex = PathLink.ErrorInvalidIndex,
                TotalCost = float.PositiveInfinity
             };
+            return;
 
             Interlocked.Increment(ref ProcessCpiInvocationCount);
             bool isDirectPath;
@@ -302,18 +303,22 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                // below is equivalent to (and shaved off 22% execution time relative to):
                // isDirectPath = candidateBarriers.None(new ILS2(p, crossoverPoints[cpi]).Intersects)
                isDirectPath = true;
-               var seg = new IntLineSegment2(p, crossoverPoints[cpi]);
+               //var seg = new IntLineSegment2(p, crossoverPoints[cpi]);
                for (var bi = 0; bi < candidateBarriers.Length && isDirectPath; bi++) {
                   Interlocked.Increment(ref ProcessCpiInvocation_CandidateBarrierIntersectCount);
 
-                  if (seg.Intersects(ref candidateBarriers[bi])) isDirectPath = false;
+                  if (IntLineSegment2.Intersects(
+                     p.X, p.Y, crossoverPoints[cpi].X, crossoverPoints[cpi].Y, 
+                     candidateBarriers[bi].X1, candidateBarriers[bi].Y1, candidateBarriers[bi].X2, candidateBarriers[bi].Y2))
+                     isDirectPath = false;
+                  //if (seg.Intersects(ref candidateBarriers[bi])) isDirectPath = false;
                }
             }
 
             if (isDirectPath) {
                Interlocked.Increment(ref ProcessCpiInvocation_DirectCount);
                var totalCost = p.To(crossoverPoints[cpi]).Norm2F();
-               Trace.Assert(!double.IsNaN(totalCost));
+               Trace.Assert(!float.IsNaN(totalCost));
                optimalLinkToCrossovers[cpi] = new PathLink {
                   PriorIndex = PathLink.DirectPathIndex,
                   TotalCost = totalCost
@@ -348,7 +353,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                   //--
                   var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
                   var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
-                  Trace.Assert(!double.IsNaN(totalCost));
+                  Trace.Assert(!float.IsNaN(totalCost));
                   optimalLinkToCrossovers[cpi] = new PathLink {
                      PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
                      TotalCost = totalCost

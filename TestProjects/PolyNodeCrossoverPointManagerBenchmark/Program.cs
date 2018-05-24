@@ -53,19 +53,10 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
          // var intersects = bvh.Intersects(q);
          // canvas.DrawLine(a, b, intersects ? StrokeStyle.RedHairLineSolid : StrokeStyle.LimeHairLineSolid);
 
-         Console.WriteLine(
-            PolyNodeCrossoverPointManager.AddManyConvexHullsComputed + " " +
-            PolyNodeCrossoverPointManager.CrossoverPointsAdded + " " +
-            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossoversInvocationCount + " " +
-            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck + " " +
-            PolyNodeCrossoverPointManager.FindOptimalLinksToCrossovers_CostToWaypointCount + " " +
-            PolyNodeCrossoverPointManager.ProcessCpiInvocationCount + " " +
-            PolyNodeCrossoverPointManager.ProcessCpiInvocation_CandidateBarrierIntersectCount + " " +
-            PolyNodeCrossoverPointManager.ProcessCpiInvocation_DirectCount + " " +
-            PolyNodeCrossoverPointManager.ProcessCpiInvocation_IndirectCount);
+         PolyNodeCrossoverPointManager.DumpPerformanceCounters();
 
          while (true) {
-            const int ntrials = 100;
+            const int ntrials = 10;
             var sw = new Stopwatch();
             sw.Start();
             for (var i = 0; i < ntrials; i++) BenchmarkAddCrossoverPoints(terrainStaticMetadata);

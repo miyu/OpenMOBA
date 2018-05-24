@@ -40,6 +40,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenMOBA", "OpenMOBA\OpenMO
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestGameTheGame", "TestGameTheGame\TestGameTheGame.csproj", "{256FD7A5-246F-4C47-AE8B-4ECC6BE6DB04}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpSL", "SharpSL\SharpSL.csproj", "{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -230,6 +232,18 @@ Global
 		{256FD7A5-246F-4C47-AE8B-4ECC6BE6DB04}.Release|x64.Build.0 = Release|Any CPU
 		{256FD7A5-246F-4C47-AE8B-4ECC6BE6DB04}.Release|x86.ActiveCfg = Release|Any CPU
 		{256FD7A5-246F-4C47-AE8B-4ECC6BE6DB04}.Release|x86.Build.0 = Release|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Debug|x64.Build.0 = Debug|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Debug|x86.Build.0 = Debug|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x64.ActiveCfg = Release|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x64.Build.0 = Release|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x86.ActiveCfg = Release|Any CPU
+		{BC87A02C-5BFF-4DF3-9B31-1C8BD305F66F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
