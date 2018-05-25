@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Text;
-using static SharpSL.SharpSLStatics;
+using FMatrix;
 
 namespace SharpSL {
+   using static NumericsStatics;
+
    public static class Geometry {
       // See https://gamedev.stackexchange.com/questions/96459/fast-ray-sphere-collision-code
       // See http://www-labs.iro.umontreal.ca/~sherknie/articles/faq_Divers/graphics-algorithms-faq.txt

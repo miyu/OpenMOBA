@@ -30,13 +30,14 @@ namespace FMatrix {
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Exp(Vector3 v) => Vec3(Exp(v.X), Exp(v.Y), Exp(v.Z));
 
       // m is column major
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Mul(Matrix4x4 m, Vector3 v) => Vector3.Transform(v, Matrix4x4.Transpose(m));
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector4 Mul(Matrix4x4 m, Vector4 v) => Vector4.Transform(v, Matrix4x4.Transpose(m));
 
-      public static Vector3 ComputeCameraRayDirection(Vector2 screenQuadUv, Matrix4x4 cameraViewInv) {
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector4 Mul(FMatrix4x4 m, Vector4 v) => m * v;
+
+      public static Vector3 ComputeCameraRayDirection(Vector2 screenQuadUv, FMatrix4x4 cameraViewInv) {
          var uv = CMul(screenQuadUv * 2.0f - Vec2(1.0f), Vec2(1.0f, -1.0f));
-         var near = Vec3(uv, 0.1f).Project(cameraViewInv);
-         var far = Vec3(uv, 1.0f).Project(cameraViewInv);
+         var near = (cameraViewInv * Vec4(uv, 0.1f, 1.0f)).NormalizeByW().XYZ();
+         var far = (cameraViewInv * Vec4(uv, 1.0f, 1.0f)).NormalizeByW().XYZ();
          return Normalize(far - near);
       }
 

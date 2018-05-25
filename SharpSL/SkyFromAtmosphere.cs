@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
-using static SharpSL.SharpSLStatics;
+﻿using System.Numerics;
+using FMatrix;
 
 namespace SharpSL {
+   using static NumericsStatics;
+
    public static class SkyFromAtmosphere {
       public static readonly PixelShader Pixel = new PixelShader();
 
       public struct PixelInput {
          public Vector2 UV;
 
-         public Matrix4x4 CameraProjViewInv;
+         public FMatrix4x4 CameraProjViewInv;
          public AtmosphereConfiguration AtmosphereConfiguration;
       }
 
@@ -21,12 +20,13 @@ namespace SharpSL {
             return 0.2f * AtmosphericScatteringNaive.Compute(rayDirection, input.AtmosphereConfiguration);
          }
 
-         public Shader<Vector2, Vector3> Configure(Matrix4x4 projViewInv, AtmosphereConfiguration atmosphereConfiguration) => 
-            ProxyIn<Vector2>(uv => new PixelInput {
+         public Shader<Vector2, Vector3> Configure(FMatrix4x4 projViewInv, AtmosphereConfiguration atmosphereConfiguration) {
+            return ProxyIn<Vector2>(uv => new PixelInput {
                UV = uv,
                CameraProjViewInv = projViewInv,
                AtmosphereConfiguration = atmosphereConfiguration
             });
+         }
       }
    }
 }

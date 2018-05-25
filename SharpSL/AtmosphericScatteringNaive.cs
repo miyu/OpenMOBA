@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Numerics;
-using static SharpSL.SharpSLStatics;
+using FMatrix;
 
 namespace SharpSL {
+   using static NumericsStatics;
+
    public static class AtmosphericScatteringNaive {
       public static Vector3 Compute(Vector3 queryDirectionUnit, AtmosphereConfiguration c) {
          // Calculate the step size of the primary ray.
          var (tlow, thigh) = Geometry.TryFindRayAndCenteredSphereIntersection(c.CameraPosition, queryDirectionUnit, c.AtmosphereRadius);
          if (tlow > thigh) return Vector3.Zero;
          thigh = MathF.Min(thigh, Geometry.TryFindRayAndCenteredSphereIntersection(c.CameraPosition, queryDirectionUnit, c.PlanetRadius).tlow);
-         const int iSteps = 3;
+         const int iSteps = 20;
          var iStepSize = (thigh - tlow) / (float)(iSteps);
 
          // Initialize the primary ray time.
@@ -47,7 +49,7 @@ namespace SharpSL {
             iOdMie += odStepMie;
 
             // Calculate the step size of the secondary ray.
-            const int jSteps = 3;
+            const int jSteps = 20;
             var jStepSize = Geometry.TryFindRayAndCenteredSphereIntersection(iPos, c.SunDirectionUnit, c.AtmosphereRadius).thigh / jSteps;
 
             // Initialize the secondary ray time.

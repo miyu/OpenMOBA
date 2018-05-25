@@ -6,11 +6,11 @@ namespace SharpSL {
       public abstract TOut Compute(TIn input);
 
       public Shader<TProxyIn, TOut> ProxyIn<TProxyIn>(Func<TProxyIn, TIn> mapInput) {
-         return null;
+         return Shader.Create<TProxyIn, TOut>(input => Compute(mapInput(input)));
       }
 
       public Shader<TProxyIn, TProxyOut> ProxyIn<TProxyIn, TProxyOut>(Func<TProxyIn, TIn> mapInput, Func<TOut, TProxyOut> mapOutput) {
-         return null;
+         return Shader.Create<TProxyIn, TProxyOut>(input => mapOutput(Compute(mapInput(input))));
       }
    }
 

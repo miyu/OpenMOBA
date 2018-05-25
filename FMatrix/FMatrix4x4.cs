@@ -139,6 +139,9 @@ namespace FMatrix {
       public Vector3 TransformNormal(Vector3 v) => (this * Vec4(v, 0)).XYZ();
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public FMatrix4x4 InvertOrThrow() => TryInvert(this, out var res) ? res : throw new MatrixNotInvertibleException(this);
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static Vector4 operator *(FMatrix4x4 m, Vector4 v) {
          return new Vector4(Vector4.Dot(m.Row1, v), Vector4.Dot(m.Row2, v), Vector4.Dot(m.Row3, v), Vector4.Dot(m.Row4, v));
       }
@@ -397,5 +400,9 @@ namespace FMatrix {
             Vec4(2.0f * (xz - wy), 2.0f * (yz + wx), 1.0f - 2.0f * (yy + xx), 0.0f),
             Vec4(0.0f, 0.0f, 0.0f, 1.0f));
       }
+   }
+
+   public class MatrixNotInvertibleException : Exception {
+      public MatrixNotInvertibleException(FMatrix4x4 m) : base("The matrix was not invertible!: " + m) { }
    }
 }
