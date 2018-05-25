@@ -28,6 +28,7 @@ namespace FMatrix {
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Exp(float x) => MathF.Exp(x);
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector2 Exp(Vector2 v) => Vec2(Exp(v.X), Exp(v.Y));
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Exp(Vector3 v) => Vec3(Exp(v.X), Exp(v.Y), Exp(v.Z));
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Pow(Vector3 v, Vector3 pow) => Vec3(MathF.Pow(v.X, pow.X), MathF.Pow(v.Y, pow.Y), MathF.Pow(v.Z, pow.Z));
 
       // m is column major
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector4 Mul(Matrix4x4 m, Vector4 v) => Vector4.Transform(v, Matrix4x4.Transpose(m));

@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Numerics;
+using System.Threading.Tasks;
 using FMatrix;
 
 namespace SharpSL {
@@ -18,11 +19,11 @@ namespace SharpSL {
       }
 
       public static void Fill<T>(RenderTarget<T> rt, Shader<Vector2, T> pixel) {
-         for (var y = 0; y < rt.Height; y++) {
+         Parallel.For(0, rt.Height, y => {
             for (var x = 0; x < rt.Width; x++) {
                rt.Data[y * rt.Width + x] = pixel.Compute(new Vector2(x / (float)rt.Width, y / (float)rt.Height));
             }
-         }
+         });
       }
 
       public static void SaveImage<T>(RenderTarget<T> rt, string path) {

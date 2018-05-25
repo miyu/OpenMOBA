@@ -11,7 +11,7 @@ namespace SharpSL {
          var (tlow, thigh) = Geometry.TryFindRayAndCenteredSphereIntersection(c.CameraPosition, queryDirectionUnit, c.AtmosphereRadius);
          if (tlow > thigh) return Vector3.Zero;
          thigh = MathF.Min(thigh, Geometry.TryFindRayAndCenteredSphereIntersection(c.CameraPosition, queryDirectionUnit, c.PlanetRadius).tlow);
-         const int iSteps = 20;
+         const int iSteps = 200;
          var iStepSize = (thigh - tlow) / (float)(iSteps);
 
          // Initialize the primary ray time.
