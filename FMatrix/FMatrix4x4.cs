@@ -42,6 +42,102 @@ namespace FMatrix {
          Vec4(m41, m42, m43, m44)
       ) { }
 
+      #region Mrc
+      public float M11 {
+         get => Row1.X;
+         set => Row1.X = value;
+      }
+
+      public float M12 {
+         get => Row1.Y;
+         set => Row1.Y = value;
+      }
+
+      public float M13 {
+         get => Row1.Z;
+         set => Row1.Z = value;
+      }
+
+      public float M14 {
+         get => Row1.W;
+         set => Row1.W = value;
+      }
+
+      public float M21 {
+         get => Row2.X;
+         set => Row2.X = value;
+      }
+
+      public float M22 {
+         get => Row2.Y;
+         set => Row2.Y = value;
+      }
+
+      public float M23 {
+         get => Row2.Z;
+         set => Row2.Z = value;
+      }
+
+      public float M24 {
+         get => Row2.W;
+         set => Row2.W = value;
+      }
+      
+      public float M31 {
+         get => Row3.X;
+         set => Row3.X = value;
+      }
+
+      public float M32 {
+         get => Row3.Y;
+         set => Row3.Y = value;
+      }
+
+      public float M33 {
+         get => Row3.Z;
+         set => Row3.Z = value;
+      }
+
+      public float M34 {
+         get => Row3.W;
+         set => Row3.W = value;
+      }
+      
+      public float M41 {
+         get => Row4.X;
+         set => Row4.X = value;
+      }
+
+      public float M42 {
+         get => Row4.Y;
+         set => Row4.Y = value;
+      }
+
+      public float M43 {
+         get => Row4.Z;
+         set => Row4.Z = value;
+      }
+
+      public float M44 {
+         get => Row4.W;
+         set => Row4.W = value;
+      }
+      #endregion
+
+      public FMatrix4x4 Transpose() {
+         return new FMatrix4x4(
+            new Vector4(Row1.X, Row2.X, Row3.X, Row4.X),
+            new Vector4(Row1.Y, Row2.Y, Row3.Y, Row4.Y),
+            new Vector4(Row1.Z, Row2.Z, Row3.Z, Row4.Z),
+            new Vector4(Row1.W, Row2.W, Row3.W, Row4.W));
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public Vector3 Transform(Vector3 v) => (this * Vec4(v, 1)).XYZ();
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public Vector3 TransformNormal(Vector3 v) => (this * Vec4(v, 0)).XYZ();
+
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static Vector4 operator *(FMatrix4x4 m, Vector4 v) {
          return new Vector4(Vector4.Dot(m.Row1, v), Vector4.Dot(m.Row2, v), Vector4.Dot(m.Row3, v), Vector4.Dot(m.Row4, v));
@@ -64,6 +160,7 @@ namespace FMatrix {
       }
 
       public override string ToString() => $"{{ {{M11:{Row1.X} M12:{Row1.Y} M13:{Row1.Z} M14:{Row1.W}}} {{M21:{Row2.X} M22:{Row2.Y} M23:{Row2.Z} M24:{Row2.W}}} {{M31:{Row3.X} M32:{Row3.Y} M33:{Row3.Z} M34:{Row3.W}}} {{M41:{Row4.X} M42:{Row4.Y} M43:{Row4.Z} M44:{Row4.W}}} }}";
+      public string ToStringNewline() => $"{{ {{M11:{Row1.X} M12:{Row1.Y} M13:{Row1.Z} M14:{Row1.W}}}\r\n  {{M21:{Row2.X} M22:{Row2.Y} M23:{Row2.Z} M24:{Row2.W}}}\r\n  {{M31:{Row3.X} M32:{Row3.Y} M33:{Row3.Z} M34:{Row3.W}}}\r\n  {{M41:{Row4.X} M42:{Row4.Y} M43:{Row4.Z} M44:{Row4.W}}} }}";
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static FMatrix4x4 RotationX(float theta) {
@@ -134,7 +231,7 @@ namespace FMatrix {
             0, 0, 0, 1);
       }
 
-      public static FMatrix4x4 LookAtRH(Vector3 eye, Vector3 target, Vector3 up) {
+      public static FMatrix4x4 ViewLookAtRH(Vector3 eye, Vector3 target, Vector3 up) {
          var z = (eye - target).Normalize();
          var x = Cross(up, z).Normalize();
          var y = Cross(z, x);
@@ -143,6 +240,135 @@ namespace FMatrix {
             Vec4(y, -Dot(y, eye)),
             Vec4(z, -Dot(z, eye)),
             Vector4.UnitW);
+      }
+
+      public static FMatrix4x4 RotationLookAtRH(Vector3 eye, Vector3 target, Vector3 up) => RotationLookAtRH(target - eye, up);
+
+      public static FMatrix4x4 RotationLookAtRH(Vector3 eyeToTarget, Vector3 up) {
+         var z = eyeToTarget.Normalize();
+         var x = Cross(up, z).Normalize();
+         var y = Cross(z, x);
+         return new FMatrix4x4(
+            //Vec4(x, 0),
+            //Vec4(y, 0),
+            //Vec4(z, 0),
+            Vec4(x.X, y.X, z.X, 0),
+            Vec4(x.Y, y.Y, z.Y, 0),
+            Vec4(x.Z, y.Z, z.Z, 0),
+            Vector4.UnitW);
+      }
+
+      // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb281728(v=vs.85).aspx
+      public static FMatrix4x4 PerspectiveFovRH(float fov, float aspect, float znear, float zfar) {
+         float h = 1.0f / MathF.Tan(fov * 0.5f);
+         float zFarOverZSpan = zfar / (znear - zfar);
+         return new FMatrix4x4(
+            Vec4(h / aspect, 0, 0, 0),
+            Vec4(0, h, 0, 0),
+            Vec4(0, 0, zFarOverZSpan, znear * zFarOverZSpan),
+            Vec4(0, 0, -1, 0));
+      }
+
+      // https://msdn.microsoft.com/en-us/library/windows/desktop/bb281724(v=vs.85).aspx
+      [Obsolete]
+      public static FMatrix4x4 OrthoOffCenterLH(float left, float right, float bottom, float top, float znear, float zfar) {
+         float invZSpan = 1.0f / (zfar - znear);
+         return new FMatrix4x4(
+            Vec4(2.0f / (right - left), 0, 0, (left + right) / (left - right)),
+            Vec4(0, 2.0f / (top - bottom), 0, (top + bottom) / (bottom - top)),
+            Vec4(0, 0, invZSpan, -znear * invZSpan),
+            Vec4(0, 0, 0, 1));
+      }
+
+      // https://msdn.microsoft.com/en-us/library/windows/desktop/bb281725(v=vs.85).aspx
+      public static FMatrix4x4 OrthoOffCenterRH(float left, float right, float bottom, float top, float znear, float zfar) {
+         float invZSpan = 1.0f / (zfar - znear);
+         return new FMatrix4x4(
+            Vec4(2.0f / (right - left), 0, 0, (left + right) / (left - right)),
+            Vec4(0, 2.0f / (top - bottom), 0, (top + bottom) / (bottom - top)),
+            Vec4(0, 0, -invZSpan, -znear * invZSpan),
+            Vec4(0, 0, 0, 1));
+      }
+
+      // https://msdn.microsoft.com/en-us/library/windows/desktop/bb281723(v=vs.85).aspx
+      [Obsolete]
+      public static FMatrix4x4 OrthoLH(float width, float height, float znear, float zfar) {
+         float invZSpan = 1.0f / (zfar - znear);
+         return new FMatrix4x4(
+            Vec4(2.0f / width, 0, 0, 0),
+            Vec4(0, 2.0f / height, 0, 0),
+            Vec4(0, 0, invZSpan, -znear * invZSpan),
+            Vec4(0, 0, 0, 1));
+      }
+
+      // https://msdn.microsoft.com/en-us/library/windows/desktop/bb281726(v=vs.85).aspx
+      public static FMatrix4x4 OrthoRH(float width, float height, float znear, float zfar) {
+         float invZSpan = 1.0f / (zfar - znear);
+         return new FMatrix4x4(
+            Vec4(2.0f / width, 0, 0, 0),
+            Vec4(0, 2.0f / height, 0, 0),
+            Vec4(0, 0, -invZSpan, -znear * invZSpan),
+            Vec4(0, 0, 0, 1));
+      }
+
+
+      // Via https://github.com/dotnet/corefx/blob/ca6babddf64e479d7a9ffa08bc279d42dac76494/src/System.Numerics.Vectors/src/System/Numerics/Matrix4x4.cs
+      // Which is MIT Licensed - https://github.com/dotnet/corefx
+      // This is vectorizable https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
+      // However, we'll need .NET to support vec shuffles, which is being tracked in 
+      //     https://github.com/dotnet/coreclr/issues/4356
+      //     https://github.com/dotnet/corefx/issues/1168
+      public static bool TryInvert(FMatrix4x4 matrix, out FMatrix4x4 result) {
+         float a = matrix.M11, b = matrix.M12, c = matrix.M13, d = matrix.M14;
+         float e = matrix.M21, f = matrix.M22, g = matrix.M23, h = matrix.M24;
+         float i = matrix.M31, j = matrix.M32, k = matrix.M33, l = matrix.M34;
+         float m = matrix.M41, n = matrix.M42, o = matrix.M43, p = matrix.M44;
+
+         float kp_lo = k * p - l * o;
+         float jp_ln = j * p - l * n;
+         float jo_kn = j * o - k * n;
+         float ip_lm = i * p - l * m;
+         float io_km = i * o - k * m;
+         float in_jm = i * n - j * m;
+
+         float a11 = +(f * kp_lo - g * jp_ln + h * jo_kn);
+         float a12 = -(e * kp_lo - g * ip_lm + h * io_km);
+         float a13 = +(e * jp_ln - f * ip_lm + h * in_jm);
+         float a14 = -(e * jo_kn - f * io_km + g * in_jm);
+
+         float det = a * a11 + b * a12 + c * a13 + d * a14;
+
+         if (MathF.Abs(det) < float.Epsilon) {
+            result = new FMatrix4x4(float.NaN, float.NaN, float.NaN, float.NaN,
+                                    float.NaN, float.NaN, float.NaN, float.NaN,
+                                    float.NaN, float.NaN, float.NaN, float.NaN,
+                                    float.NaN, float.NaN, float.NaN, float.NaN);
+            return false;
+         }
+
+         float invDet = 1.0f / det;
+
+         float gp_ho = g * p - h * o;
+         float fp_hn = f * p - h * n;
+         float fo_gn = f * o - g * n;
+         float ep_hm = e * p - h * m;
+         float eo_gm = e * o - g * m;
+         float en_fm = e * n - f * m;
+
+         float gl_hk = g * l - h * k;
+         float fl_hj = f * l - h * j;
+         float fk_gj = f * k - g * j;
+         float el_hi = e * l - h * i;
+         float ek_gi = e * k - g * i;
+         float ej_fi = e * j - f * i;
+
+         result = new FMatrix4x4(
+            Vec4(a11 * invDet, -(b * kp_lo - c * jp_ln + d * jo_kn) * invDet, +(b * gp_ho - c * fp_hn + d * fo_gn) * invDet, -(b * gl_hk - c * fl_hj + d * fk_gj) * invDet),
+            Vec4(a12 * invDet, +(a * kp_lo - c * ip_lm + d * io_km) * invDet, -(a * gp_ho - c * ep_hm + d * eo_gm) * invDet, +(a * gl_hk - c * el_hi + d * ek_gi) * invDet),
+            Vec4(a13 * invDet, -(a * jp_ln - b * ip_lm + d * in_jm) * invDet, +(a * fp_hn - b * ep_hm + d * en_fm) * invDet, -(a * fl_hj - b * el_hi + d * ej_fi) * invDet),
+            Vec4(a14 * invDet, +(a * jo_kn - b * io_km + c * in_jm) * invDet, -(a * fo_gn - b * eo_gm + c * en_fm) * invDet, +(a * fk_gj - b * ek_gi + c * ej_fi) * invDet)
+            );
+         return true;
       }
    }
 }

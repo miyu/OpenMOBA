@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Drawing;
 using System.Numerics;
+using FMatrix;
 
 namespace SharpSL {
-   using static SharpSLStatics;
+   using static NumericsStatics;
    using static SoftwareRenderer;
 
    public class RenderTarget<T> {

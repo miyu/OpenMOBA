@@ -1,9 +1,12 @@
 using System;
 using System.Numerics;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FMatrix.Tests {
-   public class FMatrixLikeNumericsTests {
+   public class FMatrixLikeNumericsTests : FMatrixTestBase {
+      public FMatrixLikeNumericsTests(ITestOutputHelper output) : base(output) { }
+
       [Fact]
       public void Identity() => AssertAlike(FMatrix4x4.Identity, Matrix4x4.Identity);
 
@@ -50,51 +53,67 @@ namespace FMatrix.Tests {
          var a = RandomVector3(r);
          var b = RandomVector3(r);
          var c = RandomVector3(r);
-         AssertAlike(FMatrix4x4.LookAtRH(a, b, c), Matrix4x4.CreateLookAt(a, b, c));
+         AssertAlike(FMatrix4x4.ViewLookAtRH(a, b, c), Matrix4x4.CreateLookAt(a, b, c));
       });
 
-      private float RandomFloat(Random r) => r.Next() / (float)int.MaxValue;
+      [Fact]
+      public void RotationLookAt() => Trials(1000, r => {
+         var a = RandomVector3(r);
+         var b = RandomVector3(r);
+         var c = RandomVector3(r);
 
-      private Vector3 RandomVector3(Random r) => new Vector3(RandomFloat(r), RandomFloat(r), RandomFloat(r));
-      private Vector4 RandomVector4(Random r) => new Vector4(RandomFloat(r), RandomFloat(r), RandomFloat(r), RandomFloat(r));
+         // Rotation lookat RH is lookat LH with flipped Z
+         var la = Matrix4x4.CreateLookAt(b, a, c);
 
-      private FMatrix4x4 RandomMatrix(Random r) => new FMatrix4x4(RandomVector4(r), RandomVector4(r), RandomVector4(r), RandomVector4(r));
+         // And additionally, no translation
+         la.M41 = la.M42 = la.M43 = 0.0f;
 
-      private void AssertAlike(FMatrix4x4 actual, Matrix4x4 expected) {
-         expected = Matrix4x4.Transpose(expected);
+         // LookAt is meant for camera. Does the opposite motion of what we want,
+         // so invert (orthonormal matrix, so transpose equivalent)
+         la = Matrix4x4.Transpose(la);
 
-         AssertAlike(actual.Row1.X, expected.M11);
-         AssertAlike(actual.Row1.Y, expected.M12);
-         AssertAlike(actual.Row1.Z, expected.M13);
-         AssertAlike(actual.Row1.W, expected.M14);
+         AssertAlike(FMatrix4x4.RotationLookAtRH(a, b, c), la);
+      });
 
-         AssertAlike(actual.Row2.X, expected.M21);
-         AssertAlike(actual.Row2.Y, expected.M22);
-         AssertAlike(actual.Row2.Z, expected.M23);
-         AssertAlike(actual.Row2.W, expected.M24);
 
-         AssertAlike(actual.Row3.X, expected.M31);
-         AssertAlike(actual.Row3.Y, expected.M32);
-         AssertAlike(actual.Row3.Z, expected.M33);
-         AssertAlike(actual.Row3.W, expected.M34);
+      [Fact]
+      public void PerspectiveFovRH() => Trials(1000, r => {
+         var fov = RandomFloat(r) * 2;
+         var aspect = RandomFloat(r) * 2;
+         var (znear, zfar) = RandomFloatOrderedPair(r, 0, 10000);
 
-         AssertAlike(actual.Row4.X, expected.M41);
-         AssertAlike(actual.Row4.Y, expected.M42);
-         AssertAlike(actual.Row4.Z, expected.M43);
-         AssertAlike(actual.Row4.W, expected.M44);
-      }
+         AssertAlike(FMatrix4x4.PerspectiveFovRH(fov, aspect, znear, zfar), Matrix4x4.CreatePerspectiveFieldOfView(fov, aspect, znear, zfar));
+      });
 
-      private void AssertAlike(float actual, float expected) {
-         if (MathF.Abs(actual - expected) > 0.001f) {
-            throw new Exception($"Expected {expected}, Actual {actual}");
-         }
-      }
 
-      private void Trials(int n, Action<Random> cb) {
-         var r = new Random(0);
-         for (var i = 0; i < n; i++) {
-            cb(r);
-         }
-      }
+      [Fact]
+      public void OrthoOffCenterRH() => Trials(1000, r => {
+         var (left, right) = RandomFloatOrderedPair(r, -1000, 1000);
+         var (bottom, top) = RandomFloatOrderedPair(r, -1000, 1000);
+         var (znear, zfar) = RandomFloatOrderedPair(r, 0, 10000);
+
+         AssertAlike(FMatrix4x4.OrthoOffCenterRH(left, right, bottom, top, znear, zfar), Matrix4x4.CreateOrthographicOffCenter(left, right, bottom, top, znear, zfar));
+      });
+
+      [Fact]
+      public void OrthoRH() => Trials(1000, r => {
+         var width = RandomFloat(r) * 1000;
+         var height = RandomFloat(r) * 1000;
+         var (znear, zfar) = RandomFloatOrderedPair(r, 0, 10000);
+
+         AssertAlike(FMatrix4x4.OrthoRH(width, height, znear, zfar), Matrix4x4.CreateOrthographic(width, height, znear, zfar));
+      });
+
+      [Fact]
+      public void TryInvert() => Trials(1000, r => {
+         var fm = RandomMatrix(r);
+         var snm = ToNumericsTransposed(fm);
+         AssertAlike(fm, snm);
+
+         var fmInvSuccess = FMatrix4x4.TryInvert(fm, out var fmInv);
+         var snmInvSuccess = Matrix4x4.Invert(snm, out var snmInv);
+         Assert.Equal(fmInvSuccess, snmInvSuccess);
+         AssertAlike(fmInv, snmInv, -0.005f);
+      });
    }
 }
