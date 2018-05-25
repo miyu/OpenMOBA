@@ -1,6 +1,7 @@
 ﻿using System;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using FMatrix;
 
 namespace MatrixMultiplicationPerformanceBenchmark {
    using SNMatrix4x4 = System.Numerics.Matrix4x4;
