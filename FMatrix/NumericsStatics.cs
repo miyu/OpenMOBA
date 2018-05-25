@@ -55,5 +55,7 @@ namespace FMatrix {
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Project(this Vector3 v, Matrix4x4 m) => Vector4.Transform(new Vector4(v, 1.0f), Matrix4x4.Transpose(m)).NormalizeByW().XYZ();
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 XYZ(this Vector4 v) => new Vector3(v.X, v.Y, v.Z);
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Quaternion Normalize(this Quaternion q) => Quaternion.Normalize(q);
    }
 }

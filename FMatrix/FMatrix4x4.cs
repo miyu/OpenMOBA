@@ -235,6 +235,7 @@ namespace FMatrix {
          var z = (eye - target).Normalize();
          var x = Cross(up, z).Normalize();
          var y = Cross(z, x);
+
          return new FMatrix4x4(
             Vec4(x, -Dot(x, eye)),
             Vec4(y, -Dot(y, eye)),
@@ -369,6 +370,32 @@ namespace FMatrix {
             Vec4(a14 * invDet, +(a * jo_kn - b * io_km + c * in_jm) * invDet, -(a * fo_gn - b * eo_gm + c * en_fm) * invDet, +(a * fk_gj - b * ek_gi + c * ej_fi) * invDet)
             );
          return true;
+      }
+
+
+      // Via https://github.com/dotnet/corefx/blob/ca6babddf64e479d7a9ffa08bc279d42dac76494/src/System.Numerics.Vectors/src/System/Numerics/Matrix4x4.cs
+      // Which is MIT Licensed - https://github.com/dotnet/corefx
+      // This is vectorizable https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
+      // However, we'll need .NET to support vec shuffles, which is being tracked in 
+      //     https://github.com/dotnet/coreclr/issues/4356
+      //     https://github.com/dotnet/corefx/issues/1168
+      public static FMatrix4x4 FromQuaternion(Quaternion quaternion) {
+         float xx = quaternion.X * quaternion.X;
+         float yy = quaternion.Y * quaternion.Y;
+         float zz = quaternion.Z * quaternion.Z;
+
+         float xy = quaternion.X * quaternion.Y;
+         float wz = quaternion.Z * quaternion.W;
+         float xz = quaternion.Z * quaternion.X;
+         float wy = quaternion.Y * quaternion.W;
+         float yz = quaternion.Y * quaternion.Z;
+         float wx = quaternion.X * quaternion.W;
+
+         return new FMatrix4x4(
+            Vec4(1.0f - 2.0f * (yy + zz), 2.0f * (xy - wz), 2.0f * (xz + wy), 0.0f),
+            Vec4(2.0f * (xy + wz), 1.0f - 2.0f * (zz + xx), 2.0f * (yz - wx), 0.0f),
+            Vec4(2.0f * (xz - wy), 2.0f * (yz + wx), 1.0f - 2.0f * (yy + xx), 0.0f),
+            Vec4(0.0f, 0.0f, 0.0f, 1.0f));
       }
    }
 }

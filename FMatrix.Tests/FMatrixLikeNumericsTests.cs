@@ -115,5 +115,11 @@ namespace FMatrix.Tests {
          Assert.Equal(fmInvSuccess, snmInvSuccess);
          AssertAlike(fmInv, snmInv, -0.005f);
       });
+
+      [Fact]
+      public void FromQuaternion() => Trials(1000, r => {
+         var q = new Quaternion(RandomFloat(r), RandomFloat(r), RandomFloat(r), RandomFloat(r)).Normalize();
+         AssertAlike(FMatrix4x4.FromQuaternion(q), Matrix4x4.CreateFromQuaternion(q));
+      });
    }
 }
