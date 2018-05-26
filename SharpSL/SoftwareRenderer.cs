@@ -7,7 +7,7 @@ using FMatrix;
 
 namespace SharpSL {
    public static class SoftwareRenderer {
-      public static RenderTarget<T> CreateRenderTarget<T>(int width, int height) => new RenderTarget<T> {
+      public static RenderTarget<T> CreateBuffer2D<T>(int width, int height) => new RenderTarget<T> {
          Data = new T[width * height],
          Width = width,
          Height = height

@@ -14,6 +14,9 @@ namespace Canvas3D.LowLevel {
 
    public interface IPixelShader { }
    public interface IVertexShader { }
+   public interface IHullShader { }
+   public interface IDomainShader { }
+   public interface IGeometryShader { }
 
    public interface IBuffer<T> where T : struct {
       int Count { get; }

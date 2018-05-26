@@ -53,7 +53,7 @@ PSInput VSMain(
 float4 PSMain(PSInput input) : SV_TARGET {
     float3 P = input.positionWorld;
     float3 N = normalize(input.normalWorld);
-    return float4(0, 0, 0, 0);
+    //return float4(0, 0, 0, 0);
 
     // ray points from center of world to atmosphere.
     float2 uv = input.uv * 2 - 1;

@@ -6,7 +6,10 @@ namespace Canvas3D {
    // consider doing by flags in the future
    public enum InputLayoutFormat {
       PositionNormalColorTextureInstanced,
-      Water
+      WaterVertex,
+//      WaterHullAndDomain,
+//      WaterGeometry,
+//      WaterPixel
    }
 
    public class VertexElementAttribute : Attribute {
@@ -19,7 +22,7 @@ namespace Canvas3D {
 
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct VertexPosition {
-      public const InputLayoutFormat Layout = InputLayoutFormat.Water;
+      public const InputLayoutFormat Layout = InputLayoutFormat.WaterVertex;
 
       [VertexElement("POSITION")]
       public Vector3 Position;

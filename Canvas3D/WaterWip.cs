@@ -33,10 +33,10 @@ namespace Canvas3D {
       }
 
       public void Render(IDeviceContext context, int instanceCount) {
-         context.SetRasterizerConfiguration(RasterizerConfiguration.WireFront);
+         context.SetRasterizerConfiguration(RasterizerConfiguration.FillFront);
          context.SetVertexBuffer(0, vertexBuffer);
          context.SetIndexBuffer(0, indexBuffer);
-         context.SetPrimitiveTopology(PrimitiveTopology.TriangleList);
+         context.SetPrimitiveTopology(PrimitiveTopology.PatchListWith3ControlPoints);
          context.DrawIndexedInstanced(indexCount, instanceCount, 0, 0, 0);
       }
 

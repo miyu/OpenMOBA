@@ -284,9 +284,9 @@ namespace Canvas3D {
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFrontBack);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
 
-         renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.PixelVertex);
-         renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.PixelVertex);
-         renderContext.SetConstantBuffer(2, _textureDescriptorBuffer, RenderStage.PixelVertex);
+         renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.VertexDomainPixel);
+         renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.VertexDomainPixel);
+         renderContext.SetConstantBuffer(2, _textureDescriptorBuffer, RenderStage.VertexDomainPixel);
 
          if (true) {
             RenderScene_Forward(renderContext, (SceneSnapshot)scene, backBufferDepthStencilView, backBufferRenderTargetView);
@@ -342,13 +342,17 @@ namespace Canvas3D {
 
          // Water
          if (true) {
+            var pv = scene.ProjView;
+            pv.Transpose();
+            Console.WriteLine("!!!!!" + Vector3.Transform(new Vector3(-5.00f, -2.18557e-07f, -5.00f), pv));
+
             _techniques.ForwardWater.BeginPass(context, 0);
             UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count, scene.Time);
             UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
             var instancingBuffer = PickInstancingBuffer(512);
             context.SetVertexBuffer(1, instancingBuffer);
+            int n = 10;
             using (var updater = context.TakeUpdater(instancingBuffer)) {
-               int n = 10;
                for (var y = -n; y <= n; y++) {
                   for (var x = -n; x <= n; x++) {
                      updater.Write(new RenderJobDescription {
@@ -366,7 +370,7 @@ namespace Canvas3D {
                BaseColor = Color4.White
             }.Resolve(30));
             mrbu.UpdateCloseAndDispose();
-            water.Render(context, 21 * 21);
+            water.Render(context, (2 * n + 1) * (2 * n + 1));
          }
 
          // Forward render pass

@@ -17,10 +17,7 @@ namespace SharpSL {
       public class PixelShader : Shader<PixelInput, Vector3> {
          public override Vector3 Compute(PixelInput input) {
             var rayDirection = ComputeCameraRayDirection(input.UV, input.CameraProjViewInv);
-            var c = AtmosphericScatteringNaive.Compute(rayDirection, input.AtmosphereConfiguration);
-            var exposure = 0.17f;
-            var mapped = Vec3(1.0f) - Exp(-c * exposure);
-            return Pow(mapped, Vec3(1.0f / 2.2f));
+            return AtmosphericScatteringNaive.Compute(rayDirection, input.AtmosphereConfiguration);
          }
 
          public Shader<Vector2, Vector3> Configure(FMatrix4x4 projViewInv, AtmosphereConfiguration atmosphereConfiguration) {
@@ -32,4 +29,8 @@ namespace SharpSL {
          }
       }
    }
+
+
+
+
 }

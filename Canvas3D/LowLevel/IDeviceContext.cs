@@ -5,10 +5,12 @@ using SharpDX.Direct3D;
 namespace Canvas3D.LowLevel {
    [Flags]
    public enum RenderStage {
-      Pixel = 1 << 0,
-      Vertex = 1 << 1,
+      Vertex = 1 << 0,
+      Domain = 1 << 2,
+      Pixel = 1 << 4,
 
-      PixelVertex = Pixel | Vertex
+      VertexPixel = Vertex | Pixel,
+      VertexDomainPixel = Vertex | Domain | Pixel
    }
 
    public interface IDeviceContext {
@@ -26,8 +28,11 @@ namespace Canvas3D.LowLevel {
       void SetViewportRect(Vector2 position, Vector2 size);
       void SetViewportRect(RectangleF rectangle);
 
-      void SetPixelShader(IPixelShader shader);
       void SetVertexShader(IVertexShader shader);
+      void SetHullShader(IHullShader shader);
+      void SetDomainShader(IDomainShader shader);
+      void SetGeometryShader(IGeometryShader shader);
+      void SetPixelShader(IPixelShader shader);
 
       void SetPrimitiveTopology(PrimitiveTopology topology);
       void SetVertexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct;

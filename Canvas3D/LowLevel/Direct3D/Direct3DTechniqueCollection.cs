@@ -15,23 +15,26 @@ namespace Canvas3D.LowLevel.Direct3D {
          var collection = new Direct3DTechniqueCollection();
          collection.Forward = new Technique {
             Passes = 1,
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain"),
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain")
          };
          collection.ForwardDepthOnly = new Technique {
             Passes = 1,
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain"),
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_depth_only", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_depth_only", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain")
          };
          collection.ForwardWater = new Technique {
             Passes = 1,
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_water", InputLayoutFormat.WaterVertex, "VSMain"),
+            HullShader = shaderLoader.LoadHullShaderFromFile("shaders/forward_water", "HSMain"),
+            DomainShader = shaderLoader.LoadDomainShaderFromFile("shaders/forward_water", "DSMain"),
+            GeometryShader = shaderLoader.LoadGeometryShaderFromFile("shaders/forward_water", "GSMain"),
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_water", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_water", InputLayoutFormat.Water, "VSMain")
          };
          collection.ForwardSkyFromAtmosphere = new Technique {
             Passes = 1,
+            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_skyfromatomsphere", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain"),
             PixelShader = shaderLoader.LoadPixelShaderFromFile("shaders/forward_skyfromatomsphere", "PSMain"),
-            VertexShader = shaderLoader.LoadVertexShaderFromFile("shaders/forward_skyfromatomsphere", InputLayoutFormat.PositionNormalColorTextureInstanced, "VSMain")
          };
          //collection.DeferredToGBuffer = new Technique {
          //   Passes = 1,
@@ -47,8 +50,11 @@ namespace Canvas3D.LowLevel.Direct3D {
       }
 
       private class Technique : ITechnique {
-         public IPixelShader PixelShader { get; set; }
          public IVertexShader VertexShader { get; set; }
+         public IHullShader HullShader { get; set; }
+         public IDomainShader DomainShader { get; set; }
+         public IGeometryShader GeometryShader { get; set; }
+         public IPixelShader PixelShader { get; set; }
 
          public int Passes { get; set; }
 
@@ -57,8 +63,11 @@ namespace Canvas3D.LowLevel.Direct3D {
                throw new ArgumentOutOfRangeException();
             }
 
-            deviceContext.SetPixelShader(PixelShader);
             deviceContext.SetVertexShader(VertexShader);
+            deviceContext.SetHullShader(HullShader);
+            deviceContext.SetDomainShader(DomainShader);
+            deviceContext.SetGeometryShader(GeometryShader);
+            deviceContext.SetPixelShader(PixelShader);
          }
       }
    }

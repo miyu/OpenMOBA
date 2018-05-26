@@ -132,11 +132,11 @@ namespace Canvas3D {
             //scene.AddRenderJobBatch(raySphereBatch);
 
             // Draw floor
-            scene.AddRenderable(
-               graphicsLoop.Presets.UnitCube,
-               MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
-               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
-               Color.White);
+//            scene.AddRenderable(
+//               graphicsLoop.Presets.UnitCube,
+//               MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
+//               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+//               Color.White);
             
             // Draw sun
 //            scene.AddRenderable(

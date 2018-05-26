@@ -153,14 +153,26 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
       }
 
-      public void SetPixelShader(IPixelShader shader) {
-         _deviceContext.PixelShader.Set(((PixelShaderBox)shader).Shader);
-      }
-
       public void SetVertexShader(IVertexShader shader) {
          var box = (VertexShaderBox)shader;
          _deviceContext.VertexShader.Set(box.Shader);
          _deviceContext.InputAssembler.InputLayout = box.InputLayout;
+      }
+
+      public void SetHullShader(IHullShader shader) {
+         _deviceContext.HullShader.Set(((HullShaderBox)shader)?.Shader);
+      }
+
+      public void SetDomainShader(IDomainShader shader) {
+         _deviceContext.DomainShader.Set(((DomainShaderBox)shader)?.Shader);
+      }
+
+      public void SetGeometryShader(IGeometryShader shader) {
+         _deviceContext.GeometryShader.Set(((GeometryShaderBox)shader)?.Shader);
+      }
+
+      public void SetPixelShader(IPixelShader shader) {
+         _deviceContext.PixelShader.Set(((PixelShaderBox)shader).Shader);
       }
 
       public void SetPrimitiveTopology(PrimitiveTopology topology) {
@@ -189,11 +201,14 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       public void SetConstantBuffer<T>(int slot, IBuffer<T> buffer, RenderStage stages) where T : struct {
          var box = (BufferBox<T>)buffer;
-         if ((stages & RenderStage.Pixel) != 0) {
-            _deviceContext.PixelShader.SetConstantBuffer(slot, box.Buffer);
-         }
          if ((stages & RenderStage.Vertex) != 0) {
             _deviceContext.VertexShader.SetConstantBuffer(slot, box.Buffer);
+         }
+         if ((stages & RenderStage.Domain) != 0) {
+            _deviceContext.DomainShader.SetConstantBuffer(slot, box.Buffer);
+         }
+         if ((stages & RenderStage.Pixel) != 0) {
+            _deviceContext.PixelShader.SetConstantBuffer(slot, box.Buffer);
          }
       }
 

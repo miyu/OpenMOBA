@@ -5,4 +5,13 @@ namespace Canvas3D.LowLevel.Direct3D {
       public VertexShader Shader;
       public InputLayout InputLayout;
    }
+   public class HullShaderBox : IHullShader {
+      public HullShader Shader;
+   }
+   public class DomainShaderBox : IDomainShader {
+      public DomainShader Shader;
+   }
+   public class GeometryShaderBox : IGeometryShader {
+      public GeometryShader Shader;
+   }
 }

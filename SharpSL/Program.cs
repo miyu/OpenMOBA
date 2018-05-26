@@ -7,7 +7,7 @@ namespace SharpSL {
 
    public static class Program {
       public static void Main(string[] args) {
-         var rt = CreateRenderTarget<Vector3>(640, 480);
+         var rt = CreateBuffer2D<Vector3>(640, 480);
          var projView = CreateLookatProjView(Vector3.Zero, Vec3(0.8f, 0.7f, 1), Vector3.UnitY, rt.Size, 1.5f);
 
          var atmosphereConfiguration = AtmosphereConfiguration.Earth;

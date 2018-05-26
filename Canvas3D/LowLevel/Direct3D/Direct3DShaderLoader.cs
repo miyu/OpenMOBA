@@ -32,6 +32,24 @@ namespace Canvas3D.LowLevel.Direct3D {
          return new VertexShaderBox { Shader = shader, InputLayout = inputLayout };
       }
 
+      public IHullShader LoadHullShaderFromFile(string relativePath, string entryPoint = null) {
+         var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "HS", "hs_5_0");
+         var shader = new HullShader(_device, bytecode);
+         return new HullShaderBox { Shader = shader };
+      }
+
+      public IDomainShader LoadDomainShaderFromFile(string relativePath, string entryPoint = null) {
+         var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "DS", "ds_5_0");
+         var shader = new DomainShader(_device, bytecode);
+         return new DomainShaderBox { Shader = shader };
+      }
+
+      public IGeometryShader LoadGeometryShaderFromFile(string relativePath, string entryPoint = null) {
+         var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "GS", "gs_5_0");
+         var shader = new GeometryShader(_device, bytecode);
+         return new GeometryShaderBox { Shader = shader };
+      }
+
       private InputLayout CreateInputLayout(InputLayoutFormat inputLayoutFormat, ShaderSignature signature) {
          if (inputLayoutFormat == InputLayoutFormat.PositionNormalColorTextureInstanced) {
             return new InputLayout(_device, signature, new[] {
@@ -48,7 +66,7 @@ namespace Canvas3D.LowLevel.Direct3D {
                new InputElement("INSTANCE_MATERIAL_RESOURCES_INDEX", 0, Format.R32_SInt, 72, 1, InputClassification.PerInstanceData, 1),
                new InputElement("INSTANCE_COLOR", 0, Format.R8G8B8A8_UNorm, 76, 1, InputClassification.PerInstanceData, 1)
             });
-         } else if (inputLayoutFormat == InputLayoutFormat.Water) {
+         } else if (inputLayoutFormat == InputLayoutFormat.WaterVertex) {
             return new InputLayout(_device, signature, new[] {
                new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, InputClassification.PerVertexData, 0),
                new InputElement("INSTANCE_TRANSFORM", 0, Format.R32G32B32A32_Float, 0, 1, InputClassification.PerInstanceData, 1),
