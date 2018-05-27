@@ -36,7 +36,7 @@ float3 computeWavePoint(float3 p) {
     float scale = 2;
     float timeScale = 0.6f;
     float frequency = 0.04f / scale;
-    float amplitude = 0.25f * scale;
+    float amplitude = 0.5f * scale;
     
     float2x2 uvScramble = { -1.234f, 1.456f, 1.456f, -1.34f };
     uvScramble *= 0.3f;
@@ -78,7 +78,7 @@ float3 computeWavePoint(float3 p) {
             amplitude *= 0.8828f;
             frequency *= 2.1337f;
         } else if (i == 3) {
-            amplitude *= 0.4828f;
+            amplitude *= 0.2828f;
             frequency *= 1.1337f;
         } else {
             if (i % 2 == 0) {
@@ -364,7 +364,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     float3 color = lerp(refracted, reflected, fresnel);
     
     // specular lighting contribution
-    float specular = computeSpecular(uSunPosition, N, V, 200.0);
+    float specular = computeSpecular(uSunPosition, N, V, 20.0);
     color += float3(specular, specular, specular) * aColor;
     
     return float4(color * 0.2, 1);

@@ -349,9 +349,9 @@ namespace Canvas3D {
             _techniques.ForwardWater.BeginPass(context, 0);
             UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count, scene.Time);
             UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
-            var instancingBuffer = PickInstancingBuffer(512);
+            var instancingBuffer = PickInstancingBuffer(8192);
             context.SetVertexBuffer(1, instancingBuffer);
-            int n = 10;
+            int n = 40;
             using (var updater = context.TakeUpdater(instancingBuffer)) {
                for (var y = -n; y <= n; y++) {
                   for (var x = -n; x <= n; x++) {

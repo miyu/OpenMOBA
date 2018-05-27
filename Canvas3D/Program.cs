@@ -197,7 +197,7 @@ namespace Canvas3D {
       private static void UpdateProjViewMatrix(Size clientSize) {
          var verticalFov = (float)Math.PI / 4;
          var aspect = clientSize.Width / (float)clientSize.Height;
-         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 1.0f, 500.0f);
+         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 1.0f, 5000.0f);
          projView = proj * view;
 
          if (zfirst) {

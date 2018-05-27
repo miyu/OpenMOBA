@@ -21,7 +21,7 @@ float3 atmosphere(float3 r, float3 r0, float3 pSun, float iSun, float rPlanet, f
     float2 p = findRayAndCenteredSphereIntersections(r0, r, rAtmos);
     if (p.x > p.y) return float3(0,0,0);
     p.y = min(p.y, findRayAndCenteredSphereIntersections(r0, r, rPlanet).x);
-    const int iSteps = 44;
+    const int iSteps = 150;
     float iStepSize = (p.y - p.x) / (float)(iSteps);
 
     // Initialize the primary ray time.
