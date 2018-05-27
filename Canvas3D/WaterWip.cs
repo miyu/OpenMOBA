@@ -12,7 +12,7 @@ namespace Canvas3D {
    using TIndex = Int32;
 
    public class WaterWip {
-      public const int GridResolution = 2;
+      public const int GridResolution = 8;
 
       private readonly IGraphicsFacade graphicsFacade;
       private readonly IGraphicsDevice device;
