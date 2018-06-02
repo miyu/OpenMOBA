@@ -131,8 +131,20 @@ namespace OpenMOBA.Foundation {
       // Values precomputed at entry of movement service
       public int ComputedRadius { get; set; }
       public int ComputedSpeed { get; set; }
+
+      public DoubleVector2 LastSeekingWeightedSumNBodyForces { get; set; }
+      public double LastSeekingSumWeightsNBodyForces { get; set; }
+
+      public DoubleVector2 SeekingWeightedSumNBodyForces { get; set; }
+      public double SeekingSumWeightsNBodyForces { get; set; }
+
+      public DoubleVector2 AlignmentWeightedSumNBodyForces { get; set; }
+      public double AlignmentSumWeightsNBodyForces { get; set; }
+
       public DoubleVector2 WeightedSumNBodyForces { get; set; }
       public double SumWeightsNBodyForces { get; set; }
+      public DoubleVector2 LastWeightedSumNBodyForces { get; set; }
+      public double LastSumWeightsNBodyForces { get; set; }
       public TerrainOverlayNetwork TerrainOverlayNetwork { get; set; }
       public TerrainOverlayNetworkNode TerrainOverlayNetworkNode { get; set; }
       public DoubleVector2 LocalPosition { get; set; }
