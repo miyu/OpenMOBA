@@ -67,7 +67,7 @@ namespace OpenMOBA.Foundation {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
             if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.WorldPosition)) {
-               Console.WriteLine("Out ouf bounds!");
+//               Console.WriteLine("Out ouf bounds!");
                FixEntityInHole(entity);
             }
          }
@@ -82,7 +82,7 @@ namespace OpenMOBA.Foundation {
       private DoubleVector3 PushToLand(DoubleVector3 pWorld, double computedRadius) {
          var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
          var terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(paddedHoleDilationRadius);
-         Console.WriteLine("PHDR: " + paddedHoleDilationRadius);
+//         Console.WriteLine("PHDR: " + paddedHoleDilationRadius);
          var bestWorldDistance = double.PositiveInfinity;
          var bestWorld = DoubleVector3.Zero;
          foreach (var terrainOverlayNode in terrainOverlayNetwork.TerrainNodes) {
@@ -283,7 +283,7 @@ namespace OpenMOBA.Foundation {
 
                var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid).ToUnit();
 
-               const double mul = 0.3;
+               const double mul = 0.8;
                mc.SeekingWeightedSumNBodyForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
                mc.SeekingSumWeightsNBodyForces += mul;
             }
@@ -295,7 +295,7 @@ namespace OpenMOBA.Foundation {
                mc.SeekingSumWeightsNBodyForces = 1.0;
             }
 
-            double k = Math.Min(gameTimeService.Ticks, 9.0);
+            double k = Math.Min(gameTimeService.Ticks, 19.0);
             mc.SeekingWeightedSumNBodyForces += mc.LastSeekingWeightedSumNBodyForces * k;
             mc.SeekingSumWeightsNBodyForces += mc.LastSeekingSumWeightsNBodyForces * k;
 
@@ -332,9 +332,9 @@ namespace OpenMOBA.Foundation {
                   // k impacts how quickly overlapping overwhelms seeking.
                   // k = 1: When fully overlapping
                   // k = 2: When half overlapped.
-                  const int k = 256;
+                  const int k = 350;
                   var centerDistance = (int)Math.Sqrt(centerDistanceSquared);
-                  w = (float)IntMath.Square(k * (radiusSum - centerDistance) / radiusSum);// / (double)radiusSumSquared;
+                  w = (float)k * k * (1.0 - Math.Pow(centerDistance / (double)radiusSum, 0.3));// / (double)radiusSumSquared;
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   // And the force vector (outer code will tounit this)
@@ -352,7 +352,7 @@ namespace OpenMOBA.Foundation {
                      continue;
 
                   // regroup = ((D - d) / D)^4
-                  w = 0 * (double)Math.Pow((maxAttractionDistance - spacingBetweenBoundaries) / (float)maxAttractionDistance, 0.5);
+                  w = 10 * (double)Math.Pow((maxAttractionDistance - spacingBetweenBoundaries) / (float)maxAttractionDistance, 0.5);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   aForce = aToB;
@@ -374,8 +374,8 @@ namespace OpenMOBA.Foundation {
                Debug.Assert(GeometryOperations.IsReal(wf));
                Debug.Assert(GeometryOperations.IsReal(w));
 
-               a.WeightedSumNBodyForces += wf;
-               a.SumWeightsNBodyForces += w;
+               a.WeightedSumNBodyForces += wf * 0.95;
+               a.SumWeightsNBodyForces += w * 0.95;
 
                b.WeightedSumNBodyForces -= wf;
                b.SumWeightsNBodyForces += w;
@@ -384,11 +384,12 @@ namespace OpenMOBA.Foundation {
 
 
          foreach (var mc in movementComponents) {
-            mc.WeightedSumNBodyForces += mc.SeekingWeightedSumNBodyForces * 1000; // is normalized
-            mc.SumWeightsNBodyForces += 1000;
+            double ks = 2000;
+            mc.WeightedSumNBodyForces += mc.SeekingWeightedSumNBodyForces * ks; // is normalized
+            mc.SumWeightsNBodyForces += ks;
 
             if (mc.AlignmentSumWeightsNBodyForces > 0) {
-               double kc = 2000;
+               double kc = 1500;
                mc.WeightedSumNBodyForces += (mc.AlignmentWeightedSumNBodyForces / mc.AlignmentSumWeightsNBodyForces) * kc;
                mc.SumWeightsNBodyForces += kc;
             }
@@ -494,7 +495,7 @@ namespace OpenMOBA.Foundation {
 
       private int zzzz = 0;
       private double wwww = 0;
-      private double wmul = 1;
+      private double wmul = 1.0 / 0.69;
 
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
          // ReSharper disable once CompareOfFloatsByEqualityOperator
@@ -507,6 +508,8 @@ namespace OpenMOBA.Foundation {
          if (zzzz % 1000 == 0) {
             wmul = 1.0 / (wwww / zzzz);
             Console.WriteLine("!!!!!" + wwww / zzzz);
+            wwww = 0;
+            zzzz = 0;
          }
 
 

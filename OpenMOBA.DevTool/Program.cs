@@ -50,7 +50,7 @@ namespace OpenMOBA.DevTool {
       private EntityService EntityService => Game.EntityService;
 
       public void HandleFrameEnd(FrameEndStatistics frameStatistics) {
-         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 8 == 0) RenderDebugFrame();
+         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 1 == 0) RenderDebugFrame();
       }
 
       private void Benchmark(double holeDilationRadius) {
@@ -119,7 +119,7 @@ namespace OpenMOBA.DevTool {
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.ComputeErodedOuterContour(), StrokeStyle.BlackHairLineSolid, StrokeStyle.CyanThick3Solid);
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.DilatedHolesUnion, StrokeStyle.RedHairLineSolid, StrokeStyle.LimeThick5Solid);
                debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray));
-               debugCanvas.DrawTriangulation(terrainNode.LocalGeometryView.Triangulation, new StrokeStyle(Color.Black));
+               //debugCanvas.DrawTriangulation(terrainNode.LocalGeometryView.Triangulation, new StrokeStyle(Color.Black));
                
                foreach (var ((desc, version), (includedContours, excludedContours)) in terrainNode.LocalGeometryView.Job.DynamicHoles) {
                   debugCanvas.DrawPolygonContours(includedContours, StrokeStyle.RedHairLineSolid);

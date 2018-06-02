@@ -278,7 +278,6 @@ namespace OpenMOBA.Foundation {
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
-            break;
             var left = r.Next(0, 800);
             var top = r.Next(0, 800);
             var width = r.Next(100, 200);
@@ -413,7 +412,7 @@ namespace OpenMOBA.Foundation {
 
 //         var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
          var benchmarkDestination = new DoubleVector3(425, 425, 0.0);
-         var benchmarkUnitBaseSpeed = 100.0f;
+         var benchmarkUnitBaseSpeed = 100;
          var swarm = new Swarm { Destination = benchmarkDestination };
          var swarmMeanRadius = 10.0f;
          for (var y = 0; y < 10; y++) {
