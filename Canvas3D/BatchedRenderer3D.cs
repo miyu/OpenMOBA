@@ -313,7 +313,7 @@ namespace Canvas3D {
          BindCommonShaderResourceViews(context);
 
          // Atmosphere
-         {
+         if (false) {
             _techniques.ForwardSkyFromAtmosphere.BeginPass(context, 0);
             context.SetDepthConfiguration(DepthConfiguration.Disabled);
             var (orthoProj, world) = ComputeSceneQuadProjWorld(backBufferRenderTargetView.Resolution, 0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height);
@@ -341,7 +341,7 @@ namespace Canvas3D {
          }
 
          // Water
-         if (true) {
+         if (false) {
             var pv = scene.ProjView;
             pv.Transpose();
             Console.WriteLine("!!!!!" + Vector3.Transform(new Vector3(-5.00f, -2.18557e-07f, -5.00f), pv));

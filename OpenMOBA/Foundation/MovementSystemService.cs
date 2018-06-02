@@ -114,14 +114,14 @@ namespace OpenMOBA.Foundation {
          foreach (var entity in AssociatedEntities) entity.MovementComponent.PathingIsInvalidated = true;
       }
 
-      public bool NN(TriangulationIsland island, DoubleVector3 destination, out Dictionary<int, int> d) {
+      public bool NN(TriangulationIsland island, DoubleVector2 destination, out (int, Dictionary<int, int>) res) {
          int rootTriangleIndex;
          if (!island.TryIntersect(destination.X, destination.Y, out rootTriangleIndex)) {
-            d = null;
+            res = (Triangle3.NO_NEIGHBOR_INDEX, null);
             return false;
          }
 
-         d = new Dictionary<int, int>();
+         var d = new Dictionary<int, int>();
          var s = new PriorityQueue<Tuple<int, int, double>>((a, b) => a.Item3.CompareTo(b.Item3));
          s.Enqueue(Tuple.Create(rootTriangleIndex, -1, 0.0));
          while (s.Any()) {
@@ -139,12 +139,15 @@ namespace OpenMOBA.Foundation {
                }
             }
          }
+
+         res = (rootTriangleIndex, d);
          return true;
       }
 
       public override void Execute() {
          var entities = AssociatedEntities.ToArray();
          var terrainSnapshot = terrainService.CompileSnapshot();
+         var movementComponents = entities.Map(e => e.MovementComponent);
 
          // 0. Precompute computed entity stats, zero flocking intermediate aggregates
          for (var i = 0; i < entities.Length; i++) {
@@ -215,11 +218,18 @@ namespace OpenMOBA.Foundation {
             var (pathfinderResultContext, centroidIndicesByEntityIndex) = res;
             foreach (var (i, (entity, entityTerrainOverlayNode, island, triangleIndex)) in entityNodeAndTriangleIndexes.Enumerate()) {
                var mc = entity.MovementComponent;
+               if (mc.GoalReached) continue;
+
                var centroidIndex = centroidIndicesByEntityIndex[i];
                if (pathfinderResultContext.TryComputeRoadmap(centroidIndex, out var roadmap)) {
                   // path-following behavior. Recall from destination to source, so roadmap must be followed backward.
                   var action = (MotionRoadmapWalkAction)roadmap.Plan.Last();
                   Trace.Assert(action.Node == entityTerrainOverlayNode);
+
+                  // HACK:
+                  if ((mc.WorldPosition - mc.Swarm.Destination).Norm2D() < 5) {
+                     mc.GoalReached = true;
+                  }
 
                   // path-following vector is from destination to source because our multi-pathfind goes from destination to source.
                   var v = action.Destination.To(action.Source).ToDoubleVector2().ToUnit();
@@ -230,10 +240,52 @@ namespace OpenMOBA.Foundation {
             }
          }
 
+
+         // 3.1 For each (island, dest) compute spanning dijkstras of tree centroids to dest triangle
+         var ds = new Dictionary<(TriangulationIsland, DoubleVector3), (int rti, Dictionary<int, int> d, DoubleVector3 loc)>();
+         foreach (var mc in movementComponents) {
+            if (mc.Swarm == null) continue;
+            if (mc.GoalReached) continue;
+
+            var key = (mc.SwarmingIsland, mc.Swarm.Destination);
+            if (!ds.TryGetValue(key, out var t)) {
+               if (mc.TerrainOverlayNetworkNode.Contains(mc.Swarm.Destination, out var local)) {
+                  // Contains can work but NN fail due to point-in-triangle robustness issues.
+                  NN(mc.SwarmingIsland, local.XY, out var tt);
+                  t = (tt.Item1, tt.Item2, local);
+               }
+            }
+
+
+//            DoubleVector2 triangleCentroidDijkstrasOptimalSeekUnit = DoubleVector2.Zero;
+            if (t.d != null) {
+               DoubleVector2 next;
+               if (false && t.rti == mc.SwarmingTriangleIndex) {
+                  next = t.loc.XY;
+               } else if (t.d.TryGetValue(mc.SwarmingTriangleIndex, out var nti) && nti != Triangle3.NO_NEIGHBOR_INDEX) {
+                  next = mc.SwarmingIsland.Triangles[nti].Centroid;
+               } else {
+                  goto qq;
+               }
+
+               var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid).ToUnit();
+
+               const double mul = 0.5;
+               mc.WeightedSumNBodyForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
+               mc.SumWeightsNBodyForces += mul;
+            }
+            qq:
+
+            // Normalize seek forces now that we've done centroid path-follow and optimal heuristics.
+            if (mc.SumWeightsNBodyForces > 0) {
+               mc.WeightedSumNBodyForces /= mc.SumWeightsNBodyForces;
+               mc.SumWeightsNBodyForces = 1.0;
+            }
+         }
+
          // 4. for each entity pairing, compute separation force vector which prevents overlap
          //    and "regroup" (cohesion) force vector, which causes clustering within swarms.
          //    Logic contained within should be scale invariant!
-         var movementComponents = entities.Map(e => e.MovementComponent);
          for (var i = 0; i < movementComponents.Length - 1; i++) {
             var a = movementComponents[i];
             var aRadius = a.ComputedRadius;
@@ -260,9 +312,9 @@ namespace OpenMOBA.Foundation {
                   // k impacts how quickly overlapping overwhelms seeking.
                   // k = 1: When fully overlapping
                   // k = 2: When half overlapped.
-                  const int k = 16;
+                  const int k = 128;
                   var centerDistance = (int)Math.Sqrt(centerDistanceSquared);
-                  w = IntMath.Square(k * (radiusSum - centerDistance)) / (double)radiusSumSquared;
+                  w = (float)IntMath.Square(k * (radiusSum - centerDistance) / radiusSum);// / (double)radiusSumSquared;
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   // And the force vector (outer code will tounit this)
@@ -280,7 +332,7 @@ namespace OpenMOBA.Foundation {
                      continue;
 
                   // regroup = ((D - d) / D)^4
-                  w = 0.001 * (double)Math.Pow(spacingBetweenBoundaries - maxAttractionDistance, 4.0) / Math.Pow(maxAttractionDistance, 4.0);
+                  w = 0.01 * (double)Math.Pow(spacingBetweenBoundaries - maxAttractionDistance, 4.0) / Math.Pow(maxAttractionDistance, 4.0);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   aForce = aToB;
@@ -304,13 +356,13 @@ namespace OpenMOBA.Foundation {
 
             if (a.Swarm == null) continue;
 
-
+//
 //            var seekAggregate = DoubleVector2.Zero;
 //            var seekWeightAggregate = 0.0;
-
-//            var d = ds[Tuple.Create(a.SwarmingIsland, a.Swarm.Destination)];
+//
+//            var (dok, d) = ds[Tuple.Create(a.SwarmingIsland, a.Swarm.Destination)];
 //            int nti;
-//            if (d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle.NO_NEIGHBOR_INDEX) {
+//            if (dok && d != null && d.TryGetValue(a.SwarmingTriangleIndex, out nti) && nti != Triangle3.NO_NEIGHBOR_INDEX) {
 //               var triangleCentroidDijkstrasOptimalSeekUnit = (a.SwarmingIsland.Triangles[nti].Centroid - a.SwarmingIsland.Triangles[a.SwarmingTriangleIndex].Centroid).ToUnit();
 //               const double mul = 0.5;
 //               seekAggregate += mul * triangleCentroidDijkstrasOptimalSeekUnit;
@@ -318,6 +370,8 @@ namespace OpenMOBA.Foundation {
 //            }
 //
 //            var key = Tuple.Create(a.ComputedRadius, a.SwarmingTriangleIndex, a.SwarmingIsland, a.Swarm.Destination);
+//            var y = something[(a.Swarm, a.ComputedRadius)];
+//            y.centroidIndicesByEntityIndex
 //            var triangleCentroidOptimalSeekUnit = vectorField[key];
 //            seekAggregate += triangleCentroidOptimalSeekUnit;
 //            seekWeightAggregate += 1.0;
@@ -426,6 +480,9 @@ namespace OpenMOBA.Foundation {
       }
 
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
+         // ReSharper disable once CompareOfFloatsByEqualityOperator
+         if (movementComponent.SumWeightsNBodyForces == 0.0) return;
+
          var worldDistanceRemaining = movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick;
          var localDistanceRemaining = movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
          var dv2 = ComputePositionUpdate(

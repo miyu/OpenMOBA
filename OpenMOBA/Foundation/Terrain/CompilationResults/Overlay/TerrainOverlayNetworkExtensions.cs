@@ -29,7 +29,6 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                var pLocalXy = new IntVector2((int)pLocal.X, (int)pLocal.Y); // todo: correctness issues
 
                if (!node.LandPolyNode.PointInLandPolygonNonrecursive(pLocalXy)) continue;
-
                if (Math.Abs(pLocal.Z) > 1E-3f) continue;
 
                result = node;
@@ -38,6 +37,18 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          result = null;
          pLocal = default(Vector3);
          return false;
+      }
+
+      public static bool Contains(this TerrainOverlayNetworkNode node, IntVector3 world, out DoubleVector3 local) {
+         local = node.SectorNodeDescription.WorldToLocal(world);
+         return Math.Abs(local.Z) <= 1E-3f &&
+                node.LandPolyNode.PointInLandPolygonNonrecursive(local.XY.LossyToIntVector2());
+      }
+
+      public static bool Contains(this TerrainOverlayNetworkNode node, DoubleVector3 world, out DoubleVector3 local) {
+         local = node.SectorNodeDescription.WorldToLocal(world);
+         return Math.Abs(local.Z) <= 1E-3f &&
+                node.LandPolyNode.PointInLandPolygonNonrecursive(local.XY.LossyToIntVector2());
       }
 
       public static DoubleVector3 WorldToLocal(this SectorNodeDescription snd, IntVector3 world) {

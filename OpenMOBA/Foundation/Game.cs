@@ -410,7 +410,8 @@ namespace OpenMOBA.Foundation {
          //         MovementSystemService.Pathfind(c, new DoubleVector3(950 - 500, 475 - 500, 0));
          //         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
 
-         var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
+//         var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
+         var benchmarkDestination = new DoubleVector3(425, 425, 0.0);
          var benchmarkUnitBaseSpeed = 50.0f;
          var swarm = new Swarm { Destination = benchmarkDestination };
          var swarmMeanRadius = 10.0f;

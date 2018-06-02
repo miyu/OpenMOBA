@@ -108,6 +108,8 @@ namespace OpenMOBA.Foundation {
       public float BaseSpeed { get; set; }
       public Swarm Swarm { get; set; }
 
+      public bool GoalReached { get; set; }
+
       /// <summary>
       ///    If true, movement will recompute path before updating position
       /// </summary>
