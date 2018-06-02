@@ -50,7 +50,7 @@ namespace OpenMOBA.DevTool {
       private EntityService EntityService => Game.EntityService;
 
       public void HandleFrameEnd(FrameEndStatistics frameStatistics) {
-         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 32 == 0) RenderDebugFrame();
+         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 8 == 0) RenderDebugFrame();
       }
 
       private void Benchmark(double holeDilationRadius) {

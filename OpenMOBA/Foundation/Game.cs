@@ -278,6 +278,7 @@ namespace OpenMOBA.Foundation {
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
+            break;
             var left = r.Next(0, 800);
             var top = r.Next(0, 800);
             var width = r.Next(100, 200);
@@ -412,7 +413,7 @@ namespace OpenMOBA.Foundation {
 
 //         var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
          var benchmarkDestination = new DoubleVector3(425, 425, 0.0);
-         var benchmarkUnitBaseSpeed = 50.0f;
+         var benchmarkUnitBaseSpeed = 100.0f;
          var swarm = new Swarm { Destination = benchmarkDestination };
          var swarmMeanRadius = 10.0f;
          for (var y = 0; y < 10; y++) {
@@ -421,7 +422,7 @@ namespace OpenMOBA.Foundation {
                var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
                var p = new DoubleVector3(-450, -150, 0);
                var offset = new DoubleVector3(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2, 0);
-               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed - 20 + 40 * (float)r.NextDouble());
+               var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed);
                swarmling.MovementComponent.Swarm = swarm;
                swarm.Entities.Add(swarmling);
             }
@@ -438,7 +439,7 @@ namespace OpenMOBA.Foundation {
          IntMath.Sqrt(0); // init static
 
          while (true) {
-            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 120) {
+            if (GameTimeService.Ticks >= GameTimeService.TicksPerSecond * 20) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeService.Ticks}");
                break;
             }

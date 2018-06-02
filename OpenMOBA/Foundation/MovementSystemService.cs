@@ -283,7 +283,7 @@ namespace OpenMOBA.Foundation {
 
                var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid).ToUnit();
 
-               const double mul = 0.5;
+               const double mul = 0.3;
                mc.SeekingWeightedSumNBodyForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
                mc.SeekingSumWeightsNBodyForces += mul;
             }
@@ -295,7 +295,7 @@ namespace OpenMOBA.Foundation {
                mc.SeekingSumWeightsNBodyForces = 1.0;
             }
 
-            const double k = 79;
+            double k = Math.Min(gameTimeService.Ticks, 9.0);
             mc.SeekingWeightedSumNBodyForces += mc.LastSeekingWeightedSumNBodyForces * k;
             mc.SeekingSumWeightsNBodyForces += mc.LastSeekingSumWeightsNBodyForces * k;
 
@@ -352,10 +352,17 @@ namespace OpenMOBA.Foundation {
                      continue;
 
                   // regroup = ((D - d) / D)^4
-                  w = 0.1 * (double)Math.Pow((maxAttractionDistance - spacingBetweenBoundaries) / (float)maxAttractionDistance, 0.5);
+                  w = 0 * (double)Math.Pow((maxAttractionDistance - spacingBetweenBoundaries) / (float)maxAttractionDistance, 0.5);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   aForce = aToB;
+
+                  // alignment
+                  a.AlignmentWeightedSumNBodyForces += b.LastSeekingWeightedSumNBodyForces * 0.01;
+                  a.AlignmentSumWeightsNBodyForces += b.LastSeekingSumWeightsNBodyForces * 0.01;
+
+                  b.AlignmentWeightedSumNBodyForces += a.LastSeekingWeightedSumNBodyForces * 0.01;
+                  b.AlignmentSumWeightsNBodyForces += a.LastSeekingSumWeightsNBodyForces * 0.01;
                } else {
                   // todo: experiment with continue vs zero-weight for no failed branch prediction
                   // (this is pretty pipeliney code)
@@ -372,12 +379,6 @@ namespace OpenMOBA.Foundation {
 
                b.WeightedSumNBodyForces -= wf;
                b.SumWeightsNBodyForces += w;
-
-               a.AlignmentWeightedSumNBodyForces += b.LastSeekingWeightedSumNBodyForces * 0.01;
-               a.AlignmentSumWeightsNBodyForces += b.LastSeekingSumWeightsNBodyForces * 0.01;
-
-               b.AlignmentWeightedSumNBodyForces += a.LastSeekingWeightedSumNBodyForces * 0.01;
-               b.AlignmentSumWeightsNBodyForces += a.LastSeekingSumWeightsNBodyForces * 0.01;
             }
          }
 
@@ -387,8 +388,9 @@ namespace OpenMOBA.Foundation {
             mc.SumWeightsNBodyForces += 1000;
 
             if (mc.AlignmentSumWeightsNBodyForces > 0) {
-               mc.WeightedSumNBodyForces += (mc.AlignmentWeightedSumNBodyForces / mc.AlignmentSumWeightsNBodyForces) * 1000;
-               mc.SumWeightsNBodyForces += 1000;
+               double kc = 2000;
+               mc.WeightedSumNBodyForces += (mc.AlignmentWeightedSumNBodyForces / mc.AlignmentSumWeightsNBodyForces) * kc;
+               mc.SumWeightsNBodyForces += kc;
             }
 
             //            mc.SeekingWeightedSumNBodyForces /= 100;
@@ -490,13 +492,26 @@ namespace OpenMOBA.Foundation {
          }
       }
 
+      private int zzzz = 0;
+      private double wwww = 0;
+      private double wmul = 1;
+
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
          // ReSharper disable once CompareOfFloatsByEqualityOperator
          if (movementComponent.SumWeightsNBodyForces == 0.0) return;
          if (movementComponent.WeightedSumNBodyForces == DoubleVector2.Zero) return;
 
-         var worldDistanceRemaining = movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick;
-         var localDistanceRemaining = movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
+         var k = movementComponent.WeightedSumNBodyForces / movementComponent.SumWeightsNBodyForces;
+         zzzz++;
+         wwww += k.Norm2D();
+         if (zzzz % 1000 == 0) {
+            wmul = 1.0 / (wwww / zzzz);
+            Console.WriteLine("!!!!!" + wwww / zzzz);
+         }
+
+
+         var worldDistanceRemaining = movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick * wmul;
+         var localDistanceRemaining = worldDistanceRemaining * movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
          var dv2 = ComputePositionUpdate(
             localDistanceRemaining,
             movementComponent.LocalPosition,
