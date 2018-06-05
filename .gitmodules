@@ -1,0 +1,4 @@
+[submodule "engine/dependencies/dargon"]
+	path = engine/dependencies/dargon
+	url = git@github.com:the-dargon-project/dargon.git
+	branch = master
