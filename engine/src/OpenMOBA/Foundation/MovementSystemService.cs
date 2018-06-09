@@ -114,20 +114,25 @@ namespace OpenMOBA.Foundation {
          foreach (var entity in AssociatedEntities) entity.MovementComponent.PathingIsInvalidated = true;
       }
 
-      public bool NN(TriangulationIsland island, DoubleVector2 destination, out (int, Dictionary<int, int>) res) {
+      public bool NN(TriangulationIsland island, DoubleVector2 destination, out (int, int[]) res) {
          int rootTriangleIndex;
          if (!island.TryIntersect(destination.X, destination.Y, out rootTriangleIndex)) {
             res = (Triangle3.NO_NEIGHBOR_INDEX, null);
             return false;
          }
 
-         var prior = new Dictionary<int, int>(); //new int[island.Triangles.Length];
-         var costUpperBounds = new Dictionary<int, double>();
+         var prior = new int[island.Triangles.Length];
+         var costUpperBounds = new double[island.Triangles.Length];
+         for (var i = 0; i < island.Triangles.Length; i++) {
+            prior[i] = Triangle3.NO_NEIGHBOR_INDEX;
+            costUpperBounds[i] = double.PositiveInfinity;
+         }
+
          var q = new PriorityQueue<(double, int, int)>((a, b) => a.Item1.CompareTo(b.Item1));
          q.Enqueue((0.0, rootTriangleIndex, -1));
          while (q.Count > 0) {
             var (ticost, ticur, tiprev) = q.Dequeue();
-            if (prior.ContainsKey(ticur)) continue;
+            if (prior[ticur] != -1) continue;
             prior[ticur] = tiprev;
 
             for (var i = 0; i < 3; i++) {
@@ -136,7 +141,7 @@ namespace OpenMOBA.Foundation {
 
                var edgeCost = (island.Triangles[nti].Centroid - island.Triangles[ticur].Centroid).Norm2D();
                var ntiCost = ticost + edgeCost;
-               if (costUpperBounds.TryGetValue(nti, out var ntiCostUpperBound) && ntiCostUpperBound < ntiCost) continue;
+               if (costUpperBounds[nti] <= ntiCost) continue;
                costUpperBounds[nti] = ntiCost;
                q.Enqueue((ntiCost, nti, ticur));
             }
@@ -257,7 +262,7 @@ namespace OpenMOBA.Foundation {
 
 
          // 3.1 For each (island, dest) compute spanning dijkstras of tree centroids to dest triangle
-         var ds = new Dictionary<(TriangulationIsland, DoubleVector3), (int rti, Dictionary<int, int> d, DoubleVector3 loc)>();
+         var ds = new Dictionary<(TriangulationIsland, DoubleVector3), (int rti, int[] d, DoubleVector3 loc)>();
          foreach (var mc in movementComponents) {
             if (mc.Swarm == null) continue;
             if (mc.GoalReached) continue;
@@ -267,7 +272,7 @@ namespace OpenMOBA.Foundation {
                if (mc.TerrainOverlayNetworkNode.Contains(mc.Swarm.Destination, out var local)) {
                   // Contains can work but NN fail due to point-in-triangle robustness issues.
                   NN(mc.SwarmingIsland, local.XY, out var tt);
-                  t = (tt.Item1, tt.Item2, local);
+                  ds[key] = t = (tt.Item1, tt.Item2, local);
                }
             }
 
@@ -277,10 +282,13 @@ namespace OpenMOBA.Foundation {
                DoubleVector2 next;
                if (false && t.rti == mc.SwarmingTriangleIndex) {
                   next = t.loc.XY;
-               } else if (t.d.TryGetValue(mc.SwarmingTriangleIndex, out var nti) && nti != Triangle3.NO_NEIGHBOR_INDEX) {
-                  next = mc.SwarmingIsland.Triangles[nti].Centroid;
                } else {
-                  goto qq;
+                  var nti = t.d[mc.SwarmingTriangleIndex];
+                  if (nti != Triangle3.NO_NEIGHBOR_INDEX) {
+                     next = mc.SwarmingIsland.Triangles[nti].Centroid;
+                  } else {
+                     goto qq;
+                  }
                }
 
                var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid).ToUnit();
