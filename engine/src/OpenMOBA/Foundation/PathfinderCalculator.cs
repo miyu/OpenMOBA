@@ -259,6 +259,10 @@ namespace OpenMOBA.Foundation {
          return false;
       }
 
+      // Optimized for one source many destinations
+      // (In multi-unit pathfind we do inverse search, where source is the goal, destinations are where entities are,
+      // edges followed backward, so this function leverages cache to compute sourceOptimalLinkToWaypoints, and
+      // destinations only need compute visible waypoint links.)
       public static bool TryBacktrack(
          TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint,
          TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint,

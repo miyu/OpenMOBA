@@ -262,6 +262,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          }
       }
 
+      private (PathLink[] visibleWaypointLinks, int visibleWaypointLinksLength, PathLink[] optimalLinkToWaypoints, ExposedArrayList<PathLink> optimalLinkToCrossovers)
+         foltcEmptyResult = (new PathLink[0], 0, null, new ExposedArrayList<PathLink>());
+
       public (PathLink[] visibleWaypointLinks, int visibleWaypointLinksLength, PathLink[] optimalLinkToWaypoints, ExposedArrayList<PathLink> optimalLinkToCrossovers) 
             FindOptimalLinksToCrossovers(
                IntVector2 p, 
@@ -269,6 +272,10 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                IReadOnlyDictionary<DoubleLineSegment2, IntLineSegment2[]> candidateBarriersByDestinationSegment = null
             ) {
          Interlocked.Increment(ref FindOptimalLinksToCrossoversInvocationCount);
+         if (crossoverPoints.Count == 0 || (candidateWaypoints != null && candidateWaypoints.Length == 0)) {
+            return foltcEmptyResult;
+         }
+
          //var links = new List<PathLink>(128);
          //links.Resize(crossoverPoints.Count);
          //return (new PathLink[0], 0, new PathLink[waypoints.Length], links);

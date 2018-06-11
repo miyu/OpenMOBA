@@ -517,7 +517,7 @@ namespace OpenMOBA.Foundation {
          wwww += k.Norm2D();
          if (zzzz % 1000 == 0) {
             wmul = 1.0 / (wwww / zzzz);
-            Console.WriteLine("!!!!!" + wwww / zzzz);
+//            Console.WriteLine("!!!!!" + wwww / zzzz);
             wwww = 0;
             zzzz = 0;
          }
