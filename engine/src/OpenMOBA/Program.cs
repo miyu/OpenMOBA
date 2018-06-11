@@ -9,7 +9,9 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 namespace OpenMOBA {
    public class Program {
       public static void Main(string[] args) {
-         Main(new GameFactory());
+         while (true) {
+            Main(new GameFactory());
+         }
       }
 
       public static void Main(GameFactory gameFactory) {
