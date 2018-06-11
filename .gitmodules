@@ -2,3 +2,6 @@
 	path = engine/dependencies/dargon
 	url = git@github.com:the-dargon-project/dargon.git
 	branch = master
+[submodule "engine/dependencies/FixedMath.Net"]
+	path = engine/dependencies/FixedMath.Net
+	url = git@github.com:miyu/FixedMath.Net.git

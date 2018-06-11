@@ -26,7 +26,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoboticsMotionPlan", "engin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogOfWarTests", "engine\test\FogOfWarTests\FogOfWarTests.csproj", "{CA0207E1-6DD9-4FE5-B0B2-26E0C2E035C9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrossoverPointTests", "engine\test\CrossoverPointTests\CrossoverPointTests.csproj", "{223D18F2-FCE4-4D18-9DF8-A90CEAE4D1A9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CrossoverPointTests", "engine\test\CrossoverPointTests\CrossoverPointTests.csproj", "{223D18F2-FCE4-4D18-9DF8-A90CEAE4D1A9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SutherlandHodgmanTests", "engine\test\SutherlandHodgmanTests\SutherlandHodgmanTests.csproj", "{CA0317E1-6DD9-4FE5-B0B2-26E0C2E035C9}"
 EndProject
@@ -49,6 +49,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NMockito.UnitTests", "engine\dependencies\dargon\framework\src\NMockito\test\NMockito.UnitTests\NMockito.UnitTests.csproj", "{9E33B9A9-E447-4C0C-9C7D-6E30EF6FDC84}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
