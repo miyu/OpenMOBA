@@ -24,7 +24,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Canvas3D", "engine\src\Canv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoboticsMotionPlan", "engine\tools\RoboticsMotionPlan\RoboticsMotionPlan.csproj", "{DDB1E6CA-2A8E-48C6-9155-8C65BF196C24}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogOfWarTests", "engine\test\FogOfWarTests\FogOfWarTests.csproj", "{CA0207E1-6DD9-4FE5-B0B2-26E0C2E035C9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FogOfWarTests", "engine\test\FogOfWarTests\FogOfWarTests.csproj", "{CA0207E1-6DD9-4FE5-B0B2-26E0C2E035C9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CrossoverPointTests", "engine\test\CrossoverPointTests\CrossoverPointTests.csproj", "{223D18F2-FCE4-4D18-9DF8-A90CEAE4D1A9}"
 EndProject
@@ -48,10 +48,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NMockito", "engine\dependen
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NMockito.UnitTests", "engine\dependencies\dargon\framework\src\NMockito\test\NMockito.UnitTests\NMockito.UnitTests.csproj", "{9E33B9A9-E447-4C0C-9C7D-6E30EF6FDC84}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Commons", "engine\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj", "{C5400969-291A-45E2-9C26-8B15A74DE190}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Commons.UnitTests", "engine\dependencies\dargon\framework\src\Dargon.Commons\tests\Dargon.Commons.UnitTests\Dargon.Commons.UnitTests.csproj", "{80ECEAF8-39FC-4CD3-9026-59C822E73667}"
+EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -277,6 +278,30 @@ Global
 		{9E33B9A9-E447-4C0C-9C7D-6E30EF6FDC84}.Release|x64.Build.0 = Release|Any CPU
 		{9E33B9A9-E447-4C0C-9C7D-6E30EF6FDC84}.Release|x86.ActiveCfg = Release|Any CPU
 		{9E33B9A9-E447-4C0C-9C7D-6E30EF6FDC84}.Release|x86.Build.0 = Release|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Debug|x64.Build.0 = Debug|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Debug|x86.Build.0 = Debug|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Release|x64.ActiveCfg = Release|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Release|x64.Build.0 = Release|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Release|x86.ActiveCfg = Release|Any CPU
+		{C5400969-291A-45E2-9C26-8B15A74DE190}.Release|x86.Build.0 = Release|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Debug|x64.Build.0 = Debug|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Debug|x86.Build.0 = Debug|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Release|x64.ActiveCfg = Release|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Release|x64.Build.0 = Release|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Release|x86.ActiveCfg = Release|Any CPU
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -294,9 +319,14 @@ Global
 		{76CFEA8F-9385-4856-A4BD-2F809EEACB3E} = {74294450-A622-43FE-8296-939C6420556C}
 		{1A128DEE-21FD-42D5-9DB4-F6F0C4BFA0B5} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 		{9E33B9A9-E447-4C0C-9C7D-6E30EF6FDC84} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
+		{C5400969-291A-45E2-9C26-8B15A74DE190} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
+		{80ECEAF8-39FC-4CD3-9026-59C822E73667} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

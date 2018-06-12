@@ -109,6 +109,8 @@ namespace ClipperLib {
       }
    };
 
+   public class ClipperObjectPool {
+   }
 
    //------------------------------------------------------------------------------
    // PolyTree & PolyNode classes

@@ -77,6 +77,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          return node.visibilityGraphNodeData.ContourWaypoints = results.ToArray();
       }
 
+      [MethodImpl(MethodImplOptions.NoInlining)]
       public static IntLineSegment2[] FindContourAndChildHoleBarriers(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourAndChildHoleBarriers != null) return node.visibilityGraphNodeData.ContourAndChildHoleBarriers;
 
@@ -119,6 +120,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          return node.visibilityGraphNodeData.ContourAndChildHoleBarriersBvh = BvhILS2.Build(node.FindContourAndChildHoleBarriers());
       }
 
+      [MethodImpl(MethodImplOptions.NoInlining)]
       public static IntVector2[] FindAggregateContourCrossoverWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.AggregateContourWaypoints != null) {
             return node.visibilityGraphNodeData.AggregateContourWaypoints;
