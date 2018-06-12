@@ -5,12 +5,18 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public class LocalGeometryView {
       private const int kCrossoverAdditionalPathingDilation = 2;
 
       public readonly LocalGeometryViewManager LocalGeometryViewManager;
-      public readonly double HoleDilationRadius;
+      public readonly cDouble HoleDilationRadius;
       public readonly LocalGeometryView Preview;
 
       public readonly int CrossoverErosionRadius;
@@ -19,15 +25,15 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       private readonly Polygon2 ClipperExtentsHoleClipPolygon;
       private readonly Guid guid = Guid.NewGuid();
 
-      public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, double holeDilationRadius, LocalGeometryView preview) {
+      public LocalGeometryView(LocalGeometryViewManager localGeometryViewManager, cDouble holeDilationRadius, LocalGeometryView preview) {
          LocalGeometryViewManager = localGeometryViewManager;
          HoleDilationRadius = holeDilationRadius;
          Preview = preview ?? this;
 
-         CrossoverErosionRadius = (int)Math.Ceiling((double)(HoleDilationRadius * 2));
+         CrossoverErosionRadius = (int)CDoubleMath.Ceiling((HoleDilationRadius * (cDouble)2));
          CrossoverDilationFactor = (CrossoverErosionRadius / 2) + kCrossoverAdditionalPathingDilation;
 
-         var padding = (int)Math.Ceiling(HoleDilationRadius) + 10;
+         var padding = (int)CDoubleMath.Ceiling(HoleDilationRadius) + 10;
          ClipperExtentsHoleClipPolygon = Polygon2.CreateRect(
             -ClipperBase.loRange + padding, -ClipperBase.loRange + padding, ClipperBase.loRange * 2 - padding * 2, ClipperBase.loRange * 2 - padding * 2);
       }
@@ -88,9 +94,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
             var (segment, inClockness) = tuple;
             var firstToSecond = segment.First.To(segment.Second).ToDoubleVector2();
             var perp = new DoubleVector2(firstToSecond.Y, -firstToSecond.X);
-            var extrusionMagnitude = HoleDilationRadius + 2;
+            var extrusionMagnitude = HoleDilationRadius + (cDouble)2;
             var inward = perp * (extrusionMagnitude / perp.Norm2D());
-            var outward = perp * (-2 / perp.Norm2D());
+            var outward = perp * (CDoubleMath.cNeg2 / perp.Norm2D());
             if (inClockness == Clockness.CounterClockwise) {
                inward *= -1;
                outward *= -1;

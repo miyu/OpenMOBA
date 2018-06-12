@@ -5,20 +5,26 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using cInt = System.Int32;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    public struct DoubleVector2 {
-      public double X;
-      public double Y;
+      public cDouble X;
+      public cDouble Y;
 
-      [DebuggerStepThrough] public DoubleVector2(double x, double y) { 
+      [DebuggerStepThrough] public DoubleVector2(cDouble x, cDouble y) { 
          X = x;
          Y = y;
       }
 
-      public double Dot(DoubleVector2 other) => X * other.X + Y * other.Y;
+      public cDouble Dot(DoubleVector2 other) => X * other.X + Y * other.Y;
 
-      public double SquaredNorm2D() => Dot(this);
-      public double Norm2D() => Math.Sqrt(SquaredNorm2D());
+      public cDouble SquaredNorm2D() => Dot(this);
+      public cDouble Norm2D() => CDoubleMath.Sqrt(SquaredNorm2D());
 
       [Pure] public DoubleVector2 To(DoubleVector2 other) => other - this;
 
@@ -27,7 +33,7 @@ namespace OpenMOBA.Geometry {
       /// </summary>
       /// <param name="other"></param>
       /// <returns></returns>
-      public double ProjectOntoComponentD(DoubleVector2 other) {
+      public cDouble ProjectOntoComponentD(DoubleVector2 other) {
          return other.Dot(this) / other.SquaredNorm2D();
       }
 
@@ -46,7 +52,7 @@ namespace OpenMOBA.Geometry {
 
       public DoubleVector2 ToUnit() => this / Norm2D();
 
-      [DebuggerStepThrough] [Pure] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)Math.Floor(X), (cInt)Math.Floor(Y));
+      [DebuggerStepThrough] [Pure] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)CDoubleMath.Floor(X), (cInt)CDoubleMath.Floor(Y));
 
       public override int GetHashCode() {
          unchecked {
@@ -54,16 +60,16 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      public static DoubleVector2 Zero => new DoubleVector2(0, 0);
-      public static DoubleVector2 UnitX => new DoubleVector2(1, 0);
-      public static DoubleVector2 UnitY => new DoubleVector2(0, 1);
+      public static DoubleVector2 Zero => new DoubleVector2(CDoubleMath.c0, CDoubleMath.c0);
+      public static DoubleVector2 UnitX => new DoubleVector2(CDoubleMath.c1, CDoubleMath.c0);
+      public static DoubleVector2 UnitY => new DoubleVector2(CDoubleMath.c0, CDoubleMath.c1);
 
-      public static DoubleVector2 operator *(int a, DoubleVector2 b) => new DoubleVector2(a * b.X, a * b.Y);
-      public static DoubleVector2 operator *(DoubleVector2 a, int b) => new DoubleVector2(b * a.X, b * a.Y);
-      public static DoubleVector2 operator *(double a, DoubleVector2 b) => new DoubleVector2(a * b.X, a * b.Y);
-      public static DoubleVector2 operator *(DoubleVector2 a, double b) => new DoubleVector2(b * a.X, b * a.Y);
-      public static DoubleVector2 operator /(DoubleVector2 a, int b) => new DoubleVector2(a.X / b, a.Y / b);
-      public static DoubleVector2 operator /(DoubleVector2 a, double b) => new DoubleVector2(a.X / b, a.Y / b);
+      public static DoubleVector2 operator *(int a, DoubleVector2 b) => new DoubleVector2((cDouble)a * b.X, (cDouble)a * b.Y);
+      public static DoubleVector2 operator *(DoubleVector2 a, int b) => new DoubleVector2((cDouble)b * a.X, (cDouble)b * a.Y);
+      public static DoubleVector2 operator *(cDouble a, DoubleVector2 b) => new DoubleVector2(a * b.X, a * b.Y);
+      public static DoubleVector2 operator *(DoubleVector2 a, cDouble b) => new DoubleVector2(b * a.X, b * a.Y);
+      public static DoubleVector2 operator /(DoubleVector2 a, int b) => new DoubleVector2(a.X / (cDouble)b, a.Y / (cDouble)b);
+      public static DoubleVector2 operator /(DoubleVector2 a, cDouble b) => new DoubleVector2(a.X / b, a.Y / b);
       public static DoubleVector2 operator +(DoubleVector2 a, DoubleVector2 b) => new DoubleVector2(a.X + b.X, a.Y + b.Y);
       public static DoubleVector2 operator -(DoubleVector2 a, DoubleVector2 b) => new DoubleVector2(a.X - b.X, a.Y - b.Y);
       public static bool operator ==(DoubleVector2 a, DoubleVector2 b) => a.X == b.X && a.Y == b.Y;

@@ -2,6 +2,12 @@
 using System.Collections.Generic;
 using ClipperLib;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    public static class PolylineOperations {
       public static PolyTree ExtrudePolygon(IReadOnlyList<IntVector2> points, int offset) {
@@ -34,7 +40,7 @@ namespace OpenMOBA.Geometry {
          var inputHairlinePolygon = new Polygon2(polygonPoints);
          var outputPolygons = PolygonOperations.Offset()
                                                .Include(inputHairlinePolygon)
-                                               .Dilate(offset)
+                                               .Dilate((cDouble)offset)
                                                .Execute();
          return outputPolygons;
       }

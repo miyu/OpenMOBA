@@ -6,6 +6,12 @@ using Poly2Tri.Triangulation;
 
 using IntPoint = OpenMOBA.Geometry.IntVector3;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    public static class PolygonOperations {
       public static DoubleVector2 ToOpenMobaPointD(this TriangulationPoint input) {
@@ -67,8 +73,8 @@ namespace OpenMOBA.Geometry {
 
       public static PolyTree CleanPolygons(List<Polygon2> polygons) {
          return Offset().Include(polygons)
-                        .Erode(0.05)
-                        .Dilate(0.05)
+                        .Erode((cDouble)0.05)
+                        .Dilate((cDouble)0.05)
                         .Execute();
       }
 
@@ -179,12 +185,16 @@ namespace OpenMOBA.Geometry {
          }
 
 
-         public PolyTree Execute(double additionalErosionDilation = 0.0) {
+         public PolyTree Execute(cDouble additionalErosionDilation = default) {
             var polytree = new PolyTree();
             clipper.Execute(ClipType.ctDifference, polytree, PolyFillType.pftPositive, PolyFillType.pftPositive);
-            
+
             // Used to remove degeneracies where additionalErosion is 0.
+#if use_fixed
+            cDouble baseErosion = (cDouble)0.05;
+#else
             const double baseErosion = 0.05;
+#endif
             return Offset().Include(FlattenToPolygonAndIsHoles(polytree))
                            .Erode(baseErosion)
                            .Dilate(baseErosion)
@@ -194,24 +204,32 @@ namespace OpenMOBA.Geometry {
       }
 
       public class OffsetOperation {
+#if use_fixed
+         private readonly cDouble kSpecialOffsetCleanup = cDouble.MinValue;
+#else
          private readonly double kSpecialOffsetCleanup = double.NegativeInfinity;
+#endif
          private readonly List<IReadOnlyList<IntVector2>> includedContours = new List<IReadOnlyList<IntVector2>>();
-         private readonly List<double> offsets = new List<double>();
+         private readonly List<cDouble> offsets = new List<cDouble>();
 
          /// <param name="delta">Positive dilates, negative erodes</param>
-         public OffsetOperation ErodeOrDilate(double delta) {
+         public OffsetOperation ErodeOrDilate(cDouble delta) {
+#if !use_fixed
             if (double.IsInfinity(delta) || double.IsNaN(delta)) {
                throw new ArgumentException();
             }
+#endif
             offsets.Add(delta);
             return this;
          }
 
-         public OffsetOperation Erode(double delta) {
+         public OffsetOperation Erode(cDouble delta) {
+#if !use_fixed
             if (double.IsInfinity(delta) || double.IsNaN(delta)) {
                throw new ArgumentException();
             }
-            if (delta < 0) {
+#endif
+            if (delta < (cDouble)0) {
                throw new ArgumentOutOfRangeException();
             }
 
@@ -219,11 +237,13 @@ namespace OpenMOBA.Geometry {
             return this;
          }
 
-         public OffsetOperation Dilate(double delta) {
+         public OffsetOperation Dilate(cDouble delta) {
+#if !use_fixed
             if (double.IsInfinity(delta) || double.IsNaN(delta)) {
                throw new ArgumentException();
             }
-            if (delta < 0) {
+#endif
+            if (delta < (cDouble)0) {
                throw new ArgumentOutOfRangeException();
             }
 

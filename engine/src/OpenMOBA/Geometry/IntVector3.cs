@@ -3,15 +3,21 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using cInt = System.Int32;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    public struct DoubleVector3 {
-      public double X;
-      public double Y;
-      public double Z;
+      public cDouble X;
+      public cDouble Y;
+      public cDouble Z;
 
-      [DebuggerStepThrough] public DoubleVector3(DoubleVector2 v, double z = 0) : this(v.X, v.Y, z) { }
+      [DebuggerStepThrough] public DoubleVector3(DoubleVector2 v, cDouble z = default) : this(v.X, v.Y, z) { }
 
-      [DebuggerStepThrough] public DoubleVector3(double x, double y, double z) {
+      [DebuggerStepThrough] public DoubleVector3(cDouble x, cDouble y, cDouble z) {
          X = x;
          Y = y;
          Z = z;
@@ -19,14 +25,14 @@ namespace OpenMOBA.Geometry {
 
       public DoubleVector2 XY => new DoubleVector2(X, Y);
 
-      public double Dot(DoubleVector3 other) => X * other.X + Y * other.Y + Z * other.Z;
+      public cDouble Dot(DoubleVector3 other) => X * other.X + Y * other.Y + Z * other.Z;
 
-      public double SquaredNorm2D() => Dot(this);
-      public double Norm2D() => Math.Sqrt(SquaredNorm2D());
+      public cDouble SquaredNorm2D() => Dot(this);
+      public cDouble Norm2D() => Math.Sqrt(SquaredNorm2D());
 
       public DoubleVector3 Cross(DoubleVector3 other) {
-         double u1 = X, u2 = Y, u3 = Z,
-                v1 = other.X, v2 = other.Y, v3 = other.Z;
+         cDouble u1 = X, u2 = Y, u3 = Z,
+                 v1 = other.X, v2 = other.Y, v3 = other.Z;
          return new DoubleVector3(
             u2 * v3 - u3 * v2, 
             u3 * v1 - u1 * v3, 
@@ -41,7 +47,7 @@ namespace OpenMOBA.Geometry {
       /// </summary>
       /// <param name="other"></param>
       /// <returns></returns>
-      public double ProjectOntoComponentD(DoubleVector3 other) {
+      public cDouble ProjectOntoComponentD(DoubleVector3 other) {
          return other.Dot(this) / other.SquaredNorm2D();
       }
 
@@ -62,22 +68,22 @@ namespace OpenMOBA.Geometry {
       public DoubleVector3 ToUnit() => this / Norm2D();
       public DoubleVector3 ToUnitXY() => this / XY.Norm2D();
 
-      public IntVector3 LossyToIntVector3() => new IntVector3((cInt)Math.Floor(X), (cInt)Math.Floor(Y), (cInt)Math.Floor(Z));
+      public IntVector3 LossyToIntVector3() => new IntVector3((cInt)CDoubleMath.Floor(X), (cInt)CDoubleMath.Floor(Y), (cInt)CDoubleMath.Floor(Z));
 
-      public DoubleVector3 MinWith(DoubleVector3 o) => new DoubleVector3(Math.Min(X, o.X), Math.Min(Y, o.Y), Math.Min(Z, o.Z));
-      public DoubleVector3 MaxWith(DoubleVector3 o) => new DoubleVector3(Math.Max(X, o.X), Math.Max(Y, o.Y), Math.Max(Z, o.Z));
+      public DoubleVector3 MinWith(DoubleVector3 o) => new DoubleVector3(CDoubleMath.Min(X, o.X), CDoubleMath.Min(Y, o.Y), CDoubleMath.Min(Z, o.Z));
+      public DoubleVector3 MaxWith(DoubleVector3 o) => new DoubleVector3(CDoubleMath.Max(X, o.X), CDoubleMath.Max(Y, o.Y), CDoubleMath.Max(Z, o.Z));
 
-      public static DoubleVector3 Zero => new DoubleVector3(0, 0, 0);
-      public static DoubleVector3 UnitX => new DoubleVector3(1, 0, 0);
-      public static DoubleVector3 UnitY => new DoubleVector3(0, 1, 0);
-      public static DoubleVector3 UnitZ => new DoubleVector3(0, 0, 1);
+      public static DoubleVector3 Zero => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c0, CDoubleMath.c0);
+      public static DoubleVector3 UnitX => new DoubleVector3(CDoubleMath.c1, CDoubleMath.c0, CDoubleMath.c0);
+      public static DoubleVector3 UnitY => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c1, CDoubleMath.c0);
+      public static DoubleVector3 UnitZ => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c0, CDoubleMath.c1);
 
-      public static DoubleVector3 operator *(int a, DoubleVector3 b) => new DoubleVector3(a * b.X, a * b.Y, a * b.Z);
-      public static DoubleVector3 operator *(DoubleVector3 a, int b) => new DoubleVector3(b * a.X, b * a.Y, b * a.Z);
-      public static DoubleVector3 operator *(double a, DoubleVector3 b) => new DoubleVector3(a * b.X, a * b.Y, a * b.Z);
-      public static DoubleVector3 operator *(DoubleVector3 a, double b) => new DoubleVector3(b * a.X, b * a.Y, b * a.Z);
-      public static DoubleVector3 operator /(DoubleVector3 a, int b) => new DoubleVector3(a.X / b, a.Y / b, a.Z / b);
-      public static DoubleVector3 operator /(DoubleVector3 a, double b) => new DoubleVector3(a.X / b, a.Y / b, a.Z / b);
+      public static DoubleVector3 operator *(int a, DoubleVector3 b) => new DoubleVector3((cDouble)a * b.X, (cDouble)a * b.Y, (cDouble)a * b.Z);
+      public static DoubleVector3 operator *(DoubleVector3 a, int b) => new DoubleVector3((cDouble)b * a.X, (cDouble)b * a.Y, (cDouble)b * a.Z);
+      public static DoubleVector3 operator *(cDouble a, DoubleVector3 b) => new DoubleVector3(a * b.X, a * b.Y, a * b.Z);
+      public static DoubleVector3 operator *(DoubleVector3 a, cDouble b) => new DoubleVector3(b * a.X, b * a.Y, b * a.Z);
+      public static DoubleVector3 operator /(DoubleVector3 a, int b) => new DoubleVector3(a.X / (cDouble)b, a.Y / (cDouble)b, a.Z / (cDouble)b);
+      public static DoubleVector3 operator /(DoubleVector3 a, cDouble b) => new DoubleVector3(a.X / b, a.Y / b, a.Z / b);
       public static DoubleVector3 operator +(DoubleVector3 a, DoubleVector3 b) => new DoubleVector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
       public static DoubleVector3 operator -(DoubleVector3 a, DoubleVector3 b) => new DoubleVector3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
       public static bool operator ==(DoubleVector3 a, DoubleVector3 b) => a.X == b.X && a.Y == b.Y && a.Z == b.Z;
@@ -94,17 +100,17 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      public static DoubleVector3 FromRadiusAngleAroundZAxis(int radius, double radians) {
-         var x = radius * Math.Cos(radians);
-         var y = radius * Math.Sin(radians);
+      public static DoubleVector3 FromRadiusAngleAroundZAxis(cDouble radius, cDouble radians) {
+         var x = radius * CDoubleMath.Cos(radians);
+         var y = radius * CDoubleMath.Sin(radians);
          return new DoubleVector3(x, y, 0);
       }
 
       // rule is rotation as if the axis of rotation is z... so start at x then y
       // (y is x, z is y according to RHR... so at theta = 0, y=r, theta=pi/2, z = r)
-      public static DoubleVector3 FromRadiusAngleAroundXAxis(int radius, double radians) {
-         var y = radius * Math.Cos(radians);
-         var z = radius * Math.Sin(radians);
+      public static DoubleVector3 FromRadiusAngleAroundXAxis(cDouble radius, cDouble radians) {
+         var y = radius * CDoubleMath.Cos(radians);
+         var z = radius * CDoubleMath.Sin(radians);
          return new DoubleVector3(0, y, z);
       }
 

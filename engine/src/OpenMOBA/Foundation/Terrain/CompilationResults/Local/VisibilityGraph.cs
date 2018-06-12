@@ -7,6 +7,12 @@ using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public struct PolyNodeVisbilityGraphTreeData {
    }
@@ -84,9 +90,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          var nodeAndChildrenContours = new[] { node.Contour }.Concat(node.Childs.Select(c => c.Contour));
          var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
                                                                .Include(nodeAndChildrenContours)
-                                                               .Dilate(kBarrierPolyTreeDilationFactor + kBarrierOverDilationFactor)
+                                                               .Dilate((cDouble)(kBarrierPolyTreeDilationFactor + kBarrierOverDilationFactor))
                                                                .Cleanup()
-                                                               .Erode(kBarrierOverDilationFactor)
+                                                               .Erode((cDouble)(kBarrierOverDilationFactor))
                                                                .Execute();
 
          var results = new List<IntLineSegment2>();

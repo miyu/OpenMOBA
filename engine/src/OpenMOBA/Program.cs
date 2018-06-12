@@ -6,6 +6,12 @@ using System.Linq;
 using OpenMOBA.Foundation;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA {
    public class Program {
       public static void Main(string[] args) {
@@ -82,7 +88,7 @@ namespace OpenMOBA {
          var holesUnionResult = PolygonOperations.Offset()
                                                  .Include(holes)
                                                  .Include(holeSquiggle)
-                                                 .Dilate(15)
+                                                 .Dilate((cDouble)15)
                                                  .Execute();
          var landHolePunchResult = PolygonOperations.Punch()
                                                     .Include(landPoly)

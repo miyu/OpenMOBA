@@ -56,6 +56,10 @@
 //improve performance but coordinate values are limited to the range +/- 46340
 #define use_int32
 
+//use_fixed: When enabled, use F64 fixed-precision arithmetic rather than floating
+//point (leveraged by openmoba for determinism) - set at project #define settings 
+//#define use_fixed
+
 //use_xyz: adds a Z member to IntPoint. Adds a minor cost to performance.
 //#define use_xyz
 
@@ -67,6 +71,7 @@
 
 using System;
 using System.Collections.Generic;
+using FixMath.NET;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
 //using System.Text;          //for Int128.AsString() & StringBuilder
@@ -81,6 +86,8 @@ using IntPoint = OpenMOBA.Geometry.IntVector2;
 #endif
 #endif
 
+using static OpenMOBA.CDoubleMath;
+
 namespace ClipperLib {
 
 #if use_int32
@@ -89,23 +96,29 @@ namespace ClipperLib {
    using cInt = Int64;
 #endif
 
+#if use_fixed
+  using cDouble = Fix64;
+#else
+  using cDouble = System.Double;
+#endif
+
    using Path = List<IntPoint>;
    using Paths = List<List<IntPoint>>;
    using ReadOnlyPath = IReadOnlyList<IntPoint>;
    using ReadOnlyPaths = IReadOnlyList<IReadOnlyList<IntPoint>>;
 
    public struct DoublePoint {
-      public double X;
-      public double Y;
+      public cDouble X;
+      public cDouble Y;
 
-      public DoublePoint(double x = 0, double y = 0) {
+      public DoublePoint(cDouble x = default, cDouble y = default) {
          this.X = x; this.Y = y;
       }
       public DoublePoint(DoublePoint dp) {
          this.X = dp.X; this.Y = dp.Y;
       }
       public DoublePoint(IntPoint ip) {
-         this.X = ip.X; this.Y = ip.Y;
+         this.X = (cDouble)ip.X; this.Y = (cDouble)ip.Y;
       }
    };
 
@@ -531,8 +544,12 @@ namespace ClipperLib {
       internal const double horizontal = -3.4E+38;
       internal const int Skip = -2;
       internal const int Unassigned = -1;
+#if use_fixed
+      internal static readonly cDouble tolerance = Fix64.FromRaw(1L);
+#else
       internal const double tolerance = 1.0E-20;
-      internal static bool near_zero(double val) { return (val > -tolerance) && (val < tolerance); }
+#endif
+      internal static bool near_zero(cDouble val) { return (val > -tolerance) && (val < tolerance); }
 
 #if use_int32
     public const cInt loRange = 0x7FFF;
@@ -3579,15 +3596,15 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public static double Area(Path poly) {
+      public static cDouble Area(Path poly) {
          int cnt = (int)poly.Count;
-         if (cnt < 3) return 0;
-         double a = 0;
+         if (cnt < 3) return CDoubleMath.c0;
+         cDouble a = CDoubleMath.c0;
          for (int i = 0, j = cnt - 1; i < cnt; ++i) {
-            a += ((double)poly[j].X + poly[i].X) * ((double)poly[j].Y - poly[i].Y);
+            a += ((cDouble)poly[j].X + (cDouble)poly[i].X) * ((cDouble)poly[j].Y - (cDouble)poly[i].Y);
             j = i;
          }
-         return -a * 0.5;
+         return -a * CDoubleMath.c0_5;
       }
       //------------------------------------------------------------------------------
 
@@ -3881,22 +3898,29 @@ namespace ClipperLib {
       private Path m_srcPoly;
       private Path m_destPoly;
       private List<DoublePoint> m_normals = new List<DoublePoint>();
-      private double m_delta, m_sinA, m_sin, m_cos;
-      private double m_miterLim, m_StepsPerRad;
+      private cDouble m_delta, m_sinA, m_sin, m_cos;
+      private cDouble m_miterLim, m_StepsPerRad;
 
       private IntPoint m_lowest;
       private PolyNode m_polyNodes = new PolyNode();
 
-      public double ArcTolerance { get; set; }
-      public double MiterLimit { get; set; }
+      public cDouble ArcTolerance { get; set; }
+      public cDouble MiterLimit { get; set; }
 
+#if use_fixed
+      private static readonly cDouble two_pi = cDouble.PiTimes2;
+      private static readonly cDouble def_arc_tolerance = cDouble.One / new cDouble(4);
+      private static readonly cDouble defaultMiterLimit = new cDouble(2);
+#else
       private const double two_pi = Math.PI * 2;
       private const double def_arc_tolerance = 0.25;
+      private const double defaultMiterLimit = 2.0;
+#endif
 
       public ClipperOffset(
-         double miterLimit = 2.0, double arcTolerance = def_arc_tolerance) {
-         MiterLimit = miterLimit;
-         ArcTolerance = arcTolerance;
+         cDouble? miterLimit = null, cDouble? arcTolerance = null) {
+         MiterLimit = miterLimit ?? defaultMiterLimit;
+         ArcTolerance = arcTolerance ?? def_arc_tolerance;
          m_lowest.X = -1;
       }
       //------------------------------------------------------------------------------
@@ -3906,10 +3930,18 @@ namespace ClipperLib {
          m_lowest.X = -1;
       }
       //------------------------------------------------------------------------------
+      private static readonly cDouble cDouble_0 = (cDouble)0;
+      private static readonly cDouble cDouble_0_5 = (cDouble)0.5;
+      private static readonly cDouble cDouble_1 = (cDouble)1;
+      private static readonly cDouble cDouble_2 = (cDouble)2;
+      private static readonly cDouble cDouble_3 = (cDouble)3;
+      private static readonly cDouble cDouble_4 = (cDouble)4;
+      private static readonly cDouble cDouble_PI = cDouble.Pi;
 
-      internal static cInt Round(double value) {
-         return value < 0 ? (cInt)(value - 0.5) : (cInt)(value + 0.5);
+      internal static cInt Round(cDouble value) {
+         return value < cDouble_0 ? (cInt)(value - cDouble_0_5) : (cInt)(value + cDouble_0_5);
       }
+
       //------------------------------------------------------------------------------
 
       public void AddPath(ReadOnlyPath path, JoinType joinType, EndType endType) {
@@ -3981,11 +4013,11 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       internal static DoublePoint GetUnitNormal(IntPoint pt1, IntPoint pt2) {
-         double dx = (pt2.X - pt1.X);
-         double dy = (pt2.Y - pt1.Y);
-         if ((dx == 0) && (dy == 0)) return new DoublePoint();
+         cDouble dx = (cDouble)(pt2.X - pt1.X);
+         cDouble dy = (cDouble)(pt2.Y - pt1.Y);
+         if ((dx == cDouble_0) && (dy == cDouble_0)) return new DoublePoint();
 
-         double f = 1 * 1.0 / Math.Sqrt(dx * dx + dy * dy);
+         cDouble f = cDouble_1 / Sqrt(dx * dx + dy * dy);
          dx *= f;
          dy *= f;
 
@@ -3993,7 +4025,7 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      private void DoOffset(double delta) {
+      private void DoOffset(cDouble delta) {
          m_destPolys = new Paths();
          m_delta = delta;
 
@@ -4009,22 +4041,22 @@ namespace ClipperLib {
          }
 
          //see offset_triginometry3.svg in the documentation folder ...
-         if (MiterLimit > 2) m_miterLim = 2 / (MiterLimit * MiterLimit);
-         else m_miterLim = 0.5;
+         if (MiterLimit > cDouble_2) m_miterLim = cDouble_2 / (MiterLimit * MiterLimit);
+         else m_miterLim = cDouble_0_5;
 
-         double y;
-         if (ArcTolerance <= 0.0)
+         cDouble y;
+         if (ArcTolerance <= cDouble_0)
             y = def_arc_tolerance;
-         else if (ArcTolerance > Math.Abs(delta) * def_arc_tolerance)
-            y = Math.Abs(delta) * def_arc_tolerance;
+         else if (ArcTolerance > Abs(delta) * def_arc_tolerance)
+            y = Abs(delta) * def_arc_tolerance;
          else
             y = ArcTolerance;
          //see offset_triginometry2.svg in the documentation folder ...
-         double steps = Math.PI / Math.Acos(1 - y / Math.Abs(delta));
-         m_sin = Math.Sin(two_pi / steps);
-         m_cos = Math.Cos(two_pi / steps);
+         cDouble steps = cDouble_PI / Acos(cDouble_1 - y / Abs(delta));
+         m_sin = Sin(two_pi / steps);
+         m_cos = Cos(two_pi / steps);
          m_StepsPerRad = steps / two_pi;
-         if (delta < 0.0) m_sin = -m_sin;
+         if (delta < cDouble_0) m_sin = -m_sin;
 
          m_destPolys.Capacity = m_polyNodes.ChildCount * 2;
          for (int i = 0; i < m_polyNodes.ChildCount; i++) {
@@ -4033,7 +4065,7 @@ namespace ClipperLib {
 
             int len = m_srcPoly.Count;
 
-            if (len == 0 || (delta <= 0 && (len < 3 ||
+            if (len == 0 || (delta <= cDouble_0 && (len < 3 ||
                                             node.m_endtype != EndType.etClosedPolygon)))
                continue;
 
@@ -4041,24 +4073,24 @@ namespace ClipperLib {
 
             if (len == 1) {
                if (node.m_jointype == JoinType.jtRound) {
-                  double X = 1.0, Y = 0.0;
-                  for (int j = 1; j <= steps; j++) {
+                  cDouble X = cDouble_1, Y = cDouble_0;
+                  for (int j = 1; (cDouble)j <= steps; j++) {
                      m_destPoly.Add(new IntPoint(
-                        Round(m_srcPoly[0].X + X * delta),
-                        Round(m_srcPoly[0].Y + Y * delta)));
-                     double X2 = X;
+                        Round((cDouble)m_srcPoly[0].X + X * delta),
+                        Round((cDouble)m_srcPoly[0].Y + Y * delta)));
+                     cDouble X2 = X;
                      X = X * m_cos - m_sin * Y;
                      Y = X2 * m_sin + Y * m_cos;
                   }
                } else {
-                  double X = -1.0, Y = -1.0;
+                  cDouble X = -cDouble_1, Y = -cDouble_1;
                   for (int j = 0; j < 4; ++j) {
                      m_destPoly.Add(new IntPoint(
-                        Round(m_srcPoly[0].X + X * delta),
-                        Round(m_srcPoly[0].Y + Y * delta)));
-                     if (X < 0) X = 1;
-                     else if (Y < 0) Y = 1;
-                     else X = -1;
+                        Round((cDouble)m_srcPoly[0].X + X * delta),
+                        Round((cDouble)m_srcPoly[0].Y + Y * delta)));
+                     if (X < cDouble_0) X = cDouble_1;
+                     else if (Y < cDouble_0) Y = cDouble_1;
+                     else X = -cDouble_1;
                   }
                }
                m_destPolys.Add(m_destPoly);
@@ -4104,16 +4136,16 @@ namespace ClipperLib {
                IntPoint pt1;
                if (node.m_endtype == EndType.etOpenButt) {
                   int j = len - 1;
-                  pt1 = new IntPoint((cInt)Round(m_srcPoly[j].X + m_normals[j].X *
-                                                 delta), (cInt)Round(m_srcPoly[j].Y + m_normals[j].Y * delta));
+                  pt1 = new IntPoint((cInt)Round((cDouble)m_srcPoly[j].X + m_normals[j].X *
+                                                 delta), (cInt)Round((cDouble)m_srcPoly[j].Y + m_normals[j].Y * delta));
                   m_destPoly.Add(pt1);
-                  pt1 = new IntPoint((cInt)Round(m_srcPoly[j].X - m_normals[j].X *
-                                                 delta), (cInt)Round(m_srcPoly[j].Y - m_normals[j].Y * delta));
+                  pt1 = new IntPoint((cInt)Round((cDouble)m_srcPoly[j].X - m_normals[j].X *
+                                                 delta), (cInt)Round((cDouble)m_srcPoly[j].Y - m_normals[j].Y * delta));
                   m_destPoly.Add(pt1);
                } else {
                   int j = len - 1;
                   k = len - 2;
-                  m_sinA = 0;
+                  m_sinA = cDouble_0;
                   m_normals[j] = new DoublePoint(-m_normals[j].X, -m_normals[j].Y);
                   if (node.m_endtype == EndType.etOpenSquare)
                      DoSquare(j, k);
@@ -4132,15 +4164,15 @@ namespace ClipperLib {
                   OffsetPoint(j, ref k, node.m_jointype);
 
                if (node.m_endtype == EndType.etOpenButt) {
-                  pt1 = new IntPoint((cInt)Round(m_srcPoly[0].X - m_normals[0].X * delta),
-                     (cInt)Round(m_srcPoly[0].Y - m_normals[0].Y * delta));
+                  pt1 = new IntPoint((cInt)Round((cDouble)m_srcPoly[0].X - m_normals[0].X * delta),
+                     (cInt)Round((cDouble)m_srcPoly[0].Y - m_normals[0].Y * delta));
                   m_destPoly.Add(pt1);
-                  pt1 = new IntPoint((cInt)Round(m_srcPoly[0].X + m_normals[0].X * delta),
-                     (cInt)Round(m_srcPoly[0].Y + m_normals[0].Y * delta));
+                  pt1 = new IntPoint((cInt)Round((cDouble)m_srcPoly[0].X + m_normals[0].X * delta),
+                     (cInt)Round((cDouble)m_srcPoly[0].Y + m_normals[0].Y * delta));
                   m_destPoly.Add(pt1);
                } else {
                   k = 1;
-                  m_sinA = 0;
+                  m_sinA = cDouble_0;
                   if (node.m_endtype == EndType.etOpenSquare)
                      DoSquare(0, 1);
                   else
@@ -4152,14 +4184,14 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public void Execute(ref Paths solution, double delta) {
+      public void Execute(ref Paths solution, cDouble delta) {
          solution.Clear();
          FixOrientations();
          DoOffset(delta);
          //now clean up 'corners' ...
          Clipper clpr = new Clipper();
          clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
-         if (delta > 0) {
+         if (delta > cDouble_0) {
             clpr.Execute(ClipType.ctUnion, solution,
                PolyFillType.pftPositive, PolyFillType.pftPositive);
          } else {
@@ -4179,7 +4211,7 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public void Execute(ref PolyTree solution, double delta) {
+      public void Execute(ref PolyTree solution, cDouble delta) {
          solution.Clear();
          FixOrientations();
          DoOffset(delta);
@@ -4187,7 +4219,7 @@ namespace ClipperLib {
          //now clean up 'corners' ...
          Clipper clpr = new Clipper();
          clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
-         if (delta > 0) {
+         if (delta > cDouble_0) {
             clpr.Execute(ClipType.ctUnion, solution,
                PolyFillType.pftPositive, PolyFillType.pftPositive);
          } else {
@@ -4220,29 +4252,29 @@ namespace ClipperLib {
          //cross product ...
          m_sinA = (m_normals[k].X * m_normals[j].Y - m_normals[j].X * m_normals[k].Y);
 
-         if (Math.Abs(m_sinA * m_delta) < 1.0) {
+         if (Abs(m_sinA * m_delta) < cDouble_1) {
             //dot product ...
-            double cosA = (m_normals[k].X * m_normals[j].X + m_normals[j].Y * m_normals[k].Y);
-            if (cosA > 0) // angle ==> 0 degrees
+            cDouble cosA = (m_normals[k].X * m_normals[j].X + m_normals[j].Y * m_normals[k].Y);
+            if (cosA > cDouble_0) // angle ==> 0 degrees
             {
-               m_destPoly.Add(new IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-                  Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
+               m_destPoly.Add(new IntPoint(Round((cDouble)m_srcPoly[j].X + m_normals[k].X * m_delta),
+                  Round((cDouble)m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
                return;
             }
             //else angle ==> 180 degrees   
-         } else if (m_sinA > 1.0) m_sinA = 1.0;
-         else if (m_sinA < -1.0) m_sinA = -1.0;
+         } else if (m_sinA > cDouble_1) m_sinA = cDouble_1;
+         else if (m_sinA < -cDouble_1) m_sinA = -cDouble_1;
 
-         if (m_sinA * m_delta < 0) {
-            m_destPoly.Add(new IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-               Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
+         if (m_sinA * m_delta < cDouble_0) {
+            m_destPoly.Add(new IntPoint(Round((cDouble)m_srcPoly[j].X + m_normals[k].X * m_delta),
+               Round((cDouble)m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
             m_destPoly.Add(m_srcPoly[j]);
-            m_destPoly.Add(new IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-               Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
+            m_destPoly.Add(new IntPoint(Round((cDouble)m_srcPoly[j].X + m_normals[j].X * m_delta),
+               Round((cDouble)m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
          } else
             switch (jointype) {
                case JoinType.jtMiter: {
-                  double r = 1 + (m_normals[j].X * m_normals[k].X +
+                  cDouble r = cDouble_1 + (m_normals[j].X * m_normals[k].X +
                                   m_normals[j].Y * m_normals[k].Y);
                   if (r >= m_miterLim) DoMiter(j, k, r); else DoSquare(j, k);
                   break;
@@ -4255,41 +4287,41 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       internal void DoSquare(int j, int k) {
-         double dx = Math.Tan(Math.Atan2(m_sinA,
-                                 m_normals[k].X * m_normals[j].X + m_normals[k].Y * m_normals[j].Y) / 4);
+         cDouble dx = Tan(Atan2(m_sinA,
+                                 m_normals[k].X * m_normals[j].X + m_normals[k].Y * m_normals[j].Y) / cDouble_4);
          m_destPoly.Add(new IntPoint(
-            Round(m_srcPoly[j].X + m_delta * (m_normals[k].X - m_normals[k].Y * dx)),
-            Round(m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx))));
+            Round((cDouble)m_srcPoly[j].X + m_delta * (m_normals[k].X - m_normals[k].Y * dx)),
+            Round((cDouble)m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx))));
          m_destPoly.Add(new IntPoint(
-            Round(m_srcPoly[j].X + m_delta * (m_normals[j].X + m_normals[j].Y * dx)),
-            Round(m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx))));
+            Round((cDouble)m_srcPoly[j].X + m_delta * (m_normals[j].X + m_normals[j].Y * dx)),
+            Round((cDouble)m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx))));
       }
       //------------------------------------------------------------------------------
 
-      internal void DoMiter(int j, int k, double r) {
-         double q = m_delta / r;
-         m_destPoly.Add(new IntPoint(Round(m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
-            Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q)));
+      internal void DoMiter(int j, int k, cDouble r) {
+         cDouble q = m_delta / r;
+         m_destPoly.Add(new IntPoint(Round((cDouble)m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
+            Round((cDouble)m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q)));
       }
       //------------------------------------------------------------------------------
 
       internal void DoRound(int j, int k) {
-         double a = Math.Atan2(m_sinA,
+         cDouble a = Atan2(m_sinA,
             m_normals[k].X * m_normals[j].X + m_normals[k].Y * m_normals[j].Y);
-         int steps = Math.Max((int)Round(m_StepsPerRad * Math.Abs(a)), 1);
+         int steps = Math.Max((int)Round(m_StepsPerRad * Abs(a)), 1);
 
-         double X = m_normals[k].X, Y = m_normals[k].Y, X2;
+         cDouble X = m_normals[k].X, Y = m_normals[k].Y, X2;
          for (int i = 0; i < steps; ++i) {
             m_destPoly.Add(new IntPoint(
-               Round(m_srcPoly[j].X + X * m_delta),
-               Round(m_srcPoly[j].Y + Y * m_delta)));
+               Round((cDouble)m_srcPoly[j].X + X * m_delta),
+               Round((cDouble)m_srcPoly[j].Y + Y * m_delta)));
             X2 = X;
             X = X * m_cos - m_sin * Y;
             Y = X2 * m_sin + Y * m_cos;
          }
          m_destPoly.Add(new IntPoint(
-            Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-            Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
+            Round((cDouble)m_srcPoly[j].X + m_normals[j].X * m_delta),
+            Round((cDouble)m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
       }
       //------------------------------------------------------------------------------
    }

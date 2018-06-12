@@ -8,6 +8,12 @@ using ClipperLib;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain.Declarations {
    public class PrismHoleStaticMetadata : IHoleStaticMetadata {
       public readonly Rectangle LocalBoundary;
@@ -15,7 +21,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
       public readonly IReadOnlyList<Polygon2> LocalExcludedContours;
       public readonly int Height = 5;
       private readonly PolyTree punchResult;
-      private readonly Dictionary<double, PolyTree> dilatedPunchResultByAgentRadius = new Dictionary<double, PolyTree>();
+      private readonly Dictionary<cDouble, PolyTree> dilatedPunchResultByAgentRadius = new Dictionary<cDouble, PolyTree>();
 
       public PrismHoleStaticMetadata(Rectangle localBoundary, IReadOnlyList<Polygon2> localIncludedContours, IReadOnlyList<Polygon2> localExcludedContours = null) {
          this.LocalBoundary = localBoundary;
@@ -75,7 +81,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
       }
 
 
-      public bool ContainsPoint(HoleInstanceMetadata instanceMetadata, DoubleVector3 pointWorld, double agentRadius) {
+      public bool ContainsPoint(HoleInstanceMetadata instanceMetadata, DoubleVector3 pointWorld, cDouble agentRadius) {
          var pointLocal3 = Vector3.Transform(pointWorld.ToDotNetVector(), instanceMetadata.WorldTransformInv);
          var pointLocal = new IntVector2((int)pointLocal3.X, (int)pointLocal3.Y);
 
