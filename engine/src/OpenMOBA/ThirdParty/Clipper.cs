@@ -3603,13 +3603,13 @@ namespace ClipperLib {
          if (cnt < 3) return -1;
          Int128 a = default;
          for (int i = 0, j = cnt - 1; i < cnt; ++i) {
-            a += Int128.Int128Mul(poly[j].X + (long)poly[i].X, (long)poly[j].Y - (long)poly[i].Y);
+            a += Int128.Int128Mul((long)poly[j].X + (long)poly[i].X, (long)poly[j].Y - (long)poly[i].Y);
             j = i;
          }
 
          // supposed to be -a / 2
          if (a.hi == -1) {
-            return (long)(a.lo / 2);
+            return (long)(~a.lo / 2);
          } else if (a.hi == 0) {
             return -(long)(a.lo / 2);
          } else {

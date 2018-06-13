@@ -286,7 +286,6 @@ namespace OpenMOBA.Foundation {
 
          var r = new Random(1);
          for (int i = 0; i < 30; i++) {
-            break;
             var left = r.Next(0, 800);
             var top = r.Next(0, 800);
             var width = r.Next(100, 200);
