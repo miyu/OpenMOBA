@@ -82,7 +82,14 @@ namespace OpenMOBA.Foundation {
       private (DoubleVector3 world, TerrainOverlayNetworkNode node, DoubleVector2 local, TriangulationIsland island, int triangleIndex) FixEntityInHole(Entity entity) {
          var computedRadius = statsCalculator.ComputeCharacterRadius(entity);
          var movementComponent = entity.MovementComponent;
-         return PushToLand(movementComponent.WorldPosition, computedRadius);
+         var res = PushToLand(movementComponent.WorldPosition, computedRadius);
+         movementComponent.WorldPosition = res.world;
+         movementComponent.TerrainOverlayNetworkNode = res.node;
+         movementComponent.LocalPosition = res.local;
+         movementComponent.LocalPositionIv2 = res.local.LossyToIntVector2();
+         movementComponent.SwarmingIsland = res.island;
+         movementComponent.SwarmingTriangleIndex = res.triangleIndex;
+         return res;
       }
 
       private (DoubleVector3 world, TerrainOverlayNetworkNode node, DoubleVector2 local, TriangulationIsland island, int triangleIndex) PushToLand(DoubleVector3 pWorld, cDouble computedRadius) {

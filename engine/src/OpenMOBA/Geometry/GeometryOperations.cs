@@ -426,8 +426,15 @@ namespace OpenMOBA.Geometry {
          var u = ((dot11 * c) * (dot02 * c) - (dot01 * c) * (dot12 * c)) * invDenom;
          var v = ((dot00 * c) * (dot12 * c) - (dot01 * c) * (dot02 * c)) * invDenom;
 #endif
+         var uPlusV = u + v;
 
-         return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (u + v <= CDoubleMath.c1);
+#if use_fixed
+         u = cDouble.Round(u, 16);
+         v = cDouble.Round(v, 16);
+         uPlusV = cDouble.Round(uPlusV, 16);
+#endif
+
+         return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (uPlusV <= CDoubleMath.c1);
       }
 
       public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle3 triangle, out int indexOpposingEdge) {
