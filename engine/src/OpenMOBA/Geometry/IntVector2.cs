@@ -41,15 +41,17 @@ namespace OpenMOBA.Geometry {
 
       /// <summary>
       /// Projects this vector onto other vector.
+      /// Note on overflow: Given p = proj x onto o,
+      /// |p| lte |x| always.
       /// </summary>
       /// <param name="other">The vector being projected onto</param>
       /// <returns></returns>
       public DoubleVector2 ProjectOnto(DoubleVector2 other) {
-         var numerator = other.Dot(this);
-         var denominator = other.SquaredNorm2D();
+         var numerator = other.Dot(this); // Max 2^29
+         var denominator = other.SquaredNorm2D(); // Max 2^29
          return new DoubleVector2(
-            (other.X * numerator) / denominator,
-            (other.Y * numerator) / denominator);
+            other.X * (numerator / denominator),
+            other.Y * (numerator / denominator));
       }
 
       public DoubleVector2 ToUnit() => this / Norm2D();

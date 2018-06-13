@@ -79,32 +79,42 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      private void FixEntityInHole(Entity entity) {
+      private (DoubleVector3 world, TerrainOverlayNetworkNode node, DoubleVector2 local, TriangulationIsland island, int triangleIndex) FixEntityInHole(Entity entity) {
          var computedRadius = statsCalculator.ComputeCharacterRadius(entity);
          var movementComponent = entity.MovementComponent;
-         movementComponent.WorldPosition = PushToLand(movementComponent.WorldPosition, computedRadius);
+         return PushToLand(movementComponent.WorldPosition, computedRadius);
       }
 
-      private DoubleVector3 PushToLand(DoubleVector3 pWorld, cDouble computedRadius) {
+      private (DoubleVector3 world, TerrainOverlayNetworkNode node, DoubleVector2 local, TriangulationIsland island, int triangleIndex) PushToLand(DoubleVector3 pWorld, cDouble computedRadius) {
          var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
          var terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(paddedHoleDilationRadius);
 //         Console.WriteLine("PHDR: " + paddedHoleDilationRadius);
          var bestWorldDistance = cDouble.MaxValue;
          var bestWorld = DoubleVector3.Zero;
+         var bestLocal = DoubleVector2.Zero;
+         TerrainOverlayNetworkNode bestNode = null;
          foreach (var terrainOverlayNode in terrainOverlayNetwork.TerrainNodes) {
             var pLocal = (DoubleVector2)terrainOverlayNode.SectorNodeDescription.WorldToLocal(pWorld);
             terrainOverlayNode.LocalGeometryView.FindNearestLandPointAndIsInHole(pLocal, out var pNearestLocal);
-
-            // clamp pNearestLocal to be within bounds, not 
 
             var pNearestWorld = terrainOverlayNode.SectorNodeDescription.LocalToWorld(pNearestLocal);
             var worldDistance = pWorld.To(pNearestWorld).Norm2D();
             if (worldDistance < bestWorldDistance) {
                bestWorldDistance = worldDistance;
                bestWorld = pNearestWorld;
+               bestLocal = pNearestLocal;
+               bestNode = terrainOverlayNode;
             }
          }
-         return bestWorld;
+
+         if (bestNode == null) throw new InvalidStateException();
+
+         // ensure containment within triangulation
+         if (!bestNode.LocalGeometryView.Triangulation.TryIntersect(bestLocal.X, bestLocal.Y, out var island, out var triangleIndex)) {
+            throw new NotImplementedException();
+         }
+
+         return (bestWorld, bestNode, bestLocal, island, triangleIndex);
          throw new NotImplementedException();
          //         DoubleVector3 nearestLandPoint;
          //         if (!terrainService.BuildSnapshot().FindNearestLandPointAndIsInHole(paddedHoleDilationRadius, vect, out nearestLandPoint)) {
@@ -450,26 +460,25 @@ namespace OpenMOBA.Foundation {
          }
       }
 
-      private void FindOrFixEntityTerrainNodeAndTriangle(Entity e, out TerrainOverlayNetwork terrainOverlayNetwork, out TerrainOverlayNetworkNode terrainOverlayNetworkNode, out DoubleVector3 localPosition, out TriangulationIsland island, out int triangleIndex) {
+      private void FindOrFixEntityTerrainNodeAndTriangle(Entity e, out TerrainOverlayNetwork terrainOverlayNetwork, out TerrainOverlayNetworkNode terrainOverlayNetworkNode, out DoubleVector2 localPosition, out TriangulationIsland island, out int triangleIndex) {
          var mc = e.MovementComponent;
          terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)mc.ComputedRadius);
 
          for (var i = 0; i < 2; i++) {
             // which terrain overlay node are we on?
-            if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(mc.WorldPosition, out terrainOverlayNetworkNode, out localPosition)) {
+            if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(mc.WorldPosition, out terrainOverlayNetworkNode, out var lpos)) {
                FixEntityInHole(e);
                continue;
             }
 
             // Additionally determine which triangle entity is sitting on in LGV triangulation.
             // TODO: Determinism
-            if (!terrainOverlayNetworkNode.LocalGeometryView.Triangulation.TryIntersect(
-               localPosition.X, localPosition.Y,
-               out island, out triangleIndex)) {
+            if (!terrainOverlayNetworkNode.LocalGeometryView.Triangulation.TryIntersect(lpos.X, lpos.Y, out island, out triangleIndex)) {
                FixEntityInHole(e);
                continue;
             }
 
+            localPosition = lpos.XY;
             return;
          }
          throw new InvalidStateException();

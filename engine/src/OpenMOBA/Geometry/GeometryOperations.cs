@@ -393,21 +393,21 @@ namespace OpenMOBA.Geometry {
       public static bool IsPointInTriangle(cDouble px, cDouble py, ref Triangle3 triangle) {
          // Barycentric coordinates for PIP w/ triangle test http://blackpawn.com/texts/pointinpoly/
 
-         var ax = triangle.Points.A.X;
+         var ax = triangle.Points.A.X; // bounded 2^14
          var ay = triangle.Points.A.Y;
          var bx = triangle.Points.B.X;
          var by = triangle.Points.B.Y;
          var cx = triangle.Points.C.X;
          var cy = triangle.Points.C.Y;
 
-         var v0x = cx - ax;
+         var v0x = cx - ax; // bounded 2^15
          var v0y = cy - ay;
          var v1x = bx - ax;
          var v1y = by - ay;
          var v2x = px - ax;
          var v2y = py - ay;
 
-         var dot00 = v0x * v0x + v0y * v0y;
+         var dot00 = v0x * v0x + v0y * v0y; // bounded 2^31
          var dot01 = v0x * v1x + v0y * v1y;
          var dot02 = v0x * v2x + v0y * v2y;
          var dot11 = v1x * v1x + v1y * v1y;

@@ -67,7 +67,7 @@ namespace OpenMOBA.DevTool.Debugging {
    }
 
    public interface IProjector {
-      DoubleVector2 Project(DoubleVector3 p);
+      Vector2 Project(Vector3 p);
       double ComputeApparentThickness(DoubleVector3 p, double thickness);
    }
 
@@ -80,8 +80,8 @@ namespace OpenMOBA.DevTool.Debugging {
          this.scale = scale;
       }
 
-      public DoubleVector2 Project(DoubleVector3 p) {
-         return p.XY * (cDouble)scale;
+      public Vector2 Project(Vector3 p) {
+         return new Vector2(p.X, p.Y) * (float)scale;
       }
 
       public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
@@ -90,50 +90,52 @@ namespace OpenMOBA.DevTool.Debugging {
    }
 
    public class PerspectiveProjector : IProjector {
-      private readonly DoubleVector3 position;
-      private readonly DoubleVector3 lookat;
-      private readonly DoubleVector3 up;
-      private readonly double width;
-      private readonly double height;
+      private readonly Vector3 position;
+      private readonly Vector3 lookat;
+      private readonly Vector3 up;
+      private readonly float width;
+      private readonly float height;
       private readonly Matrix4x4 worldToCamera;
       private readonly Matrix4x4 cameraToView;
       private readonly Matrix4x4 transform;
 
-      public PerspectiveProjector(DoubleVector3 position, DoubleVector3 lookat, DoubleVector3 up, double width, double height) {
+      public PerspectiveProjector(Vector3 position, Vector3 lookat, Vector3 up, float width, float height) {
          this.position = position;
          this.lookat = lookat;
          this.up = up;
          this.width = width;
          this.height = height;
          this.worldToCamera =
-            Matrix4x4.CreateTranslation(-ToNumerics3(position)) *
-            Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up)) *
+            Matrix4x4.CreateTranslation(-position) *
+            Matrix4x4.CreateLookAt(Vector3.Zero, lookat - position, up) *
             Matrix4x4.CreateScale(-1, 1, 1);
          this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI * 2 / 4, (float)(width / height), 1f, 10000f);
 //          this.cameraToView = Matrix4x4.CreatePerspectiveOffCenter(0, (float)width, (float)height, 0, 1.0f, 1000.0f);
          transform = cameraToView * worldToCamera;
       }
 
-      public DoubleVector2 Project(DoubleVector3 input) {
-         var p = ToNumerics4(input);
+      public Vector2 Project(Vector3 input) {
+         var p = new Vector4(input, 1.0f);
          var cameraSpace = Vector4.Transform(p, worldToCamera);
 //         return new DoubleVector2(width * (1.0 + cameraSpace.X / cameraSpace.Z) / 2.0, height * (1.0 + cameraSpace.Y / cameraSpace.Z) / 2.0);
          var viewSpace = Vector4.Transform(cameraSpace, cameraToView);
          viewSpace /= viewSpace.W; // I'm doing something wrong.
 //         Console.WriteLine(p + " " + cameraSpace + " " + viewSpace + " " + (viewSpace / viewSpace.W));
 
-         return new DoubleVector2(
-            (cDouble)(width * (-viewSpace.X + 1.0) / 2.0), 
-            (cDouble)(height * (-viewSpace.Y + 1.0) / 2.0)
+         return new Vector2(
+            width * (-viewSpace.X + 1.0f) / 2.0f, 
+            height * (-viewSpace.Y + 1.0f) / 2.0f
          );
 //         return new DoubleVector2(viewSpace.X, viewSpace.Y);
       }
 
-      public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
-         var ss1 = Project(p);
-         var ss2 = Project(p + position.To(p).Cross(position.To(lookat)).ToUnit() * (cDouble)thickness);
+      public double ComputeApparentThickness(DoubleVector3 p, double thickness) => ComputeApparentThickness(ToNumerics3(p), (float)thickness);
 
-         return (double)(ss1 - ss2).Norm2D();
+      public double ComputeApparentThickness(Vector3 p, float thickness) {
+         var ss1 = Project(p);
+         var ss2 = Project(p + Vector3.Normalize(Vector3.Cross(p - position, lookat - position)) *thickness);
+
+         return (float)(ss1 - ss2).Length();
          //         var cameraSpace = Vector4.Transform(ToNumerics4(p), worldToCamera);
          //         return thickness * (1000f + cameraSpace.Z) / 1000f;
       }
@@ -192,21 +194,23 @@ namespace OpenMOBA.DevTool.Debugging {
          }
       }
 
-      private DoubleVector2 Project(DoubleVector3 p) {
+      private Vector2 Project(Vector3 p) {
          var transformed = Vector3.Transform(new Vector3((float)p.X, (float)p.Y, (float)p.Z), Transform);
-         return projector.Project(new DoubleVector3((cDouble)transformed.X, (cDouble)transformed.Y, (cDouble)transformed.Z));
+         return projector.Project(transformed);
       }
 
-      private PointF ProjectPointF(DoubleVector3 p) {
+      private PointF ProjectPointF(Vector3 p) {
          var proj = Project(p);
          return new PointF((float)proj.X, (float)proj.Y);
       }
 
       private float ProjectThickness(DoubleVector3 p, double thickness) => (float)projector.ComputeApparentThickness(p, thickness);
 
+      public Vector3 ToNumerics(DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
+
       public void DrawPoint(DoubleVector3 point, StrokeStyle strokeStyle) {
          BatchDraw(() => {
-            var p = Project(point);
+            var p = Project(ToNumerics(point));
             var x = (float)p.X;
             var y = (float)p.Y;
             var pointTransformed = Vector3.Transform(new Vector3((float)point.X, (float)point.Y, (float)point.Z), Transform).ToOpenMobaVector();
@@ -236,7 +240,7 @@ namespace OpenMOBA.DevTool.Debugging {
 
       public void FillPolygon(IReadOnlyList<DoubleVector3> points, FillStyle fillStyle) {
          BatchDraw(() => {
-            var ps = points.Select(Project).ToList();
+            var ps = points.Select(p => Project(ToNumerics(p))).ToList();
             using (var brush = new SolidBrush(fillStyle.Color)) {
                g.FillPolygon(brush, ps.Select(p => new PointF((float)p.X, (float)p.Y)).ToArray());
             }
@@ -253,7 +257,7 @@ namespace OpenMOBA.DevTool.Debugging {
                if (points.Count <= 1) return;
 
                using (var pen = new Pen(strokeStyle.Color, (float)strokeStyle.Thickness)) {
-                  g.DrawLines(pen, points.Select(ProjectPointF).ToArray());
+                  g.DrawLines(pen, points.Select(p => ProjectPointF(ToNumerics(p))).ToArray());
                   return;
                }
             }
@@ -284,8 +288,8 @@ namespace OpenMOBA.DevTool.Debugging {
                      segments = new List<PointF>();
                      segmentsByThicknessKey[tkey] = segments;
                   }
-                  segments.Add(ProjectPointF(pa));
-                  segments.Add(ProjectPointF(pb));
+                  segments.Add(ProjectPointF(ToNumerics(pa)));
+                  segments.Add(ProjectPointF(ToNumerics(pb)));
                }
 //               Console.WriteLine(ProjectPointF(p1) + " " + ProjectPointF(p2));
             }
@@ -308,7 +312,7 @@ namespace OpenMOBA.DevTool.Debugging {
 
       public void DrawText(string text, DoubleVector3 point) {
          BatchDraw(() => {
-            var p = Project(point);
+            var p = Project(ToNumerics(point));
             g.DrawString(text, Font, Brushes.Black, (float)p.X, (float)p.Y);
          });
       }

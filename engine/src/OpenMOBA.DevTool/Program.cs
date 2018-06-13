@@ -334,13 +334,13 @@ namespace OpenMOBA.DevTool {
          var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-         var center = new DoubleVector3(0, 0, 0);
+         var center = new Vector3(0, 0, 0);
 //         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
-            center + DoubleVector3.FromRadiusAngleAroundXAxis((cDouble)1000, (cDouble)rotation),
+            center + Vector3s.FromRadiusAngleAroundXAxis(1000, (float)rotation),
 //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
             center,
-            DoubleVector3.FromRadiusAngleAroundXAxis((cDouble)1, (cDouble)(rotation - Math.PI / 2)),
+            Vector3s.FromRadiusAngleAroundXAxis(1, (float)(rotation - Math.PI / 2)),
             displaySize.Width,
             displaySize.Height);
          //         projector = null;

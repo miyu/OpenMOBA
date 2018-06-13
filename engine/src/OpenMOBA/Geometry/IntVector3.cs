@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Numerics;
 using cInt = System.Int32;
 
 #if use_fixed
@@ -118,6 +119,22 @@ namespace OpenMOBA.Geometry {
       }
 
       public override string ToString() => $"[{X}, {Y}, {Z}]";
+   }
+
+   public static class Vector3s {
+      public static Vector3 FromRadiusAngleAroundZAxis(float radius, float radians) {
+         var x = radius * Math.Cos(radians);
+         var y = radius * Math.Sin(radians);
+         return new Vector3((float)x, (float)y, 0);
+      }
+
+      // rule is rotation as if the axis of rotation is z... so start at x then y
+      // (y is x, z is y according to RHR... so at theta = 0, y=r, theta=pi/2, z = r)
+      public static Vector3 FromRadiusAngleAroundXAxis(float radius, float radians) {
+         var y = radius * Math.Cos(radians);
+         var z = radius * Math.Sin(radians);
+         return new Vector3(0, (float)y, (float)z);
+      }
    }
 
    public struct IntVector3 {
