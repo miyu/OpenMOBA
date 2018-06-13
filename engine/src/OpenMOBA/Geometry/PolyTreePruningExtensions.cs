@@ -9,9 +9,9 @@ using cDouble = System.Double;
 
 namespace OpenMOBA.Geometry {
    public static class PolyTreePruningExtensions {
-      public static readonly cDouble kMinAreaPrune = (cDouble)16;
+      public static readonly long kMinAreaPrune = 16;
 
-      public static void Prune(this PolyNode polyTree, cDouble actorRadius, cDouble areaPruneThreshold = default) {
+      public static void Prune(this PolyNode polyTree, cDouble actorRadius, long areaPruneThreshold = -1) {
          if (areaPruneThreshold < kMinAreaPrune) areaPruneThreshold = kMinAreaPrune;
 
          var cleaned = Clipper.CleanPolygon(polyTree.Contour, actorRadius / CDoubleMath.c5 + CDoubleMath.c2);
@@ -22,15 +22,15 @@ namespace OpenMOBA.Geometry {
 
          for (var i = polyTree.Childs.Count - 1; i >= 0; i--) {
             var child = polyTree.Childs[i];
-            var childArea = CDoubleMath.Abs(Clipper.Area(child.Contour));
+            var childArea = Math.Abs(Clipper.Area(child.Contour));
             if (childArea < areaPruneThreshold) {
                // Console.WriteLine("Prune: " + Clipper.Area(child.Contour) + " " + child.Contour.Count);
                polyTree.Childs.RemoveAt(i);
                continue;
             }
 
-            cDouble kMinimumChildRelativeArea = CDoubleMath.c1 / (cDouble)1000; // prev 1 / 1000, 1 / 1000000 
-            child.Prune(actorRadius, CDoubleMath.Max(kMinAreaPrune, childArea * kMinimumChildRelativeArea));
+//            cDouble kMinimumChildRelativeArea = CDoubleMath.c1 / (cDouble)1000; // prev 1 / 1000, 1 / 1000000 
+            child.Prune(actorRadius, Math.Max(kMinAreaPrune, childArea / 1000));
          }
       }
 

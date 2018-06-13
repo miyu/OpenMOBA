@@ -249,8 +249,8 @@ namespace ClipperLib {
    //------------------------------------------------------------------------------
 
    internal struct Int128 {
-      private Int64 hi;
-      private UInt64 lo;
+      public Int64 hi;
+      public UInt64 lo;
 
       public Int128(Int64 _lo) {
          lo = (UInt64)_lo;
@@ -2946,7 +2946,7 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       public static bool Orientation(Path poly) {
-         return Area(poly) >= c0;
+         return Area(poly) >= 0;
       }
       //------------------------------------------------------------------------------
 
@@ -3597,16 +3597,25 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public static cDouble Area(Path poly) {
+      public static long Area(Path poly) {
          int cnt = (int)poly.Count;
-         if (cnt < 3) return CDoubleMath.c0;
-         cDouble a = CDoubleMath.c0;
+         if (cnt < 3) return -1;
+         Int128 a = default;
          for (int i = 0, j = cnt - 1; i < cnt; ++i) {
-            a += ((cDouble)poly[j].X + (cDouble)poly[i].X) * ((cDouble)poly[j].Y - (cDouble)poly[i].Y);
+            a += Int128.Int128Mul(poly[j].X + (long)poly[i].X, (long)poly[j].Y - (long)poly[i].Y);
             j = i;
          }
-         return -a * CDoubleMath.c0_5;
+
+         // supposed to be -a / 2
+         if (a.hi == -1) {
+            return (long)(a.lo / 2);
+         } else if (a.hi == 0) {
+            return -(long)(a.lo / 2);
+         } else {
+            throw new InvalidStateException();
+         }
       }
+
       //------------------------------------------------------------------------------
 
       internal double Area(OutRec outRec) {
