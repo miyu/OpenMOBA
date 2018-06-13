@@ -15,10 +15,16 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation {
    // Clipper int range: [-32,767, 32,767]
    public static class SectorMetadataPresets {
-      private const int DesiredSectorExtents = (ClipperBase.hiRange / 10000) * 10000;
+      private const int DesiredSectorExtents = (ClipperBase.hiRange / 10000) * 5000;
 
       private const int CrossCirclePathWidth = 200;
       private const int CrossCircleInnerLandRadius = 400;
@@ -224,17 +230,17 @@ namespace OpenMOBA.Foundation {
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
                //sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(x * 1000 - 1000, y * 1000, 0));
-               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(0, 0, 0));
-               sector.WorldToLocalScalingFactor = 60000.0f / 1000.0f;
+               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 30000.0f), Matrix4x4.CreateTranslation(0, 0, 0));
+               sector.WorldToLocalScalingFactor = (cDouble)30000 / (cDouble)1000;
                TerrainService.AddSectorNodeDescription(sector);
             }
          }
 
 
-         var left1 = new IntLineSegment2(new IntVector2(-30000, -18000), new IntVector2(-30000, -6000));
-         var left2 = new IntLineSegment2(new IntVector2(-30000, 6000), new IntVector2(-30000, 18000));
-         var right1 = new IntLineSegment2(new IntVector2(30000, -18000), new IntVector2(30000, -6000));
-         var right2 = new IntLineSegment2(new IntVector2(30000, 6000), new IntVector2(30000, 18000));
+         var left1 = new IntLineSegment2(new IntVector2(-30000 / 2, -18000 / 2), new IntVector2(-30000 / 2, -6000 / 2));
+         var left2 = new IntLineSegment2(new IntVector2(-30000 / 2, 6000 / 2), new IntVector2(-30000 / 2, 18000 / 2));
+         var right1 = new IntLineSegment2(new IntVector2(30000 / 2, -18000 / 2), new IntVector2(30000 / 2, -6000 / 2));
+         var right2 = new IntLineSegment2(new IntVector2(30000 / 2, 6000 / 2), new IntVector2(30000 / 2, 18000 / 2));
 
 //         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
 //         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));
@@ -412,16 +418,16 @@ namespace OpenMOBA.Foundation {
          //         MovementSystemService.Pathfind(d, new DoubleVector3(80 - 500, 720 - 500, 0));
 
 //         var benchmarkDestination = new DoubleVector3(1000, 325, 0.0);
-         var benchmarkDestination = new DoubleVector3(425, 425, 0.0);
-         var benchmarkUnitBaseSpeed = 100;
+         var benchmarkDestination = new DoubleVector3(425, 425, 0);
+         var benchmarkUnitBaseSpeed = (cDouble)100;
          var swarm = new Swarm { Destination = benchmarkDestination };
-         var swarmMeanRadius = 10.0f;
+         var swarmMeanRadius = (cDouble)10;
          for (var y = 0; y < 10; y++) {
             for (var x = 0; x < 10; x++) {
                // var swarmlingRadius = 10f;
-               var swarmlingRadius = (float)Math.Round(5.0f + 10.0f * (float)r.NextDouble());
+               var swarmlingRadius = CDoubleMath.Round(CDoubleMath.c5 + (cDouble)10 * r.NextCDouble());
                var p = new DoubleVector3(-450, -150, 0);
-               var offset = new DoubleVector3(x * swarmMeanRadius * 2, y * swarmMeanRadius * 2, 0);
+               var offset = new DoubleVector3((cDouble)x * swarmMeanRadius * CDoubleMath.c2, (cDouble)y * swarmMeanRadius * CDoubleMath.c2, CDoubleMath.c0);
                var swarmling = CreateTestEntity(p + offset, swarmlingRadius, benchmarkUnitBaseSpeed);
                swarmling.MovementComponent.Swarm = swarm;
                swarm.Entities.Add(swarmling);
@@ -472,7 +478,7 @@ namespace OpenMOBA.Foundation {
          GameTimeService.IncrementTicks();
       }
 
-      private Entity CreateTestEntity(DoubleVector3 initialPosition, float radius, float movementSpeed) {
+      private Entity CreateTestEntity(DoubleVector3 initialPosition, cDouble radius, cDouble movementSpeed) {
          var entity = EntityService.CreateEntity();
          EntityService.AddEntityComponent(entity, new MovementComponent {
             WorldPosition = initialPosition,

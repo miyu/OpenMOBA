@@ -17,6 +17,9 @@ namespace OpenMOBA.Geometry {
 
       [DebuggerStepThrough] public DoubleVector3(DoubleVector2 v, cDouble z = default) : this(v.X, v.Y, z) { }
 
+      [DebuggerStepThrough]
+      public DoubleVector3(int x, int y, int z) : this((cDouble)x, (cDouble)y, (cDouble)z) { }
+
       [DebuggerStepThrough] public DoubleVector3(cDouble x, cDouble y, cDouble z) {
          X = x;
          Y = y;
@@ -28,7 +31,7 @@ namespace OpenMOBA.Geometry {
       public cDouble Dot(DoubleVector3 other) => X * other.X + Y * other.Y + Z * other.Z;
 
       public cDouble SquaredNorm2D() => Dot(this);
-      public cDouble Norm2D() => Math.Sqrt(SquaredNorm2D());
+      public cDouble Norm2D() => CDoubleMath.Sqrt(SquaredNorm2D());
 
       public DoubleVector3 Cross(DoubleVector3 other) {
          cDouble u1 = X, u2 = Y, u3 = Z,
@@ -103,7 +106,7 @@ namespace OpenMOBA.Geometry {
       public static DoubleVector3 FromRadiusAngleAroundZAxis(cDouble radius, cDouble radians) {
          var x = radius * CDoubleMath.Cos(radians);
          var y = radius * CDoubleMath.Sin(radians);
-         return new DoubleVector3(x, y, 0);
+         return new DoubleVector3(x, y, CDoubleMath.c0);
       }
 
       // rule is rotation as if the axis of rotation is z... so start at x then y
@@ -111,7 +114,7 @@ namespace OpenMOBA.Geometry {
       public static DoubleVector3 FromRadiusAngleAroundXAxis(cDouble radius, cDouble radians) {
          var y = radius * CDoubleMath.Cos(radians);
          var z = radius * CDoubleMath.Sin(radians);
-         return new DoubleVector3(0, y, z);
+         return new DoubleVector3(CDoubleMath.c0, y, z);
       }
 
       public override string ToString() => $"[{X}, {Y}, {Z}]";
@@ -174,7 +177,7 @@ namespace OpenMOBA.Geometry {
             (other.Z * numerator) / denominator);
       }
 
-      public DoubleVector3 ToDoubleVector3() => new DoubleVector3(X, Y, Z);
+      public DoubleVector3 ToDoubleVector3() => new DoubleVector3((cDouble)X, (cDouble)Y, (cDouble)Z);
 
       public static IntVector3 Zero => new IntVector3(0, 0, 0);
       public static IntVector3 UnitX => new IntVector3(1, 0, 0);

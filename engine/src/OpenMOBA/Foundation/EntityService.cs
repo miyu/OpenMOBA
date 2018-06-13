@@ -8,6 +8,12 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation {
    public class Entity {
       public EntityComponentsMask ComponentMask { get; set; }
@@ -104,8 +110,8 @@ namespace OpenMOBA.Foundation {
       public MovementComponent() : base(EntityComponentType.Movement) { }
       public DoubleVector3 WorldPosition { get; set; }
       public DoubleVector3 LookAt { get; set; } = DoubleVector3.UnitX;
-      public float BaseRadius { get; set; }
-      public float BaseSpeed { get; set; }
+      public cDouble BaseRadius { get; set; }
+      public cDouble BaseSpeed { get; set; }
       public Swarm Swarm { get; set; }
 
       public bool GoalReached { get; set; }
@@ -133,18 +139,18 @@ namespace OpenMOBA.Foundation {
       public int ComputedSpeed { get; set; }
 
       public DoubleVector2 LastSeekingWeightedSumNBodyForces { get; set; }
-      public double LastSeekingSumWeightsNBodyForces { get; set; }
+      public cDouble LastSeekingSumWeightsNBodyForces { get; set; }
 
       public DoubleVector2 SeekingWeightedSumNBodyForces { get; set; }
-      public double SeekingSumWeightsNBodyForces { get; set; }
+      public cDouble SeekingSumWeightsNBodyForces { get; set; }
 
       public DoubleVector2 AlignmentWeightedSumNBodyForces { get; set; }
-      public double AlignmentSumWeightsNBodyForces { get; set; }
+      public cDouble AlignmentSumWeightsNBodyForces { get; set; }
 
       public DoubleVector2 WeightedSumNBodyForces { get; set; }
-      public double SumWeightsNBodyForces { get; set; }
+      public cDouble SumWeightsNBodyForces { get; set; }
       public DoubleVector2 LastWeightedSumNBodyForces { get; set; }
-      public double LastSumWeightsNBodyForces { get; set; }
+      public cDouble LastSumWeightsNBodyForces { get; set; }
       public TerrainOverlayNetwork TerrainOverlayNetwork { get; set; }
       public TerrainOverlayNetworkNode TerrainOverlayNetworkNode { get; set; }
       public DoubleVector2 LocalPosition { get; set; }
@@ -223,15 +229,15 @@ namespace OpenMOBA.Foundation {
    }
 
    public class StatsCalculator {
-      public double ComputeCharacterRadius(Entity entity) {
+      public cDouble ComputeCharacterRadius(Entity entity) {
          var movementComponent = entity.MovementComponent;
-         if (movementComponent == null) return 0;
+         if (movementComponent == null) return CDoubleMath.c0;
          return movementComponent.BaseRadius;
       }
 
-      public double ComputeMovementSpeed(Entity entity) {
+      public cDouble ComputeMovementSpeed(Entity entity) {
          var movementComponent = entity.MovementComponent;
-         if (movementComponent == null) return 0;
+         if (movementComponent == null) return CDoubleMath.c0;
          return movementComponent.BaseSpeed;
       }
    }

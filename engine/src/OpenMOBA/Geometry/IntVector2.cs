@@ -16,6 +16,8 @@ namespace OpenMOBA.Geometry {
       public cDouble X;
       public cDouble Y;
 
+      [DebuggerStepThrough] public DoubleVector2(int x, int y) : this((cDouble)x, (cDouble)y) { }
+
       [DebuggerStepThrough] public DoubleVector2(cDouble x, cDouble y) { 
          X = x;
          Y = y;
@@ -79,13 +81,13 @@ namespace OpenMOBA.Geometry {
 
       public static explicit operator DoubleVector2(DoubleVector3 v) => new DoubleVector2(v.X, v.Y);
 
-      public static DoubleVector2 FromRadiusAngle(double radius, double radians) {
-         var x = radius * Math.Cos(radians);
-         var y = radius * Math.Sin(radians);
+      public static DoubleVector2 FromRadiusAngle(cDouble radius, cDouble radians) {
+         var x = radius * CDoubleMath.Cos(radians);
+         var y = radius * CDoubleMath.Sin(radians);
          return new DoubleVector2(x, y);
       }
 
-      public void Deconstruct(out double x, out double y) {
+      public void Deconstruct(out cDouble x, out cDouble y) {
          x = X;
          y = Y;
       }
@@ -109,7 +111,20 @@ namespace OpenMOBA.Geometry {
       [Pure] public long Dot(IntVector2 other) => (long)X * other.X + (long)Y * other.Y;
 
       [Pure] public long SquaredNorm2() => Dot(this);
-      [Pure] public float Norm2F() => (float)Math.Sqrt(SquaredNorm2());
+      [Pure] public cDouble Norm2F() {
+#if use_fixed
+         // Given C = AB
+         // SQRT(C) = SQRT(AB) = SQRT(A)SQRT(B)
+         // N2 possibly reaches UINT32_MAX in OpenMOBA, can shift precision 32 bits to right
+         var n2 = SquaredNorm2();
+         var sqrtb = 16;
+         var b = sqrtb * sqrtb;
+         var a = n2 / b;
+         return cDouble.Sqrt((cDouble)a) * (cDouble)sqrtb;
+#else
+         return Math.Sqrt(SquaredNorm2());
+#endif
+      }
 
       [Pure] public IntVector2 To(IntVector2 other) => other - this;
 
@@ -137,7 +152,7 @@ namespace OpenMOBA.Geometry {
 
       [Pure] public IntVector2 LossyScale(double scale) => new IntVector2((cInt)(X * scale), (cInt)(Y * scale));
 
-      [DebuggerStepThrough] [Pure] public DoubleVector2 ToDoubleVector2() => new DoubleVector2(X, Y);
+      [DebuggerStepThrough] [Pure] public DoubleVector2 ToDoubleVector2() => new DoubleVector2((cDouble)X, (cDouble)Y);
 
       [Pure] public override int GetHashCode() => unchecked((int)((X * 397) ^ Y));
 

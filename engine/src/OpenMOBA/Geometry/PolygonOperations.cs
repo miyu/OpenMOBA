@@ -15,7 +15,8 @@ using cDouble = System.Double;
 namespace OpenMOBA.Geometry {
    public static class PolygonOperations {
       public static DoubleVector2 ToOpenMobaPointD(this TriangulationPoint input) {
-         return new DoubleVector2(input.X, input.Y);
+         // TODO: Determinism issues!
+         return new DoubleVector2((cDouble)input.X, (cDouble)input.Y);
       }
 
       public static UnionOperation Union() => new UnionOperation();
@@ -325,7 +326,7 @@ namespace OpenMOBA.Geometry {
                // hack: cleanup
                while (i + 1 != offsets.Count && offsets[i + 1] == kSpecialOffsetCleanup) {
                   i++;
-                  polytree.Prune(0);
+                  polytree.Prune(CDoubleMath.c0);
                }
 
                if (i + 1 == offsets.Count) {

@@ -5,6 +5,12 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using cInt = System.Int32;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct IntLineSegment2 {
@@ -165,8 +171,8 @@ namespace OpenMOBA.Geometry {
          return new IntVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
       }
 
-      public DoubleVector2 PointAt(double t) {
-         return First.ToDoubleVector2() * (1 - t) + Second.ToDoubleVector2() * t;
+      public DoubleVector2 PointAt(cDouble t) {
+         return First.ToDoubleVector2() * (CDoubleMath.c1 - t) + Second.ToDoubleVector2() * t;
       }
 
       public void Deconstruct(out IntVector2 first, out IntVector2 second) {
@@ -246,38 +252,38 @@ namespace OpenMOBA.Geometry {
       }
 
       public readonly DoubleVector2 First;
-      public double X1 => First.X;
-      public double Y1 => First.Y;
+      public cDouble X1 => First.X;
+      public cDouble Y1 => First.Y;
 
       public readonly DoubleVector2 Second;
-      public double X2 => Second.X;
-      public double Y2 => Second.Y;
+      public cDouble X2 => Second.X;
+      public cDouble Y2 => Second.Y;
 
       public DoubleVector2[] Points => new[] { First, Second };
 
       public bool Intersects(DoubleLineSegment2 other) {
-         double ax = X1, ay = Y1, bx = X2, by = Y2;
-         double cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         cDouble ax = X1, ay = Y1, bx = X2, by = Y2;
+         cDouble cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
          return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
       }
 
       [DebuggerStepThrough] public IntLineSegment2 LossyToIntLineSegment2() => new IntLineSegment2(First.LossyToIntVector2(), Second.LossyToIntVector2());
 
-      public static bool Intersects(double ax, double ay, double bx, double by, double cx, double cy, double dx, double dy) {
+      public static bool Intersects(cDouble ax, cDouble ay, cDouble bx, cDouble by, cDouble cx, cDouble cy, cDouble dx, cDouble dy) {
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
-         var tl = Math.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
-         var tr = Math.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
-         var bl = Math.Sign((cx - ax) * (dy - ay) - (cy - ay) * (dx - ax));
-         var br = Math.Sign((cx - bx) * (dy - by) - (cy - by) * (dx - bx));
+         var tl = CDoubleMath.Sign((ax - cx) * (by - cy) - (ay - cy) * (bx - cx));
+         var tr = CDoubleMath.Sign((ax - dx) * (by - dy) - (ay - dy) * (bx - dx));
+         var bl = CDoubleMath.Sign((cx - ax) * (dy - ay) - (cy - ay) * (dx - ax));
+         var br = CDoubleMath.Sign((cx - bx) * (dy - by) - (cy - by) * (dx - bx));
 
          return tl == -tr && bl == -br;
       }
 
       public RectangleF ToBoundingBox() {
-         var minX = Math.Min(X1, X2);
-         var minY = Math.Min(Y1, Y2);
-         var width = Math.Abs(X1 - X2) + 1;
-         var height = Math.Abs(Y1 - Y2) + 1;
+         var minX = CDoubleMath.Min(X1, X2);
+         var minY = CDoubleMath.Min(Y1, Y2);
+         var width = CDoubleMath.Abs(X1 - X2) + CDoubleMath.c1;
+         var height = CDoubleMath.Abs(Y1 - Y2) + CDoubleMath.c1;
 
          return new RectangleF((float)minX, (float)minY, (float)width, (float)height);
       }
@@ -307,12 +313,12 @@ namespace OpenMOBA.Geometry {
          return $"({First}, {Second})";
       }
 
-      public DoubleVector2 PointAt(double t) {
-         return First * (1 - t) + Second * t;
+      public DoubleVector2 PointAt(cDouble t) {
+         return First * (CDoubleMath.c1 - t) + Second * t;
       }
 
       public DoubleVector2 ComputeMidpoint() {
-         return new DoubleVector2((First.X + Second.X) / 2, (First.Y + Second.Y) / 2);
+         return new DoubleVector2((First.X + Second.X) / CDoubleMath.c2, (First.Y + Second.Y) / CDoubleMath.c2);
       }
 
       public void Deconstruct(out DoubleVector2 first, out DoubleVector2 second) {

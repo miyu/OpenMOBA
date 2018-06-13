@@ -182,7 +182,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
             var waypointVisibilityPolygon = waypointVisibilityPolygons[waypointIndex];
             var waypointVisibilityPolygonBarriers = waypointVisibilityPolygon.Get();
 
-            var erodedCrossoverSegmentWaypointDistanceSquared = waypoint.ToDoubleVector2().To((segment.First + segment.Second) / 2.0).SquaredNorm2D();
+            var erodedCrossoverSegmentWaypointDistanceSquared = waypoint.ToDoubleVector2().To((segment.First + segment.Second) / CDoubleMath.c2).SquaredNorm2D();
 
             // TODO: If segment matches waypoint this explodes (can't vispoly stab with its origin)
             //var segmentsIndices = waypointVisibilityPolygon.RangeStab(segment);
@@ -203,10 +203,10 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          return crossoverSeeingWaypoints.ToArray();
       }
 
-      public static (int, double)[] ComputePointSeeingWaypointsAndDistances(this PolyNode landNode, IntVector2 query) => ComputePointSeeingWaypointsAndDistances(landNode, query.ToDoubleVector2());
+      public static (int, cDouble)[] ComputePointSeeingWaypointsAndDistances(this PolyNode landNode, IntVector2 query) => ComputePointSeeingWaypointsAndDistances(landNode, query.ToDoubleVector2());
 
       // Potential optimization: Switch algos if visibility polygons not yet computed
-      public static (int, double)[] ComputePointSeeingWaypointsAndDistances(this PolyNode landNode, DoubleVector2 query) {
+      public static (int, cDouble)[] ComputePointSeeingWaypointsAndDistances(this PolyNode landNode, DoubleVector2 query) {
          var visibilityPolygons = ComputeWaypointVisibilityPolygons(landNode);
          return (
             from wi in Enumerable.Range(0, visibilityPolygons.Length)
@@ -244,14 +244,14 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       public const int ErrorInvalidIndex = -21337;
 
       public int PriorIndex;
-      public float TotalCost;
+      public cDouble TotalCost;
    }
 
    public struct EdgeLink {
       public int NextIndex;
-      public float Cost;
+      public cDouble Cost;
 
-      public EdgeLink(int nextIndex, float cost) {
+      public EdgeLink(int nextIndex, cDouble cost) {
          NextIndex = nextIndex;
          Cost = cost;
       }
@@ -260,9 +260,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
    public struct DijkstrasIntermediate {
       public int Prior;
       public int Current;
-      public float TotalCost;
+      public cDouble TotalCost;
 
-      public DijkstrasIntermediate(int prior, int current, float totalCost) {
+      public DijkstrasIntermediate(int prior, int current, cDouble totalCost) {
          Prior = prior;
          Current = current;
          TotalCost = totalCost;
@@ -285,14 +285,14 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       }
 
       public PathLink[] Dijkstras(IntVector2[] fromWaypoints, int[] terminals = null) {
-         return Dijkstras(fromWaypoints.Map(IndicesByWaypoint.Get).Map(i => new DijkstrasIntermediate(i, i, 0.0f)));
+         return Dijkstras(fromWaypoints.Map(IndicesByWaypoint.Get).Map(i => new DijkstrasIntermediate(i, i, CDoubleMath.c0)));
       }
 
       public PathLink[] Dijkstras(DijkstrasIntermediate[] nearestAndDistances, int[] terminals = null) {
          var s = new PriorityQueue<DijkstrasIntermediate>((a, b) => a.TotalCost.CompareTo(b.TotalCost));
          foreach (var nearestAndDistance in nearestAndDistances) s.Enqueue(nearestAndDistance);
 
-         var results = Waypoints.Map(x => new PathLink { PriorIndex = -1, TotalCost = float.PositiveInfinity });
+         var results = Waypoints.Map(x => new PathLink { PriorIndex = -1, TotalCost = cDouble.MaxValue });
          var terminalsToCompletion = terminals?.Length ?? 0;
          while (!s.IsEmpty) {
             // no-op if waypoint already visited
@@ -369,8 +369,8 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          var res = new PathLink[Waypoints.Length][];
          if (Waypoints.Length != Offsets.Length - 1) throw new InvalidStateException();
          for (var swi = 0; swi < Waypoints.Length; swi++) {
-            res[swi] = Util.Repeat(Waypoints.Length, new PathLink { PriorIndex = PathLink.Uninitialized, TotalCost = float.PositiveInfinity });
-            res[swi][swi].TotalCost = 0;
+            res[swi] = Util.Repeat(Waypoints.Length, new PathLink { PriorIndex = PathLink.Uninitialized, TotalCost = cDouble.MaxValue });
+            res[swi][swi].TotalCost = CDoubleMath.c0;
             res[swi][swi].PriorIndex = swi;
          }
          for (var swi = 0; swi < Offsets.Length - 1; swi++) {
@@ -480,9 +480,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          var wvp = polyNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons;
          var bvh = wvp == null ? polyNode.FindContourAndChildHoleBarriersBvh() : null;
 
-         var neighborsToCosts = new List<(int, float)>[waypoints.Length];
+         var neighborsToCosts = new List<(int, cDouble)>[waypoints.Length];
          for (var i = 0; i < waypoints.Length; i++) {
-            neighborsToCosts[i] = new List<(int, float)>();
+            neighborsToCosts[i] = new List<(int, cDouble)>();
          }
          for (var i = 0; i < waypoints.Length - 1; i++) {
             var wvpi = wvp?[i];

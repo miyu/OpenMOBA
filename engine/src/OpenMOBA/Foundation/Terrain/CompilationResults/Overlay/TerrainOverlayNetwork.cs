@@ -9,11 +9,17 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetwork {
       private readonly Dictionary<SectorNodeDescription, LocalGeometryView> activeLocalGeometryViewBySectorNodeDescription;
       private readonly Dictionary<SectorNodeDescription, TerrainOverlayNetworkNode[]> activeTerrainNodesBySectorNodeDescription;
-      private readonly double agentRadius;
+      private readonly cDouble agentRadius;
 
       private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
       private readonly ILookup<SectorNodeDescription, SectorEdgeDescription> edgeDescriptionsByDestination;
@@ -25,7 +31,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
       private readonly Dictionary<(SectorNodeDescription, PolyNode), TerrainOverlayNetworkNode> terrainNodesBySectorNodeDescriptionAndPolyNode;
 
       public TerrainOverlayNetwork(
-         double agentRadius,
+         cDouble agentRadius,
          Dictionary<SectorNodeDescription, LocalGeometryView> activeLocalGeometryViewBySectorNodeDescription,
          Dictionary<SectorNodeDescription, TerrainOverlayNetworkNode[]> activeTerrainNodesBySectorNodeDescription,
          Dictionary<LocalGeometryView, List<PolyNode>> landPolyNodesByDefaultLocalGeometryView,
@@ -66,7 +72,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          var key = (edgeDescription, sourceLgv, destinationLgv);
          List<EdgeJob> edgeJobs;
          if (!edgeJobCache.TryGetValue(key, out edgeJobs)) {
-            var crossoverPointSpacing = Math.Max(5.0f, agentRadius * 0.1f);
+            var crossoverPointSpacing = CDoubleMath.Max(CDoubleMath.c5, agentRadius * CDoubleMath.c0_1);
             edgeJobs = edgeJobCache[key] = edgeDescription.EmitCrossoverJobs(crossoverPointSpacing, sourceLgv, destinationLgv);
          }
 
@@ -103,14 +109,14 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          var destinationSegmentVector = destinationSegment.First.To(destinationSegment.Second);
          var destinationSegmentLength = destinationSegmentVector.Norm2D();
 
-         var longestSegmentLength = Math.Max(sourceSegmentLength, destinationSegmentLength);
-         var crossoverPointSpacing = 1000;
-         var points = (int)Math.Ceiling(longestSegmentLength / crossoverPointSpacing) + 1;
+         var longestSegmentLength = CDoubleMath.Max(sourceSegmentLength, destinationSegmentLength);
+         var crossoverPointSpacing = (cDouble)1000;
+         var points = (int)CDoubleMath.Ceiling(longestSegmentLength / crossoverPointSpacing) + 1;
 
          var sourceCrossoverPoints = new IntVector2[points];
          var destinationCrossoverPoints = new IntVector2[points];
          for (var i = 0; i < points; i++) {
-            var t = i / (double)(points - 1);
+            var t = (cDouble)i / (cDouble)(points - 1);
             sourceCrossoverPoints[i] = (sourceSegment.First + t * sourceSegmentVector).LossyToIntVector2();
             destinationCrossoverPoints[i] = (destinationSegment.First + t * destinationSegmentVector).LossyToIntVector2();
          }
@@ -292,7 +298,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
             // for bench
             optimalLinkToCrossovers[cpi] = new PathLink {
                PriorIndex = PathLink.ErrorInvalidIndex,
-               TotalCost = float.PositiveInfinity
+               TotalCost = cDouble.MaxValue
             };
             return;
 
@@ -325,7 +331,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
             if (isDirectPath) {
                Interlocked.Increment(ref ProcessCpiInvocation_DirectCount);
                var totalCost = p.To(crossoverPoints[cpi]).Norm2F();
+#if !use_fixed
                Trace.Assert(!float.IsNaN(totalCost));
+#endif
                optimalLinkToCrossovers[cpi] = new PathLink {
                   PriorIndex = PathLink.DirectPathIndex,
                   TotalCost = totalCost
@@ -338,7 +346,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                // Below is equivalent to (and shaved off 14% execution time relative to):
                // visibleWaypointLinks.MinBy(cpwl => cpwl.TotalCost + otherOptimalLinkByWaypointIndex[cpwl.PriorIndex].TotalCost);
                var optimalLinkToOtherCrossoverPointIndex = -1;
-               var optimalLinkToOtherCrossoverPointCost = float.PositiveInfinity;
+               var optimalLinkToOtherCrossoverPointCost = cDouble.MaxValue;
                for (var vwli = 0; vwli < visibleWaypointLinksLength; vwli++) {
                   ref var vwl = ref visibleWaypointLinks[vwli];
                   var cost = vwl.TotalCost + otherOptimalLinkByWaypointIndex[vwl.PriorIndex].TotalCost;
@@ -352,7 +360,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                   // Todo: This shouldn't happen!
                   optimalLinkToCrossovers[cpi] = new PathLink {
                      PriorIndex = PathLink.ErrorInvalidIndex,
-                     TotalCost = float.PositiveInfinity
+                     TotalCost = cDouble.MaxValue
                   };
                } else {
                   ref var optimalLinkToOtherCrossoverPoint = ref visibleWaypointLinks[optimalLinkToOtherCrossoverPointIndex];
@@ -360,7 +368,9 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                   //--
                   var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
                   var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
+#if !use_fixed
                   Trace.Assert(!float.IsNaN(totalCost));
+#endif
                   optimalLinkToCrossovers[cpi] = new PathLink {
                      PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
                      TotalCost = totalCost
@@ -402,7 +412,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
             var costSquared = waypoints[wi].To(p).SquaredNorm2();
             var visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
             if (visibilityPolygon.Contains(p)) {
-               visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = (float)Math.Sqrt(costSquared) };
+               visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = CDoubleMath.Sqrt((cDouble)costSquared) };
                visibleWaypointLinksLength++;
             }
          }
@@ -413,7 +423,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
             Interlocked.Increment(ref FindOptimalLinksToCrossovers_CostToWaypointCount);
             // unrolled from minby loop for 25% perf gain
             var optimalLinkIndex = -1;
-            var optimalLinkCost = float.PositiveInfinity;
+            var optimalLinkCost = cDouble.MaxValue;
             for (var i = 0; i < visibleWaypointLinksLength; i++) {
                ref var link = ref visibleWaypointLinks[i];
                var (a, b) = (wi, link.PriorIndex);
@@ -429,7 +439,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                // todo: this shouldn't happen!
                optimalLinkToWaypoints[wi] = new PathLink {
                   PriorIndex = PathLink.ErrorInvalidIndex,
-                  TotalCost = float.PositiveInfinity
+                  TotalCost = cDouble.MaxValue
                };
             } else {
                ref var optimalLink = ref visibleWaypointLinks[optimalLinkIndex];

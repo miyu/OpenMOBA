@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.DataStructures {
    public class BvhTreeAABB<TValue> {
       public readonly BvhTreeAABB<TValue> First;
@@ -91,7 +97,7 @@ namespace OpenMOBA.DataStructures {
          var outputValues = new TValue[inputKvps.Length];
 
          AxisAlignedBoundingBox BoundingBoxes(int startIndexInclusive, int endIndexExclusive) {
-            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+            cDouble minX = cDouble.MaxValue, minY = cDouble.MaxValue, minZ = cDouble.MaxValue, maxX = cDouble.MinValue, maxY = cDouble.MinValue, maxZ = cDouble.MinValue;
             for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
                var center = inputKvps[segmentIndices[i]].Key.Center;
                var extents = inputKvps[segmentIndices[i]].Key.Extents;

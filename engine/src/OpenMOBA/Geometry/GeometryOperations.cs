@@ -12,8 +12,21 @@ using Poly2Tri.Triangulation.Delaunay;
 using cInt = System.Int32;
 using Clk = OpenMOBA.Geometry.Clockness;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    public static class GeometryOperations {
+#if use_fixed
+      public static readonly cDouble kEpsilon = CDoubleMath.Epsilon;
+
+      public static bool IsReal(cDouble v) => true;
+      public static bool IsReal(DoubleVector2 v) => true;
+      public static bool IsReal(DoubleVector3 v) => true;
+#else
       // C# double.Epsilon is denormal = terrible perf; avoid and use this instead.
       // https://www.johndcook.com/blog/2012/01/05/double-epsilon-dbl_epsilon/
       public const double kEpsilon = 10E-16;
@@ -21,6 +34,7 @@ namespace OpenMOBA.Geometry {
       public static bool IsReal(double v) => !(double.IsNaN(v) || double.IsInfinity(v));
       public static bool IsReal(DoubleVector2 v) => IsReal(v.X) && IsReal(v.Y);
       public static bool IsReal(DoubleVector3 v) => IsReal(v.X) && IsReal(v.Y) && IsReal(v.Z);
+#endif
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(IntVector2 a, IntVector2 b, IntVector2 c) => Clockness(b - a, b - c);
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(IntVector2 ba, IntVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
@@ -32,19 +46,21 @@ namespace OpenMOBA.Geometry {
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(DoubleVector2 a, DoubleVector2 b, DoubleVector2 c) => Clockness(b - a, b - c);
       [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(DoubleVector2 ba, DoubleVector2 bc) => Clockness(ba.X, ba.Y, bc.X, bc.Y);
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(double ax, double ay, double bx, double by, double cx, double cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(double bax, double bay, double bcx, double bcy) => (Clockness)Math.Sign(Cross(bax, bay, bcx, bcy));
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(cDouble ax, cDouble ay, cDouble bx, cDouble by, cDouble cx, cDouble cy) => Clockness(bx - ax, by - ay, bx - cx, by - cy);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static Clockness Clockness(cDouble bax, cDouble bay, cDouble bcx, cDouble bcy) => (Clockness)CDoubleMath.Sign(Cross(bax, bay, bcx, bcy));
 
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static double Cross(this DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
-      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static double Cross(double ax, double ay, double bx, double by) => ax * by - ay * bx;
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static cDouble Cross(this DoubleVector2 a, DoubleVector2 b) => Cross(a.X, a.Y, b.X, b.Y);
+      [MethodImpl(MethodImplOptions.AggressiveInlining)] public static cDouble Cross(cDouble ax, cDouble ay, cDouble bx, cDouble by) => ax * by - ay * bx;
 
       public static Vector3 ToDotNetVector(this IntVector3 v) => new Vector3(v.X, v.Y, v.Z);
+      // TODO: Determinism
       public static Vector3 ToDotNetVector(this DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
-      public static DoubleVector3 ToOpenMobaVector(this Vector3 v) => new DoubleVector3(v.X, v.Y, v.Z);
+      public static DoubleVector3 ToOpenMobaVector(this Vector3 v) => new DoubleVector3((cDouble)v.X, (cDouble)v.Y, (cDouble)v.Z);
 
+      // TODO: Determinism
       public static Vector2 ToDotNetVector(this IntVector2 v) => new Vector2(v.X, v.Y);
       public static Vector2 ToDotNetVector(this DoubleVector2 v) => new Vector2((float)v.X, (float)v.Y);
-      public static DoubleVector2 ToOpenMobaVector(this Vector2 v) => new DoubleVector2(v.X, v.Y);
+      public static DoubleVector2 ToOpenMobaVector(this Vector2 v) => new DoubleVector2((cDouble)v.X, (cDouble)v.Y);
 
       // todo: this is probablby wrong, sorry.
       public static Rectangle ToDotNetRectangle(this IntRect2 r) => new Rectangle(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
@@ -79,7 +95,7 @@ namespace OpenMOBA.Geometry {
          var numeratorX = p1xp2 * v43.X - v21.X * p3xp4;
          var numeratorY = p1xp2 * v43.Y - v21.Y * p3xp4;
 
-         result = new DoubleVector2(numeratorX / (double)denominator, numeratorY / (double)denominator);
+         result = new DoubleVector2((cDouble)numeratorX / (cDouble)denominator, (cDouble)numeratorY / (cDouble)denominator);
          return true;
       }
 
@@ -94,7 +110,7 @@ namespace OpenMOBA.Geometry {
          var v43 = p3 - p4; // (x3 - x4, y3 - y4)
 
          var denominator = Cross(v21, v43);
-         if (denominator == 0.0) {
+         if (denominator == CDoubleMath.c0) {
             result = DoubleVector2.Zero;
             return false;
          }
@@ -104,18 +120,18 @@ namespace OpenMOBA.Geometry {
          var numeratorX = p1xp2 * v43.X - v21.X * p3xp4;
          var numeratorY = p1xp2 * v43.Y - v21.Y * p3xp4;
 
-         result = new DoubleVector2(numeratorX / (double)denominator, numeratorY / (double)denominator);
+         result = new DoubleVector2((cDouble)numeratorX / (cDouble)denominator, (cDouble)numeratorY / (cDouble)denominator);
          return true;
       }
 
       // NOTE: Assumes lines are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, lines should not have more than 1 point of intersection.
       // if lines DO have more than 1 point of intersection, this returns no intersection found.
-      public static bool TryFindNonoverlappingLineLineIntersectionT(ref IntLineSegment2 a, ref IntLineSegment2 b, out double tForA) {
+      public static bool TryFindNonoverlappingLineLineIntersectionT(ref IntLineSegment2 a, ref IntLineSegment2 b, out cDouble tForA) {
          return TryFindNonoverlappingLineLineIntersectionT(a.First, a.Second, b.First, b.Second, out tForA);
       }
 
-      public static bool TryFindNonoverlappingLineLineIntersectionT(IntVector2 a1, IntVector2 a2, IntVector2 b1, IntVector2 b2, out double tForA) {
+      public static bool TryFindNonoverlappingLineLineIntersectionT(IntVector2 a1, IntVector2 a2, IntVector2 b1, IntVector2 b2, out cDouble tForA) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var p = a1;
          var r = a1.To(a2);
@@ -128,23 +144,23 @@ namespace OpenMOBA.Geometry {
          }
 
          var qmp = q - p;
-         var t = Cross(qmp, s) / (double)rxs;
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
          tForA = t;
          return true;
 
          fail:
-         tForA = Double.NaN;
+         tForA = default;
          return false;
       }
 
       // NOTE: Assumes lines are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, lines should not have more than 1 point of intersection.
       // if lines DO have more than 1 point of intersection, this returns no intersection found.
-      public static bool TryFindNonoverlappingLineLineIntersectionT(ref DoubleLineSegment2 a, ref DoubleLineSegment2 b, out double tForA) {
+      public static bool TryFindNonoverlappingLineLineIntersectionT(ref DoubleLineSegment2 a, ref DoubleLineSegment2 b, out cDouble tForA) {
          return TryFindNonoverlappingLineLineIntersectionT(a.First, a.Second, b.First, b.Second, out tForA);
       }
 
-      public static bool TryFindNonoverlappingLineLineIntersectionT(DoubleVector2 a1, DoubleVector2 a2, DoubleVector2 b1, DoubleVector2 b2, out double tForA) {
+      public static bool TryFindNonoverlappingLineLineIntersectionT(DoubleVector2 a1, DoubleVector2 a2, DoubleVector2 b1, DoubleVector2 b2, out cDouble tForA) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var p = a1;
          var r = a1.To(a2);
@@ -152,17 +168,17 @@ namespace OpenMOBA.Geometry {
          var s = b1.To(b2);
 
          var rxs = Cross(r, s);
-         if (rxs == 0) { // iffy?
+         if (rxs == CDoubleMath.c0) { // iffy?
             goto fail;
          }
 
          var qmp = q - p;
-         var t = Cross(qmp, s) / (double)rxs;
+         var t = Cross(qmp, s) / (cDouble)rxs;
          tForA = t;
          return true;
 
          fail:
-         tForA = Double.NaN;
+         tForA = default;
          return false;
       }
 
@@ -173,7 +189,7 @@ namespace OpenMOBA.Geometry {
       // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, segments should not have more than 1 point of intersection.
       // if segments DO have more than 1 point of intersection, this returns no intersection found.
-      public static bool TryFindNonoverlappingSegmentSegmentIntersectionT(ref IntLineSegment2 a, ref IntLineSegment2 b, out double tForA) {
+      public static bool TryFindNonoverlappingSegmentSegmentIntersectionT(ref IntLineSegment2 a, ref IntLineSegment2 b, out cDouble tForA) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var p = a.First;
          var r = a.First.To(a.Second);
@@ -186,13 +202,13 @@ namespace OpenMOBA.Geometry {
          }
 
          var qmp = q - p;
-         var t = Cross(qmp, s) / (double)rxs;
-         if (t < 0.0 || t > 1.0) {
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+         if (t < CDoubleMath.c0 || t > CDoubleMath.c1) {
             goto fail;
          }
 
-         var u = Cross(qmp, r) / (double)rxs;
-         if (u < 0.0 || u > 1.0) {
+         var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
+         if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
             goto fail;
          }
 
@@ -200,7 +216,7 @@ namespace OpenMOBA.Geometry {
          return true;
 
          fail:
-         tForA = Double.NaN;
+         tForA = default;
          return false;
       }
 
@@ -208,18 +224,18 @@ namespace OpenMOBA.Geometry {
       // that is, segments should not have more than 1 point of intersection.
       // if segments DO have more than 1 point of intersection, this returns no intersection found.
       public static bool TryFindSegmentSegmentIntersection(ref IntLineSegment2 a, ref IntLineSegment2 b, out DoubleVector2 result) {
-         if (TryFindNonoverlappingSegmentSegmentIntersectionT(ref a, ref b, out double t)) {
+         if (TryFindNonoverlappingSegmentSegmentIntersectionT(ref a, ref b, out cDouble t)) {
             var p = a.First;
             var r = a.First.To(a.Second);
 
-            result = new DoubleVector2(p.X + t * r.X, p.Y + t * r.Y);
+            result = new DoubleVector2((cDouble)p.X + t * (cDouble)r.X, (cDouble)p.Y + t * (cDouble)r.Y);
             return true;
          }
          result = DoubleVector2.Zero;
          return false;
       }
 
-      public static bool TryIntersect(this Triangulation triangulation, double x, double y, out TriangulationIsland island, out int triangleIndex) {
+      public static bool TryIntersect(this Triangulation triangulation, cDouble x, cDouble y, out TriangulationIsland island, out int triangleIndex) {
          foreach (var candidateIsland in triangulation.Islands) {
             if (candidateIsland.TryIntersect(x, y, out triangleIndex)) {
                island = candidateIsland;
@@ -231,9 +247,9 @@ namespace OpenMOBA.Geometry {
          return false;
       }
 
-      public static bool TryIntersect(this TriangulationIsland island, double x, double y, out int triangleIndex) {
-         if (x < island.IntBounds.Left || y < island.IntBounds.Top ||
-             x > island.IntBounds.Right || y > island.IntBounds.Bottom) {
+      public static bool TryIntersect(this TriangulationIsland island, cDouble x, cDouble y, out int triangleIndex) {
+         if (x < (cDouble)island.IntBounds.Left || y < (cDouble)island.IntBounds.Top ||
+             x > (cDouble)island.IntBounds.Right || y > (cDouble)island.IntBounds.Bottom) {
             triangleIndex = -1;
             return false;
          }
@@ -374,7 +390,7 @@ namespace OpenMOBA.Geometry {
          return xInterior && yInterior;
       }
 
-      public static bool IsPointInTriangle(double px, double py, ref Triangle3 triangle) {
+      public static bool IsPointInTriangle(cDouble px, cDouble py, ref Triangle3 triangle) {
          // Barycentric coordinates for PIP w/ triangle test http://blackpawn.com/texts/pointinpoly/
 
          var ax = triangle.Points.A.X;
@@ -397,11 +413,21 @@ namespace OpenMOBA.Geometry {
          var dot11 = v1x * v1x + v1y * v1y;
          var dot12 = v1x * v2x + v1y * v2y;
 
-         var invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
+#if !use_fixed
+         var invDenom = CDoubleMath.c1 / (dot00 * dot11 - dot01 * dot01);
          var u = (dot11 * dot02 - dot01 * dot12) * invDenom;
          var v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+#else
+         // in OpenMOBA, above dots can each reach INT32_MAX/MIN. 
+         // This results in saturating overflow in the below divisor.
+         // The workaround is to multiply numerator/denominator vs small c
+         var c = (cDouble)1 / (cDouble)(1 << 16);
+         var invDenom = (cDouble)1 / ((dot00 * c) * (dot11 * c) - (dot01 * c) * (dot01 * c));
+         var u = ((dot11 * c) * (dot02 * c) - (dot01 * c) * (dot12 * c)) * invDenom;
+         var v = ((dot00 * c) * (dot12 * c) - (dot01 * c) * (dot02 * c)) * invDenom;
+#endif
 
-         return (u >= 0) && (v >= 0) && (u + v <= 1);
+         return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (u + v <= CDoubleMath.c1);
       }
 
       public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle3 triangle, out int indexOpposingEdge) {
@@ -436,7 +462,7 @@ namespace OpenMOBA.Geometry {
 
       public static ContourNearestPointResult3 FindNearestPointXYZOnContour(List<IntVector3> contour, DoubleVector3 query) {
          var result = new ContourNearestPointResult3 {
-            Distance = double.PositiveInfinity,
+            Distance = cDouble.MaxValue,
             Query = query
          };
          var pointCount = contour.First().Equals(contour.Last()) ? contour.Count - 1 : contour.Count;
@@ -458,9 +484,9 @@ namespace OpenMOBA.Geometry {
          var p1p2 = p2 - p1;
          var p1Query = query - p1;
          var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
-         if (p1QueryProjP1P2Component <= 0) {
+         if (p1QueryProjP1P2Component <= CDoubleMath.c0) {
             return p1;
-         } else if (p1QueryProjP1P2Component >= 1) {
+         } else if (p1QueryProjP1P2Component >= CDoubleMath.c1) {
             return p2;
          } else {
             return p1 + p1QueryProjP1P2Component * p1p2;
@@ -469,7 +495,7 @@ namespace OpenMOBA.Geometry {
 
       public static ContourNearestPointResult2 FindNearestPointOnContour(List<IntVector2> contour, DoubleVector2 query) {
          var result = new ContourNearestPointResult2 {
-            Distance = double.PositiveInfinity,
+            Distance = cDouble.MaxValue,
             Query = query
          };
          var pointCount = contour.First().Equals(contour.Last()) ? contour.Count - 1 : contour.Count;
@@ -491,9 +517,9 @@ namespace OpenMOBA.Geometry {
          var p1p2 = p2 - p1;
          var p1Query = query - p1;
          var p1QueryProjP1P2Component = p1Query.ProjectOntoComponentD(p1p2);
-         if (p1QueryProjP1P2Component <= 0) {
+         if (p1QueryProjP1P2Component <= CDoubleMath.c0) {
             return p1;
-         } else if (p1QueryProjP1P2Component >= 1) {
+         } else if (p1QueryProjP1P2Component >= CDoubleMath.c1) {
             return p2;
          } else {
             return p1 + p1QueryProjP1P2Component * p1p2;

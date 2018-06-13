@@ -3,6 +3,12 @@ using System.Numerics;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain.Declarations {
    public class SectorNodeDescription {
       private readonly Guid guid = Guid.NewGuid();
@@ -41,18 +47,18 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
 
       public Matrix4x4 WorldTransformInv => InstanceMetadata.WorldTransformInv;
 
-      public float WorldToLocalScalingFactor {
+      public cDouble WorldToLocalScalingFactor {
          get => InstanceMetadata.WorldToLocalScalingFactor;
          set {
             if (InstanceMetadata.WorldToLocalScalingFactor != value) {
                InstanceMetadata.WorldToLocalScalingFactor = value;
-               InstanceMetadata.LocalToWorldScalingFactor = 1.0f / value;
+               InstanceMetadata.LocalToWorldScalingFactor = CDoubleMath.c1 / value;
                Version++;
             }
          }
       }
 
-      public float LocalToWorldScalingFactor => InstanceMetadata.LocalToWorldScalingFactor;
+      public cDouble LocalToWorldScalingFactor => InstanceMetadata.LocalToWorldScalingFactor;
 
       public bool EnableDebugHighlight { get; set; }
       //      public IReadOnlyCollection<DynamicTerrainHole> Holes => InstanceMetadata.Holes;
@@ -73,7 +79,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          var bottomRight = basisY * bounds.Bottom + basisX * bounds.Right;
          var topLeft = basisY * bounds.Top + basisX * bounds.Left;
          var topRight = basisY * bounds.Top + basisX * bounds.Right;
-         var boundingBoxExtrusionFactor = 1E-3 * basisZ / basisZ.Norm2D();
+         var boundingBoxExtrusionFactor = (CDoubleMath.c1 / (cDouble)1000) * basisZ / basisZ.Norm2D();
 
          var nearBottomLeft = bottomLeft + boundingBoxExtrusionFactor;
          var nearBottomRight = bottomRight + boundingBoxExtrusionFactor;

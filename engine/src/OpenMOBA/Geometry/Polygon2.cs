@@ -5,6 +5,13 @@ using System.Drawing;
 using System.Linq;
 using ClipperLib;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
+
 namespace OpenMOBA.Geometry {
    public class Polygon3 {
       public Polygon3(List<IntVector3> points, bool isHole) {
@@ -83,7 +90,10 @@ namespace OpenMOBA.Geometry {
       public static Polygon2 CreateCircle(int x, int y, int radius, int n = 16) {
          var points = new List<IntVector2>();
          for (var i = 0; i < n; i++) {
-            points.Add(new DoubleVector2(x + radius * Math.Sin(-i * Math.PI * 2 / n), y + radius * Math.Cos(-i * Math.PI * 2 / n)).LossyToIntVector2());
+            points.Add(new DoubleVector2(
+               (cDouble)x + (cDouble)radius * CDoubleMath.Sin((cDouble)(-i) * CDoubleMath.Pi * CDoubleMath.c2 / (cDouble)n), 
+               (cDouble)y + (cDouble)radius * CDoubleMath.Cos((cDouble)(-i) * CDoubleMath.Pi * CDoubleMath.c2 / (cDouble)n)
+            ).LossyToIntVector2());
          }
          ValidateHoleClockness(points);
          return new Polygon2(points);

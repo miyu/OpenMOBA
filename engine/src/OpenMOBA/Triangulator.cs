@@ -126,7 +126,7 @@ namespace OpenMOBA {
                p2tTriangle.Points[2].ToOpenMobaPointD()
             );
 //            Console.WriteLine(string.Join(", ", p2tTriangle.Points.Select(p => p.Z)));
-            t.Centroid = (t.Points[0] + t.Points[1] + t.Points[2]) / 3.0;
+            t.Centroid = (t.Points[0] + t.Points[1] + t.Points[2]) / CDoubleMath.c3;
             t.IntPaddedBounds2D = CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref triangles[i].Points);
             for (int j = 0; j < 3; j++) {
                if (p2tTriangle.Neighbors[j] != null && p2tTriangle.Neighbors[j].IsInterior)
@@ -177,10 +177,10 @@ namespace OpenMOBA {
          cInt minY = cInt.MaxValue;
          cInt maxY = cInt.MinValue;
          for (int i = 0; i < points.Count; i++) {
-            minX = Math.Min(minX, (cInt)Math.Floor(points[i].X) - 1);
-            maxX = Math.Max(maxX, (cInt)Math.Ceiling(points[i].X) + 1);
-            minY = Math.Min(minY, (cInt)Math.Floor(points[i].Y) - 1);
-            maxY = Math.Max(maxY, (cInt)Math.Ceiling(points[i].Y) + 1);
+            minX = Math.Min(minX, (cInt)CDoubleMath.Floor(points[i].X) - 1);
+            maxX = Math.Max(maxX, (cInt)CDoubleMath.Ceiling(points[i].X) + 1);
+            minY = Math.Min(minY, (cInt)CDoubleMath.Floor(points[i].Y) - 1);
+            maxY = Math.Max(maxY, (cInt)CDoubleMath.Ceiling(points[i].Y) + 1);
          }
          return new IntRect2 {
             Left = minX,

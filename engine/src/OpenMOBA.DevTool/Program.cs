@@ -20,6 +20,12 @@ using Color = System.Drawing.Color;
 using Point = System.Drawing.Point;
 using Vector3 = System.Numerics.Vector3;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.DevTool {
    public static class Program {
       public static void Main(string[] args) {
@@ -53,7 +59,7 @@ namespace OpenMOBA.DevTool {
          if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 1 == 0) RenderDebugFrame();
       }
 
-      private void Benchmark(double holeDilationRadius) {
+      private void Benchmark(cDouble holeDilationRadius) {
          void RunBenchmarkIteration() {
             TerrainService.SnapshotCompiler.InvalidateCaches();
             TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
@@ -76,7 +82,7 @@ namespace OpenMOBA.DevTool {
       public RenderHookEvent RenderHook;
 
       private void RenderDebugFrame() {
-         var agentRadius = 0; //28.005;
+         var agentRadius = (cDouble)0; //28.005;
 
          var terrainSnapshot = TerrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
@@ -135,7 +141,7 @@ namespace OpenMOBA.DevTool {
 
                foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
                   var mc = entity.MovementComponent;
-                  var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(2);
+                  var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(CDoubleMath.c2);
                   if (!ton.TryFindTerrainOverlayNode(mc.WorldPosition, out var tonn, out var plocal)) continue;
                   if (i == 2 || i == 1) continue;
                   var color = Color.FromArgb(20, new[] {
@@ -214,8 +220,8 @@ namespace OpenMOBA.DevTool {
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
                debugCanvas.Transform = Matrix4x4.Identity;
-               debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.Black, 2 * movementComponent.BaseRadius));
-               debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.White, 2 * movementComponent.BaseRadius - 2));
+               debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.Black, 2 * (float)movementComponent.BaseRadius));
+               debugCanvas.DrawPoint(movementComponent.WorldPosition, new StrokeStyle(Color.White, 2 * (float)movementComponent.BaseRadius - 2));
 
                //               if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
                //                  var direction = movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius;
@@ -247,7 +253,7 @@ namespace OpenMOBA.DevTool {
             if (mc?.Swarm != null) {
                var local = mc.LocalPosition;
                var motionVectorUnnormalized = mc.WeightedSumNBodyForces;
-               if (motionVectorUnnormalized.Norm2D() < 1E-9) continue;
+               if (motionVectorUnnormalized.Norm2D() < CDoubleMath.Epsilon) continue;
                var v = motionVectorUnnormalized.ToUnit() * mc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor * 100;
                var goalWorld = mc.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(local + v);
                debugCanvas.DrawLine(mc.WorldPosition, goalWorld, StrokeStyle.RedHairLineSolid);
@@ -255,7 +261,7 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double agentRadius) {
+      private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, cDouble agentRadius) {
          Console.WriteLine("!@#@!#!@#!@#!");
          var pathfinderResultContext = Game.PathfinderCalculator.UniformCostSearch(
             agentRadius,
@@ -313,7 +319,7 @@ namespace OpenMOBA.DevTool {
          }
       }
 
-      private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double agentRadius, DoubleVector3 source, DoubleVector3 dest) {
+      private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, cDouble agentRadius, DoubleVector3 source, DoubleVector3 dest) {
          if (Game.PathfinderCalculator.TryFindPath(agentRadius, source, dest, out var roadmap)) {
             Console.WriteLine("Yippee ");
             debugCanvas.DrawRoadmap(roadmap);
@@ -331,10 +337,10 @@ namespace OpenMOBA.DevTool {
          var center = new DoubleVector3(0, 0, 0);
 //         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
-            center + DoubleVector3.FromRadiusAngleAroundXAxis(1000, rotation),
+            center + DoubleVector3.FromRadiusAngleAroundXAxis((cDouble)1000, (cDouble)rotation),
 //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
             center,
-            DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2),
+            DoubleVector3.FromRadiusAngleAroundXAxis((cDouble)1, (cDouble)(rotation - Math.PI / 2)),
             displaySize.Width,
             displaySize.Height);
          //         projector = null;

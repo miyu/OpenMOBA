@@ -4,11 +4,17 @@ using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.Declarations;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
    public class TerrainOverlayNetworkManager {
       private readonly IReadOnlyList<SectorEdgeDescription> edgeDescriptions;
       private readonly Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription;
-      private readonly Dictionary<double, TerrainOverlayNetwork> terrainOverlayNetworkCache = new Dictionary<double, TerrainOverlayNetwork>();
+      private readonly Dictionary<cDouble, TerrainOverlayNetwork> terrainOverlayNetworkCache = new Dictionary<cDouble, TerrainOverlayNetwork>();
 
       public TerrainOverlayNetworkManager(
          Dictionary<SectorNodeDescription, LocalGeometryViewManager> localGeometryViewManagerBySectorNodeDescription,
@@ -23,7 +29,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
          foreach (var lgvm in localGeometryViewManagerBySectorNodeDescription.Values) lgvm.InvalidateCaches();
       }
 
-      public TerrainOverlayNetwork CompileTerrainOverlayNetwork(double agentRadius) {
+      public TerrainOverlayNetwork CompileTerrainOverlayNetwork(cDouble agentRadius) {
          if (terrainOverlayNetworkCache.TryGetValue(agentRadius, out var existingTerrainOverlayNetwork)) return existingTerrainOverlayNetwork;
 
          //         Console.WriteLine($"Compiling Terrain Overlay Network for Agent Radius {agentRadius}.");

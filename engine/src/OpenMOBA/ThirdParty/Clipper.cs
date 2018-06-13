@@ -72,6 +72,7 @@
 using System;
 using System.Collections.Generic;
 using FixMath.NET;
+using OpenMOBA;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
 //using System.Text;          //for Int128.AsString() & StringBuilder
@@ -2945,7 +2946,7 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       public static bool Orientation(Path poly) {
-         return Area(poly) >= 0;
+         return Area(poly) >= c0;
       }
       //------------------------------------------------------------------------------
 
@@ -3651,30 +3652,30 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      private static double DistanceSqrd(IntPoint pt1, IntPoint pt2) {
-         double dx = ((double)pt1.X - pt2.X);
-         double dy = ((double)pt1.Y - pt2.Y);
+      private static cDouble DistanceSqrd(IntPoint pt1, IntPoint pt2) {
+         cDouble dx = ((cDouble)pt1.X - (cDouble)pt2.X);
+         cDouble dy = ((cDouble)pt1.Y - (cDouble)pt2.Y);
          return (dx * dx + dy * dy);
       }
       //------------------------------------------------------------------------------
 
-      private static double DistanceFromLineSqrd(IntPoint pt, IntPoint ln1, IntPoint ln2) {
+      private static cDouble DistanceFromLineSqrd(IntPoint pt, IntPoint ln1, IntPoint ln2) {
          //The equation of a line in general form (Ax + By + C = 0)
          //given 2 points (x¹,y¹) & (x²,y²) is ...
          //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0
          //A = (y¹ - y²); B = (x² - x¹); C = (y² - y¹)x¹ - (x² - x¹)y¹
          //perpendicular distance of point (x³,y³) = (Ax³ + By³ + C)/Sqrt(A² + B²)
          //see http://en.wikipedia.org/wiki/Perpendicular_distance
-         double A = ln1.Y - ln2.Y;
-         double B = ln2.X - ln1.X;
-         double C = A * ln1.X + B * ln1.Y;
-         C = A * pt.X + B * pt.Y - C;
+         cDouble A = (cDouble)ln1.Y - (cDouble)ln2.Y;
+         cDouble B = (cDouble)ln2.X - (cDouble)ln1.X;
+         cDouble C = A * (cDouble)ln1.X + B * (cDouble)ln1.Y;
+         C = A * (cDouble)pt.X + B * (cDouble)pt.Y - C;
          return (C * C) / (A * A + B * B);
       }
       //---------------------------------------------------------------------------
 
       private static bool SlopesNearCollinear(IntPoint pt1,
-         IntPoint pt2, IntPoint pt3, double distSqrd) {
+         IntPoint pt2, IntPoint pt3, cDouble distSqrd) {
          //this function is more accurate when the point that's GEOMETRICALLY 
          //between the other 2 points is the one that's tested for distance.  
          //nb: with 'spikes', either pt1 or pt3 is geometrically between the other pts                    
@@ -3696,9 +3697,9 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      private static bool PointsAreClose(IntPoint pt1, IntPoint pt2, double distSqrd) {
-         double dx = (double)pt1.X - pt2.X;
-         double dy = (double)pt1.Y - pt2.Y;
+      private static bool PointsAreClose(IntPoint pt1, IntPoint pt2, cDouble distSqrd) {
+         cDouble dx = (cDouble)pt1.X - (cDouble)pt2.X;
+         cDouble dy = (cDouble)pt1.Y - (cDouble)pt2.Y;
          return ((dx * dx) + (dy * dy) <= distSqrd);
       }
       //------------------------------------------------------------------------------
@@ -3712,7 +3713,8 @@ namespace ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public static Path CleanPolygon(Path path, double distance = 1.415) {
+      public static Path CleanPolygon(Path path, cDouble? distance_ = null) {
+         var distance = distance_ ?? (cDouble)1.415;
          //distance = proximity in units/pixels below which vertices will be stripped. 
          //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have 
          //both x & y coords within 1 unit, then the second vertex will be stripped.
@@ -3731,7 +3733,7 @@ namespace ClipperLib {
             outPts[i].Idx = 0;
          }
 
-         double distSqrd = distance * distance;
+         cDouble distSqrd = distance * distance;
          OutPt op = outPts[0];
          while (op.Idx == 0 && op.Next != op.Prev) {
             if (PointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
@@ -3762,7 +3764,8 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       public static Paths CleanPolygons(Paths polys,
-         double distance = 1.415) {
+         cDouble? distance_ = null) {
+         var distance = distance_ ?? (cDouble)1.415;
          Paths result = new Paths(polys.Count);
          for (int i = 0; i < polys.Count; i++)
             result.Add(CleanPolygon(polys[i], distance));

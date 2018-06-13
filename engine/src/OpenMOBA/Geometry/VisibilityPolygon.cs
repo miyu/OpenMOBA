@@ -6,6 +6,12 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using OpenMOBA.DataStructures;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    // Everything's in radians, all geometry is reasoned as if relative to _origin.
    // This can be efficiently implemented with an interval tree = O(logN) runtime.
@@ -15,8 +21,14 @@ namespace OpenMOBA.Geometry {
       public const int RANGE_ID_INFINITESIMALLY_NEAR = -2;
       public const int RANGE_ID_INFINITELY_FAR = -1; // (The null range id)
       public const int RANGE_ID_INITIAL = 0;
+
+#if use_fixed
+      public static readonly cDouble TwoPi = CDoubleMath.TwoPi;
+      private static readonly cDouble PiDiv2 = CDoubleMath.PiDiv2;
+#else
       public const double TwoPi = 2.0 * Math.PI;
       private const double PiDiv2 = Math.PI / 2.0;
+#endif
       private readonly DoubleVector2 _origin;
       private IntervalRange[] _intervalRanges;
       private readonly IComparer<IntLineSegment2> _segmentComparer;
@@ -27,7 +39,7 @@ namespace OpenMOBA.Geometry {
             origin, new[] {
                new IntervalRange {
                   Id = RANGE_ID_INFINITELY_FAR,
-                  ThetaStart = 0.0,
+                  ThetaStart = CDoubleMath.c0,
                   ThetaEnd = TwoPi
                }
             }) { }
@@ -42,31 +54,31 @@ namespace OpenMOBA.Geometry {
       public IComparer<IntLineSegment2> SegmentComparer => _segmentComparer;
 
       public void Insert(IntLineSegment2 s, bool supportOverlappingLines = false) {
-         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
-         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
+         var theta1 = FindXYRadiansRelativeToOrigin((cDouble)s.First.X, (cDouble)s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin((cDouble)s.Second.X, (cDouble)s.Second.Y);
 
          var thetaLower = theta1 < theta2 ? theta1 : theta2;
          var thetaUpper = theta1 < theta2 ? theta2 : theta1;
 
-         if (Math.Abs(theta1 - theta2) > Math.PI) {
+         if (CDoubleMath.Abs(theta1 - theta2) > CDoubleMath.Pi) {
             // covered angle range wraps around through theta=0.
-            InsertInternal(ref s, 0.0, thetaLower, supportOverlappingLines);
-            InsertInternal(ref s, thetaUpper, TwoPi, supportOverlappingLines);
+            InsertInternal(ref s, CDoubleMath.c0, thetaLower, supportOverlappingLines);
+            InsertInternal(ref s, thetaUpper, CDoubleMath.TwoPi, supportOverlappingLines);
          } else {
             InsertInternal(ref s, thetaLower, thetaUpper, supportOverlappingLines);
          }
       }
 
       public void ClearBeyond(IntLineSegment2 s, bool supportOverlappingLines = false) {
-         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
-         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
+         var theta1 = FindXYRadiansRelativeToOrigin((cDouble)s.First.X, (cDouble)s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin((cDouble)s.Second.X, (cDouble)s.Second.Y);
 
          var thetaLower = theta1 < theta2 ? theta1 : theta2;
          var thetaUpper = theta1 < theta2 ? theta2 : theta1;
 
-         if (Math.Abs(theta1 - theta2) > Math.PI) {
+         if (CDoubleMath.Abs(theta1 - theta2) > CDoubleMath.Pi) {
             // covered angle range wraps around through theta=0.
-            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, 0.0, thetaLower, supportOverlappingLines, false);
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, CDoubleMath.c0, thetaLower, supportOverlappingLines, false);
             InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaUpper, TwoPi, supportOverlappingLines, false);
          } else {
             InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaLower, thetaUpper, supportOverlappingLines, false);
@@ -74,22 +86,22 @@ namespace OpenMOBA.Geometry {
       }
 
       public void ClearBefore(IntLineSegment2 s, bool supportOverlappingLines = false) {
-         var theta1 = FindXYRadiansRelativeToOrigin(s.First.X, s.First.Y);
-         var theta2 = FindXYRadiansRelativeToOrigin(s.Second.X, s.Second.Y);
+         var theta1 = FindXYRadiansRelativeToOrigin((cDouble)s.First.X, (cDouble)s.First.Y);
+         var theta2 = FindXYRadiansRelativeToOrigin((cDouble)s.Second.X, (cDouble)s.Second.Y);
 
          var thetaLower = theta1 < theta2 ? theta1 : theta2;
          var thetaUpper = theta1 < theta2 ? theta2 : theta1;
 
-         if (Math.Abs(theta1 - theta2) > Math.PI) {
+         if (CDoubleMath.Abs(theta1 - theta2) > CDoubleMath.Pi) {
             // covered angle range wraps around through theta=0.
-            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, 0.0, thetaLower, supportOverlappingLines, true);
+            InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, CDoubleMath.c0, thetaLower, supportOverlappingLines, true);
             InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaUpper, TwoPi, supportOverlappingLines, true);
          } else {
             InsertInternalInternal(s, RANGE_ID_INFINITELY_FAR, thetaLower, thetaUpper, supportOverlappingLines, true);
          }
       }
 
-      private void InsertInternal(ref IntLineSegment2 s, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines) {
+      private void InsertInternal(ref IntLineSegment2 s, cDouble insertionThetaLower, cDouble insertionThetaUpper, bool supportOverlappingLines) {
          if (insertionThetaLower == insertionThetaUpper) {
             return;
          }
@@ -99,14 +111,14 @@ namespace OpenMOBA.Geometry {
          // cull if wall faces away from origin
          var sperp = new DoubleVector2(s.Y2 - s.Y1, -(s.X2 - s.X1));
          var os1 = _origin.To(s.First.ToDoubleVector2());
-         if (sperp.Dot(os1) < 0) {
+         if (sperp.Dot(os1) < CDoubleMath.c0) {
             //return;
          }
          var rangeId = rangeIdCounter++;
          InsertInternalInternal(s, rangeId, insertionThetaLower, insertionThetaUpper, supportOverlappingLines, false);
       }
 
-      private void InsertInternalInternal(IntLineSegment2 s, int sRangeId, double insertionThetaLower, double insertionThetaUpper, bool supportOverlappingLines, bool furthestSegmentWins) {
+      private void InsertInternalInternal(IntLineSegment2 s, int sRangeId, cDouble insertionThetaLower, cDouble insertionThetaUpper, bool supportOverlappingLines, bool furthestSegmentWins) {
          // ReSharper disable once CompareOfFloatsByEqualityOperator
          if (insertionThetaLower == insertionThetaUpper) return;
 
@@ -129,7 +141,7 @@ namespace OpenMOBA.Geometry {
             //new IntervalRange[(splittableEndIndexInclusive - splittableBeginIndexInclusive + 1) + 2];
          var nSize = 0;
 
-         void EmitRange(int rangeId, ref IntLineSegment2 segment, double thetaStart, double thetaEnd) {
+         void EmitRange(int rangeId, ref IntLineSegment2 segment, cDouble thetaStart, cDouble thetaEnd) {
             if (thetaStart == thetaEnd) {
                return;
             }
@@ -142,7 +154,7 @@ namespace OpenMOBA.Geometry {
          }
 
          // near and far unioned must cover thetaUpper
-         void HandleNearFarSplit(IntervalRange nearRange, IntervalRange farRange, double thetaLower, double thetaUpper) {
+         void HandleNearFarSplit(IntervalRange nearRange, IntervalRange farRange, cDouble thetaLower, cDouble thetaUpper) {
             // case: near covers range
             if (nearRange.ThetaStart <= thetaLower && thetaUpper <= nearRange.ThetaEnd) {
                EmitRange(nearRange.Id, ref nearRange.Segment, thetaLower, thetaUpper);
@@ -209,11 +221,11 @@ namespace OpenMOBA.Geometry {
                // If shifted perpendicular to angle of intersection, then the near segment emerges.
                var thetaIntersect = FindXYRadiansRelativeToOrigin(intersection.X, intersection.Y);
                if (range.ThetaStart <= thetaIntersect && thetaIntersect <= range.ThetaEnd) {
-                  var directionToLower = DoubleVector2.FromRadiusAngle(1.0, thetaIntersect - PiDiv2);
+                  var directionToLower = DoubleVector2.FromRadiusAngle(CDoubleMath.c1, thetaIntersect - PiDiv2);
                   var vsxy = s.First.To(s.Second).ToDoubleVector2().ToUnit();
                   var vrsxy = rsxy.First.To(rsxy.Second).ToDoubleVector2().ToUnit();
-                  var lvsxy = vsxy.ProjectOntoComponentD(directionToLower) > 0 ? vsxy : -1.0 * vsxy;
-                  var lvrsxy = vrsxy.ProjectOntoComponentD(directionToLower) > 0 ? vrsxy : -1.0 * vrsxy;
+                  var lvsxy = vsxy.ProjectOntoComponentD(directionToLower) > CDoubleMath.c0 ? vsxy : CDoubleMath.cNeg1 * vsxy;
+                  var lvrsxy = vrsxy.ProjectOntoComponentD(directionToLower) > CDoubleMath.c0 ? vrsxy : CDoubleMath.cNeg1 * vrsxy;
                   var originToIntersect = _origin.To(intersection);
                   var clvsxy = lvsxy.ProjectOntoComponentD(originToIntersect);
                   var clvrsxy = lvrsxy.ProjectOntoComponentD(originToIntersect);
@@ -278,13 +290,14 @@ namespace OpenMOBA.Geometry {
          Array.Copy(_intervalRanges, 0, result, 0, nhead);
          Array.Copy(n, 0, result, nhead, nSize);
          Array.Copy(_intervalRanges, _intervalRanges.Length - ntail, result, nhead + nSize, ntail);
+         if (result[result.Length - 1].ThetaEnd != TwoPi) throw new InvalidStateException();
          _intervalRanges = result;
       }
 
       // inclusiveRangeStart: given insertion range r, its start is inclusive while its end is exclusive,
       // so if insertee start/end == split candidate range start, varying behavior.
-      private int FindOverlappingRangeIndex(double theta, int lowerInitInclusive, bool inclusiveRangeStart) {
-         if (theta == 0.0) {
+      private int FindOverlappingRangeIndex(cDouble theta, int lowerInitInclusive, bool inclusiveRangeStart) {
+         if (theta == CDoubleMath.c0) {
             Debug.Assert(inclusiveRangeStart);
             return 0;
          } else if (theta == TwoPi) {
@@ -313,44 +326,47 @@ namespace OpenMOBA.Geometry {
          throw new Exception("Impossible state - bad theta? " + theta);
       }
 
-      private bool IsRangeOverlap(double aStart, double aEnd, double bStart, double bEnd) {
+      private bool IsRangeOverlap(cDouble aStart, cDouble aEnd, cDouble bStart, cDouble bEnd) {
          return !(bEnd < aStart || aEnd < bStart);
       }
 
-      private double FindXYRadiansRelativeToOrigin(double x, double y) => FindXYRadiansRelativeToOrigin(_origin, x, y);
+      private cDouble FindXYRadiansRelativeToOrigin(cDouble x, cDouble y) => FindXYRadiansRelativeToOrigin(_origin, x, y);
 
       // from [0, 2pi)
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      private static double FindXYRadiansRelativeToOrigin(DoubleVector2 origin, double x, double y) {
+      private static cDouble FindXYRadiansRelativeToOrigin(DoubleVector2 origin, cDouble x, cDouble y) {
          var dx = x - origin.X;
          var dy = y - origin.Y;
          //         var r = Math.Atan2(dy, dx);
-         var r = FastAtan2(dy, dx);
 
+#if use_fixed
+         var r = CDoubleMath.Atan2(dy, dx);
+#else
+         var r = FastAtan2(dy, dx);
          //         Console.WriteLine(Math.Atan2(1.0, 0.0));
          //         Console.WriteLine(FastAtan2(1.0, 0.0));
-         //         while (true) ;
-         return r >= 0 ? r : r + TwoPi;
+#endif
+         return r >= CDoubleMath.c0 ? r : r + TwoPi;
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      private static double FindXYRadiansRelativeToOrigin(IntVector2 origin, double x, double y) {
-         var dx = x - origin.X;
-         var dy = y - origin.Y;
+      private static cDouble FindXYRadiansRelativeToOrigin(IntVector2 origin, cDouble x, cDouble y) {
+         var dx = x - (cDouble)origin.X;
+         var dy = y - (cDouble)origin.Y;
          //         var r = Math.Atan2(dy, dx);
          var r = FastAtan2(dy, dx);
 
          //         Console.WriteLine(Math.Atan2(1.0, 0.0));
          //         Console.WriteLine(FastAtan2(1.0, 0.0));
          //         while (true) ;
-         return r >= 0 ? r : r + TwoPi;
+         return r >= CDoubleMath.c0 ? r : r + TwoPi;
       }
 
       // https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      private static double FastAtan2(double y, double x) {
-         var ax = Math.Abs(x);
-         var ay = Math.Abs(y);
+      private static cDouble FastAtan2(cDouble y, cDouble x) {
+         var ax = CDoubleMath.Abs(x);
+         var ay = CDoubleMath.Abs(y);
 
          // a:= min(| x |, | y |) / max(| x |, | y |)
          var a = ax < ay ? (ax / ay) : (ay / ax);
@@ -359,26 +375,26 @@ namespace OpenMOBA.Geometry {
          var s = a * a;
 
          // r:= ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a
-         var r = ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;
+         var r = (((cDouble)(-0.0464964749) * s + (cDouble)0.15931422) * s - (cDouble)0.327622764) * s * a + a;
 
          // if | y | > | x | then r:= 1.57079637 - r
-         if (ay > ax) r = 1.57079637 - r;
+         if (ay > ax) r = (cDouble)1.57079637 - r;
 
          // if x < 0 then r := 3.14159274 - r
-         if (x < 0) r = 3.14159274 - r;
+         if (x < CDoubleMath.c0) r = (cDouble)3.14159274 - r;
 
          // if y < 0 then r := -r
-         if (y < 0) r = -r;
+         if (y < CDoubleMath.c0) r = -r;
 
          return r;
       }
 
       public IntervalRange[] Get() => _intervalRanges;
 
-      public IntervalRange Stab(IntVector2 reference) => Stab(FindXYRadiansRelativeToOrigin(reference.X, reference.Y));
-      public IntervalRange Stab(DoubleVector2 reference) => Stab(FindXYRadiansRelativeToOrigin(reference.X, reference.Y));
-      public IntervalRange Stab(double theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
-      public ref IntervalRange RefStab(double theta) => ref _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
+      public IntervalRange Stab(IntVector2 reference) => Stab(FindXYRadiansRelativeToOrigin((cDouble)reference.X, (cDouble)reference.Y));
+      public IntervalRange Stab(DoubleVector2 reference) => Stab(FindXYRadiansRelativeToOrigin((cDouble)reference.X, (cDouble)reference.Y));
+      public IntervalRange Stab(cDouble theta) => _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
+      public ref IntervalRange RefStab(cDouble theta) => ref _intervalRanges[FindOverlappingRangeIndex(theta, 0, true)];
 
       public (int startIndexInclusive, int endIndexInclusive)[] RangeStab(IntLineSegment2 s) {
          return RangeStab(new DoubleLineSegment2(s.First.ToDoubleVector2(), s.Second.ToDoubleVector2()));
@@ -391,11 +407,11 @@ namespace OpenMOBA.Geometry {
          var thetaLower = theta1 < theta2 ? theta1 : theta2;
          var thetaUpper = theta1 < theta2 ? theta2 : theta1;
 
-         if (Math.Abs(theta1 - theta2) > Math.PI) {
+         if (CDoubleMath.Abs(theta1 - theta2) > CDoubleMath.Pi) {
             // covered angle range wraps around through theta=0.
             return new [] {
-               RangeStabInternal(0.0, thetaLower),
-               RangeStabInternal(thetaUpper, TwoPi)
+               RangeStabInternal(CDoubleMath.c0, thetaLower),
+               RangeStabInternal(thetaUpper, CDoubleMath.TwoPi)
             };
          } else {
             return new[] {
@@ -404,7 +420,7 @@ namespace OpenMOBA.Geometry {
          }
       }
 
-      private (int, int) RangeStabInternal(double thetaLower, double thetaUpper) {
+      private (int, int) RangeStabInternal(cDouble thetaLower, cDouble thetaUpper) {
          if (thetaLower == thetaUpper) {
             var index = FindOverlappingRangeIndex(thetaLower, 0, true);
             return (index, index);
@@ -440,7 +456,7 @@ namespace OpenMOBA.Geometry {
 
       public bool Contains(IntVector2 p) {
          if (p.ToDoubleVector2() == _origin) return true;
-         var theta = FindXYRadiansRelativeToOrigin(p.X, p.Y);
+         var theta = FindXYRadiansRelativeToOrigin((cDouble)p.X, (cDouble)p.Y);
          ref var rangeAtTheta = ref RefStab(theta);
          if (rangeAtTheta.Id == RANGE_ID_INFINITELY_FAR) {
             return false;
@@ -457,7 +473,7 @@ namespace OpenMOBA.Geometry {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
-         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
+         return GeometryOperations.Clockness((cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
       }
 
       public VisibilityPolygon Clone() {
@@ -467,14 +483,14 @@ namespace OpenMOBA.Geometry {
       public struct IntervalRange {
          public int Id;
          public IntLineSegment2 Segment;
-         public double ThetaStart; // inclusive
-         public double ThetaEnd; // exclusive
+         public cDouble ThetaStart; // inclusive
+         public cDouble ThetaEnd; // exclusive
       }
       
       // IV2 origin variant doesn't have significant perf gains - overhead is largely in struct copying
       // and tree structure stuff.
       public static VisibilityPolygon Create(DoubleVector2 origin, IntLineSegment2[] barriers, int eventLimit = -1) {
-         var events = new (float, int, bool)[barriers.Length * 4];
+         var events = new (cDouble, int, bool)[barriers.Length * 4];
          var numEvents = 0;
 
          // Initialize PQ with events
@@ -482,14 +498,14 @@ namespace OpenMOBA.Geometry {
             var s = barriers[i];
 
             // front-face looks CCW to us
-            var clk = GeometryOperations.Clockness(origin.X, origin.Y, s.X1, s.Y1, s.X2, s.Y2);
+            var clk = GeometryOperations.Clockness(origin.X, origin.Y, (cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2);
             if (clk != Clockness.Clockwise) {
                continue;
             }
 
             var id = i;
-            var theta1 = (float)FindXYRadiansRelativeToOrigin(origin, s.X1, s.Y1);
-            var theta2 = (float)FindXYRadiansRelativeToOrigin(origin, s.X2, s.Y2);
+            var theta1 = (cDouble)FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X1, (cDouble)s.Y1);
+            var theta2 = (cDouble)FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X2, (cDouble)s.Y2);
 
             // Even though we check clockness above, thetas can be equal because of floating point error.
             // ReSharper disable once CompareOfFloatsByEqualityOperator
@@ -498,7 +514,7 @@ namespace OpenMOBA.Geometry {
             // ensure theta1 < theta2
             if (theta1 > theta2) (theta1, theta2) = (theta2, theta1);
 
-            void Enqueue((float, int, bool) item) {
+            void Enqueue((cDouble, int, bool) item) {
                // Console.WriteLine(
                //    "TASK " + item.Item1 + " " +
                //    (item.Item2 ? "ADD" : "REM") + " " +
@@ -509,15 +525,14 @@ namespace OpenMOBA.Geometry {
                numEvents++;
             }
 
-            if (theta2 - theta1 > Math.PI) {
-               if (theta1 > 0.0f) {
-                  Enqueue((0.0f, id, true));
+            if (theta2 - theta1 > CDoubleMath.Pi) {
+               if (theta1 > CDoubleMath.c0) {
+                  Enqueue((CDoubleMath.c0, id, true));
                   Enqueue((theta1, id, false));
                }
-               const float twopi = (float)(2 * Math.PI);
-               if (theta2 < twopi) {
+               if (theta2 < CDoubleMath.TwoPi) {
                   Enqueue((theta2, id, true));
-                  Enqueue((twopi, id, false));
+                  Enqueue((CDoubleMath.TwoPi, id, false));
                }
             } else {
                Enqueue((theta1, id, true));
@@ -541,7 +556,7 @@ namespace OpenMOBA.Geometry {
             temp[item.Item2] = item.Item3;
          }
 
-         var lastTheta = 0.0;
+         var lastTheta = CDoubleMath.c0;
          var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingIntSegmentOriginDistanceComparator.Compare(origin, a, b));
          int OrderedSegmentComparison(int a, int b) => OverlappingIntSegmentOriginDistanceComparator.Compare(ref origin, ref barriers[a], ref barriers[b]);
          var orderedSegmentComparer = Comparer<int>.Create(OrderedSegmentComparison);
@@ -603,12 +618,12 @@ namespace OpenMOBA.Geometry {
          }
 
          void ThrowInvalidState(IntLineSegment2 s) {
-            Console.WriteLine("@" + s + " with origin " + origin + " " + FindXYRadiansRelativeToOrigin(origin, s.X1, s.Y1) + " " + FindXYRadiansRelativeToOrigin(origin, s.X2, s.Y2));
+            Console.WriteLine("@" + s + " with origin " + origin + " " + FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X1, (cDouble)s.Y1) + " " + FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X2, (cDouble)s.Y2));
             foreach (var x in orderedSegments)
                Console.WriteLine(
                   "!!" + x + " " +
-                  FindXYRadiansRelativeToOrigin(origin, barriers[x].X1, barriers[x].Y1) + " " +
-                  FindXYRadiansRelativeToOrigin(origin, barriers[x].X2, barriers[x].Y2) + " " +
+                  FindXYRadiansRelativeToOrigin(origin, (cDouble)barriers[x].X1, (cDouble)barriers[x].Y1) + " " +
+                  FindXYRadiansRelativeToOrigin(origin, (cDouble)barriers[x].X2, (cDouble)barriers[x].Y2) + " " +
                   segmentComparer.Compare(s, barriers[x]) + " " + 
                   segmentComparer.Compare(barriers[x], s));
             if (DateTime.Now == default(DateTime))
@@ -621,6 +636,7 @@ namespace OpenMOBA.Geometry {
             if (i == eventLimit) break;
 
             var (theta, id, add) = events[eventIndices[i]];
+
             if (theta != lastTheta) {
                var nearestId = orderedSegments.Count == 0 ? RANGE_ID_INFINITELY_FAR : orderedSegments.Peek();
                if (lastOutputRangeIndex != -1 && outputRanges[lastOutputRangeIndex].Id == nearestId) {
@@ -655,10 +671,21 @@ namespace OpenMOBA.Geometry {
             }
          }
 
+         if (outputRanges[lastOutputRangeIndex].ThetaEnd < TwoPi) {
+            var start = outputRanges[lastOutputRangeIndex].ThetaEnd;
+            lastOutputRangeIndex++;
+            outputRanges[lastOutputRangeIndex] = new IntervalRange {
+               Id = RANGE_ID_INFINITELY_FAR,
+               Segment = default,
+               ThetaStart = start,
+               ThetaEnd = TwoPi
+            };
+         }
+
          var outputRangeCount = lastOutputRangeIndex + 1;
          var finalOutputRanges = new IntervalRange[outputRangeCount];
          Array.Copy(outputRanges, finalOutputRanges, outputRangeCount);
-
+         if (finalOutputRanges[finalOutputRanges.Length - 1].ThetaEnd != TwoPi) throw new InvalidStateException();
          return new VisibilityPolygon(origin, finalOutputRanges, segmentComparer);
       }
    }

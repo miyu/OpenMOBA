@@ -1,5 +1,11 @@
 using System.Collections.Generic;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Geometry {
    public class OverlappingIntSegmentOriginDistanceComparator : IComparer<IntLineSegment2> {
       private readonly DoubleVector2 _origin;
@@ -61,10 +67,10 @@ namespace OpenMOBA.Geometry {
 
       public static int Compare(ref DoubleVector2 p, ref IntLineSegment2 a, ref IntLineSegment2 b) {
 //#if DEBUG
-         if (GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2) != Clockness.Clockwise) {
+         if (GeometryOperations.Clockness(p.X, p.Y, (cDouble)a.X1, (cDouble)a.Y1, (cDouble)a.X2, (cDouble)a.Y2) != Clockness.Clockwise) {
             throw new InvalidStateException();
          }
-         if (GeometryOperations.Clockness(p.X, p.Y, b.X1, b.Y1, b.X2, b.Y2) != Clockness.Clockwise) {
+         if (GeometryOperations.Clockness(p.X, p.Y, (cDouble)b.X1, (cDouble)b.Y1, (cDouble)b.X2, (cDouble)b.Y2) != Clockness.Clockwise) {
             throw new InvalidStateException();
          }
 //         var clocknessPA1A2 = GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, a.X2, a.Y2);
@@ -84,7 +90,7 @@ namespace OpenMOBA.Geometry {
 //         }
 //#endif
 
-         var clk = GeometryOperations.Clockness(p.X, p.Y, a.X1, a.Y1, b.X1, b.Y1);
+         var clk = GeometryOperations.Clockness(p.X, p.Y, (cDouble)a.X1, (cDouble)a.Y1, (cDouble)b.X1, (cDouble)b.Y1);
          if (clk != Clockness.Clockwise) {
             // b before a; b \' a *origin
             var res = (int)GeometryOperations.Clockness(b.First, b.Second, a.First);

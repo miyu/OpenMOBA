@@ -10,6 +10,12 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.DevTool.Debugging {
    public static class CrossSectorVisibilityPolygonDebugDisplay {
       private static readonly FillStyle kDefaultFillStyle = new FillStyle(Color.FromArgb(130, 255, 255, 0));
@@ -45,7 +51,7 @@ namespace OpenMOBA.DevTool.Debugging {
             new[] {
                new VisibilityPolygon.IntervalRange {
                   Id = VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR,
-                  ThetaStart = 0,
+                  ThetaStart = CDoubleMath.c0,
                   ThetaEnd = VisibilityPolygon.TwoPi
                },
             });
@@ -109,10 +115,10 @@ namespace OpenMOBA.DevTool.Debugging {
 
                      var seg = ranges[i].Segment;
 
-                     var rstart = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaStart) * 100;
-                     var rend = DoubleVector2.FromRadiusAngle(100, ranges[i].ThetaEnd) * 100;
+                     var rstart = DoubleVector2.FromRadiusAngle(CDoubleMath.c100, ranges[i].ThetaStart) * 100;
+                     var rend = DoubleVector2.FromRadiusAngle(CDoubleMath.c100, ranges[i].ThetaEnd) * 100;
 
-                     double visibleStartT, visibleEndT;
+                     cDouble visibleStartT, visibleEndT;
                      if (!GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rstart, out visibleStartT) ||
                          !GeometryOperations.TryFindNonoverlappingLineLineIntersectionT(localCrossoverSegment.First.ToDoubleVector2(), localCrossoverSegment.Second.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2(), visibilityPolygonOrigin.ToDoubleVector2() + rend, out visibleEndT)) {
                         // wtf?
@@ -122,16 +128,16 @@ namespace OpenMOBA.DevTool.Debugging {
 
                      // Todo: I don't actually understand why visibleEndT > 1 is a thing?
                      // t values are for parameterization of crossover line segment, so must be within [0, 1]
-                     if ((visibleStartT < 0 && visibleEndT < 0) || (visibleStartT > 1 && visibleEndT > 1)) continue;
-                     visibleStartT = Math.Min(1.0, Math.Max(0.0, visibleStartT));
-                     visibleEndT = Math.Min(1.0, Math.Max(0.0, visibleEndT));
+                     if ((visibleStartT < CDoubleMath.c0 && visibleEndT < CDoubleMath.c0) || (visibleStartT > CDoubleMath.c1 && visibleEndT > CDoubleMath.c1)) continue;
+                     visibleStartT = CDoubleMath.Min(CDoubleMath.c1, CDoubleMath.Max(CDoubleMath.c0, visibleStartT));
+                     visibleEndT = CDoubleMath.Min(CDoubleMath.c1, CDoubleMath.Max(CDoubleMath.c0, visibleEndT));
 
                      if (visibilityPolygon.SegmentComparer.Compare(localCrossoverSegment, seg) < 0) {
                         var localVisibleStart = localCrossoverSegment.PointAt(visibleStartT).LossyToIntVector2();
                         var localVisibleEnd = localCrossoverSegment.PointAt(visibleEndT).LossyToIntVector2();
 
-                        var remoteVisibleStart = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleStartT : 1.0 - visibleStartT).LossyToIntVector2();
-                        var remoteVisibleEnd = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleEndT : 1.0 - visibleEndT).LossyToIntVector2();
+                        var remoteVisibleStart = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleStartT : CDoubleMath.c1 - visibleStartT).LossyToIntVector2();
+                        var remoteVisibleEnd = remoteCrossoverSegment.PointAt(lcsFlipped == rcsFlipped ? visibleEndT : CDoubleMath.c1 - visibleEndT).LossyToIntVector2();
 
                         if (localVisibleStart == localVisibleEnd) continue;
                         if (remoteVisibleStart == remoteVisibleEnd) continue;

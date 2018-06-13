@@ -41,13 +41,13 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
 
       public static bool Contains(this TerrainOverlayNetworkNode node, IntVector3 world, out DoubleVector3 local) {
          local = node.SectorNodeDescription.WorldToLocal(world);
-         return Math.Abs(local.Z) <= 1E-3f &&
+         return CDoubleMath.Abs(local.Z) <= CDoubleMath.c0_001 &&
                 node.LandPolyNode.PointInLandPolygonNonrecursive(local.XY.LossyToIntVector2());
       }
 
       public static bool Contains(this TerrainOverlayNetworkNode node, DoubleVector3 world, out DoubleVector3 local) {
          local = node.SectorNodeDescription.WorldToLocal(world);
-         return Math.Abs(local.Z) <= 1E-3f &&
+         return CDoubleMath.Abs(local.Z) <= CDoubleMath.c0_001 &&
                 node.LandPolyNode.PointInLandPolygonNonrecursive(local.XY.LossyToIntVector2());
       }
 

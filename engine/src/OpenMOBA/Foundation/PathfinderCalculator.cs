@@ -10,6 +10,12 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation {
    public class PathfinderCalculator {
       private readonly StatsCalculator statsCalculator;
@@ -20,7 +26,7 @@ namespace OpenMOBA.Foundation {
          this.statsCalculator = statsCalculator;
       }
 
-      public bool IsDestinationReachable(double holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld) {
+      public bool IsDestinationReachable(cDouble holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld) {
          var snapshot = terrainService.CompileSnapshot();
          var overlayNetwork = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
 
@@ -48,7 +54,7 @@ namespace OpenMOBA.Foundation {
          return Visit(sourceNode);
       }
 
-      public bool TryFindPath(double agentRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap, IDebugCanvas debugCanvas = null) {
+      public bool TryFindPath(cDouble agentRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap, IDebugCanvas debugCanvas = null) {
          roadmap = null;
          var terrainSnapshot = terrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
@@ -84,7 +90,7 @@ namespace OpenMOBA.Foundation {
             var destinationVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(destinationPoint, null, out var destinationVisibleWaypointLinksLength, out var destinationOptimalLinkToWaypoints);
 
             var bestFirstWaypoint = -1;
-            var bestFirstWaypointCost = double.PositiveInfinity;
+            var bestFirstWaypointCost = cDouble.MaxValue;
             for (var i = 0; i < sourceVisibleWaypointLinksLength; i++) {
                var link = sourceVisibleWaypointLinks[i];
                var firstWaypoint = link.PriorIndex;
@@ -110,9 +116,9 @@ namespace OpenMOBA.Foundation {
          var (_, _, _, sourceOptimalLinkToCrossovers) = sourceNode.CrossoverPointManager.FindOptimalLinksToCrossovers(sourcePoint);
          var (_, _, _, destinationOptimalLinkToCrossovers) = destinationNode.CrossoverPointManager.FindOptimalLinksToCrossovers(destinationPoint);
 
-         var q = new PriorityQueue<ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge>>((a, b) => a.Item1.CompareTo(b.Item1));
-         var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
-         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>(); // visited
+         var q = new PriorityQueue<ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge>>((a, b) => a.Item1.CompareTo(b.Item1));
+         var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), cDouble>();
+         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)>(); // visited
 
          foreach (var kvp in sourceNode.OutboundEdgeGroups) {
             foreach (var g in kvp.Value) {
@@ -132,13 +138,14 @@ namespace OpenMOBA.Foundation {
 
          var destinationWorld = Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), destinationNode.SectorNodeDescription.WorldTransform);
 
-         float ComputeHeuristic(TerrainOverlayNetworkNode n, int cpi) {
+         // TODO: Determinism
+         cDouble ComputeHeuristic(TerrainOverlayNetworkNode n, int cpi) {
             var cp = n.CrossoverPointManager.CrossoverPoints[cpi];
             var cpw = Vector3.Transform(new Vector3(cp.X, cp.Y, 0), n.SectorNodeDescription.WorldTransform);
-            return Vector3.Distance(destinationWorld, cpw) * 1.0f;
+            return (cDouble)Vector3.Distance(destinationWorld, cpw) * (cDouble)1;
          }
 
-         void DrawPqItem(ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> item, StrokeStyle strokeStyle) {
+         void DrawPqItem(ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> item, StrokeStyle strokeStyle) {
             var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = item;
             DebugDrawLine(
                debugCanvas,
@@ -194,14 +201,14 @@ namespace OpenMOBA.Foundation {
                   var link = linksToOtherCpis[cpi];
                   var scost = ncost + link.TotalCost * ndstnode.SectorNodeDescription.LocalToWorldScalingFactor;
                   var sprior = scost + ComputeHeuristic(ndstnode, cpi);
-                  Trace.Assert(link.TotalCost >= 0);
+                  Trace.Assert(link.TotalCost >= CDoubleMath.c0);
 
-                  if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out float scostub) && scostub <= scost) {
+                  if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out cDouble scostub) && scostub <= scost) {
                      continue;
                   }
                   priorityUpperBounds[(ndstnode, cpi)] = scost;
 
-                  ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null);
+                  ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null);
                   q.Enqueue(nitem);
                   enqueueCount++;
                   DrawPqItem(nitem, StrokeStyle.LimeHairLineSolid);
@@ -217,15 +224,15 @@ namespace OpenMOBA.Foundation {
                      foreach (var edge in g.Edges) {
                         if (edge.SourceCrossoverIndex == ndstcpi) {
 //                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != g.Destination));
-                           var scost = ncost + edge.Cost; // no need for scaling factor
+                           var scost = ncost + (cDouble)edge.Cost; // no need for scaling factor
                            var sprior = scost + ComputeHeuristic(g.Destination, edge.DestinationCrossoverIndex);
                            Trace.Assert(edge.Cost >= 0);
 
-                           if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out float scostub) && scostub <= scost) {
+                           if (priorityUpperBounds.TryGetValue((g.Destination, edge.DestinationCrossoverIndex), out var scostub) && scostub <= scost) {
                               continue;
                            }
                            priorityUpperBounds[(g.Destination, edge.DestinationCrossoverIndex)] = scost;
-                           ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge);
+                           ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, g.Destination, edge.DestinationCrossoverIndex, edge);
                            q.Enqueue(nitem);
                            enqueueCount++;
                            DrawPqItem(nitem, StrokeStyle.MagentaHairLineSolid);
@@ -238,11 +245,11 @@ namespace OpenMOBA.Foundation {
             // expansion to terminal if current node is destination node
             if (ndstnode == destinationNode) {
                var link = destinationOptimalLinkToCrossovers[ndstcpi];
-               Trace.Assert(link.TotalCost >= 0);
+               Trace.Assert(link.TotalCost >= CDoubleMath.c0);
 
                var scost = ncost + link.TotalCost * destinationNode.SectorNodeDescription.LocalToWorldScalingFactor;
-               var sprior = scost + 0;
-               ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null);
+               var sprior = scost + CDoubleMath.c0;
+               ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, destinationNode, DESTINATION_POINT_CPI, null);
                q.Enqueue(nitem);
                enqueueCount++;
                DrawPqItem(nitem, StrokeStyle.CyanHairLineSolid);
@@ -266,7 +273,7 @@ namespace OpenMOBA.Foundation {
       public static bool TryBacktrack(
          TerrainOverlayNetworkNode sourceNode, IntVector2 sourcePoint,
          TerrainOverlayNetworkNode destinationNode, IntVector2 destinationPoint,
-         Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessor,
+         Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)> predecessor,
          int DESTINATION_POINT_CPI,
          ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers,
          ExposedArrayList<PathLink> destinationOptimalLinkToCrossovers,
@@ -278,8 +285,8 @@ namespace OpenMOBA.Foundation {
          }
 
          // build high-level plan of path
-         var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>();
-         var cur = (destinationNode, DESTINATION_POINT_CPI, (TerrainOverlayNetworkEdge)null, 0.0f);
+         var path = new List<(TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)>();
+         var cur = (destinationNode, DESTINATION_POINT_CPI, (TerrainOverlayNetworkEdge)null, CDoubleMath.c0);
          while (predecessor.TryGetValue((cur.Item1, cur.Item2), out var pred)) {
             path.Add(cur);
             var (psrcnode, psrccpi, pedge, psrcCpiTotalCost) = pred;
@@ -307,8 +314,13 @@ namespace OpenMOBA.Foundation {
                   var sourceVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(sourcePoint, null, out var sourceVisibleWaypointLinksLength, out var sourceOptimalLinkToWaypoints);
                   var destinationVisibleWaypointLinks = sourceNode.CrossoverPointManager.FindVisibleWaypointLinks(destinationPoint, null, out var destinationVisibleWaypointLinksLength, out var destinationOptimalLinkToWaypoints);
 
+                  if (sourceVisibleWaypointLinksLength == 0 || destinationVisibleWaypointLinksLength == 0) {
+                     roadmap = null;
+                     return false;
+                  }
+
                   var bestFirstWaypoint = -1;
-                  var bestFirstWaypointCost = double.PositiveInfinity;
+                  var bestFirstWaypointCost = cDouble.MaxValue;
                   for (var j = 0; j < sourceVisibleWaypointLinksLength; j++) {
                      var link = sourceVisibleWaypointLinks[j];
                      var firstWaypoint = link.PriorIndex;
@@ -371,7 +383,7 @@ namespace OpenMOBA.Foundation {
          return true;
       }
 
-      public PathfinderResultContext UniformCostSearch(double agentRadius, DoubleVector3 sourceWorld, DoubleVector3[] destinationWorlds, bool followEdgesReversed, PathfinderResultContext pathfinderResultContext = null, IDebugCanvas debugCanvas = null) {
+      public PathfinderResultContext UniformCostSearch(cDouble agentRadius, DoubleVector3 sourceWorld, DoubleVector3[] destinationWorlds, bool followEdgesReversed, PathfinderResultContext pathfinderResultContext = null, IDebugCanvas debugCanvas = null) {
          var terrainSnapshot = terrainService.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode, out var pSourceLocal)) return null;
@@ -412,7 +424,7 @@ namespace OpenMOBA.Foundation {
          }
 
          // predecessor, but in the sense that we're 
-         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>(); // visited
+         var predecessor = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)>(); // visited
 
          var isDestinationVisited = new bool[destinations.Length];
          var isDestinationDirectPath = new bool[destinations.Length];
@@ -449,8 +461,8 @@ namespace OpenMOBA.Foundation {
             destinationWorldByDestinationIndex[destinationIndex] = Vector3.Transform(new Vector3(destinationPoint.X, destinationPoint.Y, 0), destinationNode.SectorNodeDescription.WorldTransform);
          }
 
-         var q = new PriorityQueue<ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge>>((a, b) => a.Item1.CompareTo(b.Item1));
-         var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), float>();
+         var q = new PriorityQueue<ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge>>((a, b) => a.Item1.CompareTo(b.Item1));
+         var priorityUpperBounds = new Dictionary<(TerrainOverlayNetworkNode, int), cDouble>();
 
          // populate q with initial expansion from start node (even if reusing prior work)
          foreach (var kvp in PickTraversedEdgeGroups(sourceNode)) {
@@ -481,7 +493,7 @@ namespace OpenMOBA.Foundation {
 
                // our keys will be prior-visited (and therefore cost-weighted) nodes.
                // look at all neighbors, then if unvisited, add to our fringe.
-               priorityUpperBounds[cur] = predInfo.Item4 * 1.001f;
+               priorityUpperBounds[cur] = predInfo.Item4 * (cDouble)1.001f;
             }
          }
 
@@ -489,14 +501,15 @@ namespace OpenMOBA.Foundation {
          int dequeueCount = 0;
          bool terminalEnqueued = false;
 
-         float ComputeHeuristic(TerrainOverlayNetworkNode n, int cpi) {
-            return 0;
+         // TODO: Determinism
+         cDouble ComputeHeuristic(TerrainOverlayNetworkNode n, int cpi) {
+            return (cDouble)0;
 //            var cp = n.CrossoverPointManager.CrossoverPoints[cpi];
 //            var cpw = Vector3.Transform(new Vector3(cp.X, cp.Y, 0), n.SectorNodeDescription.WorldTransform);
 //            return Vector3.Distance(destinationWorld, cpw) * 1.0f;
          }
 
-         void DrawPqItem(ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> item, StrokeStyle strokeStyle) {
+         void DrawPqItem(ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> item, StrokeStyle strokeStyle) {
             var (_, ncost, nsrcnode, nsrccpi, ndstnode, ndstcpi, nedge) = item;
             DebugDrawLine(
                debugCanvas,
@@ -543,14 +556,14 @@ namespace OpenMOBA.Foundation {
                   var link = linksToOtherCpis[cpi];
                   var scost = ncost + link.TotalCost * ndstnode.SectorNodeDescription.LocalToWorldScalingFactor;
                   var sprior = scost + ComputeHeuristic(ndstnode, cpi);
-                  Trace.Assert(link.TotalCost >= 0);
+                  Trace.Assert(link.TotalCost >= CDoubleMath.c0);
 
-                  if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out float scostub) && scostub <= scost) {
+                  if (priorityUpperBounds.TryGetValue((ndstnode, cpi), out var scostub) && scostub <= scost) {
                      continue;
                   }
                   priorityUpperBounds[(ndstnode, cpi)] = scost;
 
-                  ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null);
+                  ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, ndstnode, cpi, null);
                   q.Enqueue(nitem);
                   enqueueCount++;
                   DrawPqItem(nitem, StrokeStyle.LimeHairLineSolid);
@@ -566,15 +579,15 @@ namespace OpenMOBA.Foundation {
                      foreach (var edge in g.Edges) {
                         if (PickFromCpi__(edge) == ndstcpi) {
                            //                           Console.WriteLine("OEG: " + edge + " to " + (ndstnode != PickEdgeGroupTo(g)));
-                           var scost = ncost + edge.Cost; // no need for scaling factor
+                           var scost = ncost + (cDouble)edge.Cost; // no need for scaling factor
                            var sprior = scost + ComputeHeuristic(PickEdgeGroupTo(g), PickToCpi__(edge));
                            Trace.Assert(edge.Cost >= 0);
 
-                           if (priorityUpperBounds.TryGetValue((PickEdgeGroupTo(g), PickToCpi__(edge)), out float scostub) && scostub <= scost) {
+                           if (priorityUpperBounds.TryGetValue((PickEdgeGroupTo(g), PickToCpi__(edge)), out var scostub) && scostub <= scost) {
                               continue;
                            }
                            priorityUpperBounds[(PickEdgeGroupTo(g), PickToCpi__(edge))] = scost;
-                           ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, PickEdgeGroupTo(g), PickToCpi__(edge), edge);
+                           ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, PickEdgeGroupTo(g), PickToCpi__(edge), edge);
                            q.Enqueue(nitem);
                            enqueueCount++;
                            DrawPqItem(nitem, StrokeStyle.MagentaHairLineSolid);
@@ -592,11 +605,11 @@ namespace OpenMOBA.Foundation {
                if (ndstnode == destinationNode) {
                   var destinationOptimalLinkToCrossovers = destinationOptimalLinkToCrossoversByDestinationIndex[destinationIndex];
                   var link = destinationOptimalLinkToCrossovers[ndstcpi];
-                  Trace.Assert(link.TotalCost >= 0);
+                  Trace.Assert(link.TotalCost >= CDoubleMath.c0);
 
                   var scost = ncost + link.TotalCost * destinationNode.SectorNodeDescription.LocalToWorldScalingFactor;
-                  var sprior = scost + 0;
-                  ValueTuple<float, float, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, destinationNode, ComputeDestinationIndexCpi(destinationIndex), null);
+                  var sprior = scost + CDoubleMath.c0;
+                  ValueTuple<cDouble, cDouble, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge> nitem = (sprior, scost, ndstnode, ndstcpi, destinationNode, ComputeDestinationIndexCpi(destinationIndex), null);
                   q.Enqueue(nitem);
                   enqueueCount++;
                   DrawPqItem(nitem, StrokeStyle.CyanHairLineSolid);

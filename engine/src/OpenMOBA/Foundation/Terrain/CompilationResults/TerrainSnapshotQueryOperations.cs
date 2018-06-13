@@ -3,6 +3,13 @@ using ClipperLib;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
+
 namespace OpenMOBA.Foundation.Terrain.CompilationResults {
    public static class TerrainQueryOperations {
       // public static bool TryFindSector(this TerrainSnapshot terrainSnapshot, IntVector3 queryWorld, out SectorSnapshot result) {
@@ -52,7 +59,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults {
          // Else, two cases to consider: nearest point is on an island inside this hole, alternatively
          // and (only if the hole has a contour), nearest point is on the hole contour.
          nearestLandPoint = DoubleVector2.Zero;
-         double bestDistance = double.PositiveInfinity;
+         var bestDistance = cDouble.MaxValue;
          if (pickedNode.Contour.Any()) {
             // the hole has a contour; that is, it's a hole inside of a landmass
             var result = GeometryOperations.FindNearestPointOnContour(pickedNode.Contour, query);

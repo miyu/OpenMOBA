@@ -10,6 +10,12 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation {
    using EntityNodeIslandAndTriangleIndex = ValueTuple<Entity, TerrainOverlayNetworkNode, TriangulationIsland, int>;
 
@@ -79,11 +85,11 @@ namespace OpenMOBA.Foundation {
          movementComponent.WorldPosition = PushToLand(movementComponent.WorldPosition, computedRadius);
       }
 
-      private DoubleVector3 PushToLand(DoubleVector3 pWorld, double computedRadius) {
+      private DoubleVector3 PushToLand(DoubleVector3 pWorld, cDouble computedRadius) {
          var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
          var terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(paddedHoleDilationRadius);
 //         Console.WriteLine("PHDR: " + paddedHoleDilationRadius);
-         var bestWorldDistance = double.PositiveInfinity;
+         var bestWorldDistance = cDouble.MaxValue;
          var bestWorld = DoubleVector3.Zero;
          foreach (var terrainOverlayNode in terrainOverlayNetwork.TerrainNodes) {
             var pLocal = (DoubleVector2)terrainOverlayNode.SectorNodeDescription.WorldToLocal(pWorld);
@@ -122,14 +128,14 @@ namespace OpenMOBA.Foundation {
          }
 
          var prior = new int[island.Triangles.Length];
-         var costUpperBounds = new double[island.Triangles.Length];
+         var costUpperBounds = new cDouble[island.Triangles.Length];
          for (var i = 0; i < island.Triangles.Length; i++) {
             prior[i] = Triangle3.NO_NEIGHBOR_INDEX;
-            costUpperBounds[i] = double.PositiveInfinity;
+            costUpperBounds[i] = cDouble.MaxValue;
          }
 
-         var q = new PriorityQueue<(double, int, int)>((a, b) => a.Item1.CompareTo(b.Item1));
-         q.Enqueue((0.0, rootTriangleIndex, -1));
+         var q = new PriorityQueue<(cDouble, int, int)>((a, b) => a.Item1.CompareTo(b.Item1));
+         q.Enqueue((CDoubleMath.c0, rootTriangleIndex, -1));
          while (q.Count > 0) {
             var (ticost, ticur, tiprev) = q.Dequeue();
             if (prior[ticur] != -1) continue;
@@ -181,12 +187,12 @@ namespace OpenMOBA.Foundation {
 
          // 5. Aggregate entity force contributions
          foreach (var mc in movementComponents) {
-            double ks = 2000;
+            cDouble ks = (cDouble)2000;
             mc.WeightedSumNBodyForces += mc.SeekingWeightedSumNBodyForces * ks; // is normalized
             mc.SumWeightsNBodyForces += ks;
 
-            if (mc.AlignmentSumWeightsNBodyForces > 0) {
-               double kc = 1500;
+            if (mc.AlignmentSumWeightsNBodyForces > CDoubleMath.c0) {
+               cDouble kc = (cDouble)1500;
                mc.WeightedSumNBodyForces += (mc.AlignmentWeightedSumNBodyForces / mc.AlignmentSumWeightsNBodyForces) * kc;
                mc.SumWeightsNBodyForces += kc;
             }
@@ -215,23 +221,23 @@ namespace OpenMOBA.Foundation {
             for (var i = 0; i < movementComponents1.Length; i++) {
                var e = entities1[i];
                var mc = movementComponents1[i];
-               mc.ComputedRadius = (int)Math.Ceiling(statsCalculator.ComputeCharacterRadius(e));
-               mc.ComputedSpeed = (int)Math.Ceiling(statsCalculator.ComputeMovementSpeed(e));
+               mc.ComputedRadius = (int)CDoubleMath.Ceiling(statsCalculator.ComputeCharacterRadius(e));
+               mc.ComputedSpeed = (int)CDoubleMath.Ceiling(statsCalculator.ComputeMovementSpeed(e));
 
                mc.LastSeekingWeightedSumNBodyForces = mc.SeekingWeightedSumNBodyForces;
                mc.LastSeekingSumWeightsNBodyForces = mc.SeekingSumWeightsNBodyForces;
 
                mc.SeekingWeightedSumNBodyForces = DoubleVector2.Zero;
-               mc.SeekingSumWeightsNBodyForces = 0;
+               mc.SeekingSumWeightsNBodyForces = CDoubleMath.c0;
 
                mc.AlignmentWeightedSumNBodyForces = DoubleVector2.Zero;
-               mc.AlignmentSumWeightsNBodyForces = 0;
+               mc.AlignmentSumWeightsNBodyForces = CDoubleMath.c0;
 
                mc.LastWeightedSumNBodyForces = mc.WeightedSumNBodyForces;
                mc.LastSumWeightsNBodyForces = mc.SumWeightsNBodyForces;
 
                mc.WeightedSumNBodyForces = DoubleVector2.Zero;
-               mc.SumWeightsNBodyForces = 0;
+               mc.SumWeightsNBodyForces = CDoubleMath.c0;
             }
          }
       }
@@ -240,7 +246,7 @@ namespace OpenMOBA.Foundation {
          var terrainOverlayNetworkNodes = new HashSet<TerrainOverlayNetworkNode>();
          var nodeIslandAndTriangleIndexesBySwarmAndComputedRadius = MultiValueDictionary<(Swarm, int), EntityNodeIslandAndTriangleIndex>.Create(() => new List<EntityNodeIslandAndTriangleIndex>());
          foreach (var e in entities) {
-            var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(e.MovementComponent.ComputedRadius);
+            var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)e.MovementComponent.ComputedRadius);
             FindOrFixEntityTerrainNodeAndTriangle(e, out terrainOverlayNetwork, out var terrainOverlayNetworkNode, out var localPosition, out var island, out var triangleIndex);
 
             e.MovementComponent.TerrainOverlayNetwork = terrainOverlayNetwork;
@@ -266,7 +272,7 @@ namespace OpenMOBA.Foundation {
          var swarmAndRadiusToEntityTriangleCentroidPaths = new Dictionary<(Swarm swarm, int computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)>();
 
          foreach (var ((swarm, computedRadius), entityNodeAndTriangleIndexes) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
-            var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(computedRadius);
+            var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)computedRadius);
             if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(swarm.Destination, out var destinationNode, out var destinationLocal)) {
                continue;
             }
@@ -309,13 +315,13 @@ namespace OpenMOBA.Foundation {
                   Trace.Assert(action.Node == entityTerrainOverlayNode);
 
                   // HACK:
-                  if ((mc.WorldPosition - mc.Swarm.Destination).Norm2D() < 5) {
+                  if ((mc.WorldPosition - mc.Swarm.Destination).Norm2D() < CDoubleMath.c5) {
                      mc.GoalReached = true;
                   }
 
                   // path-following vector is from destination to source because our multi-pathfind goes from destination to source.
                   var v = action.Destination.To(action.Source).ToDoubleVector2().ToUnit();
-                  var w = 1.0;
+                  var w = CDoubleMath.c1;
                   mc.SeekingWeightedSumNBodyForces += v * w;
                   mc.SeekingSumWeightsNBodyForces += w;
                }
@@ -345,24 +351,24 @@ namespace OpenMOBA.Foundation {
 
                   var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid).ToUnit();
 
-                  const double mul = 0.8;
+                  cDouble mul = CDoubleMath.c0_8;
                   mc.SeekingWeightedSumNBodyForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
                   mc.SeekingSumWeightsNBodyForces += mul;
                }
             }
 
             // Normalize seek forces now that we've done centroid path-follow and optimal heuristics.
-            if (mc.SumWeightsNBodyForces > 0) {
+            if (mc.SumWeightsNBodyForces > CDoubleMath.c0) {
                mc.SeekingWeightedSumNBodyForces = mc.WeightedSumNBodyForces.ToUnit();
-               mc.SeekingSumWeightsNBodyForces = 1.0;
+               mc.SeekingSumWeightsNBodyForces = CDoubleMath.c1;
             }
 
-            double k = Math.Min(gameTimeService.Ticks, 19.0);
+            cDouble k = (cDouble)Math.Min(gameTimeService.Ticks, 19);
             mc.SeekingWeightedSumNBodyForces += mc.LastSeekingWeightedSumNBodyForces * k;
             mc.SeekingSumWeightsNBodyForces += mc.LastSeekingSumWeightsNBodyForces * k;
 
-            mc.SeekingWeightedSumNBodyForces /= k + 1;
-            mc.SeekingSumWeightsNBodyForces /= k + 1;
+            mc.SeekingWeightedSumNBodyForces /= k + CDoubleMath.c1;
+            mc.SeekingSumWeightsNBodyForces /= k + CDoubleMath.c1;
          }
       }
 
@@ -374,7 +380,7 @@ namespace OpenMOBA.Foundation {
                var b = movementComponents[j];
                var aToB = b.LocalPositionIv2 - a.LocalPositionIv2;
 
-               var radiusSum = (int)((aRadius + b.ComputedRadius) * a.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor);
+               var radiusSum = (int)((cDouble)(aRadius + b.ComputedRadius) * a.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor);
                var radiusSumSquared = radiusSum * radiusSum;
                var centerDistanceSquared = aToB.SquaredNorm2();
 
@@ -382,7 +388,7 @@ namespace OpenMOBA.Foundation {
                // (In the future rather than "in same swarm" probably want "allied".
                var isOverlapping = centerDistanceSquared < radiusSumSquared;
 
-               double w; // where 1 means equal in weight to isolated-unit pather
+               cDouble w; // where 1 means equal in weight to isolated-unit pather
                IntVector2 aForce;
                if (isOverlapping) {
                   // Case: Overlapping, may or may not be in same swarm.
@@ -393,9 +399,9 @@ namespace OpenMOBA.Foundation {
                   // k impacts how quickly overlapping overwhelms seeking.
                   // k = 1: When fully overlapping
                   // k = 2: When half overlapped.
-                  const int k = 350;
-                  var centerDistance = (int)Math.Sqrt(centerDistanceSquared);
-                  w = (float)k * k * (1.0 - Math.Pow(centerDistance / (double)radiusSum, 0.3)); // / (double)radiusSumSquared;
+                  cDouble k = (cDouble)350;
+                  var centerDistance = CDoubleMath.Sqrt((cDouble)centerDistanceSquared);
+                  w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow(centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   // And the force vector (outer code will tounit this)
@@ -413,17 +419,17 @@ namespace OpenMOBA.Foundation {
                      continue;
 
                   // regroup (aka cohesion) = ((D - d) / D)^4 
-                  w = 10 * (double)Math.Pow((maxAttractionDistance - spacingBetweenBoundaries) / (float)maxAttractionDistance, 0.5);
+                  w = CDoubleMath.c10 * CDoubleMath.Pow((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance, CDoubleMath.c0_5);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   aForce = aToB;
 
                   // alignment
-                  a.AlignmentWeightedSumNBodyForces += b.LastSeekingWeightedSumNBodyForces * 0.01;
-                  a.AlignmentSumWeightsNBodyForces += b.LastSeekingSumWeightsNBodyForces * 0.01;
+                  a.AlignmentWeightedSumNBodyForces += b.LastSeekingWeightedSumNBodyForces * CDoubleMath.c0_01;
+                  a.AlignmentSumWeightsNBodyForces += b.LastSeekingSumWeightsNBodyForces * CDoubleMath.c0_01;
 
-                  b.AlignmentWeightedSumNBodyForces += a.LastSeekingWeightedSumNBodyForces * 0.01;
-                  b.AlignmentSumWeightsNBodyForces += a.LastSeekingSumWeightsNBodyForces * 0.01;
+                  b.AlignmentWeightedSumNBodyForces += a.LastSeekingWeightedSumNBodyForces * CDoubleMath.c0_01;
+                  b.AlignmentSumWeightsNBodyForces += a.LastSeekingSumWeightsNBodyForces * CDoubleMath.c0_01;
                } else {
                   // todo: experiment with continue vs zero-weight for no failed branch prediction
                   // (this is pretty pipeliney code)
@@ -435,8 +441,8 @@ namespace OpenMOBA.Foundation {
                Debug.Assert(GeometryOperations.IsReal(wf));
                Debug.Assert(GeometryOperations.IsReal(w));
 
-               a.WeightedSumNBodyForces += wf * 0.95;
-               a.SumWeightsNBodyForces += w * 0.95;
+               a.WeightedSumNBodyForces += wf * (cDouble)0.95;
+               a.SumWeightsNBodyForces += w * (cDouble)0.95;
 
                b.WeightedSumNBodyForces -= wf;
                b.SumWeightsNBodyForces += w;
@@ -446,7 +452,7 @@ namespace OpenMOBA.Foundation {
 
       private void FindOrFixEntityTerrainNodeAndTriangle(Entity e, out TerrainOverlayNetwork terrainOverlayNetwork, out TerrainOverlayNetworkNode terrainOverlayNetworkNode, out DoubleVector3 localPosition, out TriangulationIsland island, out int triangleIndex) {
          var mc = e.MovementComponent;
-         terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(mc.ComputedRadius);
+         terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)mc.ComputedRadius);
 
          for (var i = 0; i < 2; i++) {
             // which terrain overlay node are we on?
@@ -456,6 +462,7 @@ namespace OpenMOBA.Foundation {
             }
 
             // Additionally determine which triangle entity is sitting on in LGV triangulation.
+            // TODO: Determinism
             if (!terrainOverlayNetworkNode.LocalGeometryView.Triangulation.TryIntersect(
                localPosition.X, localPosition.Y,
                out island, out triangleIndex)) {
@@ -478,13 +485,13 @@ namespace OpenMOBA.Foundation {
          var worldDistanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;
          var plan = movementComponent.PathingRoadmap.Plan;
 
-         while (worldDistanceRemaining > 0 && movementComponent.PathingRoadmapProgressIndex < plan.Count) {
+         while (worldDistanceRemaining > CDoubleMath.c0 && movementComponent.PathingRoadmapProgressIndex < plan.Count) {
             var action = plan[movementComponent.PathingRoadmapProgressIndex];
             switch (action) {
                case MotionRoadmapWalkAction wa:
                   var currentSectorLocalPositionDotNet = Vector3.Transform(movementComponent.WorldPosition.ToDotNetVector(), wa.Node.SectorNodeDescription.WorldTransformInv).ToOpenMobaVector();
                   var currentSectorLocalPosition = new DoubleVector2(currentSectorLocalPositionDotNet.X, currentSectorLocalPositionDotNet.Y);
-                  Trace.Assert(Math.Abs(currentSectorLocalPositionDotNet.Z) < 1E-3);
+                  Trace.Assert(CDoubleMath.Abs(currentSectorLocalPositionDotNet.Z) < (cDouble)1E-3);
 
                   // vect from position to next pathing breadcrumb (in local space)
                   // todo: set lookat
@@ -495,13 +502,13 @@ namespace OpenMOBA.Foundation {
                   var worldDistance = localDistance * wa.Node.SectorNodeDescription.LocalToWorldScalingFactor;
 
                   DoubleVector2 nextSectorLocalPosition;
-                  if (worldDistance <= float.Epsilon || worldDistance <= worldDistanceRemaining) {
+                  if (worldDistance <= CDoubleMath.Epsilon || worldDistance <= worldDistanceRemaining) {
                      nextSectorLocalPosition = wa.Destination.ToDoubleVector2();
                      movementComponent.PathingRoadmapProgressIndex++;
                      worldDistanceRemaining -= worldDistance;
                   } else {
                      nextSectorLocalPosition = currentSectorLocalPosition + pb * worldDistanceRemaining / worldDistance;
-                     worldDistanceRemaining = 0;
+                     worldDistanceRemaining = CDoubleMath.c0;
                   }
 
                   movementComponent.WorldPosition = Vector3.Transform(
@@ -515,26 +522,25 @@ namespace OpenMOBA.Foundation {
       }
 
       private int zzzz = 0;
-      private double wwww = 0;
-      private double wmul = 1.0 / 0.69;
+      private cDouble wwww = CDoubleMath.c0;
+      private cDouble wmul = CDoubleMath.c1 / (cDouble)0.69;
 
       private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
          // ReSharper disable once CompareOfFloatsByEqualityOperator
-         if (movementComponent.SumWeightsNBodyForces == 0.0) return;
+         if (movementComponent.SumWeightsNBodyForces == CDoubleMath.c0) return;
          if (movementComponent.WeightedSumNBodyForces == DoubleVector2.Zero) return;
 
          var k = movementComponent.WeightedSumNBodyForces / movementComponent.SumWeightsNBodyForces;
          zzzz++;
          wwww += k.Norm2D();
          if (zzzz % 1000 == 0) {
-            wmul = 1.0 / (wwww / zzzz);
+            wmul = CDoubleMath.c1 / (wwww / (cDouble)zzzz);
 //            Console.WriteLine("!!!!!" + wwww / zzzz);
-            wwww = 0;
+            wwww = CDoubleMath.c0;
             zzzz = 0;
          }
 
-
-         var worldDistanceRemaining = movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick * wmul;
+         var worldDistanceRemaining = (cDouble)movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick * wmul;
          var localDistanceRemaining = worldDistanceRemaining * movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
          var dv2 = ComputePositionUpdate(
             localDistanceRemaining,
@@ -546,7 +552,7 @@ namespace OpenMOBA.Foundation {
          movementComponent.WorldPosition = movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(dv2);
       }
 
-      private DoubleVector2 ComputePositionUpdate(double distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
+      private DoubleVector2 ComputePositionUpdate(cDouble distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {
          var allowPushIntoTriangle = true;
          while (distanceRemaining > GeometryOperations.kEpsilon) {
             DoubleVector2 np;
@@ -582,7 +588,7 @@ namespace OpenMOBA.Foundation {
       private WalkResult WalkTriangle(
          DoubleVector2 position,
          DoubleVector2 preferredDirectionUnit,
-         double distanceRemaining,
+         cDouble distanceRemaining,
          TriangulationIsland island,
          int triangleIndex,
          bool allowPushIntoTriangle,
@@ -639,7 +645,7 @@ namespace OpenMOBA.Foundation {
          var e1 = triangle.Points[(opposingVertexIndex + 2) % 3];
          var e01 = e0.To(e1); // NOTE: triangle points are CCW.
          var e01Perp = new DoubleVector2(e01.Y, -e01.X); // points outside of current triangle, perp to edge we're crossing
-         Trace.Assert(triangle.Centroid.To(e0).ProjectOntoComponentD(e01Perp) > 0);
+         Trace.Assert(triangle.Centroid.To(e0).ProjectOntoComponentD(e01Perp) > CDoubleMath.c0);
 
          var pe0 = position.To(e0);
          var pToEdge = pe0.ProjectOnto(e01Perp); // perp to plane normal.
@@ -657,7 +663,7 @@ namespace OpenMOBA.Foundation {
          var pToEdgeComponentRemaining = d.ProjectOntoComponentD(pToEdge);
          Debug.Assert(GeometryOperations.IsReal(pToEdgeComponentRemaining));
 
-         if (pToEdgeComponentRemaining < 1) {
+         if (pToEdgeComponentRemaining < CDoubleMath.c1) {
             // Motion finishes within triangle.
             // TODO: Handle when this gets us very close to triangle edge e.g. cR = 0.99999.
             // (We don't want to fall close to the triangle edge but no longer in the triangle
@@ -697,9 +703,9 @@ namespace OpenMOBA.Foundation {
 
             // We want to follow the edge, potentially past it if possible.
             // Figure out which edge vertex we're walking towards
-            var walkToEdgeVertex1 = d.ProjectOntoComponentD(e01) > 0;
+            var walkToEdgeVertex1 = d.ProjectOntoComponentD(e01) > CDoubleMath.c0;
             var vertexToWalkTowards = walkToEdgeVertex1 ? e1 : e0;
-            var directionToWalkAlongEdge = walkToEdgeVertex1 ? e01 : -1.0 * e01;
+            var directionToWalkAlongEdge = walkToEdgeVertex1 ? e01 : CDoubleMath.cNeg1 * e01;
             var directionToWalkAlongEdgeUnit = directionToWalkAlongEdge.ToUnit();
 
             // start tracking p/drem independently.

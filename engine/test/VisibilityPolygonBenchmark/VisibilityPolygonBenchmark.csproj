@@ -19,7 +19,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;use_fixed</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -28,7 +28,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;use_fixed</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -58,6 +58,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dependencies\FixedMath.Net\src\FixedMath.NET.csproj">
+      <Project>{D46C606E-5826-465F-9983-251E3D3B2F1C}</Project>
+      <Name>FixedMath.NET</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\OpenMOBA.DevTool\OpenMOBA.DevTool.csproj">
       <Project>{96606f53-3379-4e31-a5c7-4bf0095edad0}</Project>
       <Name>OpenMOBA.DevTool</Name>

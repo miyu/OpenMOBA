@@ -5,11 +5,17 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation {
    public class PathfinderResultContext {
       public readonly (TerrainOverlayNetworkNode, IntVector2) Source;
       public readonly (TerrainOverlayNetworkNode, IntVector2)[] Destinations;
-      internal readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> Predecessors;
+      internal readonly Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)> Predecessors;
       internal readonly ExposedArrayList<PathLink> SourceOptimalLinkToCrossovers;
       internal readonly ExposedArrayList<PathLink>[] DestinationOptimalLinkToCrossoversByDestinationIndex;
 
@@ -18,13 +24,13 @@ namespace OpenMOBA.Foundation {
       public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source) {
          Source = source;
          Destinations = null;
-         Predecessors = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)>();
+         Predecessors = new Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)>();
          SourceOptimalLinkToCrossovers = null;
          DestinationOptimalLinkToCrossoversByDestinationIndex = null;
          roadmapCache = null;
       }
 
-      public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, float)> predecessors, ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, ExposedArrayList<PathLink>[] destinationOptimalLinkToCrossoversByDestinationIndex) {
+      public PathfinderResultContext((TerrainOverlayNetworkNode, IntVector2) source, (TerrainOverlayNetworkNode, IntVector2)[] destinations, Dictionary<(TerrainOverlayNetworkNode, int), (TerrainOverlayNetworkNode, int, TerrainOverlayNetworkEdge, cDouble)> predecessors, ExposedArrayList<PathLink> sourceOptimalLinkToCrossovers, ExposedArrayList<PathLink>[] destinationOptimalLinkToCrossoversByDestinationIndex) {
          Source = source;
          Destinations = destinations;
          Predecessors = predecessors;

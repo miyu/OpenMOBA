@@ -1,4 +1,10 @@
-﻿namespace OpenMOBA.Foundation.Terrain {
+﻿#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
+namespace OpenMOBA.Foundation.Terrain {
    internal static class InternalTerrainCompilationConstants {
       /// <summary>
       ///    Note that no matter how vector (0, 3.0) is rotated, one component is greater than 1.
@@ -8,13 +14,13 @@
       ///    that's considered a hole (the terrain representation is integer-based and cannot describe
       ///    such situations well) due to floating point error.
       /// </summary>
-      public const double AdditionalHoleDilationRadius = 3.0;
+      public static readonly cDouble AdditionalHoleDilationRadius = (cDouble)3;
 
       /// <summary>
       ///    Minimum distance from a character point to an (already dilated) land triangle edge.
       ///    This ensures future land triangle lookups of the character position succeed rather
       ///    than failing due to ambiguity in position of on-edge points.
       /// </summary>
-      public const double TriangleEdgeBufferRadius = 0.005;
+      public static readonly cDouble TriangleEdgeBufferRadius = (cDouble)5 / (cDouble)1000;
    }
 }

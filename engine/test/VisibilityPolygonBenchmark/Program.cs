@@ -7,6 +7,12 @@ using OpenMOBA.Debugging;
 using OpenMOBA.DevTool.Debugging;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace VisibilityPolygonBenchmark {
    public class Program {
       private static readonly Size bounds = new Size(1280, 720);
@@ -25,7 +31,7 @@ namespace VisibilityPolygonBenchmark {
 
          var (p, segments) = RandomInput();
          p = new DoubleVector2(bounds.Width / 2, bounds.Height / 2);
-         segments = segments.Where(s => GeometryOperations.Clockness(p.X, p.Y, s.X1, s.Y1, s.X2, s.Y2) == Clockness.Clockwise).ToArray();
+         segments = segments.Where(s => GeometryOperations.Clockness(p.X, p.Y, (cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2) == Clockness.Clockwise).ToArray();
 
          for (var i = 0; i < 50; i++)
             RenderVisualizationFrame(p, segments, 0);
@@ -39,7 +45,12 @@ namespace VisibilityPolygonBenchmark {
          for (var i = 0; i < 100; i++) {
             var (p, segments) = RandomInput();
             p = new DoubleVector2(bounds.Width / 2, bounds.Height / 2);
-            segments = segments.Where(s => GeometryOperations.Clockness(p.X, p.Y, s.X1, s.Y1, s.X2, s.Y2) == Clockness.Clockwise).ToArray();
+//            foreach (var s in segments) {
+//               var a = GeometryOperations.Clockness((cDouble)(int)p.X, (cDouble)(int)p.Y, (cDouble)(int)s.X1, (cDouble)(int)s.Y1, (cDouble)(int)s.X2, (cDouble)(int)s.Y2);
+//               var b = GeometryOperations.Clockness((cDouble)(int)p.X, (cDouble)(int)p.Y, (cDouble)(int)s.X1, (cDouble)(int)s.Y1, (cDouble)(int)s.X2, (cDouble)(int)s.Y2);
+//               Console.WriteLine(a + " " + b);
+//            }
+            segments = segments.Where(s => GeometryOperations.Clockness(p.X, p.Y, (cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2) == Clockness.Clockwise).ToArray();
             RenderVisualizationFrame(p, segments);
          }
       }
@@ -78,8 +89,8 @@ namespace VisibilityPolygonBenchmark {
       private static (DoubleVector2, IntLineSegment2[]) RandomInput() {
          var segments = new IntLineSegment2[1000];
          for (var i = 0; i < segments.Length; i++) {
-            var s = RandomSegment(); 
-            if (segments.Take(i).Any(s.Intersects)) continue;
+            var s = RandomSegment();
+            while (segments.Take(i).Any(s.Intersects)) s = RandomSegment();
             segments[i] = s;
          }
          var p = RandomPoint();
@@ -92,7 +103,8 @@ namespace VisibilityPolygonBenchmark {
 
       private static IntLineSegment2 RandomSegment() {
          var b = RandomPoint();
-         var o = new IntVector2(random.Next(-100, 100), random.Next(-100, 100));
+         var o = IntVector2.Zero;
+         while (o == IntVector2.Zero) o = new IntVector2(random.Next(-100, 100), random.Next(-100, 100));
          return new IntLineSegment2(b, b + o);
       }
    }

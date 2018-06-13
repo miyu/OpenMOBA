@@ -4,11 +4,17 @@ using Poly2Tri;
 using Poly2Tri.Triangulation;
 using Poly2Tri.Triangulation.Polygon;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.DevTool.Debugging {
    public static class DebugCanvas2DExtensions {
       private static DoubleVector3 ToDV3(IntVector2 p) => new DoubleVector3(p.ToDoubleVector2());
       private static DoubleVector3 ToDV3(DoubleVector2 p) => new DoubleVector3(p);
-      private static DoubleVector3 ToDV3(TriangulationPoint p) => new DoubleVector3(p.X, p.Y, 0);
+      private static DoubleVector3 ToDV3(TriangulationPoint p) => new DoubleVector3((cDouble)p.X, (cDouble)p.Y, CDoubleMath.c0); // TODO: Divergence
       private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
       private static IntLineSegment3 ToILS3(IntLineSegment2 p) => new IntLineSegment3(ToIV3(p.First), ToIV3(p.Second));
 

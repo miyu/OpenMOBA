@@ -8,6 +8,12 @@ using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Foundation.Terrain.Declarations;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.Foundation.Terrain {
    public interface ISourceSegmentEdgeDescription {
       IntLineSegment2 SourceSegment { get; }
@@ -19,7 +25,7 @@ namespace OpenMOBA.Foundation.Terrain {
 
       public abstract void EnhanceLocalGeometryJob(ref LocalGeometryJob localGeometryJob);
 
-      public abstract List<EdgeJob> EmitCrossoverJobs(double crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv);
+      public abstract List<EdgeJob> EmitCrossoverJobs(cDouble crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv);
    }
 
    public struct CrossoverJob {
@@ -80,7 +86,7 @@ namespace OpenMOBA.Foundation.Terrain {
          localGeometryJob.CrossoverSegments.Add((SourceSegment, SourceInClockness));
       }
 
-      public override List<EdgeJob> EmitCrossoverJobs(double crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv) {
+      public override List<EdgeJob> EmitCrossoverJobs(cDouble crossoverPointSpacing, LocalGeometryView sourceLgv, LocalGeometryView destinationLgv) {
 //         return new List<EdgeJob>();
 
          var sourceSegmentVector = SourceSegment.First.To(SourceSegment.Second).ToDoubleVector2();
@@ -110,9 +116,9 @@ namespace OpenMOBA.Foundation.Terrain {
          return edgeJobs;
       }
 
-      private IEnumerable<(PolyNode, PolyNode, double, double)> CrossTheStreams(
-         IEnumerable<(PolyNode, double)> sourceStream,
-         IEnumerable<(PolyNode, double)> destStream
+      private IEnumerable<(PolyNode, PolyNode, cDouble, cDouble)> CrossTheStreams(
+         IEnumerable<(PolyNode, cDouble)> sourceStream,
+         IEnumerable<(PolyNode, cDouble)> destStream
       ) {
          var ss = sourceStream.ToArray();
          var ds = destStream.ToArray();
@@ -164,17 +170,17 @@ namespace OpenMOBA.Foundation.Terrain {
 //         }
       }
 
-      public static IEnumerable<(PolyNode, double)> X(IntLineSegment2 seg, LocalGeometryView lgv) {
+      public static IEnumerable<(PolyNode, cDouble)> X(IntLineSegment2 seg, LocalGeometryView lgv) {
          var punchedLand = lgv.PunchedLand;
          punchedLand.AssertIsContourlessRootHolePunchResult();
 
-         var allBreakpoints = new SortedList<double, List<(PolyNode, double)>>();
+         var allBreakpoints = new SortedList<cDouble, List<(PolyNode, cDouble)>>();
          
          foreach (var polyNode in punchedLand.EnumerateLandNodes()) {
             XVisitLandPolyNode(seg, polyNode, allBreakpoints);
          }
 
-         var res = new List<(PolyNode, double)>();
+         var res = new List<(PolyNode, cDouble)>();
          foreach (var x in allBreakpoints.Values) {
             res.AddRange(x);
          }
@@ -196,20 +202,20 @@ namespace OpenMOBA.Foundation.Terrain {
          //         }
       }
 
-      private static void XVisitLandPolyNode(IntLineSegment2 seg, PolyNode polyNode, SortedList<double, List<(PolyNode, double)>> allBreakpoints) {
+      private static void XVisitLandPolyNode(IntLineSegment2 seg, PolyNode polyNode, SortedList<cDouble, List<(PolyNode, cDouble)>> allBreakpoints) {
          var contourBvh = polyNode.visibilityGraphNodeData.ContourBvh;
          if (contourBvh == null) {
-            var localBreakpoints = new List<(PolyNode, double)>();
+            var localBreakpoints = new List<(PolyNode, cDouble)>();
             H2(seg, polyNode, localBreakpoints);
             H3(seg, polyNode, allBreakpoints, localBreakpoints);
 
             foreach (var child in polyNode.Childs) {
-               localBreakpoints = new List<(PolyNode, double)>();
+               localBreakpoints = new List<(PolyNode, cDouble)>();
                H2(seg, child, localBreakpoints);
                H3(seg, child, allBreakpoints, localBreakpoints);
             }
          } else {
-            var localBreakpoints = new List<(PolyNode, double)>();
+            var localBreakpoints = new List<(PolyNode, cDouble)>();
             var intersectingLeaves = contourBvh.FindPotentiallyIntersectingLeaves(seg);
             foreach (var leaf in intersectingLeaves) {
                for (var i = leaf.SegmentsStartIndexInclusive; i < leaf.SegmentsEndIndexExclusive; i++) {
@@ -221,9 +227,9 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
-      private static void H3(IntLineSegment2 seg, PolyNode polyNode, SortedList<double, List<(PolyNode, double)>> allBreakpoints, List<(PolyNode, double)> localBreakpoints) {
-         R(seg.First, seg.Second, 0.0, polyNode, localBreakpoints);
-         R(seg.Second, seg.First, 1.0, polyNode, localBreakpoints);
+      private static void H3(IntLineSegment2 seg, PolyNode polyNode, SortedList<cDouble, List<(PolyNode, cDouble)>> allBreakpoints, List<(PolyNode, cDouble)> localBreakpoints) {
+         R(seg.First, seg.Second, CDoubleMath.c0, polyNode, localBreakpoints);
+         R(seg.Second, seg.First, CDoubleMath.c1, polyNode, localBreakpoints);
 
          Trace.Assert(localBreakpoints.Count % 2 == 0);
          if (localBreakpoints.Count % 2 != 0) throw new Exception("Remove this line of code dear god");
@@ -233,7 +239,7 @@ namespace OpenMOBA.Foundation.Terrain {
             // if no following element, continue
             if (it == localBreakpoints.Count - 1) continue;
 
-            if (localBreakpoints[it + 1].Item2 - localBreakpoints[it].Item2 < 1E-9) {
+            if (localBreakpoints[it + 1].Item2 - localBreakpoints[it].Item2 < CDoubleMath.Epsilon) {
                localBreakpoints.RemoveAt(it + 1);
                localBreakpoints.RemoveAt(it);
             }
@@ -247,7 +253,7 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
-      private static void R(IntVector2 q, IntVector2 potato, double t, PolyNode polyNode, List<(PolyNode, double)> localBreakpoints) {
+      private static void R(IntVector2 q, IntVector2 potato, cDouble t, PolyNode polyNode, List<(PolyNode, cDouble)> localBreakpoints) {
          var pipResult = Clipper.PointInPolygon(q, polyNode.Contour);
          switch (pipResult) {
             case PolygonContainmentResult.OutsidePolygon:
@@ -279,7 +285,7 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
-      private static void H2(IntLineSegment2 seg, PolyNode polyNode, List<(PolyNode, double)> localBreakpoints) {
+      private static void H2(IntLineSegment2 seg, PolyNode polyNode, List<(PolyNode, cDouble)> localBreakpoints) {
          for (var i = 0; i < polyNode.Contour.Count; i++) {
             var contourSegment = new IntLineSegment2(
                i == 0 ? polyNode.Contour.Last() : polyNode.Contour[i - 1],
@@ -289,7 +295,7 @@ namespace OpenMOBA.Foundation.Terrain {
          }
       }
 
-      private static void H(ref IntLineSegment2 seg, PolyNode polyNode, ref IntLineSegment2 contourSegment, List<(PolyNode, double)> localBreakpoints) {
+      private static void H(ref IntLineSegment2 seg, PolyNode polyNode, ref IntLineSegment2 contourSegment, List<(PolyNode, cDouble)> localBreakpoints) {
          // if seg and contourSegment collinear, then this will find no intersection.
          if (GeometryOperations.TryFindNonoverlappingSegmentSegmentIntersectionT(ref seg, ref contourSegment, out var t)) {
             var clocknessFirst = GeometryOperations.Clockness(seg.First, seg.Second, contourSegment.First);
@@ -478,7 +484,7 @@ namespace OpenMOBA.Foundation.Terrain {
    }
 
    public static class TerrainHoleHelpers {
-      public static bool ContainsPoint(this DynamicTerrainHoleDescription dynamicTerrainHoleDescription, double holeDilationRadius, DoubleVector3 point) {
+      public static bool ContainsPoint(this DynamicTerrainHoleDescription dynamicTerrainHoleDescription, cDouble holeDilationRadius, DoubleVector3 point) {
          return dynamicTerrainHoleDescription.StaticMetadata.ContainsPoint(dynamicTerrainHoleDescription.InstanceMetadata, point, holeDilationRadius);
 //         // Padding so that when flooring the point, we don't accidentally say a point isn't
 //         // in the hole when in reality, it is. 

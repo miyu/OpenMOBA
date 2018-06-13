@@ -1,10 +1,16 @@
-﻿namespace OpenMOBA.Foundation {
+﻿#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
+namespace OpenMOBA.Foundation {
    public interface IReadableGameTimeService
    {
       int TicksPerSecond { get; }
       int Ticks { get; }
       GameTime Now { get; }
-      double ElapsedTimeSeconds { get; }
+      cDouble ElapsedTimeSeconds { get; }
    }
 
    public interface IMutableGameTimeService : IReadableGameTimeService
@@ -17,19 +23,19 @@
       public GameTimeService(int ticksPerSecond)
       {
          TicksPerSecond = ticksPerSecond;
-         SecondsPerTick = 1.0 / ticksPerSecond;
+         SecondsPerTick = CDoubleMath.c1 / (cDouble)ticksPerSecond;
       }
 
       public int TicksPerSecond { get; }
-      public double SecondsPerTick { get; }
+      public cDouble SecondsPerTick { get; }
       public int Ticks { get; private set; }
       public GameTime Now => new GameTime(Ticks);
-      public double ElapsedTimeSeconds { get; private set; }
+      public cDouble ElapsedTimeSeconds { get; private set; }
 
       public void IncrementTicks()
       {
          Ticks++;
-         ElapsedTimeSeconds = Ticks / (double) TicksPerSecond;
+         ElapsedTimeSeconds = (cDouble)Ticks / (cDouble)TicksPerSecond;
       }
    }
 }

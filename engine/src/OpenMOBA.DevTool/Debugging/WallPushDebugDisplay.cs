@@ -7,6 +7,12 @@ using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.DevTool.Debugging {
    public static class WallPushDebugDisplay {
       private static readonly StrokeStyle InLandStrokeStyle = new StrokeStyle(Color.Gray, 3.0);
@@ -38,8 +44,8 @@ namespace OpenMOBA.DevTool.Debugging {
          fillStyle = fillStyle ?? DefaultFillStyle;
          var oxy = avss.Origin;
          foreach (var range in avss.Get().Where(range => range.Id != VisibilityPolygon.RANGE_ID_INFINITELY_FAR && range.Id != VisibilityPolygon.RANGE_ID_INFINITESIMALLY_NEAR)) {
-            var rstart = DoubleVector2.FromRadiusAngle(100, range.ThetaStart);
-            var rend = DoubleVector2.FromRadiusAngle(100, range.ThetaEnd);
+            var rstart = DoubleVector2.FromRadiusAngle(CDoubleMath.c100, range.ThetaStart);
+            var rend = DoubleVector2.FromRadiusAngle(CDoubleMath.c100, range.ThetaEnd);
       
             var s = range.Segment;
             var s1 = s.First.ToDoubleVector2();
@@ -53,18 +59,18 @@ namespace OpenMOBA.DevTool.Debugging {
             debugCanvas.FillTriangle(oxy, visibleStart, visibleEnd, fillStyle);
 
             debugCanvas.DrawLine(
-               new DoubleVector3(oxy.X, oxy.Y, z),
-               new DoubleVector3(visibleStart.X, visibleStart.Y, z),
+               new DoubleVector3(oxy.X, oxy.Y, (cDouble)z),
+               new DoubleVector3(visibleStart.X, visibleStart.Y, (cDouble)z),
                angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
 
             debugCanvas.DrawLine(
-               new DoubleVector3(oxy.X, oxy.Y, z),
-               new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
+               new DoubleVector3(oxy.X, oxy.Y, (cDouble)z),
+               new DoubleVector3(visibleEnd.X, visibleEnd.Y, (cDouble)z),
                angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
 
             debugCanvas.DrawLine(
-               new DoubleVector3(visibleStart.X, visibleStart.Y, z),
-               new DoubleVector3(visibleEnd.X, visibleEnd.Y, z),
+               new DoubleVector3(visibleStart.X, visibleStart.Y, (cDouble)z),
+               new DoubleVector3(visibleEnd.X, visibleEnd.Y, (cDouble)z),
                visibleWallStrokeStyle ?? DefaultVisibleWallStrokeStyle);
          }
       }

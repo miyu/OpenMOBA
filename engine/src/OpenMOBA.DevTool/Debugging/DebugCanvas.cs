@@ -9,6 +9,12 @@ using System.Windows.Forms;
 using ClipperLib;
 using OpenMOBA.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace OpenMOBA.DevTool.Debugging {
    public class DebugCanvasHost {
       private readonly Form form;
@@ -75,7 +81,7 @@ namespace OpenMOBA.DevTool.Debugging {
       }
 
       public DoubleVector2 Project(DoubleVector3 p) {
-         return p.XY * scale;
+         return p.XY * (cDouble)scale;
       }
 
       public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
@@ -100,7 +106,7 @@ namespace OpenMOBA.DevTool.Debugging {
          this.width = width;
          this.height = height;
          this.worldToCamera =
-            Matrix4x4.CreateTranslation(ToNumerics3(-1.0 * position)) *
+            Matrix4x4.CreateTranslation(-ToNumerics3(position)) *
             Matrix4x4.CreateLookAt(ToNumerics3(DoubleVector3.Zero), ToNumerics3(position.To(lookat)), ToNumerics3(up)) *
             Matrix4x4.CreateScale(-1, 1, 1);
          this.cameraToView = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI * 2 / 4, (float)(width / height), 1f, 10000f);
@@ -116,15 +122,18 @@ namespace OpenMOBA.DevTool.Debugging {
          viewSpace /= viewSpace.W; // I'm doing something wrong.
 //         Console.WriteLine(p + " " + cameraSpace + " " + viewSpace + " " + (viewSpace / viewSpace.W));
 
-         return new DoubleVector2(width * (-viewSpace.X + 1.0) / 2.0, height * (-viewSpace.Y + 1.0) / 2.0);
+         return new DoubleVector2(
+            (cDouble)(width * (-viewSpace.X + 1.0) / 2.0), 
+            (cDouble)(height * (-viewSpace.Y + 1.0) / 2.0)
+         );
 //         return new DoubleVector2(viewSpace.X, viewSpace.Y);
       }
 
       public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
          var ss1 = Project(p);
-         var ss2 = Project(p + position.To(p).Cross(position.To(lookat)).ToUnit() * thickness);
+         var ss2 = Project(p + position.To(p).Cross(position.To(lookat)).ToUnit() * (cDouble)thickness);
 
-         return (ss1 - ss2).Norm2D();
+         return (double)(ss1 - ss2).Norm2D();
          //         var cameraSpace = Vector4.Transform(ToNumerics4(p), worldToCamera);
          //         return thickness * (1000f + cameraSpace.Z) / 1000f;
       }
@@ -185,7 +194,7 @@ namespace OpenMOBA.DevTool.Debugging {
 
       private DoubleVector2 Project(DoubleVector3 p) {
          var transformed = Vector3.Transform(new Vector3((float)p.X, (float)p.Y, (float)p.Z), Transform);
-         return projector.Project(new DoubleVector3(transformed.X, transformed.Y, transformed.Z));
+         return projector.Project(new DoubleVector3((cDouble)transformed.X, (cDouble)transformed.Y, (cDouble)transformed.Z));
       }
 
       private PointF ProjectPointF(DoubleVector3 p) {
@@ -266,8 +275,8 @@ namespace OpenMOBA.DevTool.Debugging {
                const int nsegs = 10;
                for (var part = 0; part < nsegs; part++) {
                   const int maxPart = nsegs - 1;
-                  var pa = p1 + p1p2 * (float)(part / (float)nsegs);
-                  var pb = p1 + p1p2 * ((float)(part + 1) / (float)nsegs);
+                  var pa = p1 + p1p2 * (cDouble)(float)(part / (float)nsegs);
+                  var pb = p1 + p1p2 * (cDouble)((float)(part + 1) / (float)nsegs);
                   var t = (t1 * (maxPart - part) + t2 * part) / maxPart;
                   var tkey = ComputeThicknessKey(t);
                   List<PointF> segments;
