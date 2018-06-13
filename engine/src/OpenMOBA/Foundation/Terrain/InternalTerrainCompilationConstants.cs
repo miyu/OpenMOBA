@@ -1,4 +1,5 @@
 ﻿#if use_fixed
+using ClipperLib;
 using cDouble = FixMath.NET.Fix64;
 #else
 using cDouble = System.Double;
@@ -22,5 +23,23 @@ namespace OpenMOBA.Foundation.Terrain {
       ///    than failing due to ambiguity in position of on-edge points.
       /// </summary>
       public static readonly cDouble TriangleEdgeBufferRadius = (cDouble)5 / (cDouble)1000;
+
+      /// <summary>
+      /// Clipper in i32 mode takes numbers from -2^15+1 to 2^15-1.
+      /// Most importantly, Clipper computes the distance between two points, so
+      /// 2 * (MAX_VAL - MIN_VAL)^2 must not overflow. As we're using Q31.32 fixed-point arithmetic,
+      /// we are effectively limited to MAX_VAL = 2^14. (Assume MAX_VAL = -MIN_VAL)
+      /// That's ballpark [-16384, 16384]. We'll simplify this range to [-15000, 15000] (in i32 mode)
+      /// for desired sector extents
+      /// </summary>
+      public const int DesiredSectorExtents = 15000;
+
+      /// <summary>
+      /// And from there, [-26000, 26000] (in i32 mode) for sector clipping bounds.
+      ///
+      /// Note: Buffer must be less than 2^15 - 1 - 10 as clipper internally buffers by 10px
+      /// for certain operations, and probably still should be under 2^14 derived above.
+      /// </summary>
+      public const int SectorClipBounds = DesiredSectorExtents + 1000;
    }
 }

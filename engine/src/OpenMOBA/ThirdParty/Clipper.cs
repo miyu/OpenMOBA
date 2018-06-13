@@ -75,6 +75,7 @@ using FixMath.NET;
 using OpenMOBA;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
 using OpenMOBA.Geometry;
+using Poly2Tri.Utility;
 //using System.Text;          //for Int128.AsString() & StringBuilder
 //using System.IO;            //debugging with streamReader & StreamWriter
 //using System.Windows.Forms; //debugging to clipboard
@@ -3669,6 +3670,22 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       private static cDouble DistanceFromLineSqrd(IntPoint pt, IntPoint ln1, IntPoint ln2) {
+         long a = ln1.Y - ln2.Y; // up to 2^15
+         long b = ln2.X - ln1.X; // up to 2^15
+         long c = a * ln1.X + b * ln1.Y; // up to 2^30
+         c = a * pt.X + b * pt.Y - c; // up to 2^31
+
+         // c*c goes up to 2^62, a*a+b*b goes up to 2^31
+         // we want to compute c*c/(a*a+b*b) without overflowing,
+         // but c*c will overflow Q31.32.
+         // As workaround, compute c/(a*a+b*b), then square with
+         // saturated overflow.
+         var temp = Fix64.Abs((Fix64)c / (Fix64)(a * a + b * b));
+         if (temp > Fix64.Floor(Fix64.Sqrt(Fix64.MaxValue))) {
+            return cDouble.MaxValue;
+         }
+         return temp * temp;
+
          //The equation of a line in general form (Ax + By + C = 0)
          //given 2 points (x¹,y¹) & (x²,y²) is ...
          //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0

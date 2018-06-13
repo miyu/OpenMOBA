@@ -24,7 +24,7 @@ using cDouble = System.Double;
 namespace OpenMOBA.Foundation {
    // Clipper int range: [-32,767, 32,767]
    public static class SectorMetadataPresets {
-      private const int DesiredSectorExtents = (ClipperBase.hiRange / 10000) * 5000;
+      public const int DesiredSectorExtents = InternalTerrainCompilationConstants.DesiredSectorExtents;
 
       private const int CrossCirclePathWidth = 200;
       private const int CrossCircleInnerLandRadius = 400;
@@ -230,17 +230,19 @@ namespace OpenMOBA.Foundation {
                var preset = presets[x]; //rng.Next(presets.Length)];
                var sector = sectors[y, x] = TerrainService.CreateSectorNodeDescription(preset);
                //sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 60000.0f), Matrix4x4.CreateTranslation(x * 1000 - 1000, y * 1000, 0));
-               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / 30000.0f), Matrix4x4.CreateTranslation(0, 0, 0));
-               sector.WorldToLocalScalingFactor = (cDouble)30000 / (cDouble)1000;
+               sector.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
+               sector.WorldToLocalScalingFactor = (cDouble)preset.LocalBoundary.Width / (cDouble)1000;
                TerrainService.AddSectorNodeDescription(sector);
             }
          }
 
-
-         var left1 = new IntLineSegment2(new IntVector2(-30000 / 2, -18000 / 2), new IntVector2(-30000 / 2, -6000 / 2));
-         var left2 = new IntLineSegment2(new IntVector2(-30000 / 2, 6000 / 2), new IntVector2(-30000 / 2, 18000 / 2));
-         var right1 = new IntLineSegment2(new IntVector2(30000 / 2, -18000 / 2), new IntVector2(30000 / 2, -6000 / 2));
-         var right2 = new IntLineSegment2(new IntVector2(30000 / 2, 6000 / 2), new IntVector2(30000 / 2, 18000 / 2));
+         var c30000 = SectorMetadataPresets.DesiredSectorExtents;
+         var c18000 = SectorMetadataPresets.DesiredSectorExtents * 3 / 5;
+         var c6000 = SectorMetadataPresets.DesiredSectorExtents * 1 / 5;
+         var left1 = new IntLineSegment2(new IntVector2(-c30000 / 2, -c18000 / 2), new IntVector2(-c30000 / 2, -c6000 / 2));
+         var left2 = new IntLineSegment2(new IntVector2(-c30000 / 2, c6000 / 2), new IntVector2(-c30000 / 2, c18000 / 2));
+         var right1 = new IntLineSegment2(new IntVector2(c30000 / 2, -c18000 / 2), new IntVector2(c30000 / 2, -c6000 / 2));
+         var right2 = new IntLineSegment2(new IntVector2(c30000 / 2, c6000 / 2), new IntVector2(c30000 / 2, c18000 / 2));
 
 //         var left1 = new IntLineSegment2(new IntVector2(0, 200), new IntVector2(0, 400));
 //         var left2 = new IntLineSegment2(new IntVector2(0, 600), new IntVector2(0, 800));

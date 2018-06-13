@@ -33,9 +33,11 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          CrossoverErosionRadius = (int)CDoubleMath.Ceiling((HoleDilationRadius * (cDouble)2));
          CrossoverDilationFactor = (CrossoverErosionRadius / 2) + kCrossoverAdditionalPathingDilation;
 
-         var padding = (int)CDoubleMath.Ceiling(HoleDilationRadius) + 15; // clipper internally buffers 10, so do more else range exception
          ClipperExtentsHoleClipPolygon = Polygon2.CreateRect(
-            -ClipperBase.loRange + padding, -ClipperBase.loRange + padding, ClipperBase.loRange * 2 - padding * 2, ClipperBase.loRange * 2 - padding * 2);
+            -InternalTerrainCompilationConstants.SectorClipBounds,
+            -InternalTerrainCompilationConstants.SectorClipBounds,
+            InternalTerrainCompilationConstants.SectorClipBounds * 2 + 1,
+            InternalTerrainCompilationConstants.SectorClipBounds * 2 + 1);
       }
 
       public LocalGeometryJob Job => LocalGeometryViewManager.Job;
