@@ -3675,6 +3675,7 @@ namespace ClipperLib {
          long c = a * ln1.X + b * ln1.Y; // up to 2^30
          c = a * pt.X + b * pt.Y - c; // up to 2^31
 
+#if use_fixed
          // c*c goes up to 2^62, a*a+b*b goes up to 2^31
          // we want to compute c*c/(a*a+b*b) without overflowing,
          // but c*c will overflow Q31.32.
@@ -3685,7 +3686,7 @@ namespace ClipperLib {
             return cDouble.MaxValue;
          }
          return temp * temp;
-
+#else
          //The equation of a line in general form (Ax + By + C = 0)
          //given 2 points (x¹,y¹) & (x²,y²) is ...
          //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0
@@ -3697,6 +3698,7 @@ namespace ClipperLib {
          cDouble C = A * (cDouble)ln1.X + B * (cDouble)ln1.Y;
          C = A * (cDouble)pt.X + B * (cDouble)pt.Y - C;
          return (C * C) / (A * A + B * B);
+#endif
       }
       //---------------------------------------------------------------------------
 
@@ -3959,13 +3961,23 @@ namespace ClipperLib {
          m_lowest.X = -1;
       }
       //------------------------------------------------------------------------------
+#if use_fixed
       private static readonly cDouble cDouble_0 = (cDouble)0;
       private static readonly cDouble cDouble_0_5 = (cDouble)0.5;
       private static readonly cDouble cDouble_1 = (cDouble)1;
       private static readonly cDouble cDouble_2 = (cDouble)2;
       private static readonly cDouble cDouble_3 = (cDouble)3;
       private static readonly cDouble cDouble_4 = (cDouble)4;
-      private static readonly cDouble cDouble_PI = cDouble.Pi;
+      private static readonly cDouble cDouble_PI = CDoubleMath.Pi;
+#else
+      private const cDouble cDouble_0 = (cDouble)0;
+      private const cDouble cDouble_0_5 = (cDouble)0.5;
+      private const cDouble cDouble_1 = (cDouble)1;
+      private const cDouble cDouble_2 = (cDouble)2;
+      private const cDouble cDouble_3 = (cDouble)3;
+      private const cDouble cDouble_4 = (cDouble)4;
+      private const cDouble cDouble_PI = CDoubleMath.Pi;
+#endif
 
       internal static cInt Round(cDouble value) {
          return value < cDouble_0 ? (cInt)(value - cDouble_0_5) : (cInt)(value + cDouble_0_5);

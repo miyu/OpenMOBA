@@ -432,9 +432,10 @@ namespace OpenMOBA.Geometry {
          u = cDouble.Round(u, 20);
          v = cDouble.Round(v, 20);
          uPlusV = cDouble.Round(uPlusV, 20);
-#endif
-
          return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (uPlusV <= CDoubleMath.c1);
+#else
+         return (u >= -CDoubleMath.Epsilon) && (v >= -CDoubleMath.Epsilon) && (uPlusV <= CDoubleMath.c1 + CDoubleMath.Epsilon);
+#endif
       }
 
       public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle3 triangle, out int indexOpposingEdge) {

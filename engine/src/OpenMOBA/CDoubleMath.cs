@@ -41,9 +41,9 @@ namespace OpenMOBA {
       // C# double.Epsilon is denormal = terrible perf; avoid and use this instead.
       // https://www.johndcook.com/blog/2012/01/05/double-epsilon-dbl_epsilon/
       public const double Epsilon = 10E-16;
-      public static readonly cDouble Pi = Math.PI;
-      public static readonly cDouble TwoPi = Math.PI * 2;
-      public static readonly cDouble PiDiv2 = Math.PI / 2;
+      public const cDouble Pi = Math.PI;
+      public const cDouble TwoPi = Math.PI * 2;
+      public const cDouble PiDiv2 = Math.PI / 2;
 #endif
 
       public static cDouble Sqrt(cDouble v) {

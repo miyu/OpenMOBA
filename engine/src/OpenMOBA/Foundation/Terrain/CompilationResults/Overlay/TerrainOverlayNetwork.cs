@@ -332,7 +332,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                Interlocked.Increment(ref ProcessCpiInvocation_DirectCount);
                var totalCost = p.To(crossoverPoints[cpi]).Norm2F();
 #if !use_fixed
-               Trace.Assert(!float.IsNaN(totalCost));
+               Trace.Assert(!double.IsNaN(totalCost));
 #endif
                optimalLinkToCrossovers[cpi] = new PathLink {
                   PriorIndex = PathLink.DirectPathIndex,
@@ -369,7 +369,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
                   var optimalLinkFromOtherCrossoverPoint = otherOptimalLinkByWaypointIndex[optimalLinkToOtherCrossoverPoint.PriorIndex];
                   var totalCost = optimalLinkToOtherCrossoverPoint.TotalCost + optimalLinkFromOtherCrossoverPoint.TotalCost;
 #if !use_fixed
-                  Trace.Assert(!float.IsNaN(totalCost));
+                  Trace.Assert(!double.IsNaN(totalCost));
 #endif
                   optimalLinkToCrossovers[cpi] = new PathLink {
                      PriorIndex = optimalLinkToOtherCrossoverPoint.PriorIndex,
