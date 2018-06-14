@@ -434,7 +434,8 @@ namespace OpenMOBA.Geometry {
          uPlusV = cDouble.Round(uPlusV, 20);
          return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (uPlusV <= CDoubleMath.c1);
 #else
-         return (u >= -CDoubleMath.Epsilon) && (v >= -CDoubleMath.Epsilon) && (uPlusV <= CDoubleMath.c1 + CDoubleMath.Epsilon);
+         const double epsilon = 10E-12;
+         return (u >= -epsilon) && (v >= -epsilon) && (uPlusV <= CDoubleMath.c1 + epsilon);
 #endif
       }
 
