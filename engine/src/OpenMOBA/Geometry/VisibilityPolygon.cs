@@ -4,6 +4,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Threading;
+using Dargon.Commons.Comparers;
+using Dargon.Commons.Pooling;
 using OpenMOBA.DataStructures;
 
 #if use_fixed
@@ -33,6 +36,10 @@ namespace OpenMOBA.Geometry {
       private IntervalRange[] _intervalRanges;
       private readonly IComparer<IntLineSegment2> _segmentComparer;
       private int rangeIdCounter = RANGE_ID_INITIAL;
+
+      private static TlsBufferManager<(cDouble, int, bool)> tlsEventBuffer = new TlsBufferManager<(double, int, bool)>();
+      private static TlsBufferManager<int> tlsEventOrder = new TlsBufferManager<int>();
+      private static TlsBufferManager<bool> tlsEventBugCheck = new TlsBufferManager<bool>();
 
       public VisibilityPolygon(DoubleVector2 origin)
          : this(
@@ -490,7 +497,7 @@ namespace OpenMOBA.Geometry {
       // IV2 origin variant doesn't have significant perf gains - overhead is largely in struct copying
       // and tree structure stuff.
       public static VisibilityPolygon Create(DoubleVector2 origin, IntLineSegment2[] barriers, int eventLimit = -1) {
-         var events = new (cDouble, int, bool)[barriers.Length * 4];
+         var events = tlsEventBuffer.UnsafeTakeAndGive(barriers.Length * 4);
          var numEvents = 0;
 
          // Initialize PQ with events
@@ -540,15 +547,24 @@ namespace OpenMOBA.Geometry {
             }
          }
 
-         var eventIndices = Util.GenerateRange(numEvents);
-         Array.Sort(eventIndices, (a, b) => {
+         var eventIndices = tlsEventOrder.UnsafeTakeAndGive(numEvents);
+         Trace.Assert(eventIndices.Length >= numEvents); // try to avoid bounds check
+         for (var i = 0; i < numEvents; i++) {
+            eventIndices[i] = i;
+         }
+
+         Array.Sort(eventIndices, 0, numEvents, Comparer<int>.Create((a, b) => {
             var res = events[a].Item1.CompareTo(events[b].Item1);
             if (res != 0) return res;
             return events[a].Item3.CompareTo(events[b].Item3);
-         });
+         }));
 
-         var temp = new bool[barriers.Length];
-         for (var i = 0; i < eventIndices.Length; i++) {
+         var temp = tlsEventBugCheck.UnsafeTakeAndGive(barriers.Length);
+         Trace.Assert(temp.Length >= barriers.Length); // try to avoid bounds check
+         for (var i = 0; i < barriers.Length; i++) {
+            temp[i] = false;
+         }
+         for (var i = 0; i < numEvents; i++) {
             var item = events[eventIndices[i]];
             if (temp[item.Item2] == item.Item3) {
                throw new Exception();
@@ -568,7 +584,7 @@ namespace OpenMOBA.Geometry {
          // we only have ~10 at most items in the PQ (usually more like 1-5) and we're scanning for ints.
          // Tracking PQ indices with hashset is still faster than sortedset, but slower than nontracking PQ.
          var orderedSegments = new NonTrackingRemovablePriorityQueue<int>(OrderedSegmentComparison);
-         var outputRanges = new IntervalRange[eventIndices.Length + 1];
+         var outputRanges = new IntervalRange[numEvents + 1];
 
          void ValidateOrderingTransitivity(IntLineSegment2 sq) {
             var arr = orderedSegments.ToArray();
@@ -632,7 +648,7 @@ namespace OpenMOBA.Geometry {
          }
 
          var lastOutputRangeIndex = -1;
-         for (var i = 0; i < eventIndices.Length; i++) {
+         for (var i = 0; i < numEvents; i++) {
             if (i == eventLimit) break;
 
             var (theta, id, add) = events[eventIndices[i]];

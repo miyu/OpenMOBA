@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using ClipperLib;
+using Dargon.Commons.Pooling;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Geometry;
 using cInt = System.Int32;
@@ -67,10 +68,14 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
       // Note: Holes in polytree are in reverse clockness than lands.
       private static IntVector2[] FindContourWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourWaypoints != null) return node.visibilityGraphNodeData.ContourWaypoints;
+         var results = new List<IntVector2>(node.Contour.Count);
+         FindContourWaypointsHelper(node, results);
+         return results.ToArray();
+      }
 
-         var results = new List<IntVector2>();
+      public static void FindContourWaypointsHelper(PolyNode node, IList<IntVector2> res) {
          var contour = node.Contour;
-         var contourIsOpen = contour.First() != contour.Last();
+         var contourIsOpen = contour[0] != contour[contour.Count - 1];
          var pointCount = contourIsOpen ? node.Contour.Count : node.Contour.Count - 1;
          for (var i = 0; i < pointCount; i++) {
             var a = contour[i];
@@ -78,18 +83,17 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
             var c = contour[(i + 2) % pointCount];
 
             var clockness = GeometryOperations.Clockness(a.X, a.Y, b.X, b.Y, c.X, c.Y);
-            if (clockness == Clockness.CounterClockwise) results.Add(b);
+            if (clockness == Clockness.CounterClockwise) res.Add(b);
          }
-         return node.visibilityGraphNodeData.ContourWaypoints = results.ToArray();
       }
 
       [MethodImpl(MethodImplOptions.NoInlining)]
       public static IntLineSegment2[] FindContourAndChildHoleBarriers(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourAndChildHoleBarriers != null) return node.visibilityGraphNodeData.ContourAndChildHoleBarriers;
 
-         var nodeAndChildrenContours = new[] { node.Contour }.Concat(node.Childs.Select(c => c.Contour));
          var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
-                                                               .Include(nodeAndChildrenContours)
+                                                               .Include(node.Contour)
+                                                               .Include(node.Childs.Select(c => c.Contour))
                                                                .Dilate((cDouble)(kBarrierPolyTreeDilationFactor + kBarrierOverDilationFactor))
                                                                .Cleanup()
                                                                .Erode((cDouble)(kBarrierOverDilationFactor))
@@ -126,22 +130,20 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          return node.visibilityGraphNodeData.ContourAndChildHoleBarriersBvh = BvhILS2.Build(node.FindContourAndChildHoleBarriers());
       }
 
-      [MethodImpl(MethodImplOptions.NoInlining)]
+      public static TlsBackedObjectPool<AddOnlyOrderedHashSet<IntVector2>> tlsAggregateContourCrossoverWaypointsStore = TlsBackedObjectPool.Create<AddOnlyOrderedHashSet<IntVector2>>();
+
       public static IntVector2[] FindAggregateContourCrossoverWaypoints(this PolyNode node) {
          if (node.visibilityGraphNodeData.AggregateContourWaypoints != null) {
             return node.visibilityGraphNodeData.AggregateContourWaypoints;
          }
 
-         var sources = new HashSet<IntVector2>(FindContourWaypoints(node));
+         var waypoints = tlsAggregateContourCrossoverWaypointsStore.UnsafeTakeAndGive();
+         waypoints.Clear();
+         FindContourWaypointsHelper(node, waypoints);
          foreach (var child in node.Childs) {
-            foreach (var waypoint in FindContourWaypoints(child)) {
-               sources.Add(waypoint);
-            }
+            FindContourWaypointsHelper(child, waypoints);
          }
-//         if (node.visibilityGraphNodeData.EdgeDescriptions != null) {
-//            sources.Add(node.visibilityGraphNodeData.ErodedCrossoverSegments.SelectMany(c => c.Points));
-//         }
-         return node.visibilityGraphNodeData.AggregateContourWaypoints = sources.ToArray(); //sources.SelectMany(x => x).ToArray();
+         return node.visibilityGraphNodeData.AggregateContourWaypoints = waypoints.ToArray();
       }
 
       public static PolyNodeVisibilityGraph ComputeVisibilityGraph(this PolyNode landNode) {
