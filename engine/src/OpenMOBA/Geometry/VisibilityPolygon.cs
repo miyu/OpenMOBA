@@ -37,9 +37,9 @@ namespace OpenMOBA.Geometry {
       private readonly IComparer<IntLineSegment2> _segmentComparer;
       private int rangeIdCounter = RANGE_ID_INITIAL;
 
-      private static TlsBufferManager<(cDouble, int, bool)> tlsEventBuffer = new TlsBufferManager<(double, int, bool)>();
-      private static TlsBufferManager<int> tlsEventOrder = new TlsBufferManager<int>();
-      private static TlsBufferManager<bool> tlsEventBugCheck = new TlsBufferManager<bool>();
+      private static TlsPow2BufferManager<(cDouble, int, bool)> tlsEventBuffer = new TlsPow2BufferManager<(double, int, bool)>();
+      private static TlsPow2BufferManager<int> tlsEventOrder = new TlsPow2BufferManager<int>();
+      private static TlsPow2BufferManager<bool> tlsEventBugCheck = new TlsPow2BufferManager<bool>();
 
       public VisibilityPolygon(DoubleVector2 origin)
          : this(

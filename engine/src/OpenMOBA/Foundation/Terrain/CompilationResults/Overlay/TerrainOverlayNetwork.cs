@@ -186,6 +186,12 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
       /// </summary>
       private readonly PathLink[][] waypointToWaypointLut;
 
+      /// <summary>
+      /// Precompute WaypointVisibilityPolygons. It's memoized, but for some reason profiler gets confused here.
+      /// </summary>
+      private VisibilityPolygon[] waypointVisibilityPolygonsCache;
+      private VisibilityPolygon[] WaypointVisibilityPolygons => waypointVisibilityPolygonsCache ?? (waypointVisibilityPolygonsCache = landPolyNode.ComputeWaypointVisibilityPolygons());
+
       public PolyNodeCrossoverPointManager(PolyNode landPolyNode) {
          this.landPolyNode = landPolyNode;
          waypoints = landPolyNode.FindAggregateContourCrossoverWaypoints();
@@ -410,7 +416,7 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Overlay {
             Interlocked.Increment(ref FindOptimalLinksToCrossovers_CandidateWaypointVisibilityCheck);
             var wi = candidateWaypoints[i];
             var costSquared = waypoints[wi].To(p).SquaredNorm2();
-            var visibilityPolygon = landPolyNode.ComputeWaypointVisibilityPolygons()[wi];
+            var visibilityPolygon = WaypointVisibilityPolygons[wi];
             if (visibilityPolygon.Contains(p)) {
                visibleWaypointLinks[visibleWaypointLinksLength] = new PathLink { PriorIndex = wi, TotalCost = CDoubleMath.Sqrt((cDouble)costSquared) };
                visibleWaypointLinksLength++;

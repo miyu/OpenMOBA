@@ -87,19 +87,23 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          }
       }
 
+      public static TlsBackedObjectPool<List<IntLineSegment2>> tlsFindContourAndChildHoleBarriersStore = TlsBackedObjectPool.Create<List<IntLineSegment2>>();
+
       [MethodImpl(MethodImplOptions.NoInlining)]
       public static IntLineSegment2[] FindContourAndChildHoleBarriers(this PolyNode node) {
          if (node.visibilityGraphNodeData.ContourAndChildHoleBarriers != null) return node.visibilityGraphNodeData.ContourAndChildHoleBarriers;
 
+         // ReSharper disable once CoVariantArrayConversion
          var dilatedNodeAndChildrenPolytree = PolygonOperations.Offset()
                                                                .Include(node.Contour)
-                                                               .Include(node.Childs.Select(c => c.Contour))
+                                                               .Include(node.Childs.Map(c => c.Contour))
                                                                .Dilate((cDouble)(kBarrierPolyTreeDilationFactor + kBarrierOverDilationFactor))
                                                                .Cleanup()
                                                                .Erode((cDouble)(kBarrierOverDilationFactor))
                                                                .Execute();
 
-         var results = new List<IntLineSegment2>();
+         var results = tlsFindContourAndChildHoleBarriersStore.UnsafeTakeAndGive();
+         results.Clear();
          foreach (var (polygon, isHole) in dilatedNodeAndChildrenPolytree.FlattenToPolygonAndIsHoles()) {
             var pointCount = polygon.IsClosed ? polygon.Points.Count - 1 : polygon.Points.Count;
 
@@ -154,25 +158,20 @@ namespace OpenMOBA.Foundation.Terrain.CompilationResults.Local {
          return landNode.visibilityGraphNodeData.VisibilityDistanceMatrix = PolyNodeVisibilityGraph.Construct(landNode, waypoints, barriers);
       }
 
+      // Profiler says this is a hot alloc path. However, invoking the method twice DOUBLES the alloc count
+      // which makes 0 sense given memoization. I assume this is a bug in the runtime or profiler.
+      // in any case, the solution is to call this rarely and not depend on its caching.
       public static VisibilityPolygon[] ComputeWaypointVisibilityPolygons(this PolyNode landNode) {
          if (landNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons != null) return landNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons;
 
          var waypoints = FindAggregateContourCrossoverWaypoints(landNode);
          var barriers = FindContourAndChildHoleBarriers(landNode);
+
          var visibilityPolygons = waypoints.Map(waypoint => {
             var visibilityPolygon = VisibilityPolygon.Create(waypoint.ToDoubleVector2(), barriers);
-//            for (var edgeDescriptionIndex = 0; edgeDescriptionIndex < landNode.visibilityGraphNodeData.SectorSnapshot.SourceSegmentEdgeDescriptions.Count; edgeDescriptionIndex++) {
-//               var erodedCrossoverSegmentBox = landNode.visibilityGraphNodeData.SectorSnapshotGeometryContext.ErodedBoundaryCrossoverSegments[edgeDescriptionIndex];
-//               if (!erodedCrossoverSegmentBox.HasValue) {
-//                  continue;
-//               }
-//               if (waypoint == erodedCrossoverSegmentBox.Value.First || waypoint == erodedCrossoverSegmentBox.Value.Second) {
-//                  continue;
-//               }
-//               visibilityPolygon.ClearBeyond(landNode.visibilityGraphNodeData.SectorSnapshot.SourceSegmentEdgeDescriptions[edgeDescriptionIndex].SourceSegment);
-//            }
             return visibilityPolygon;
          });
+
          return landNode.visibilityGraphNodeData.AggregateContourWaypointVisibilityPolygons = visibilityPolygons;
       }
 
