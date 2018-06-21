@@ -71,6 +71,7 @@
 
 using System;
 using System.Collections.Generic;
+using Dargon.Commons.Pooling;
 using FixMath.NET;
 using OpenMOBA;
 using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
@@ -1282,11 +1283,16 @@ namespace ClipperLib {
       private List<Join> m_Joins;
       private List<Join> m_GhostJoins;
       private bool m_UsingPolyTree;
+
 #if use_xyz
       public delegate void ZFillCallback(IntPoint bot1, IntPoint top1, 
         IntPoint bot2, IntPoint top2, ref IntPoint pt);
       public ZFillCallback ZFillFunction { get; set; }
 #endif
+
+      // Clipper shouldn't be reentrant, though ClipperOffset does call Clipper.
+      private static readonly TlsTakeManyReturnOnceObjectPool<OutPt> tlsPoolOutPts = TlsTakeManyReturnOnceObjectPool.CreateWithObjectZeroAndReconstruction<OutPt>(1);
+
       public Clipper(int InitOptions = 0) : base() //constructor
       {
          m_Scanbeam = null;
@@ -1372,6 +1378,9 @@ namespace ClipperLib {
          m_ClipFillType = clipFillType;
          m_ClipType = clipType;
          m_UsingPolyTree = false;
+
+         tlsPoolOutPts.EnterLevel();
+
          bool succeeded;
          try {
             succeeded = ExecuteInternal();
@@ -1380,6 +1389,7 @@ namespace ClipperLib {
          } finally {
             DisposeAllPolyPts();
             m_ExecuteLocked = false;
+            tlsPoolOutPts.LeaveLevelReturningTakenInstances();
          }
          return succeeded;
       }
@@ -1393,6 +1403,9 @@ namespace ClipperLib {
          m_ClipFillType = clipFillType;
          m_ClipType = clipType;
          m_UsingPolyTree = true;
+
+         tlsPoolOutPts.EnterLevel();
+
          bool succeeded;
          try {
             succeeded = ExecuteInternal();
@@ -1401,6 +1414,7 @@ namespace ClipperLib {
          } finally {
             DisposeAllPolyPts();
             m_ExecuteLocked = false;
+            tlsPoolOutPts.LeaveLevelReturningTakenInstances();
          }
          return succeeded;
       }
@@ -1946,7 +1960,7 @@ namespace ClipperLib {
          if (e.OutIdx < 0) {
             OutRec outRec = CreateOutRec();
             outRec.IsOpen = (e.WindDelta == 0);
-            OutPt newOp = new OutPt();
+            OutPt newOp = tlsPoolOutPts.Take();//new OutPt();
             outRec.Pts = newOp;
             newOp.Idx = outRec.Idx;
             newOp.Pt = pt;
@@ -1964,7 +1978,7 @@ namespace ClipperLib {
             if (ToFront && pt == op.Pt) return op;
             else if (!ToFront && pt == op.Prev.Pt) return op.Prev;
 
-            OutPt newOp = new OutPt();
+            OutPt newOp = tlsPoolOutPts.Take();
             newOp.Idx = outRec.Idx;
             newOp.Pt = pt;
             newOp.Next = op;
@@ -3070,7 +3084,7 @@ namespace ClipperLib {
       //------------------------------------------------------------------------------
 
       OutPt DupOutPt(OutPt outPt, bool InsertAfter) {
-         OutPt result = new OutPt();
+         OutPt result = tlsPoolOutPts.Take();
          result.Pt = outPt.Pt;
          result.Idx = outPt.Idx;
          if (InsertAfter) {
@@ -3752,7 +3766,8 @@ namespace ClipperLib {
          if (cnt == 0) return new Path();
 
          OutPt[] outPts = new OutPt[cnt];
-         for (int i = 0; i < cnt; ++i) outPts[i] = new OutPt();
+         tlsPoolOutPts.EnterLevel();
+         for (int i = 0; i < cnt; ++i) outPts[i] = tlsPoolOutPts.Take();
 
          for (int i = 0; i < cnt; ++i) {
             outPts[i].Pt = path[i];
@@ -3787,6 +3802,7 @@ namespace ClipperLib {
             op = op.Next;
          }
          outPts = null;
+         tlsPoolOutPts.LeaveLevelReturningTakenInstances();
          return result;
       }
       //------------------------------------------------------------------------------
