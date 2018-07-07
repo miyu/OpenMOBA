@@ -15,9 +15,9 @@ using cDouble = System.Double;
 namespace OpenMOBA {
    public class Program {
       public static void Main(string[] args) {
-         while (true) {
+         // while (true) {
             Main(new GameFactory());
-         }
+         // }
       }
 
       public static void Main(GameFactory gameFactory) {

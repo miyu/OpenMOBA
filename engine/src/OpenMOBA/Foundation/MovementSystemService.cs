@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using Dargon.Commons.Pooling;
 using OpenMOBA.DataStructures;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.CompilationResults;
@@ -417,8 +418,9 @@ namespace OpenMOBA.Foundation {
                   // k = 1: When fully overlapping
                   // k = 2: When half overlapped.
                   cDouble k = (cDouble)350;
-                  var centerDistance = CDoubleMath.Sqrt((cDouble)centerDistanceSquared);
-                  w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow(centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
+                  // var centerDistance = CDoubleMath.Sqrt((cDouble)centerDistanceSquared);
+                  var centerDistance = IntMath.Sqrt(checked((int)centerDistanceSquared));
+                  w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow((cDouble)centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   // And the force vector (outer code will tounit this)
@@ -429,14 +431,15 @@ namespace OpenMOBA.Foundation {
                   // Case: Nonoverlapping, in same swarm. Push swarmlings near but nonoverlapping
                   // TODO: Alignment force.
                   const int groupingTolerance = 8;
-                  var spacingBetweenBoundaries = (int)Math.Sqrt(centerDistanceSquared) - radiusSum;
+                  var spacingBetweenBoundaries = IntMath.Sqrt(checked((int)centerDistanceSquared)) - radiusSum;
                   var maxAttractionDistance = radiusSum * groupingTolerance;
 
                   if (spacingBetweenBoundaries > maxAttractionDistance)
                      continue;
 
                   // regroup (aka cohesion) = ((D - d) / D)^4 
-                  w = CDoubleMath.c10 * CDoubleMath.Pow((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance, CDoubleMath.c0_5);
+                  // w = CDoubleMath.c10 * CDoubleMath.Pow((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance, CDoubleMath.c0_5);
+                  w = CDoubleMath.c10 * CDoubleMath.Sqrt((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   aForce = aToB;

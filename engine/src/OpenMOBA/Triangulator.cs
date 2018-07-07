@@ -21,7 +21,7 @@ namespace OpenMOBA {
    }
 
    public class Triangulation {
-      public IReadOnlyList<TriangulationIsland> Islands { get; set; }
+      public List<TriangulationIsland> Islands { get; set; }
    }
 
    public struct Triangle3 {
