@@ -187,7 +187,7 @@ namespace OpenMOBA.Foundation {
 
    public static class IntMath {
       private const int MaxLutIntExclusive = 1024 * 1024;
-      private static readonly cInt[] SqrtLut = Enumerable.Range(0, MaxLutIntExclusive).Select(x => (cInt)Math.Sqrt(x)).ToArray();
+      private static readonly cInt[] IntSqrtLut = Util.Generate(MaxLutIntExclusive, x => (cInt)CDoubleMath.Sqrt((cDouble)x));
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public static cInt Square(cInt x) {
@@ -201,9 +201,23 @@ namespace OpenMOBA.Foundation {
 
       public static cInt Sqrt(cInt x) {
          if (x < 0) throw new ArgumentException($"sqrti({x})");
-         else if (x < MaxLutIntExclusive) return SqrtLut[x];
+         else if (x < MaxLutIntExclusive) return IntSqrtLut[x];
          else return (cInt)Math.Sqrt(x);
       }
+   }
+
+   public static class Frac01Lut {
+      private const int LutSizeMinus1 = 256;
+
+      private static readonly cDouble[] powLut0_5 = BuildPowLut(CDoubleMath.c0_5);
+      public static cDouble Pow0_5(int numerator, int denominator) => Lookup(powLut0_5, numerator, denominator);
+
+      private static readonly cDouble[] powLut0_3 = BuildPowLut(CDoubleMath.c0_3);
+      public static cDouble Pow0_3(int numerator, int denominator) => Lookup(powLut0_3, numerator, denominator);
+
+      public static cDouble[] BuildLut(Func<int, int, cDouble> f) => Util.Generate(LutSizeMinus1 + 1, i => f(i, LutSizeMinus1));
+      public static cDouble[] BuildPowLut(cDouble pow) => BuildLut((i, j) => CDoubleMath.Pow((cDouble)i / (cDouble)j, pow));
+      public static cDouble Lookup(cDouble[] lut, int numerator, int denominator) => lut[(int)((numerator * (long)LutSizeMinus1) / denominator)];
    }
 
    public class MotionRoadmap {

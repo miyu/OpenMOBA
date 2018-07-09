@@ -12,7 +12,7 @@ using cDouble = System.Double;
 namespace OpenMOBA.Foundation.Terrain.Declarations {
    public interface IHoleStaticMetadata {
       bool TryProjectOnto(HoleInstanceMetadata instanceMetadata, SectorNodeDescription sectorNodeDescription, out IReadOnlyList<Polygon2> projectedHoleIncludedContours, out IReadOnlyList<Polygon2> projectedHoleExcludedContours);
-      AxisAlignedBoundingBox ComputeWorldAABB(Matrix4x4 worldTransform);
+      AxisAlignedBoundingBox3 ComputeWorldAABB(Matrix4x4 worldTransform);
       bool ContainsPoint(HoleInstanceMetadata instanceMetadata, DoubleVector3 pointWorld, cDouble agentRadius);
    }
 }

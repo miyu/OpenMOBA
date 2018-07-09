@@ -6,6 +6,6 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
       public Matrix4x4 WorldTransform = Matrix4x4.Identity;
       public Matrix4x4 WorldTransformInv = Matrix4x4.Identity;
 
-      public AxisAlignedBoundingBox WorldAABB = null;
+      public AxisAlignedBoundingBox3 WorldAABB = null;
    }
 }

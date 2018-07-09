@@ -63,7 +63,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          return true;
       }
 
-      public AxisAlignedBoundingBox ComputeWorldAABB(Matrix4x4 worldTransform) {
+      public AxisAlignedBoundingBox3 ComputeWorldAABB(Matrix4x4 worldTransform) {
          // todo: can we do this more efficiently?
          var rad = (float)Radius;
          var nrad = -rad;
@@ -78,7 +78,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
             new Vector3( rad,  rad,  rad)
          };
          // TODO: Divergence
-         return AxisAlignedBoundingBox.BoundingPoints(corners.Map(p => Vector3.Transform(p, worldTransform).ToOpenMobaVector()));
+         return AxisAlignedBoundingBox3.BoundingPoints(corners.Map(p => Vector3.Transform(p, worldTransform).ToOpenMobaVector()));
       }
 
       public bool ContainsPoint(HoleInstanceMetadata instanceMetadata, DoubleVector3 pointWorld, cDouble agentRadius) {

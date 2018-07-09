@@ -63,7 +63,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
       public bool EnableDebugHighlight { get; set; }
       //      public IReadOnlyCollection<DynamicTerrainHole> Holes => InstanceMetadata.Holes;
 
-      public AxisAlignedBoundingBox WorldBounds => InstanceMetadata.WorldAABB;
+      public AxisAlignedBoundingBox3 WorldBounds => InstanceMetadata.WorldAABB;
 
       private void RecomputeWorldAABB() {
          var transform = InstanceMetadata.WorldTransform;
@@ -93,7 +93,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
 
          var mins = origin + nearBottomLeft.MinWith(nearBottomRight).MinWith(nearTopLeft).MinWith(nearTopRight).MinWith(farBottomLeft).MinWith(farBottomRight).MinWith(farTopLeft).MinWith(farTopRight);
          var maxs = origin + nearBottomLeft.MaxWith(nearBottomRight).MaxWith(nearTopLeft).MaxWith(nearTopRight).MaxWith(farBottomLeft).MaxWith(farBottomRight).MaxWith(farTopLeft).MaxWith(farTopRight);
-         InstanceMetadata.WorldAABB = AxisAlignedBoundingBox.FromExtents(mins, maxs);
+         InstanceMetadata.WorldAABB = AxisAlignedBoundingBox3.FromExtents(mins, maxs);
       }
 
       public override string ToString() => guid.ToString("n").Substring(0, 8);

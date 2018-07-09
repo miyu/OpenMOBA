@@ -13,13 +13,13 @@ namespace OpenMOBA.DataStructures {
    public class BvhTreeAABB<TValue> {
       public readonly BvhTreeAABB<TValue> First;
       public readonly BvhTreeAABB<TValue> Second;
-      public readonly AxisAlignedBoundingBox[] BoundingBoxes;
+      public readonly AxisAlignedBoundingBox3[] BoundingBoxes;
       public readonly TValue[] Values;
       public readonly int StartIndexInclusive;
       public readonly int EndIndexExclusive;
-      public readonly AxisAlignedBoundingBox Bounds;
+      public readonly AxisAlignedBoundingBox3 Bounds;
 
-      private BvhTreeAABB(BvhTreeAABB<TValue> first, BvhTreeAABB<TValue> second, AxisAlignedBoundingBox[] boundingBoxes, TValue[] values, int startIndexInclusive, int endIndexExclusive, AxisAlignedBoundingBox bounds) {
+      private BvhTreeAABB(BvhTreeAABB<TValue> first, BvhTreeAABB<TValue> second, AxisAlignedBoundingBox3[] boundingBoxes, TValue[] values, int startIndexInclusive, int endIndexExclusive, AxisAlignedBoundingBox3 bounds) {
          First = first;
          Second = second;
          BoundingBoxes = boundingBoxes;
@@ -51,11 +51,11 @@ namespace OpenMOBA.DataStructures {
          return false;
       }
 
-      public bool TryIntersect(DoubleVector3 p, out AxisAlignedBoundingBox box) {
+      public bool TryIntersect(DoubleVector3 p, out AxisAlignedBoundingBox3 box) {
          return TryIntersect(ref p, out box);
       }
 
-      public bool TryIntersect(ref DoubleVector3 p, out AxisAlignedBoundingBox box) {
+      public bool TryIntersect(ref DoubleVector3 p, out AxisAlignedBoundingBox3 box) {
          if (TryIntersect(ref p, out BvhTreeAABB<TValue> node)) {
             box = node.Bounds;
             return true;
@@ -86,17 +86,17 @@ namespace OpenMOBA.DataStructures {
          }
       }
 
-      public static BvhTreeAABB<TValue> Build(IEnumerable<KeyValuePair<AxisAlignedBoundingBox, TValue>> kvpEnumerable) {
+      public static BvhTreeAABB<TValue> Build(IEnumerable<KeyValuePair<AxisAlignedBoundingBox3, TValue>> kvpEnumerable) {
          var inputKvps = kvpEnumerable.ToArray();
          var inputBoxesCenters = inputKvps.Map(kvp => kvp.Key.Center);
          var segmentIndices = Util.Generate(inputKvps.Length, i => i);
          var xComparer = Comparer<int>.Create((a, b) => inputBoxesCenters[a].X.CompareTo(inputBoxesCenters[b].X));
          var yComparer = Comparer<int>.Create((a, b) => inputBoxesCenters[a].Y.CompareTo(inputBoxesCenters[b].Y));
          var zComparer = Comparer<int>.Create((a, b) => inputBoxesCenters[a].Z.CompareTo(inputBoxesCenters[b].Z));
-         var outputBoxes = new AxisAlignedBoundingBox[inputKvps.Length];
+         var outputBoxes = new AxisAlignedBoundingBox3[inputKvps.Length];
          var outputValues = new TValue[inputKvps.Length];
 
-         AxisAlignedBoundingBox BoundingBoxes(int startIndexInclusive, int endIndexExclusive) {
+         AxisAlignedBoundingBox3 BoundingBoxes(int startIndexInclusive, int endIndexExclusive) {
             cDouble minX = cDouble.MaxValue, minY = cDouble.MaxValue, minZ = cDouble.MaxValue, maxX = cDouble.MinValue, maxY = cDouble.MinValue, maxZ = cDouble.MinValue;
             for (var i = startIndexInclusive; i < endIndexExclusive; i++) {
                var center = inputKvps[segmentIndices[i]].Key.Center;
@@ -112,7 +112,7 @@ namespace OpenMOBA.DataStructures {
                if (center.Z + extents.Z > maxZ) maxZ = center.Z + extents.Z;
             }
             // ir2 is inclusive
-            return AxisAlignedBoundingBox.FromExtents(minX, minY, minZ, maxX, maxY, maxZ);
+            return AxisAlignedBoundingBox3.FromExtents(minX, minY, minZ, maxX, maxY, maxZ);
          }
 
          BvhTreeAABB<TValue> BuildInternal(int startInclusive, int endExclusive, int depth) {
@@ -130,7 +130,7 @@ namespace OpenMOBA.DataStructures {
             int midpoint = (startInclusive + endExclusive) / 2;
             var first = BuildInternal(startInclusive, midpoint, depth + 1);
             var second = BuildInternal(midpoint, endExclusive, depth + 1);
-            var bounds = AxisAlignedBoundingBox.BoundingBoxes(first.Bounds, second.Bounds);
+            var bounds = AxisAlignedBoundingBox3.BoundingBoxes(first.Bounds, second.Bounds);
 
             return new BvhTreeAABB<TValue>(first, second, outputBoxes, outputValues, startInclusive, endExclusive, bounds);
          }

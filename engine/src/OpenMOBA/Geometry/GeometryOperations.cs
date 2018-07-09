@@ -253,11 +253,19 @@ namespace OpenMOBA.Geometry {
             triangleIndex = -1;
             return false;
          }
+#if use_fixed
+         var p = new DoubleVector2(x, y);
+#endif
+
          for (var i = 0; i < island.Triangles.Length; i++) {
-            if (IsPointInTriangle(x, y, ref island.Triangles[i])) {
-               triangleIndex = i;
-               return true;
-            }
+#if use_fixed
+            // It's faster to check AABB before doing the full PIP math in fixed-point arithmetic.
+            if (!island.FixedOptimizationTriangleBounds[i].Contains(ref p)) continue;
+#endif
+
+            if (!IsPointInTriangle(x, y, ref island.Triangles[i])) continue;
+            triangleIndex = i;
+            return true;
          }
          triangleIndex = -1;
          return false;

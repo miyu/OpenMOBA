@@ -390,6 +390,9 @@ namespace OpenMOBA.Foundation {
          }
       }
 
+      private static cDouble[] Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isOverlappingWeightLut;
+      private static cDouble[] Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isNonOverlappingWeightLut;
+
       private static void Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors(MovementComponent[] movementComponents) {
          for (var i = 0; i < movementComponents.Length - 1; i++) {
             var a = movementComponents[i];
@@ -417,10 +420,21 @@ namespace OpenMOBA.Foundation {
                   // k impacts how quickly overlapping overwhelms seeking.
                   // k = 1: When fully overlapping
                   // k = 2: When half overlapped.
-                  cDouble k = (cDouble)350;
+                  var wLut = Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isOverlappingWeightLut ??
+                             (Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isOverlappingWeightLut =
+                                Frac01Lut.BuildLut((paramCenterDistance, paramRadiusSum) => {
+                                   cDouble k = (cDouble)350;
+
+                                   // w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow((cDouble)centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
+                                   return k * k * (CDoubleMath.c1 - Frac01Lut.Pow0_3(paramCenterDistance, paramRadiusSum));
+                                }));
+
                   // var centerDistance = CDoubleMath.Sqrt((cDouble)centerDistanceSquared);
                   var centerDistance = IntMath.Sqrt(checked((int)centerDistanceSquared));
-                  w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow((cDouble)centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
+
+                  // w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow((cDouble)centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
+                  // w = k * k * (CDoubleMath.c1 - Frac01Lut.Pow0_3(centerDistance, radiusSum));
+                  w = Frac01Lut.Lookup(wLut, centerDistance, radiusSum);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   // And the force vector (outer code will tounit this)
@@ -439,7 +453,14 @@ namespace OpenMOBA.Foundation {
 
                   // regroup (aka cohesion) = ((D - d) / D)^4 
                   // w = CDoubleMath.c10 * CDoubleMath.Pow((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance, CDoubleMath.c0_5);
-                  w = CDoubleMath.c10 * CDoubleMath.Sqrt((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance);
+                  // w = CDoubleMath.c10 * CDoubleMath.Sqrt((cDouble)(maxAttractionDistance - spacingBetweenBoundaries) / (cDouble)maxAttractionDistance);
+
+                  var wLut = Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isNonOverlappingWeightLut ??
+                             (Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isNonOverlappingWeightLut =
+                                Frac01Lut.BuildLut((maxAttractionDistsanceMinusSpacingBetweenBoundariesParam, maxAttractionDistanceParam) => {
+                                   return CDoubleMath.c10 * Frac01Lut.Pow0_5(maxAttractionDistsanceMinusSpacingBetweenBoundariesParam, maxAttractionDistanceParam);
+                                }));
+                  w = Frac01Lut.Lookup(wLut, maxAttractionDistance - spacingBetweenBoundaries, maxAttractionDistance);
                   Debug.Assert(GeometryOperations.IsReal(w));
 
                   aForce = aToB;
@@ -457,12 +478,17 @@ namespace OpenMOBA.Foundation {
                }
 
 
-               var wf = w * aForce.ToDoubleVector2().ToUnit();
+               // slow due to fix64 sqrt
+               //var wf = w * aForce.ToDoubleVector2().ToUnit();
+               var aForceMagSquared = aForce.SquaredNorm2();
+               var aForceMag = (cDouble)IntMath.Sqrt(checked((int)aForceMagSquared));
+               var wf = new DoubleVector2((w * (cDouble)aForce.X) / aForceMag, (w * (cDouble)aForce.Y) / aForceMag);
+
                Debug.Assert(GeometryOperations.IsReal(wf));
                Debug.Assert(GeometryOperations.IsReal(w));
 
-               a.WeightedSumNBodyForces += wf * (cDouble)0.95;
-               a.SumWeightsNBodyForces += w * (cDouble)0.95;
+               a.WeightedSumNBodyForces += wf;// * (cDouble)0.95;
+               a.SumWeightsNBodyForces += w;// * (cDouble)0.95;
 
                b.WeightedSumNBodyForces -= wf;
                b.SumWeightsNBodyForces += w;

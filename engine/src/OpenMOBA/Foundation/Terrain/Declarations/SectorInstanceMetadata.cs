@@ -15,6 +15,6 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
       public cDouble WorldToLocalScalingFactor = CDoubleMath.c1;
       public cDouble LocalToWorldScalingFactor = CDoubleMath.c1;
 
-      public AxisAlignedBoundingBox WorldAABB = null;
+      public AxisAlignedBoundingBox3 WorldAABB = null;
    }
 }

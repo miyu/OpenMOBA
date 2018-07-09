@@ -72,12 +72,12 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
          return true;
       }
 
-      public AxisAlignedBoundingBox ComputeWorldAABB(Matrix4x4 worldTransform) {
+      public AxisAlignedBoundingBox3 ComputeWorldAABB(Matrix4x4 worldTransform) {
          // compute projected poly's bounds in sector-local space.
          var boundsWorld = ComputeExtrudedBoundsLocal().Map(
             p => Vector3.Transform(p, worldTransform)
                         .ToOpenMobaVector());
-         return AxisAlignedBoundingBox.BoundingPoints(boundsWorld);
+         return AxisAlignedBoundingBox3.BoundingPoints(boundsWorld);
       }
 
 

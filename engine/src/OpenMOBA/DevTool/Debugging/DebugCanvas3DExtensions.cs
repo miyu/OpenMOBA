@@ -86,7 +86,7 @@ namespace OpenMOBA.DevTool.Debugging {
       //         });
       //      }
 
-      public static void DrawAxisAlignedBoundingBox(this IDebugCanvas canvas, AxisAlignedBoundingBox box, StrokeStyle strokeStyle) {
+      public static void DrawAxisAlignedBoundingBox(this IDebugCanvas canvas, AxisAlignedBoundingBox3 box, StrokeStyle strokeStyle) {
          var extents = box.Extents;
          var nbl = box.Center - extents;
          var ftr = box.Center + extents;

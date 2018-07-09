@@ -51,7 +51,7 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
 
       public bool EnableDebugHighlight { get; set; }
 
-      public AxisAlignedBoundingBox WorldBounds => InstanceMetadata.WorldAABB;
+      public AxisAlignedBoundingBox3 WorldBounds => InstanceMetadata.WorldAABB;
 
       public void EnhanceLocalGeometryJob(SectorNodeDescription sectorNodeDescription, ref LocalGeometryJob localGeometryRenderJob) {
          if (!WorldBounds.Intersects(sectorNodeDescription.WorldBounds)) {

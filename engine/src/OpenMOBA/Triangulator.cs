@@ -18,6 +18,10 @@ namespace OpenMOBA {
       public Triangle3[] Triangles { get; set; }
       public IntRect2 IntBounds { get; set; }
       public QuadTree<int> TriangleIndexQuadTree { get; set; }
+
+#if use_fixed
+      public AxisAlignedBoundingBox2[] FixedOptimizationTriangleBounds { get; set; }
+#endif
    }
 
    public class Triangulation {
@@ -164,7 +168,10 @@ namespace OpenMOBA {
          islands.Add(new TriangulationIsland {
             Triangles = triangles,
             IntBounds = islandBoundingBox,
-            TriangleIndexQuadTree = triangleIndexQuadTree
+            TriangleIndexQuadTree = triangleIndexQuadTree,
+#if use_fixed
+            FixedOptimizationTriangleBounds = triangles.Map(t => AxisAlignedBoundingBox2.BoundingPoints(new []{ t.Points[0], t.Points[1], t.Points[2] })),
+#endif
          });
          foreach (var innerChild in node.Childs.SelectMany(hole => hole.Childs)) {
             TriangulateHelper(innerChild, islands);
