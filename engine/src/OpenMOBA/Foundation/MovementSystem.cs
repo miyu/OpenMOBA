@@ -28,7 +28,7 @@ namespace OpenMOBA.Foundation {
       Completion
    }
 
-   public class MovementSystem : EntitySystemService {
+   public class MovementSystem : EntitySystem {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
       private readonly GameTimeManager gameTimeManager;
       private readonly PathfinderCalculator pathfinderCalculator;

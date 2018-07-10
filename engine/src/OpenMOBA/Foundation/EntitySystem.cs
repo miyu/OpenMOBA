@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 
 namespace OpenMOBA.Foundation {
-   public abstract class EntitySystemService {
+   public abstract class EntitySystem {
       private readonly HashSet<Entity> associatedEntities = new HashSet<Entity>();
 
-      protected EntitySystemService(EntityWorld entityWorld, EntityComponentsMask requiredComponentsMask) {
+      protected EntitySystem(EntityWorld entityWorld, EntityComponentsMask requiredComponentsMask) {
          EntityWorld = entityWorld;
          RequiredComponentsMask = requiredComponentsMask;
       }

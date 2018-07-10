@@ -4,15 +4,9 @@ using System.Collections.Generic;
 namespace OpenMOBA.Foundation {
    public class EntityWorld {
       private readonly HashSet<Entity> entities = new HashSet<Entity>();
-      private readonly List<EntitySystemService> systems = new List<EntitySystemService>();
+      private readonly List<EntitySystem> systems = new List<EntitySystem>();
 
-      public IEnumerable<Entity> EnumerateEntities() {
-         return entities;
-      }
-
-      public void AddEntitySystem(EntitySystemService system) {
-         systems.Add(system);
-      }
+      public IEnumerable<Entity> EnumerateEntities() => entities;
 
       public Entity CreateEntity() {
          var entity = new Entity();
@@ -42,6 +36,12 @@ namespace OpenMOBA.Foundation {
          }
       }
 
+      public IReadOnlyList<EntitySystem> EnumerateSystems() => systems;
+
+      public void AddEntitySystem(EntitySystem system) {
+         systems.Add(system);
+      }
+
       public void InitializeSystems() {
          foreach (var system in systems) {
             system.Initialize();
@@ -55,4 +55,3 @@ namespace OpenMOBA.Foundation {
       }
    }
 }
-

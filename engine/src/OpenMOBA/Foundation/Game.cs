@@ -85,10 +85,15 @@ namespace OpenMOBA.Foundation {
       }
    }
 
+   public interface INetworkedSystem {
+   }
+
    public class PeriodicStateSnapshotGameEventListener : GameEventListener {
+      private readonly EntityWorld world;
       private readonly int periodicity;
 
-      public PeriodicStateSnapshotGameEventListener(int periodicity) {
+      public PeriodicStateSnapshotGameEventListener(EntityWorld world, int periodicity) {
+         this.world = world;
          this.periodicity = periodicity;
       }
 
@@ -98,7 +103,10 @@ namespace OpenMOBA.Foundation {
       }
 
       private void CaptureSnapshot() {
+         foreach (var system in world.EnumerateSystems()) {
+            if (!(system is INetworkedSystem ns)) continue;
 
+         }
       }
    }
 }
