@@ -10,24 +10,26 @@ namespace OpenMOBA.Foundation {
       public event EventHandler<Game> GameCreated;
 
       public Game Create() {
-         var gameTimeService = new GameTimeService(30);
-         var gameLoop = new GameEventQueueService(gameTimeService);
+         var gameTimeService = new GameTimeManager(30);
+         var gameLoop = new GameEventQueueManager(gameTimeService);
          var terrainServiceStore = new SectorGraphDescriptionStore();
          var terrainSnapshotBuilder = new TerrainSnapshotCompiler(terrainServiceStore);
-         var terrainService = new TerrainService(terrainServiceStore, terrainSnapshotBuilder);
-         var entityService = new EntityService();
+         var terrainService = new TerrainFacade(terrainServiceStore, terrainSnapshotBuilder);
+         var entityService = new EntityWorld();
          var statsCalculator = new StatsCalculator();
          var pathfinderCalculator = new PathfinderCalculator(terrainService, statsCalculator);
-         var movementSystemService = new MovementSystemService(entityService, gameTimeService, statsCalculator, terrainService, pathfinderCalculator);
+
+         var movementSystemService = new MovementSystem(entityService, gameTimeService, statsCalculator, terrainService, pathfinderCalculator);
          entityService.AddEntitySystem(movementSystemService);
+
          var gameLogicFacade = new GameLogicFacade(terrainService, movementSystemService);
          var gameInstance = new Game {
-            GameTimeService = gameTimeService,
-            GameEventQueueService = gameLoop,
-            TerrainService = terrainService,
-            EntityService = entityService,
+            GameTimeManager = gameTimeService,
+            GameEventQueueManager = gameLoop,
+            TerrainFacade = terrainService,
+            EntityWorld = entityService,
             PathfinderCalculator = pathfinderCalculator,
-            MovementSystemService = movementSystemService,
+            MovementSystem = movementSystemService,
             GameLogicFacade = gameLogicFacade
          };
          gameInstance.Initialize();

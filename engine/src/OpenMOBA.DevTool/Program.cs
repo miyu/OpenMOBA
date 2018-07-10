@@ -51,18 +51,18 @@ namespace OpenMOBA.DevTool {
       public IDebugMultiCanvasHost DebugMultiCanvasHost { get; }
 
       private DebugProfiler DebugProfiler => Game.DebugProfiler;
-      private GameTimeService GameTimeService => Game.GameTimeService;
-      private TerrainService TerrainService => Game.TerrainService;
-      private EntityService EntityService => Game.EntityService;
+      private GameTimeManager GameTimeManager => Game.GameTimeManager;
+      private TerrainFacade TerrainFacade => Game.TerrainFacade;
+      private EntityWorld EntityWorld => Game.EntityWorld;
 
-      public void HandleFrameEnd(FrameEndStatistics frameStatistics) {
-         if (frameStatistics.EventsProcessed != 0 || GameTimeService.Ticks % 1 == 0) RenderDebugFrame();
+      public void HandleLeaveTick(LeaveTickStatistics statistics) {
+         if (statistics.EventsProcessed != 0 || GameTimeManager.Ticks % 1 == 0) RenderDebugFrame();
       }
 
       private void Benchmark(cDouble holeDilationRadius) {
          void RunBenchmarkIteration() {
-            TerrainService.SnapshotCompiler.InvalidateCaches();
-            TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
+            TerrainFacade.SnapshotCompiler.InvalidateCaches();
+            TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
          }
 
          for (var i = 0; i < 10; i++) {
@@ -84,10 +84,10 @@ namespace OpenMOBA.DevTool {
       private void RenderDebugFrame() {
          var agentRadius = (cDouble)0; //28.005;
 
-         var terrainSnapshot = TerrainService.CompileSnapshot();
+         var terrainSnapshot = TerrainFacade.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
 
-         var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeService.Ticks);
+         var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeManager.Ticks);
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
 //            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
@@ -95,7 +95,7 @@ namespace OpenMOBA.DevTool {
             if (RenderHook != null) return;
 
             debugCanvas.Transform = Matrix4x4.Identity;
-            debugCanvas.DrawEntityPaths(EntityService);
+            debugCanvas.DrawEntityPaths(EntityWorld);
             DrawEntities(debugCanvas);
 //            DrawEntityMotionVectors(debugCanvas);
             //DrawTestPathfindingQueries(debugCanvas, 0.0);
@@ -139,7 +139,7 @@ namespace OpenMOBA.DevTool {
 
                debugCanvas.Transform = Matrix4x4.Identity;
 
-               foreach (var (i, entity) in Game.EntityService.EnumerateEntities().Enumerate()) {
+               foreach (var (i, entity) in Game.EntityWorld.EnumerateEntities().Enumerate()) {
                   var mc = entity.MovementComponent;
                   var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(CDoubleMath.c2);
                   if (!ton.TryFindTerrainOverlayNode(mc.WorldPosition, out var tonn, out var plocal)) continue;
@@ -215,7 +215,7 @@ namespace OpenMOBA.DevTool {
       }
 
       private void DrawEntities(IDebugCanvas debugCanvas) {
-         foreach (var (i, entity) in EntityService.EnumerateEntities().Enumerate()) {
+         foreach (var (i, entity) in EntityWorld.EnumerateEntities().Enumerate()) {
 //            if (i == 2 || i == 1) continue;
             var movementComponent = entity.MovementComponent;
             if (movementComponent != null) {
@@ -234,7 +234,7 @@ namespace OpenMOBA.DevTool {
                //      movementComponent.DebugLines.SelectMany(pair => new[] { pair.Item1, pair.Item2 }).ToList(),
                //      new StrokeStyle(Color.Black));
                continue;
-               var terrainOverlayNetwork = TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(entity.MovementComponent.BaseRadius);
+               var terrainOverlayNetwork = TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(entity.MovementComponent.BaseRadius);
                if (terrainOverlayNetwork.TryFindTerrainOverlayNode(movementComponent.WorldPosition, out var node, out var plocal)) {
                   debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
                   //debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.BlackHairLineSolid);
@@ -248,7 +248,7 @@ namespace OpenMOBA.DevTool {
 
       private void DrawEntityMotionVectors(IDebugCanvas debugCanvas) {
          debugCanvas.Transform = Matrix4x4.Identity;
-         foreach (var (i, entity) in EntityService.EnumerateEntities().Enumerate()) {
+         foreach (var (i, entity) in EntityWorld.EnumerateEntities().Enumerate()) {
             var mc = entity.MovementComponent;
             if (mc?.Swarm != null) {
                var local = mc.LocalPosition;

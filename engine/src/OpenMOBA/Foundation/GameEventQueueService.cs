@@ -4,17 +4,17 @@ using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Declarations;
 
 namespace OpenMOBA.Foundation {
-   public interface IGameEventQueueService {
+   public interface IGameEventQueueManager {
       void AddGameEvent(GameEvent gameEvent);
       void RemoveGameEvent(GameEvent banlist);
    }
 
-   public class GameEventQueueService : IGameEventQueueService {
+   public class GameEventQueueManager : IGameEventQueueManager {
       private readonly RemovablePriorityQueue<GameEvent> gameEventQueue = new RemovablePriorityQueue<GameEvent>(GameEvent.CompareByTime);
-      private readonly GameTimeService gameTimeService;
+      private readonly GameTimeManager gameTimeManager;
 
-      public GameEventQueueService(GameTimeService gameTimeService) {
-         this.gameTimeService = gameTimeService;
+      public GameEventQueueManager(GameTimeManager gameTimeManager) {
+         this.gameTimeManager = gameTimeManager;
       }
 
       public void AddGameEvent(GameEvent gameEvent) {
@@ -27,7 +27,7 @@ namespace OpenMOBA.Foundation {
 
       public void ProcessPendingGameEvents(out int eventsProcessed) {
          eventsProcessed = 0;
-         var now = gameTimeService.Now;
+         var now = gameTimeManager.Now;
          while (!gameEventQueue.IsEmpty && now >= gameEventQueue.Peek().Time) {
             var gameEvent = gameEventQueue.Dequeue();
             gameEvent.Execute();

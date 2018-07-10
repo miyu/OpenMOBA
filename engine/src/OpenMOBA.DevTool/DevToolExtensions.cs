@@ -15,8 +15,8 @@ namespace OpenMOBA.DevTool {
    public static class DevToolExtensions {
       private static readonly StrokeStyle PathStroke = new StrokeStyle(Color.Lime, 1.0);
 
-      public static void DrawEntityPaths(this IDebugCanvas debugCanvas, EntityService entityService) {
-         foreach (var (i, entity) in entityService.EnumerateEntities().Enumerate()) {
+      public static void DrawEntityPaths(this IDebugCanvas debugCanvas, EntityWorld entityWorld) {
+         foreach (var (i, entity) in entityWorld.EnumerateEntities().Enumerate()) {
             var mc = entity.MovementComponent;
             if (mc?.PathingRoadmap == null || mc?.Swarm != null || !mc.IsPathfindingEnabled) continue;
             DrawRoadmap(debugCanvas, mc.PathingRoadmap, mc);

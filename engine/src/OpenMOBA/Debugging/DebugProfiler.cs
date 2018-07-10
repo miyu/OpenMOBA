@@ -5,23 +5,25 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
+using OpenMOBA.Foundation;
 
 namespace OpenMOBA.Debugging {
-   public class DebugProfiler {
+   public class DebugProfiler : GameEventListener {
       private readonly SortedDictionary<int, TickAnalytics> analyticsByTick = new SortedDictionary<int, TickAnalytics>();
       private readonly Stopwatch stopwatch = new Stopwatch();
       private TickAnalytics currentTickAnalytics;
 
-      public void EnterTick(int tick) {
+      public override void HandleEnterTick(EnterTickStatistics statistics) {
          currentTickAnalytics = new TickAnalytics { StartTime = DateTime.UtcNow };
-         analyticsByTick[tick] = currentTickAnalytics;
+         analyticsByTick[statistics.Tick] = currentTickAnalytics;
          stopwatch.Restart();
       }
 
-      public void LeaveTick() {
+      public override void HandleLeaveTick(LeaveTickStatistics statistics) {
          currentTickAnalytics.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
       }
 
@@ -36,7 +38,18 @@ namespace OpenMOBA.Debugging {
       }
 
       public void DumpToClipboard() {
-         Clipboard.SetText(JsonConvert.SerializeObject(analyticsByTick));
+         if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA) {
+            Clipboard.SetText(JsonConvert.SerializeObject(analyticsByTick));
+         } else {
+            var latch = new CountdownEvent(1);
+
+            new Thread(() => {
+               DumpToClipboard();
+               latch.Signal();
+            }) { ApartmentState = ApartmentState.STA }.Start();
+
+            latch.Wait();
+         }
       }
 
       public class TickAnalytics {

@@ -17,7 +17,7 @@ using cDouble = System.Double;
 
 namespace OpenMOBA.Foundation {
    public static class MapLoader {
-      public static void LoadMeshAsMap(this TerrainService terrainService, string objPath, DoubleVector3 meshOffset, DoubleVector3 worldOffset, int scaling = 50000) {
+      public static void LoadMeshAsMap(this TerrainFacade terrainFacade, string objPath, DoubleVector3 meshOffset, DoubleVector3 worldOffset, int scaling = 50000) {
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";
 
          var lines = File.ReadLines(objPath);
@@ -112,7 +112,7 @@ namespace OpenMOBA.Foundation {
                      }
                   }
 
-                  var snd = terrainService.CreateSectorNodeDescription(metadata);
+                  var snd = terrainFacade.CreateSectorNodeDescription(metadata);
                   var triangleToWorld = Matrix4x4.Identity;
 
                   var alen = (cDouble)a.Norm2D();
@@ -141,7 +141,7 @@ namespace OpenMOBA.Foundation {
 
                   snd.WorldTransform = triangleToWorld;
                   snd.WorldToLocalScalingFactor = localUpscale;
-                  terrainService.AddSectorNodeDescription(snd);
+                  terrainFacade.AddSectorNodeDescription(snd);
 
                   // var store = new SectorGraphDescriptionStore();
                   // var ts = new TerrainService(store, new TerrainSnapshotCompiler(store));

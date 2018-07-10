@@ -9,10 +9,10 @@ namespace OpenMOBA.Foundation.Terrain.Declarations {
    /// Considered internal to TerrainService
    /// </summary>
    public class DynamicTerrainHoleDescription {
-      private readonly TerrainService terrainService;
+      private readonly TerrainFacade terrainFacade;
 
-      internal DynamicTerrainHoleDescription(TerrainService terrainService, IHoleStaticMetadata staticMetadata) {
-         this.terrainService = terrainService;
+      internal DynamicTerrainHoleDescription(TerrainFacade terrainFacade, IHoleStaticMetadata staticMetadata) {
+         this.terrainFacade = terrainFacade;
          this.StaticMetadata = staticMetadata;
 
          RecomputeWorldAABB();

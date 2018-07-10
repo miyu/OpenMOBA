@@ -28,23 +28,23 @@ namespace OpenMOBA.Foundation {
       Completion
    }
 
-   public class MovementSystemService : EntitySystemService {
+   public class MovementSystem : EntitySystemService {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
-      private readonly GameTimeService gameTimeService;
+      private readonly GameTimeManager gameTimeManager;
       private readonly PathfinderCalculator pathfinderCalculator;
       private readonly StatsCalculator statsCalculator;
-      private readonly TerrainService terrainService;
+      private readonly TerrainFacade terrainFacade;
 
-      public MovementSystemService(
-         EntityService entityService,
-         GameTimeService gameTimeService,
+      public MovementSystem(
+         EntityWorld entityWorld,
+         GameTimeManager gameTimeManager,
          StatsCalculator statsCalculator,
-         TerrainService terrainService,
+         TerrainFacade terrainFacade,
          PathfinderCalculator pathfinderCalculator
-      ) : base(entityService, kComponentMask) {
-         this.gameTimeService = gameTimeService;
+      ) : base(entityWorld, kComponentMask) {
+         this.gameTimeManager = gameTimeManager;
          this.statsCalculator = statsCalculator;
-         this.terrainService = terrainService;
+         this.terrainFacade = terrainFacade;
          this.pathfinderCalculator = pathfinderCalculator;
       }
 
@@ -63,7 +63,7 @@ namespace OpenMOBA.Foundation {
             movementComponent.PathingRoadmap = null;
             movementComponent.PathingIsInvalidated = false;
             movementComponent.PathingRoadmapProgressIndex = -1;
-            movementComponent.LastFailedPathfindingSnapshot = terrainService.CompileSnapshot();
+            movementComponent.LastFailedPathfindingSnapshot = terrainFacade.CompileSnapshot();
          }
       }
 
@@ -95,7 +95,7 @@ namespace OpenMOBA.Foundation {
 
       private (DoubleVector3 world, TerrainOverlayNetworkNode node, DoubleVector2 local, TriangulationIsland island, int triangleIndex) PushToLand(DoubleVector3 pWorld, cDouble computedRadius) {
          var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-         var terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(paddedHoleDilationRadius);
+         var terrainOverlayNetwork = terrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(paddedHoleDilationRadius);
 //         Console.WriteLine("PHDR: " + paddedHoleDilationRadius);
          var bestWorldDistance = cDouble.MaxValue;
          var bestWorld = DoubleVector3.Zero;
@@ -177,7 +177,7 @@ namespace OpenMOBA.Foundation {
 
       public override void Execute() {
          var entities = AssociatedEntities.ToArray();
-         var terrainSnapshot = terrainService.CompileSnapshot();
+         var terrainSnapshot = terrainFacade.CompileSnapshot();
          var movementComponents = entities.Map(e => e.MovementComponent);
 
          // 0. Precompute computed entity stats, zero flocking intermediate aggregates
@@ -222,7 +222,7 @@ namespace OpenMOBA.Foundation {
 
             var repath = movementComponent.PathingIsInvalidated || (
                             movementComponent.LastFailedPathfindingSnapshot != null &&
-                            movementComponent.LastFailedPathfindingSnapshot != terrainService.CompileSnapshot());
+                            movementComponent.LastFailedPathfindingSnapshot != terrainFacade.CompileSnapshot());
 
             if (repath) {
                Pathfind(entity, movementComponent.PathingDestination);
@@ -381,7 +381,7 @@ namespace OpenMOBA.Foundation {
                mc.SeekingSumWeightsNBodyForces = CDoubleMath.c1;
             }
 
-            cDouble k = (cDouble)Math.Min(gameTimeService.Ticks, 19);
+            cDouble k = (cDouble)Math.Min(gameTimeManager.Ticks, 19);
             mc.SeekingWeightedSumNBodyForces += mc.LastSeekingWeightedSumNBodyForces * k;
             mc.SeekingSumWeightsNBodyForces += mc.LastSeekingSumWeightsNBodyForces * k;
 
@@ -498,7 +498,7 @@ namespace OpenMOBA.Foundation {
 
       private void FindOrFixEntityTerrainNodeAndTriangle(Entity e, out TerrainOverlayNetwork terrainOverlayNetwork, out TerrainOverlayNetworkNode terrainOverlayNetworkNode, out DoubleVector2 localPosition, out TriangulationIsland island, out int triangleIndex) {
          var mc = e.MovementComponent;
-         terrainOverlayNetwork = terrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)mc.ComputedRadius);
+         terrainOverlayNetwork = terrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)mc.ComputedRadius);
 
          for (var i = 0; i < 2; i++) {
             // which terrain overlay node are we on?
@@ -527,7 +527,7 @@ namespace OpenMOBA.Foundation {
          if (!movementComponent.IsPathfindingEnabled) return;
 
          var movementSpeed = statsCalculator.ComputeMovementSpeed(entity);
-         var worldDistanceRemaining = movementSpeed * gameTimeService.SecondsPerTick;
+         var worldDistanceRemaining = movementSpeed * gameTimeManager.SecondsPerTick;
          var plan = movementComponent.PathingRoadmap.Plan;
 
          while (worldDistanceRemaining > CDoubleMath.c0 && movementComponent.PathingRoadmapProgressIndex < plan.Count) {
@@ -585,7 +585,7 @@ namespace OpenMOBA.Foundation {
             zzzz = 0;
          }
 
-         var worldDistanceRemaining = (cDouble)movementComponent.ComputedSpeed * gameTimeService.SecondsPerTick * wmul;
+         var worldDistanceRemaining = (cDouble)movementComponent.ComputedSpeed * gameTimeManager.SecondsPerTick * wmul;
          var localDistanceRemaining = worldDistanceRemaining * movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
          var dv2 = ComputePositionUpdate(
             localDistanceRemaining,

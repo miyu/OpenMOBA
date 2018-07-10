@@ -19,15 +19,15 @@ using cDouble = System.Double;
 namespace OpenMOBA.Foundation {
    public class PathfinderCalculator {
       private readonly StatsCalculator statsCalculator;
-      private readonly TerrainService terrainService;
+      private readonly TerrainFacade terrainFacade;
 
-      public PathfinderCalculator(TerrainService terrainService, StatsCalculator statsCalculator) {
-         this.terrainService = terrainService;
+      public PathfinderCalculator(TerrainFacade terrainFacade, StatsCalculator statsCalculator) {
+         this.terrainFacade = terrainFacade;
          this.statsCalculator = statsCalculator;
       }
 
       public bool IsDestinationReachable(cDouble holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld) {
-         var snapshot = terrainService.CompileSnapshot();
+         var snapshot = terrainFacade.CompileSnapshot();
          var overlayNetwork = snapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(holeDilationRadius);
 
          return overlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode) &&
@@ -56,7 +56,7 @@ namespace OpenMOBA.Foundation {
 
       public bool TryFindPath(cDouble agentRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld, out MotionRoadmap roadmap, IDebugCanvas debugCanvas = null) {
          roadmap = null;
-         var terrainSnapshot = terrainService.CompileSnapshot();
+         var terrainSnapshot = terrainFacade.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode)) return false;
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(destinationWorld.ToDotNetVector(), out var destinationNode)) return false;
@@ -384,7 +384,7 @@ namespace OpenMOBA.Foundation {
       }
 
       public PathfinderResultContext UniformCostSearch(cDouble agentRadius, DoubleVector3 sourceWorld, DoubleVector3[] destinationWorlds, bool followEdgesReversed, PathfinderResultContext pathfinderResultContext = null, IDebugCanvas debugCanvas = null) {
-         var terrainSnapshot = terrainService.CompileSnapshot();
+         var terrainSnapshot = terrainFacade.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
          if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(sourceWorld.ToDotNetVector(), out var sourceNode, out var pSourceLocal)) return null;
 

@@ -435,11 +435,11 @@ namespace OpenMOBA.Foundation.Terrain {
       }
    }
 
-   public class TerrainService : ISectorGraphDescriptionStore, ITerrainSnapshotCompiler {
+   public class TerrainFacade : ISectorGraphDescriptionStore, ITerrainSnapshotCompiler {
       private readonly SectorGraphDescriptionStore storage;
       private readonly TerrainSnapshotCompiler snapshotCompiler;
 
-      public TerrainService(SectorGraphDescriptionStore storage, TerrainSnapshotCompiler snapshotCompiler) {
+      public TerrainFacade(SectorGraphDescriptionStore storage, TerrainSnapshotCompiler snapshotCompiler) {
          this.storage = storage;
          this.snapshotCompiler = snapshotCompiler;
       }

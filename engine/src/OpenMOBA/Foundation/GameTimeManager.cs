@@ -18,9 +18,9 @@ namespace OpenMOBA.Foundation {
       void IncrementTicks();
    }
 
-   public class GameTimeService : IMutableGameTimeService
+   public class GameTimeManager : IMutableGameTimeService
    {
-      public GameTimeService(int ticksPerSecond)
+      public GameTimeManager(int ticksPerSecond)
       {
          TicksPerSecond = ticksPerSecond;
          SecondsPerTick = CDoubleMath.c1 / (cDouble)ticksPerSecond;

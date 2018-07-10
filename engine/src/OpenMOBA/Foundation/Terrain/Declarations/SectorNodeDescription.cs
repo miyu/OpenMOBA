@@ -12,10 +12,10 @@ using cDouble = System.Double;
 namespace OpenMOBA.Foundation.Terrain.Declarations {
    public class SectorNodeDescription {
       private readonly Guid guid = Guid.NewGuid();
-      private readonly TerrainService terrainService;
+      private readonly TerrainFacade terrainFacade;
 
-      internal SectorNodeDescription(TerrainService terrainService, TerrainStaticMetadata staticMetadata) {
-         this.terrainService = terrainService;
+      internal SectorNodeDescription(TerrainFacade terrainFacade, TerrainStaticMetadata staticMetadata) {
+         this.terrainFacade = terrainFacade;
          this.StaticMetadata = staticMetadata;
 
          RecomputeWorldAABB();
