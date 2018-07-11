@@ -36,7 +36,7 @@ namespace OpenMOBA.DevTool {
       }
    }
 
-   public class GameDebugger : IGameDebugger {
+   public class GameDebugger : GameEventListener {
       private static readonly StrokeStyle PathStroke2 = new StrokeStyle(Color.DarkGreen, 15.0);
       private static readonly StrokeStyle NoPathStroke = new StrokeStyle(Color.Red, 15.0, new[] { 1.0f, 1.0f });
       private static readonly StrokeStyle HighlightStroke = new StrokeStyle(Color.Red, 3.0);
@@ -50,7 +50,6 @@ namespace OpenMOBA.DevTool {
       public Game Game { get; }
       public IDebugMultiCanvasHost DebugMultiCanvasHost { get; }
 
-      private DebugProfiler DebugProfiler => Game.DebugProfiler;
       private GameTimeManager GameTimeManager => Game.GameTimeManager;
       private TerrainFacade TerrainFacade => Game.TerrainFacade;
       private EntityWorld EntityWorld => Game.EntityWorld;

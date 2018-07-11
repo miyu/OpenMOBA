@@ -842,6 +842,7 @@ namespace OpenMOBA.Foundation {
       }
 
       public object SaveState() {
+         throw new NotImplementedException();
       }
    }
 }
