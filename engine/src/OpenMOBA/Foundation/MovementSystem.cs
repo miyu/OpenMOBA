@@ -28,7 +28,7 @@ namespace OpenMOBA.Foundation {
       Completion
    }
 
-   public class MovementSystem : EntitySystem {
+   public class MovementSystem : EntitySystem, INetworkedSystem {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
       private readonly GameTimeManager gameTimeManager;
       private readonly PathfinderCalculator pathfinderCalculator;
@@ -839,6 +839,9 @@ namespace OpenMOBA.Foundation {
             //               true,
             //               false);
          }
+      }
+
+      public object SaveState() {
       }
    }
 }

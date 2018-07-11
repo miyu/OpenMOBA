@@ -6,4 +6,8 @@
 
       public EntityComponentType Type { get; }
    }
+
+   public interface INetworkedComponent {
+      object SaveState();
+   }
 }

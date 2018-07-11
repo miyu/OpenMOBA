@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
 using OpenMOBA.Foundation.Terrain.Declarations;
@@ -77,7 +78,7 @@ namespace OpenMOBA.Foundation {
       }
    }
 
-   public class NetworkingService {
+   public class InternalNetworkingLogService {
       private readonly List<object> list;
 
       public void Add(object y) {
@@ -85,28 +86,12 @@ namespace OpenMOBA.Foundation {
       }
    }
 
-   public interface INetworkedSystem {
-   }
+   [Guid("9F71AC5C-E738-4BFC-81AE-525AA8C286F0")]
+   public class NetworkingLogServiceProxyDispatcher {
+      private readonly InternalNetworkingLogService internalNetworkingLogService;
 
-   public class PeriodicStateSnapshotGameEventListener : GameEventListener {
-      private readonly EntityWorld world;
-      private readonly int periodicity;
-
-      public PeriodicStateSnapshotGameEventListener(EntityWorld world, int periodicity) {
-         this.world = world;
-         this.periodicity = periodicity;
-      }
-
-      public override void HandleEnterTick(EnterTickStatistics statistics) {
-         if (statistics.Tick % periodicity != 0) return;
-         CaptureSnapshot();
-      }
-
-      private void CaptureSnapshot() {
-         foreach (var system in world.EnumerateSystems()) {
-            if (!(system is INetworkedSystem ns)) continue;
-
-         }
+      public NetworkingLogServiceProxyDispatcher(InternalNetworkingLogService internalNetworkingLogService) {
+         this.internalNetworkingLogService = internalNetworkingLogService;
       }
    }
 }

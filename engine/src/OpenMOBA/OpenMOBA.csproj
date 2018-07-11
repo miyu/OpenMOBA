@@ -42,6 +42,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
+    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Courier\src\Dargon.Courier.csproj" />
+    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Vox\src\Dargon.Vox\Dargon.Vox.csproj" />
     <ProjectReference Include="..\..\dependencies\FixedMath.Net\src\FixedMath.NET.csproj" />
     <ProjectReference Include="..\Canvas3D\Canvas3D.csproj" />
   </ItemGroup>

@@ -5,11 +5,13 @@ namespace OpenMOBA.Foundation {
    public class EntityWorld {
       private readonly HashSet<Entity> entities = new HashSet<Entity>();
       private readonly List<EntitySystem> systems = new List<EntitySystem>();
+      private int nextEntityId = 0;
 
       public IEnumerable<Entity> EnumerateEntities() => entities;
 
       public Entity CreateEntity() {
-         var entity = new Entity();
+         var entityId = nextEntityId++;
+         var entity = Entity.CreateEntity_OnlyInvokedFromWorldOrIO(entityId);
          entities.Add(entity);
          return entity;
       }
