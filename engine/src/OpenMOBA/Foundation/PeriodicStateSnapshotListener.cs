@@ -6,19 +6,19 @@ using Dargon.Vox;
 namespace OpenMOBA.Foundation {
    public class PeriodicStateSnapshotListener : GameEventListener {
       private readonly EntityWorld world;
-      private readonly InternalNetworkingLogService internalNetworkingLogService;
+      private readonly ReplayLog replayLog;
       private readonly int periodicity;
 
-      public PeriodicStateSnapshotListener(EntityWorld world, InternalNetworkingLogService internalNetworkingLogService, int periodicity) {
+      public PeriodicStateSnapshotListener(EntityWorld world, ReplayLog replayLog, int periodicity) {
          this.world = world;
-         this.internalNetworkingLogService = internalNetworkingLogService;
+         this.replayLog = replayLog;
          this.periodicity = periodicity;
       }
 
       public override void HandleEnterTick(EnterTickStatistics statistics) {
          if (statistics.Tick % periodicity != 0) return;
          var snapshot = CaptureSnapshot();
-         internalNetworkingLogService.Add(snapshot);
+         replayLog.Add(snapshot);
       } 
 
       private PeriodicStateSnapshot CaptureSnapshot() {
