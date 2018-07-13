@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Dargon.Commons;
 using Dargon.Vox;
 using OpenMOBA.Debugging;
 using OpenMOBA.Foundation.Terrain;
@@ -81,19 +83,20 @@ namespace OpenMOBA.Foundation {
    }
 
    public class ReplayLog {
-      private readonly Guid secret;
-      private readonly Dictionary<Guid, Cons<(int Index, object Item)>> readersToReadProgress;
-      // Network log starts with a sentinel noop, considered already read by readers
-      private Cons<(int Index, object Item)> tail = new Cons<(int, object)> {
-         Value = (0, (object)new ReplayLogEntries.Noop())
-      };
+      private Cons<(int Index, object Item)> tail;
+      private Cons<(int Index, object Item)> head;
 
-      public ReplayLog(Guid secret, Guid[] readers) {
-         this.secret = secret;
-         this.readersToReadProgress = readers.UniqueMap(_ => tail);
+      // Basic auth token guarding read/writes.
+      private readonly Dictionary<Guid, ReaderContext> readerContextByReaderId;
+
+      public ReplayLog(Dictionary<Guid, Guid> accessTokensByReaderId) {
+         // Network log starts with a sentinel noop, considered already read by readers
+         tail = head = new Cons<(int, object)> {
+            Value = (0, (object)new ReplayLogEntries.Noop())
+         };
+         this.readerContextByReaderId = accessTokensByReaderId.MapByValue(
+            accessToken => new ReaderContext(accessToken, tail));
       }
-
-      public Guid Secret => secret;
 
       public void Add(object item) {
          tail = tail.Next = new Cons<(int, object)> {
@@ -101,10 +104,30 @@ namespace OpenMOBA.Foundation {
          };
       }
 
-      public object[] Since(int i) => tail.Skip(i).ToArray();
+      public class ReaderContext {
+         private readonly Guid accessToken;
+         private Cons<(int Index, object Item)> greatestAcknowledgedLogEntry;
 
-      public void Done(Guid g) {
+         public ReaderContext(Guid accessToken, Cons<(int Index, object Item)> greatestAcknowledgedLogEntry) {
+            this.accessToken = accessToken;
+            this.greatestAcknowledgedLogEntry = greatestAcknowledgedLogEntry;
+         }
 
+
+         public void Acknowledge(int logEntryIndex) {
+            var n = greatestAcknowledgedLogEntry;
+            while (n.Value.Index < logEntryIndex) {
+               n = n.Next;
+            }
+            Assert.Equals(n.Value.Index, logEntryIndex);
+            greatestAcknowledgedLogEntry = n;
+         }
+
+         public void Peek(int n) {
+            var current = greatestAcknowledgedLogEntry.Next;
+            for (var i = 0; i < n && current != null; i++) {
+            }
+         }
       }
 
       public class Cons<T> {
@@ -122,9 +145,10 @@ namespace OpenMOBA.Foundation {
       private readonly Dictionary<Guid, ReplayLog> logs = new Dictionary<Guid, ReplayLog>();
 
       public ReplayLog Create(Guid key, Guid secret, Guid[] cullers) {
-         var log = new ReplayLog(secret, cullers);
-         logs.Add(key, log);
-         return log;
+         throw new NotImplementedException();
+//         var log = new ReplayLog(secret, cullers);
+//         logs.Add(key, log);
+//         return log;
       }
 
       public ReplayLog Get(Guid key) => logs[key];
@@ -138,10 +162,17 @@ namespace OpenMOBA.Foundation {
          this.replayLogManager = replayLogManager;
       }
       
-      public object[] GetLog(Guid guid, Guid secret, int i) {
-         var rlm = replayLogManager.Get(guid);
-         if (rlm.Secret != secret) throw new InvalidOperationException();
-         return rlm.Since(i);
+      public object[] GetLog(Guid guid, Guid token, int ack) {
+         var rlm = GetAndVerifyReplayLogManager(guid, token);
+//         return rlm.Done(guid, ack);
+         throw new NotImplementedException();
+      }
+
+      private ReplayLog GetAndVerifyReplayLogManager(Guid key, Guid token) {
+         throw new NotImplementedException();
+//         var log = replayLogManager.Get(guid);
+//         if (log.Secret != token) throw new InvalidOperationException();
+//         return log;
       }
    }
 }
