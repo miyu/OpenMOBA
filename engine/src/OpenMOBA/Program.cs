@@ -1,15 +1,9 @@
-﻿using OpenMOBA.Debugging;
-using OpenMOBA.Geometry;
-using System;
-using System.Drawing;
-using System.Linq;
-using OpenMOBA.Foundation;
-using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
-
+﻿using OpenMOBA.Foundation;
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
 #else
 using cDouble = System.Double;
+
 #endif
 
 namespace OpenMOBA {

@@ -83,32 +83,36 @@ namespace OpenMOBA.Foundation {
    }
 
    public class ReplayLog {
-      private Cons<(int Index, object Item)> tail;
-      private Cons<(int Index, object Item)> head;
+      private Cons<(int Index, object Item, byte[] Serialization)> tail;
+      private Cons<(int Index, object Item, byte[] Serialization)> head;
 
       // Basic auth token guarding read/writes.
-      private readonly Dictionary<Guid, ReaderContext> readerContextByReaderId;
+      private readonly Dictionary<Guid, ReaderContext> readerContextByAccessToken;
 
       public ReplayLog(Dictionary<Guid, Guid> accessTokensByReaderId) {
          // Network log starts with a sentinel noop, considered already read by readers
-         tail = head = new Cons<(int, object)> {
-            Value = (0, (object)new ReplayLogEntries.Noop())
+         tail = head = new Cons<(int, object, byte[])> {
+            Value = (0, ReplayLogEntries.Noop.Instance, Serialize.ToBytes(ReplayLogEntries.Noop.Instance))
          };
-         this.readerContextByReaderId = accessTokensByReaderId.MapByValue(
+         this.readerContextByAccessToken = accessTokensByReaderId.MapByValue(
             accessToken => new ReaderContext(accessToken, tail));
       }
 
-      public void Add(object item) {
-         tail = tail.Next = new Cons<(int, object)> {
-            Value = (tail.Value.Index + 1, item)
+      public void Add(object item, byte[] serialization = null) {
+         tail = tail.Next = new Cons<(int, object, byte[])> {
+            Value = (tail.Value.Index + 1, item, serialization ?? Serialize.ToBytes(item))
          };
+      }
+
+      public bool TryGetReaderContext(Guid accessToken, out ReaderContext readerContext) {
+         return readerContextByAccessToken.TryGetValue(accessToken, out readerContext);
       }
 
       public class ReaderContext {
          private readonly Guid accessToken;
-         private Cons<(int Index, object Item)> greatestAcknowledgedLogEntry;
+         private Cons<(int Index, object Item, byte[] Serialization)> greatestAcknowledgedLogEntry;
 
-         public ReaderContext(Guid accessToken, Cons<(int Index, object Item)> greatestAcknowledgedLogEntry) {
+         public ReaderContext(Guid accessToken, Cons<(int Index, object Item, byte[] Serialization)> greatestAcknowledgedLogEntry) {
             this.accessToken = accessToken;
             this.greatestAcknowledgedLogEntry = greatestAcknowledgedLogEntry;
          }
@@ -123,9 +127,11 @@ namespace OpenMOBA.Foundation {
             greatestAcknowledgedLogEntry = n;
          }
 
-         public void Peek(int n) {
+         public void Peek(byte[][] retbuf) {
             var current = greatestAcknowledgedLogEntry.Next;
-            for (var i = 0; i < n && current != null; i++) {
+            for (var i = 0; i < retbuf.Length; i++) {
+               retbuf[i] = current?.Value.Serialization;
+               current = current?.Next;
             }
          }
       }
@@ -138,7 +144,9 @@ namespace OpenMOBA.Foundation {
 
    public class ReplayLogEntries {
       [AutoSerializable]
-      public class Noop { }
+      public class Noop {
+         public static readonly Noop Instance = new Noop();
+      }
    }
 
    public class ReplayLogManager {
@@ -151,28 +159,31 @@ namespace OpenMOBA.Foundation {
 //         return log;
       }
 
-      public ReplayLog Get(Guid key) => logs[key];
+      public bool TryGetReplayLog(Guid key, out ReplayLog log) => logs.TryGetValue(key, out log);
    }
 
    [Guid("9F71AC5C-E738-4BFC-81AE-525AA8C286F0")]
-   public class NetworkingServiceProxyDispatcher {
+   public class ReplayLogService {
       private readonly ReplayLogManager replayLogManager;
 
-      public NetworkingServiceProxyDispatcher(ReplayLogManager replayLogManager) {
+      public ReplayLogService(ReplayLogManager replayLogManager) {
          this.replayLogManager = replayLogManager;
       }
       
-      public object[] GetLog(Guid guid, Guid token, int ack) {
-         var rlm = GetAndVerifyReplayLogManager(guid, token);
-//         return rlm.Done(guid, ack);
-         throw new NotImplementedException();
+      public byte[][] GetLog(Guid guid, Guid accessToken, int ack) {
+         var log = GetReplayLogReaderContextAndValidateAccessToken(guid, accessToken);
+         log.Acknowledge(ack);
+         var retbuf = new byte[50][];
+         log.Peek(retbuf);
+         return retbuf;
       }
 
-      private ReplayLog GetAndVerifyReplayLogManager(Guid key, Guid token) {
-         throw new NotImplementedException();
-//         var log = replayLogManager.Get(guid);
-//         if (log.Secret != token) throw new InvalidOperationException();
-//         return log;
+      private ReplayLog.ReaderContext GetReplayLogReaderContextAndValidateAccessToken(Guid key, Guid accessToken) {
+         if (!replayLogManager.TryGetReplayLog(key, out var log) ||
+             !log.TryGetReaderContext(accessToken, out var readerContext)) {
+            throw new Exception("auth"); // todo
+         }
+         return readerContext;
       }
    }
 }
