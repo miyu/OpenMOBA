@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net462</TargetFramework>
+    <TargetFramework>net461</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>LineSegmentTests</AssemblyName>
+    <AssemblyName>Dargon.PlayOn</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>LineSegmentTests</PackageId>
-    <StartupObject>CrossoverPointTests.NameThisEventually</StartupObject>
+    <PackageId>OpenMxOBA</PackageId>
+    <StartupObject>Dargon.PlayOn.Program</StartupObject>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
@@ -17,12 +17,14 @@
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <LangVersion>latest</LangVersion>
+    <DefineConstants>TRACE;RELEASE;NET461;use_double</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <LangVersion>latest</LangVersion>
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <DefineConstants>TRACE;DEBUG;NET461,use_double</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
@@ -33,11 +35,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="Poly2Tri" Version="1.0.1" />
     <PackageReference Include="System.ValueTuple" Version="4.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
+    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Courier\src\Dargon.Courier.csproj" />
+    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Vox\src\Dargon.Vox\Dargon.Vox.csproj" />
+    <ProjectReference Include="..\..\dependencies\FixedMath.Net\src\FixedMath.NET.csproj" />
+    <ProjectReference Include="..\Canvas3D\Canvas3D.csproj" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="System.Management" />
     <Reference Include="System.Runtime" />
@@ -63,10 +72,6 @@
     <None Update="Assets\dragon_simp_15deg_decimate_collapse_0.01.obj">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Properties\" />
   </ItemGroup>
 
 </Project>
