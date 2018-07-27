@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+      <AssemblyName>ais-server</AssemblyName>
+      <RootNamespace>AdventuresInShade.Server</RootNamespace>
+      <TargetFramework>net461</TargetFramework>
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      <OutputType>Exe</OutputType>
+   </PropertyGroup>
+
+   <ItemGroup>
+      <ProjectReference Include="..\..\..\..\engine\src\Dargon.PlayOn\Dargon.PlayOn.csproj" />
+   </ItemGroup>
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+      <DebugType>full</DebugType>
+      <DebugSymbols>true</DebugSymbols>
+      <LangVersion>latest</LangVersion>
+      <DefineConstants>TRACE;RELEASE;NET461;use_double</DefineConstants>
+   </PropertyGroup>
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+      <DebugType>full</DebugType>
+      <DebugSymbols>true</DebugSymbols>
+      <LangVersion>latest</LangVersion>
+      <DefineConstants>TRACE;DEBUG;NET461;use_double</DefineConstants>
+   </PropertyGroup>
+</Project>

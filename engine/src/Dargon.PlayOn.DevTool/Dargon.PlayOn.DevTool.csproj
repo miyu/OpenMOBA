@@ -6,7 +6,7 @@
       <AssemblyName>Dargon.PlayOn.DevTool</AssemblyName>
       <OutputType>Exe</OutputType>
       <PackageId>OpenMOBA.DevTool</PackageId>
-      <StartupObject>OpenMOBA.DevTool.Program</StartupObject>
+      <StartupObject>Dargon.PlayOn.DevTool.Program</StartupObject>
       <RootNamespace>Dargon.PlayOn.DevTool</RootNamespace>
    </PropertyGroup>
 

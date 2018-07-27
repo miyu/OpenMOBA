@@ -159,8 +159,11 @@ namespace Dargon.PlayOn.Foundation {
       public bool TryGetReplayLog(Guid key, out ReplayLog log) => logs.TryGetValue(key, out log);
    }
 
-   [Guid("9F71AC5C-E738-4BFC-81AE-525AA8C286F0")]
-   public class ReplayLogService {
+   public interface IReplayLogService {
+      byte[][] GetLog(Guid guid, Guid accessToken, int ack);
+   }
+
+   public class ReplayLogService : IReplayLogService {
       private readonly ReplayLogManager replayLogManager;
 
       public ReplayLogService(ReplayLogManager replayLogManager) {

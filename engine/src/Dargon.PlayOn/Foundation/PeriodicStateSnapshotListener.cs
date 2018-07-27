@@ -6,11 +6,13 @@ namespace Dargon.PlayOn.Foundation {
    public class PeriodicStateSnapshotListener : GameEventListener {
       private readonly EntityWorld world;
       private readonly ReplayLog replayLog;
+      private readonly Func<object, object>[] componentSnapshotFuncs;
       private readonly int periodicity;
 
-      public PeriodicStateSnapshotListener(EntityWorld world, ReplayLog replayLog, int periodicity) {
+      public PeriodicStateSnapshotListener(EntityWorld world, ReplayLog replayLog, Func<object, object>[] componentSnapshotFuncs, int periodicity) {
          this.world = world;
          this.replayLog = replayLog;
+         this.componentSnapshotFuncs = componentSnapshotFuncs;
          this.periodicity = periodicity;
       }
 
@@ -29,8 +31,9 @@ namespace Dargon.PlayOn.Foundation {
             var map = new Dictionary<int, object>();
             for (var i = 0; i < entity.ComponentsByType.Length; i++) {
                var component = entity.ComponentsByType[i];
-               if (!(component is INetworkedComponent nc)) continue;
-               map[i] = nc.SaveState();
+               var componentSnapshotFunc = componentSnapshotFuncs[i];
+               if (componentSnapshotFunc == null) continue;
+               map[i] = componentSnapshotFunc(component);
             }
             snapshot.EntitySnapshots[entity.Id] = map;
          }
