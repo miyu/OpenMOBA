@@ -32,7 +32,7 @@
    </ItemGroup>
 
    <ItemGroup>
-      <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+      <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
       <PackageReference Include="SharpDX" Version="3.1.1" />
       <PackageReference Include="SharpDX.D3DCompiler" Version="3.1.1" />
       <PackageReference Include="SharpDX.Desktop" Version="3.1.1" />
@@ -48,9 +48,9 @@
    </ItemGroup>
 
    <ItemGroup>
-     <ProjectReference Include="..\Canvas3D\Canvas3D.csproj" />
-     <ProjectReference Include="..\OpenMOBA.DevTool\OpenMOBA.DevTool.csproj" />
-     <ProjectReference Include="..\OpenMOBA\OpenMOBA.csproj" />
+     <ProjectReference Include="..\..\engine\src\Canvas3D\Canvas3D.csproj" />
+     <ProjectReference Include="..\..\engine\src\Dargon.PlayOn.DevTool\Dargon.PlayOn.DevTool.csproj" />
+     <ProjectReference Include="..\..\engine\src\Dargon.PlayOn\Dargon.PlayOn.csproj" />
    </ItemGroup>
 
    <ItemGroup>

@@ -6,15 +6,14 @@ using System.Numerics;
 using System.Windows.Forms;
 using Canvas3D;
 using Canvas3D.LowLevel;
-using ClipperLib;
-using OpenMOBA;
-using OpenMOBA.DevTool;
-using OpenMOBA.DevTool.Debugging;
-using OpenMOBA.Foundation;
-using OpenMOBA.Foundation.Terrain.CompilationResults.Local;
-using OpenMOBA.Geometry;
-using OpenMOBA.Foundation.Terrain.CompilationResults.Overlay;
-using OpenMOBA.Foundation.Terrain.Declarations;
+using Dargon.PlayOn;
+using Dargon.PlayOn.DevTool;
+using Dargon.PlayOn.DevTool.Debugging;
+using Dargon.PlayOn.Foundation;
+using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
+using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
+using Dargon.PlayOn.Foundation.Terrain.Declarations;
+using Dargon.PlayOn.Geometry;
 using SharpDX;
 using SDPoint = System.Drawing.Point;
 using SDRectangle = System.Drawing.Rectangle;
@@ -28,12 +27,18 @@ using SNVector3 = System.Numerics.Vector3;
 using SNVector4 = System.Numerics.Vector4;
 using SNPlane = System.Numerics.Plane;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace TestGameTheGame {
    public static class Program {
       private static readonly MaterialDescription SomewhatRough = new MaterialDescription { Properties = { Metallic = 0, Roughness = 0.04f } };
 
       private static SDXVector3 cameraTarget = new SDXVector3(0, 0, 0);
-      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 2000;//new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 2000; //new Vector3(3, 2.5f, 5) - cameraTarget;
       private static SDXVector3 cameraUp = new SDXVector3(0, 1, 0);
 
       private static GraphicsLoop graphicsLoop;
@@ -53,8 +58,15 @@ namespace TestGameTheGame {
          var gameFactory = new GameFactory();
          game = gameFactory.Create();
 
-         player = game.EntityService.CreateEntity();
-         game.EntityService.AddEntityComponent(player, new MovementComponent {
+         var preset = SectorMetadataPresets.Test2D;
+         var snd = game.TerrainFacade.CreateSectorNodeDescription(preset);
+         snd.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
+         snd.WorldToLocalScalingFactor = (cDouble)preset.LocalBoundary.Width / (cDouble)1000;
+         game.TerrainFacade.AddSectorNodeDescription(snd);
+
+
+         player = game.EntityWorld.CreateEntity();
+         game.EntityWorld.AddEntityComponent(player, new MovementComponent {
             WorldPosition = new DoubleVector3(-450, -450, 0),
             BaseRadius = 30,
             BaseSpeed = 100,
@@ -62,8 +74,8 @@ namespace TestGameTheGame {
             PathingDestination = new DoubleVector3(-450, -450, 0)
          });
 
-         baddie = game.EntityService.CreateEntity();
-         game.EntityService.AddEntityComponent(baddie, new MovementComponent {
+         baddie = game.EntityWorld.CreateEntity();
+         game.EntityWorld.AddEntityComponent(baddie, new MovementComponent {
             WorldPosition = new DoubleVector3(0, 0, 0),
             BaseRadius = 30,
             BaseSpeed = 100,
@@ -73,8 +85,8 @@ namespace TestGameTheGame {
 
          var r = new Random(0);
          for (var i = 0; i < 10; i++) {
-            var rock = game.EntityService.CreateEntity();
-            game.EntityService.AddEntityComponent(rock, new MovementComponent {
+            var rock = game.EntityWorld.CreateEntity();
+            game.EntityWorld.AddEntityComponent(rock, new MovementComponent {
                WorldPosition = new DoubleVector3(r.Next(-500, 500), r.Next(-500, 500), 0),
                BaseRadius = 10,
                BaseSpeed = 100,
@@ -95,7 +107,7 @@ namespace TestGameTheGame {
 
       private static void Step(GraphicsLoop graphicsLoop, Game game, InputSomethingOSDJFH input, Scene scene) {
          var expectedTicks = (int)(graphicsLoop.Statistics.FrameTime.TotalSeconds * 60);
-         while (game.GameTimeService.Ticks < expectedTicks) {
+         while (game.GameTimeManager.Ticks < expectedTicks) {
             game.Tick();
          }
 
@@ -103,7 +115,7 @@ namespace TestGameTheGame {
          viewProj.Transpose();
          var ray = Ray.GetPickRay(input.X, input.Y, new ViewportF(0, 0, 1280, 720, 1.0f, 100.0f), viewProj);
 
-         var terrainOverlayNetwork = game.TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+         var terrainOverlayNetwork = game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
 
          // rmb moves
          if (input.IsMouseDown(MouseButtons.Right)) {
@@ -118,7 +130,7 @@ namespace TestGameTheGame {
 
                // recompute intersectionWorld because floating point error in raycast logic
                var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
-               game.MovementSystemService.Pathfind(player, intersectionWorld);
+               game.MovementSystem.Pathfind(player, intersectionWorld);
             }
          }
 
@@ -169,8 +181,10 @@ namespace TestGameTheGame {
                rocksExisting.Add(rock);
                continue;
             }
-            game.EntityService.RemoveEntity(rock);
+
+            game.EntityWorld.RemoveEntity(rock);
          }
+
          rocks = rocksExisting;
 
          // W draws walls
@@ -210,13 +224,14 @@ namespace TestGameTheGame {
                new[] { new Polygon2(polyTree.Childs[0].Contour) },
                polyTree.Childs[0].Childs.Map(c => new Polygon2(((IEnumerable<IntVector2>)c.Contour).Reverse().ToList())));
 
-            var terrainHole = game.TerrainService.CreateHoleDescription(holeStaticMetadata);
-            game.TerrainService.AddTemporaryHoleDescription(terrainHole);
+            var terrainHole = game.TerrainFacade.CreateHoleDescription(holeStaticMetadata);
+            game.TerrainFacade.AddTemporaryHoleDescription(terrainHole);
 
             if (!input.IsKeyDown(Keys.ShiftKey)) {
-               var removeEvent = game.CreateRemoveTemporaryHoleEvent(new GameTime(game.GameTimeService.Now.Ticks + 90), terrainHole);
-               game.GameEventQueueService.AddGameEvent(removeEvent);
+               var removeEvent = game.CreateRemoveTemporaryHoleEvent(new GameTime(game.GameTimeManager.Now.Ticks + 90), terrainHole);
+               game.GameEventQueueManager.AddGameEvent(removeEvent);
             }
+
             fred.Clear();
          }
       }
@@ -230,15 +245,17 @@ namespace TestGameTheGame {
             SomewhatRough,
             SDXColor.White);
 
-         var terrainOverlayNetwork = game.TerrainService.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+         var terrainOverlayNetwork = game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
          foreach (var node in terrainOverlayNetwork.TerrainNodes) {
             if (!lgvMeshesByLgvGuid.TryGetValue(node.LocalGeometryView.Guid, out var mesh)) {
-               VertexPositionNormalColorTexture[] F(Triangle3 triangle) => triangle.Points.Map(
-                  p => new VertexPositionNormalColorTexture(
-                     new SDXVector3((float)p.X, (float)p.Y, 0),
-                     -SDXVector3.UnitZ,
-                     SDXColor.White,
-                     new SDXVector2(0, 0)));
+               VertexPositionNormalColorTexture[] F(Triangle3 triangle) {
+                  return triangle.Points.Map(
+                     p => new VertexPositionNormalColorTexture(
+                        new SDXVector3((float)p.X, (float)p.Y, 0),
+                        -SDXVector3.UnitZ,
+                        SDXColor.White,
+                        new SDXVector2(0, 0)));
+               }
 
                var triangleList = node.LocalGeometryView.Triangulation.Islands
                                       .SelectMany(i => i.Triangles)
@@ -248,7 +265,7 @@ namespace TestGameTheGame {
                mesh = graphicsLoop.GraphicsFacade.CreateMesh(triangleList);
                lgvMeshesByLgvGuid.Add(node.LocalGeometryView.Guid, mesh);
             }
-            
+
             scene.AddRenderable(
                mesh,
                ConvertSystemNumericsToSharpDX(Matrix4x4.Transpose(node.SectorNodeDescription.WorldTransform)),
@@ -267,25 +284,25 @@ namespace TestGameTheGame {
 
          scene.AddRenderable(
             graphicsLoop.Presets.UnitSphere,
-            MatrixCM.Translation(player.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(player.MovementComponent.BaseRadius * 2),
+            MatrixCM.Translation(player.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)player.MovementComponent.BaseRadius * 2),
             SomewhatRough,
             SDXColor.Lime);
 
          scene.AddRenderable(
             graphicsLoop.Presets.UnitSphere,
-            MatrixCM.Translation(baddie.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(baddie.MovementComponent.BaseRadius * 2),
+            MatrixCM.Translation(baddie.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)baddie.MovementComponent.BaseRadius * 2),
             SomewhatRough,
             SDXColor.Red);
 
          foreach (var rock in rocks) {
             scene.AddRenderable(
                graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(rock.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling(rock.MovementComponent.BaseRadius * 2),
+               MatrixCM.Translation(rock.MovementComponent.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)rock.MovementComponent.BaseRadius * 2),
                SomewhatRough,
                SDXColor.Brown);
          }
 
-         debugCanvas.DrawEntityPaths(game.EntityService);
+         debugCanvas.DrawEntityPaths(game.EntityWorld);
 
          var snapshot = scene.ExportSnapshot();
          renderer.RenderScene(snapshot);
@@ -300,13 +317,20 @@ namespace TestGameTheGame {
          return proj * view;
       }
 
-      private static Matrix ConvertSystemNumericsToSharpDX(Matrix4x4 value) => new Matrix(
+      private static Matrix ConvertSystemNumericsToSharpDX(Matrix4x4 value) {
+         return new Matrix(
             value.M11, value.M12, value.M13, value.M14,
             value.M21, value.M22, value.M23, value.M24,
             value.M31, value.M32, value.M33, value.M34,
             value.M41, value.M42, value.M43, value.M44);
+      }
 
-      public static SDXVector3 ToSharpDX(this DoubleVector3 v) => new SDXVector3((float)v.X, (float)v.Y, (float)v.Z);
-      public static DoubleVector3 ToOpenMoba(this SDXVector3 v) => new DoubleVector3(v.X, v.Y, v.Z);
+      public static SDXVector3 ToSharpDX(this DoubleVector3 v) {
+         return new SDXVector3((float)v.X, (float)v.Y, (float)v.Z);
+      }
+
+      public static DoubleVector3 ToOpenMoba(this SDXVector3 v) {
+         return new DoubleVector3(v.X, v.Y, v.Z);
+      }
    }
 }
