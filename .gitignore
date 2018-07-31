@@ -193,3 +193,6 @@ NuGet.exe
 scriptcs_nuget.config
 
 *.diagsession
+
+# IntelliJ IDEA / Rider
+.idea
