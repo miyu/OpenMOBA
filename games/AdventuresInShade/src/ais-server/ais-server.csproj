@@ -8,6 +8,8 @@
    </PropertyGroup>
 
    <ItemGroup>
+      <ProjectReference Include="..\..\..\..\engine\dependencies\dargon\framework\src\Dargon.Repl\src\Dargon.Repl.csproj" />
+      <ProjectReference Include="..\..\..\..\engine\dependencies\dargon\tools\src\dargon-management-interface\src\dargon-management-interface.csproj" />
       <ProjectReference Include="..\..\..\..\engine\src\Dargon.PlayOn\Dargon.PlayOn.csproj" />
    </ItemGroup>
 

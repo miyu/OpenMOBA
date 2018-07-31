@@ -8,10 +8,13 @@ using System.Threading.Tasks;
 using Dargon.Commons;
 using Dargon.Commons.AsyncPrimitives;
 using Dargon.Courier;
+using Dargon.Courier.Management.Repl;
 using Dargon.Courier.ServiceTier.Server;
 using Dargon.Courier.TransportTier.Tcp;
+using Dargon.Courier.TransportTier.Test;
 using Dargon.Courier.TransportTier.Udp;
 using Dargon.PlayOn.Foundation;
+using Dargon.Repl;
 using Dargon.Ryu;
 using Dargon.Ryu.Modules;
 using Dargon.Vox;
@@ -23,6 +26,8 @@ namespace AdventuresInShade.Server {
       private const int kTcpPort = 21337;
 
       public static async Task Main(string[] args) {
+         if (args.Any(a => a.StartsWith("-v"))) DmiEntryPoint.InitializeLogging(); // enable verbose logging
+
          // Courier is injected into IoC container via lambda module
          var courierInitModule = LambdaRyuModule.ForRequired(r => CourierBuilder.Create(r)
                                                                                 .UseTcpServerTransport(kTcpPort)
@@ -37,15 +42,25 @@ namespace AdventuresInShade.Server {
          // Register local game management service
          courier.LocalServiceRegistry.RegisterService(typeof(ILocalGameManagementService), ryu.GetOrThrow<LocalGameManagementService>());
 
-         // Done!
-         Go(SimulateLocalGameStartFromDataCenter).Forget();
-         await new AsyncLatch().WaitAsync();
+         // Run postinit task.
+         await PostInitAsync();
       }
 
-      private static async Task<GameCreationResponseDto> SimulateLocalGameStartFromDataCenter() {
+      private static async Task PostInitAsync() {
          var client = await CourierBuilder.Create(new RyuContainer(null, null))
                                           .UseTcpClientTransport(IPAddress.Loopback, kTcpPort)
                                           .BuildAsync();
+
+         // Kick off game start
+         await SimulateLocalGameStartFromDataCenter(client);
+
+         // Enter REPL
+         var dispatcher = new DispatcherCommand("root");
+         dispatcher.RegisterDargonManagementInterfaceCommands();
+         new ReplCore(dispatcher).Run(new[]{ "use tcp && fetch-mobs" });
+      }
+
+      private static async Task<GameCreationResponseDto> SimulateLocalGameStartFromDataCenter(CourierFacade client) {
          while (client.PeerTable.Enumerate().None()) {
             await Task.Delay(100);
          }

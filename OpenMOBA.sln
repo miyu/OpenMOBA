@@ -76,6 +76,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AdventuresInShade", "games\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestGameTheGame", "games\TestGameTheGame\TestGameTheGame.csproj", "{A4A1DCFB-1715-41F4-9C62-E7AE99CE01AB}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Repl", "engine\dependencies\dargon\framework\src\Dargon.Repl\src\Dargon.Repl.csproj", "{0367F390-3C13-4E91-8EA6-FE29419DD4D0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dargon-management-interface", "engine\dependencies\dargon\tools\src\dargon-management-interface\src\dargon-management-interface.csproj", "{2495AFDF-9C95-48AC-B766-8DD2F793C732}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -458,6 +462,30 @@ Global
 		{A4A1DCFB-1715-41F4-9C62-E7AE99CE01AB}.Release|x64.Build.0 = Release|Any CPU
 		{A4A1DCFB-1715-41F4-9C62-E7AE99CE01AB}.Release|x86.ActiveCfg = Release|Any CPU
 		{A4A1DCFB-1715-41F4-9C62-E7AE99CE01AB}.Release|x86.Build.0 = Release|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Debug|x64.Build.0 = Debug|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Debug|x86.Build.0 = Debug|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Release|x64.ActiveCfg = Release|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Release|x64.Build.0 = Release|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Release|x86.ActiveCfg = Release|Any CPU
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0}.Release|x86.Build.0 = Release|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Debug|x64.Build.0 = Debug|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Debug|x86.Build.0 = Debug|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x64.ActiveCfg = Release|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x64.Build.0 = Release|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x86.ActiveCfg = Release|Any CPU
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -485,6 +513,8 @@ Global
 		{7C58BA7B-FAA4-47FF-880F-01607B1D199A} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 		{CB4D68E0-79A2-43C7-8745-E2C429ABA7AF} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 		{6D16C119-15D1-4544-A4A1-02AB45F38C3B} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
+		{0367F390-3C13-4E91-8EA6-FE29419DD4D0} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
+		{2495AFDF-9C95-48AC-B766-8DD2F793C732} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}
