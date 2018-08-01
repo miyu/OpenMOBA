@@ -1,9 +1,10 @@
 ﻿using System;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
+using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.ECS {
    public class MovementComponent : EntityComponent {
       public MovementComponent() : base(EntityComponentType.Movement) { }
       public DoubleVector3 WorldPosition { get; set; }

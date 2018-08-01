@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using System.Drawing;
-using Dargon.PlayOn.Foundation.Terrain;
-using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Geometry;
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.Terrain.Declarations {
    // Clipper int range: [-32,767, 32,767]
    public static class SectorMetadataPresets {
       public const int DesiredSectorExtents = InternalTerrainCompilationConstants.DesiredSectorExtents;

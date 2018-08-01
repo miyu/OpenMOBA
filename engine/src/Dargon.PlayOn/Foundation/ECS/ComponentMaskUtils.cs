@@ -1,4 +1,4 @@
-﻿namespace Dargon.PlayOn.Foundation {
+﻿namespace Dargon.PlayOn.Foundation.ECS {
    public static class ComponentMaskUtils {
       public static EntityComponentsMask Or(this EntityComponentsMask mask, EntityComponentType type) {
          return mask | (EntityComponentsMask)(1 << (int)type);

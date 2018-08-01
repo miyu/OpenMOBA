@@ -4,8 +4,10 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Dargon.Commons;
 using Dargon.PlayOn.Debugging;
+using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
+using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.Vox;
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;

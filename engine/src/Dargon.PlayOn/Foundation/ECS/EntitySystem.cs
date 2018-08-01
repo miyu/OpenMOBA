@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.ECS {
    public abstract class EntitySystem {
       private readonly HashSet<Entity> associatedEntities = new HashSet<Entity>();
 

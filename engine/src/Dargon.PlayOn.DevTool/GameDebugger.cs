@@ -7,6 +7,7 @@ using System.Numerics;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation;
+using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Geometry;

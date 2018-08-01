@@ -10,6 +10,7 @@ using Dargon.PlayOn;
 using Dargon.PlayOn.DevTool;
 using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation;
+using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
@@ -63,7 +64,6 @@ namespace TestGameTheGame {
          snd.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
          snd.WorldToLocalScalingFactor = (cDouble)preset.LocalBoundary.Width / (cDouble)1000;
          game.TerrainFacade.AddSectorNodeDescription(snd);
-
 
          player = game.EntityWorld.CreateEntity();
          game.EntityWorld.AddEntityComponent(player, new MovementComponent {

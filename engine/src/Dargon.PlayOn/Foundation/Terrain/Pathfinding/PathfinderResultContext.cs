@@ -9,7 +9,7 @@ using cDouble = FixMath.NET.Fix64;
 using cDouble = System.Double;
 #endif
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.Terrain.Pathfinding {
    public class PathfinderResultContext {
       public readonly (TerrainOverlayNetworkNode, IntVector2) Source;
       public readonly (TerrainOverlayNetworkNode, IntVector2)[] Destinations;

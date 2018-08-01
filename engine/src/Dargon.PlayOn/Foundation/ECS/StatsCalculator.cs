@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.ECS {
    public class StatsCalculator {
       public Double ComputeCharacterRadius(Entity entity) {
          var movementComponent = entity.MovementComponent;

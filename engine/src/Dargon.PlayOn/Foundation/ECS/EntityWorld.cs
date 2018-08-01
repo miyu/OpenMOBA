@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.ECS {
    public class EntityWorld {
+      // TODO: It'll likely be desirable to maintain in-order semantics for determinism
+      // Framework can (and probably will) roll randomness into hashcode (and thus
+      // hashset order) to make less predictable vs attackers? -- warty
       private readonly HashSet<Entity> entities = new HashSet<Entity>();
       private readonly List<EntitySystem> systems = new List<EntitySystem>();
       private int nextEntityId = 0;

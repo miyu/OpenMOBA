@@ -4,7 +4,6 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Geometry;
 using Dargon.PlayOn.ThirdParty.ClipperLib;
@@ -14,7 +13,7 @@ using cDouble = FixMath.NET.Fix64;
 using cDouble = System.Double;
 #endif
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.Terrain {
    public static class MapLoader {
       public static void LoadMeshAsMap(this TerrainFacade terrainFacade, string objPath, DoubleVector3 meshOffset, DoubleVector3 worldOffset, int scaling = 50000) {
          Environment.CurrentDirectory = @"V:\my-repositories\miyu\derp\OpenMOBA.DevTool\bin\Debug\net461";

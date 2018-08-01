@@ -8,6 +8,7 @@ using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
+using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
@@ -15,7 +16,7 @@ using cDouble = FixMath.NET.Fix64;
 using cDouble = System.Double;
 #endif
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.ECS {
    using EntityNodeIslandAndTriangleIndex = ValueTuple<Entity, TerrainOverlayNetworkNode, TriangulationIsland, int>;
 
    public enum WalkResult {

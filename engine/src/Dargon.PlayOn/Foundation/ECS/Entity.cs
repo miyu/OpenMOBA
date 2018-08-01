@@ -1,4 +1,4 @@
-﻿namespace Dargon.PlayOn.Foundation {
+﻿namespace Dargon.PlayOn.Foundation.ECS {
    public class Entity {
       public int Id { get; set; }
       public EntityComponentsMask ComponentMask { get; set; }

@@ -1,4 +1,4 @@
-﻿namespace Dargon.PlayOn.Foundation {
+﻿namespace Dargon.PlayOn.Foundation.ECS {
    public class StatusSystem : EntitySystem {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Status);
 

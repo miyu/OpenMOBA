@@ -1,7 +1,7 @@
 ﻿using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Geometry;
 
-namespace Dargon.PlayOn.Foundation {
+namespace Dargon.PlayOn.Foundation.Terrain.Pathfinding {
    public class MotionRoadmapWalkAction : MotionRoadmapAction {
       public MotionRoadmapWalkAction(TerrainOverlayNetworkNode node, IntVector2 source, IntVector2 destination) {
          Node = node;
