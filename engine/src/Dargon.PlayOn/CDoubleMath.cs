@@ -158,5 +158,7 @@ namespace Dargon.PlayOn {
          return Math.Pow(b, exp);
 #endif
       }
+
+      public static cDouble Cast(int v) => (cDouble)v;
    }
 }
