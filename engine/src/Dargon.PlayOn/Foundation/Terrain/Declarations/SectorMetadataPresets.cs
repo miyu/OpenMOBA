@@ -130,5 +130,28 @@ namespace Dargon.PlayOn.Foundation.Terrain.Declarations {
             Polygon2.CreateCircle(500 * HashCircle2ScalingFactor, 500 * HashCircle2ScalingFactor, 200 * HashCircle2ScalingFactor)
          }
       }.Twitch();
+
+
+      private const int kLaneThickness = 141;
+      private const int kLaneThicknessDivSqrt2 = 100;
+      private const int kNearCorner = kLaneThickness + kLaneThicknessDivSqrt2;
+      private const int kFarCorner = 1000 - kNearCorner;
+      public static readonly TerrainStaticMetadata DotaStyleMoba = new TerrainStaticMetadata {
+         Name = nameof(DotaStyleMoba),
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] { Polygon2.CreateRect(0, 0, 1000, 1000) },
+         LocalExcludedContours = new[] {
+            new Polygon2(Polygon2.ValidateHoleClockness(new List<IntVector2> {
+               new IntVector2(kLaneThickness, kNearCorner),
+               new IntVector2(kFarCorner, 1000 - kLaneThickness),
+               new IntVector2(kLaneThickness, 1000 - kLaneThickness),
+            })),
+            new Polygon2(Polygon2.ValidateHoleClockness(new List<IntVector2> {
+               new IntVector2(kNearCorner, kLaneThickness),
+               new IntVector2(1000 - kLaneThickness, kLaneThickness),
+               new IntVector2(1000 - kLaneThickness, kFarCorner),
+            })),
+         }
+      }.Twitch();
    }
 }

@@ -118,7 +118,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
          if (Target != null && IsAlive(Target) && InRange(Target, visionRange)) {
             return BasicAttack(Target);
          }
-         var nearest = (Entity)EnemyTeam.QueryNearest(Entity, isAlive: true);
+         var nearest = EnemyTeam.QueryNearest(Entity, isAlive: true);
          if (nearest != null && InRange(nearest, visionRange)) {
             Target = nearest;
             return BasicAttack(Target);

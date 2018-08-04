@@ -96,11 +96,12 @@ namespace Dargon.PlayOn.Geometry {
          return new Polygon2(points);
       }
 
-      private static void ValidateHoleClockness(List<IntVector2> points) {
+      public static List<IntVector2> ValidateHoleClockness(List<IntVector2> points) {
          var a = PolygonOperations.Punch()
                                   .Include(new Polygon2(points))
                                   .Execute();
          Trace.Assert(a.Childs.Count == 1);
+         return points;
       }
    }
 }
