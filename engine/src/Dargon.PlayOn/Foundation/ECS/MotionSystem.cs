@@ -10,6 +10,7 @@ using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
+
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
 #else
@@ -27,14 +28,14 @@ namespace Dargon.PlayOn.Foundation.ECS {
       Completion
    }
 
-   public class MovementSystem : EntitySystem, INetworkedSystem {
+   public class MotionSystem : EntitySystem, INetworkedSystem {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
       private readonly GameTimeManager gameTimeManager;
       private readonly PathfinderCalculator pathfinderCalculator;
       private readonly StatsCalculator statsCalculator;
       private readonly TerrainFacade terrainFacade;
 
-      public MovementSystem(
+      public MotionSystem(
          EntityWorld entityWorld,
          GameTimeManager gameTimeManager,
          StatsCalculator statsCalculator,
@@ -48,21 +49,21 @@ namespace Dargon.PlayOn.Foundation.ECS {
       }
 
       public void Pathfind(Entity entity, DoubleVector3 destination) {
-         var movementComponent = entity.MovementComponent;
-         movementComponent.PathingDestination = destination;
+         var mc = entity.MotionComponent;
+         mc.Steering.Destination = destination;
 
          var holeDilationRadius = statsCalculator.ComputeCharacterRadius(entity);
 
-         if (pathfinderCalculator.TryFindPath(holeDilationRadius, movementComponent.WorldPosition, destination, out var roadmap)) {
-            movementComponent.PathingRoadmap = roadmap;
-            movementComponent.PathingIsInvalidated = false;
-            movementComponent.PathingRoadmapProgressIndex = 0;
-            movementComponent.LastFailedPathfindingSnapshot = null;
+         if (pathfinderCalculator.TryFindPath(holeDilationRadius, mc.Pose.WorldPosition, destination, out var roadmap)) {
+            mc.Steering.Roadmap = roadmap;
+            mc.Steering.IsRoadmapInvalidated = false;
+            mc.Steering.RoadmapProgressIndex = 0;
+            mc.Steering.LastFailedPathfindingSnapshot = null;
          } else {
-            movementComponent.PathingRoadmap = null;
-            movementComponent.PathingIsInvalidated = false;
-            movementComponent.PathingRoadmapProgressIndex = -1;
-            movementComponent.LastFailedPathfindingSnapshot = terrainFacade.CompileSnapshot();
+            mc.Steering.Roadmap = null;
+            mc.Steering.IsRoadmapInvalidated = false;
+            mc.Steering.RoadmapProgressIndex = -1;
+            mc.Steering.LastFailedPathfindingSnapshot = terrainFacade.CompileSnapshot();
          }
       }
 
@@ -72,7 +73,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
          foreach (var entity in AssociatedEntities) {
             var characterRadius = statsCalculator.ComputeCharacterRadius(entity);
             var paddedHoleDilationRadius = characterRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MovementComponent.WorldPosition)) {
+            if (holeDescription.ContainsPoint(paddedHoleDilationRadius, entity.MotionComponent.Pose.WorldPosition)) {
 //               Console.WriteLine("Out ouf bounds!");
                FixEntityInHole(entity);
             }
@@ -81,14 +82,14 @@ namespace Dargon.PlayOn.Foundation.ECS {
 
       private (DoubleVector3 world, TerrainOverlayNetworkNode node, DoubleVector2 local, TriangulationIsland island, int triangleIndex) FixEntityInHole(Entity entity) {
          var computedRadius = statsCalculator.ComputeCharacterRadius(entity);
-         var movementComponent = entity.MovementComponent;
-         var res = PushToLand(movementComponent.WorldPosition, computedRadius);
-         movementComponent.WorldPosition = res.world;
-         movementComponent.TerrainOverlayNetworkNode = res.node;
-         movementComponent.LocalPosition = res.local;
-         movementComponent.LocalPositionIv2 = res.local.LossyToIntVector2();
-         movementComponent.SwarmingIsland = res.island;
-         movementComponent.SwarmingTriangleIndex = res.triangleIndex;
+         var mc = entity.MotionComponent;
+         var res = PushToLand(mc.Pose.WorldPosition, computedRadius);
+         mc.Pose.WorldPosition = res.world;
+         mc.Localization.TerrainOverlayNetworkNode = res.node;
+         mc.Localization.LocalPosition = res.local;
+         mc.Localization.LocalPositionIv2 = res.local.LossyToIntVector2();
+         mc.Localization.TriangulationIsland = res.island;
+         mc.Localization.TriangleIndex = res.triangleIndex;
          return res;
       }
 
@@ -134,7 +135,9 @@ namespace Dargon.PlayOn.Foundation.ECS {
       ///    Invalidates all pathing entities' paths, flagging them for recomputation.
       /// </summary>
       public void InvalidatePaths() {
-         foreach (var entity in AssociatedEntities) entity.MovementComponent.PathingIsInvalidated = true;
+         foreach (var entity in AssociatedEntities) {
+            entity.MotionComponent.Steering.IsRoadmapInvalidated = true;
+         }
       }
 
       public bool NN(TriangulationIsland island, DoubleVector2 destination, out (int rootTriangleIndex, int[] predecessorByTriangleIndex) res) {
@@ -177,7 +180,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
       public override void Execute() {
          var entities = AssociatedEntities.ToArray();
          var terrainSnapshot = terrainFacade.CompileSnapshot();
-         var movementComponents = entities.Map(e => e.MovementComponent);
+         var movementComponents = entities.Map(e => e.MotionComponent);
 
          // 0. Precompute computed entity stats, zero flocking intermediate aggregates
          Execute_ZeroMovementComponentCountersAndUpdateLastCounters(movementComponents, entities);
@@ -205,56 +208,43 @@ namespace Dargon.PlayOn.Foundation.ECS {
          // 5. Aggregate entity force contributions
          foreach (var mc in movementComponents) {
             cDouble ks = (cDouble)2000;
-            mc.WeightedSumNBodyForces += mc.SeekingWeightedSumNBodyForces * ks; // is normalized
-            mc.SumWeightsNBodyForces += ks;
+            mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces += mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces * ks; // is normalized
+            mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights += ks;
 
-            if (mc.AlignmentSumWeightsNBodyForces > CDoubleMath.c0) {
+            if (mc.Steering.CurrentUpdateForceContributions.Alignment.SumWeights > CDoubleMath.c0) {
                cDouble kc = (cDouble)1500;
-               mc.WeightedSumNBodyForces += (mc.AlignmentWeightedSumNBodyForces / mc.AlignmentSumWeightsNBodyForces) * kc;
-               mc.SumWeightsNBodyForces += kc;
+               mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces += (mc.Steering.CurrentUpdateForceContributions.Alignment.SumForces / mc.Steering.CurrentUpdateForceContributions.Alignment.SumWeights) * kc;
+               mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights += kc;
             }
          }
 
          // 6. Apply entity force contributions if swarmers, else follow optimal path.
          foreach (var entity in entities) {
-            var movementComponent = entity.MovementComponent;
+            var mc = entity.MotionComponent;
 
-            var repath = movementComponent.PathingIsInvalidated || (
-                            movementComponent.LastFailedPathfindingSnapshot != null &&
-                            movementComponent.LastFailedPathfindingSnapshot != terrainFacade.CompileSnapshot());
+            var repath = mc.Steering.IsRoadmapInvalidated || (
+                            mc.Steering.LastFailedPathfindingSnapshot != null &&
+                            mc.Steering.LastFailedPathfindingSnapshot != terrainFacade.CompileSnapshot());
 
             if (repath) {
-               Pathfind(entity, movementComponent.PathingDestination);
+               Pathfind(entity, mc.Steering.Destination);
             }
 
-            if (movementComponent.Swarm == null) {
-               ExecutePathNonswarmer(entity, movementComponent);
+            if (mc.Swarm == null) {
+               ExecutePathNonswarmer(entity, mc);
             } else {
-               ExecutePathSwarmer(entity, movementComponent);
+               ExecutePathSwarmer(entity, mc);
             }
          }
 
-         void Execute_ZeroMovementComponentCountersAndUpdateLastCounters(MovementComponent[] movementComponents1, Entity[] entities1) {
+         void Execute_ZeroMovementComponentCountersAndUpdateLastCounters(MotionComponent[] movementComponents1, Entity[] entities1) {
             for (var i = 0; i < movementComponents1.Length; i++) {
                var e = entities1[i];
                var mc = movementComponents1[i];
-               mc.ComputedRadius = (int)CDoubleMath.Ceiling(statsCalculator.ComputeCharacterRadius(e));
-               mc.ComputedSpeed = (int)CDoubleMath.Ceiling(statsCalculator.ComputeMovementSpeed(e));
+               mc.ComputedStatistics = statsCalculator.CalculateMotionStatistics(e);
 
-               mc.LastSeekingWeightedSumNBodyForces = mc.SeekingWeightedSumNBodyForces;
-               mc.LastSeekingSumWeightsNBodyForces = mc.SeekingSumWeightsNBodyForces;
-
-               mc.SeekingWeightedSumNBodyForces = DoubleVector2.Zero;
-               mc.SeekingSumWeightsNBodyForces = CDoubleMath.c0;
-
-               mc.AlignmentWeightedSumNBodyForces = DoubleVector2.Zero;
-               mc.AlignmentSumWeightsNBodyForces = CDoubleMath.c0;
-
-               mc.LastWeightedSumNBodyForces = mc.WeightedSumNBodyForces;
-               mc.LastSumWeightsNBodyForces = mc.SumWeightsNBodyForces;
-
-               mc.WeightedSumNBodyForces = DoubleVector2.Zero;
-               mc.SumWeightsNBodyForces = CDoubleMath.c0;
+               mc.Steering.LastUpdateForceContributions = mc.Steering.CurrentUpdateForceContributions;
+               mc.Steering.CurrentUpdateForceContributions = default;
             }
          }
       }
@@ -263,23 +253,16 @@ namespace Dargon.PlayOn.Foundation.ECS {
          var terrainOverlayNetworkNodes = new HashSet<TerrainOverlayNetworkNode>();
          var nodeIslandAndTriangleIndexesBySwarmAndComputedRadius = MultiValueDictionary<(Swarm, int), EntityNodeIslandAndTriangleIndex>.Create(() => new List<EntityNodeIslandAndTriangleIndex>());
          foreach (var e in entities) {
-            var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)e.MovementComponent.ComputedRadius);
-            FindOrFixEntityTerrainNodeAndTriangle(e, out terrainOverlayNetwork, out var terrainOverlayNetworkNode, out var localPosition, out var island, out var triangleIndex);
+            var mc = e.MotionComponent;
 
-            e.MovementComponent.TerrainOverlayNetwork = terrainOverlayNetwork;
-            e.MovementComponent.TerrainOverlayNetworkNode = terrainOverlayNetworkNode;
-            e.MovementComponent.LocalPosition = new DoubleVector2(localPosition.X, localPosition.Y);
-            e.MovementComponent.LocalPositionIv2 = e.MovementComponent.LocalPosition.LossyToIntVector2();
-            terrainOverlayNetworkNodes.Add(terrainOverlayNetworkNode);
+            mc.Localization = LocalizeEntityAndFixOutOfTriangulationBounds(e);
+            terrainOverlayNetworkNodes.Add(mc.Localization.TerrainOverlayNetworkNode);
 
-            e.MovementComponent.SwarmingIsland = island;
-            e.MovementComponent.SwarmingTriangleIndex = triangleIndex;
-
-            if (e.MovementComponent.Swarm == null) continue;
+            if (mc.Swarm == null) continue;
 
             nodeIslandAndTriangleIndexesBySwarmAndComputedRadius.Add(
-               (e.MovementComponent.Swarm, e.MovementComponent.ComputedRadius),
-               (e, terrainOverlayNetworkNode, island, triangleIndex));
+               (mc.Swarm, mc.ComputedStatistics.Radius),
+               (e, mc.Localization.TerrainOverlayNetworkNode, mc.Localization.TriangulationIsland, mc.Localization.TriangleIndex));
          }
 
          return nodeIslandAndTriangleIndexesBySwarmAndComputedRadius;
@@ -322,8 +305,10 @@ namespace Dargon.PlayOn.Foundation.ECS {
             if (!swarmAndRadiusToEntityTriangleCentroidPaths.TryGetValue((swarm, computedRadius), out var res)) continue;
             var (pathfinderResultContext, centroidIndicesByEntityIndex) = res;
             foreach (var (i, (entity, entityTerrainOverlayNode, island, triangleIndex)) in entityNodeAndTriangleIndexes.Enumerate()) {
-               var mc = entity.MovementComponent;
-               if (mc.GoalReached) continue;
+               var mc = entity.MotionComponent;
+               ref var steering = ref mc.Steering;
+
+               if (steering.IsDestinationReached) continue;
 
                var centroidIndex = centroidIndicesByEntityIndex[i];
                if (pathfinderResultContext.TryComputeRoadmap(centroidIndex, out var roadmap)) {
@@ -332,75 +317,77 @@ namespace Dargon.PlayOn.Foundation.ECS {
                   Trace.Assert(action.Node == entityTerrainOverlayNode);
 
                   // HACK:
-                  if ((mc.WorldPosition - mc.Swarm.Destination).Norm2D() < CDoubleMath.c5) {
-                     mc.GoalReached = true;
+                  if ((mc.Pose.WorldPosition - mc.Swarm.Destination).Norm2D() < CDoubleMath.c5) {
+                     steering.IsDestinationReached = true;
                   }
 
                   // path-following vector is from destination to source because our multi-pathfind goes from destination to source.
                   var v = action.Destination.To(action.Source).ToDoubleVector2().ToUnit();
                   var w = CDoubleMath.c1;
-                  mc.SeekingWeightedSumNBodyForces += v * w;
-                  mc.SeekingSumWeightsNBodyForces += w;
+                  steering.CurrentUpdateForceContributions.Seeking.SumForces += v * w;
+                  steering.CurrentUpdateForceContributions.Seeking.SumWeights += w;
                }
             }
          }
       }
 
-      private void Execute_ContributeTriangleCentroidOptimalDiscreteSpanningDijkstrasPathSteeringBehavior(MovementComponent[] movementComponents) {
+      private void Execute_ContributeTriangleCentroidOptimalDiscreteSpanningDijkstrasPathSteeringBehavior(MotionComponent[] motionComponents) {
          var islandAndGoalToRootTriangleIndex = new Dictionary<(TriangulationIsland, DoubleVector3), (int rootTriangleIndex, int[] predecessorByTriangleIndex, DoubleVector3 loc)>();
-         foreach (var mc in movementComponents) {
+         foreach (var mc in motionComponents) {
             if (mc.Swarm == null) continue;
-            if (mc.GoalReached) continue;
+            if (mc.Steering.IsDestinationReached) continue;
 
-            var key = (mc.SwarmingIsland, mc.Swarm.Destination);
+            var key = (mc.Localization.TriangulationIsland, mc.Swarm.Destination);
             if (!islandAndGoalToRootTriangleIndex.TryGetValue(key, out var t)) {
-               if (mc.TerrainOverlayNetworkNode.Contains(mc.Swarm.Destination, out var local)) {
+               if (mc.Localization.TerrainOverlayNetworkNode.Contains(mc.Swarm.Destination, out var local)) {
                   // Contains can work but NN fail due to point-in-triangle robustness issues.
-                  NN(mc.SwarmingIsland, local.XY, out var tt);
+                  NN(mc.Localization.TriangulationIsland, local.XY, out var tt);
                   islandAndGoalToRootTriangleIndex[key] = t = (tt.rootTriangleIndex, tt.predecessorByTriangleIndex, local);
                }
             }
 
             if (t.predecessorByTriangleIndex != null) {
-               var nti = t.predecessorByTriangleIndex[mc.SwarmingTriangleIndex];
+               var nti = t.predecessorByTriangleIndex[mc.Localization.TriangleIndex];
                if (nti != Triangle3.NO_NEIGHBOR_INDEX) {
-                  DoubleVector2 next = mc.SwarmingIsland.Triangles[nti].Centroid;
+                  DoubleVector2 next = mc.Localization.TriangulationIsland.Triangles[nti].Centroid;
 
-                  var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.SwarmingIsland.Triangles[mc.SwarmingTriangleIndex].Centroid).ToUnit();
+                  var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.Localization.TriangulationIsland.Triangles[mc.Localization.TriangleIndex].Centroid).ToUnit();
 
                   cDouble mul = CDoubleMath.c0_8;
-                  mc.SeekingWeightedSumNBodyForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
-                  mc.SeekingSumWeightsNBodyForces += mul;
+                  mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
+                  mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights += mul;
                }
             }
 
             // Normalize seek forces now that we've done centroid path-follow and optimal heuristics.
-            if (mc.SumWeightsNBodyForces > CDoubleMath.c0) {
-               mc.SeekingWeightedSumNBodyForces = mc.WeightedSumNBodyForces.ToUnit();
-               mc.SeekingSumWeightsNBodyForces = CDoubleMath.c1;
+            if (mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights > CDoubleMath.c0) {
+               // TODO: This seems like a bugged normalization including test above?
+               Debugger.Break();
+               mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces = mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces.ToUnit();
+               mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights = CDoubleMath.c1;
             }
 
             cDouble k = (cDouble)Math.Min(gameTimeManager.Ticks, 19);
-            mc.SeekingWeightedSumNBodyForces += mc.LastSeekingWeightedSumNBodyForces * k;
-            mc.SeekingSumWeightsNBodyForces += mc.LastSeekingSumWeightsNBodyForces * k;
+            mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces += mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces * k;
+            mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights += mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights * k;
 
-            mc.SeekingWeightedSumNBodyForces /= k + CDoubleMath.c1;
-            mc.SeekingSumWeightsNBodyForces /= k + CDoubleMath.c1;
+            mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces /= k + CDoubleMath.c1;
+            mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights /= k + CDoubleMath.c1;
          }
       }
 
       private static cDouble[] Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isOverlappingWeightLut;
       private static cDouble[] Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isNonOverlappingWeightLut;
 
-      private static void Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors(MovementComponent[] movementComponents) {
-         for (var i = 0; i < movementComponents.Length - 1; i++) {
-            var a = movementComponents[i];
-            var aRadius = a.ComputedRadius;
-            for (var j = i + 1; j < movementComponents.Length; j++) {
-               var b = movementComponents[j];
-               var aToB = b.LocalPositionIv2 - a.LocalPositionIv2;
+      private static void Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors(MotionComponent[] motionComponents) {
+         for (var i = 0; i < motionComponents.Length - 1; i++) {
+            var a = motionComponents[i];
+            var aRadius = a.ComputedStatistics.Radius;
+            for (var j = i + 1; j < motionComponents.Length; j++) {
+               var b = motionComponents[j];
+               var aToB = b.Localization.LocalPositionIv2 - a.Localization.LocalPositionIv2;
 
-               var radiusSum = (int)((cDouble)(aRadius + b.ComputedRadius) * a.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor);
+               var radiusSum = (int)((cDouble)(aRadius + b.ComputedStatistics.Radius) * a.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor);
                var radiusSumSquared = radiusSum * radiusSum;
                var centerDistanceSquared = aToB.SquaredNorm2();
 
@@ -465,11 +452,11 @@ namespace Dargon.PlayOn.Foundation.ECS {
                   aForce = aToB;
 
                   // alignment
-                  a.AlignmentWeightedSumNBodyForces += b.LastSeekingWeightedSumNBodyForces * CDoubleMath.c0_01;
-                  a.AlignmentSumWeightsNBodyForces += b.LastSeekingSumWeightsNBodyForces * CDoubleMath.c0_01;
+                  a.Steering.CurrentUpdateForceContributions.Alignment.SumForces += b.Steering.LastUpdateForceContributions.Seeking.SumForces * CDoubleMath.c0_01;
+                  a.Steering.CurrentUpdateForceContributions.Alignment.SumWeights += b.Steering.LastUpdateForceContributions.Seeking.SumWeights * CDoubleMath.c0_01;
 
-                  b.AlignmentWeightedSumNBodyForces += a.LastSeekingWeightedSumNBodyForces * CDoubleMath.c0_01;
-                  b.AlignmentSumWeightsNBodyForces += a.LastSeekingSumWeightsNBodyForces * CDoubleMath.c0_01;
+                  b.Steering.CurrentUpdateForceContributions.Alignment.SumForces += a.Steering.LastUpdateForceContributions.Seeking.SumForces * CDoubleMath.c0_01;
+                  b.Steering.CurrentUpdateForceContributions.Alignment.SumWeights += a.Steering.LastUpdateForceContributions.Seeking.SumWeights * CDoubleMath.c0_01;
                } else {
                   // todo: experiment with continue vs zero-weight for no failed branch prediction
                   // (this is pretty pipeliney code)
@@ -486,54 +473,61 @@ namespace Dargon.PlayOn.Foundation.ECS {
                Debug.Assert(GeometryOperations.IsReal(wf));
                Debug.Assert(GeometryOperations.IsReal(w));
 
-               a.WeightedSumNBodyForces += wf;// * (cDouble)0.95;
-               a.SumWeightsNBodyForces += w;// * (cDouble)0.95;
+               a.Steering.CurrentUpdateForceContributions.Aggregate.SumForces += wf;// * (cDouble)0.95;
+               a.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights += w;// * (cDouble)0.95;
 
-               b.WeightedSumNBodyForces -= wf;
-               b.SumWeightsNBodyForces += w;
+               b.Steering.CurrentUpdateForceContributions.Aggregate.SumForces -= wf;
+               b.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights += w;
             }
          }
       }
 
-      private void FindOrFixEntityTerrainNodeAndTriangle(Entity e, out TerrainOverlayNetwork terrainOverlayNetwork, out TerrainOverlayNetworkNode terrainOverlayNetworkNode, out DoubleVector2 localPosition, out TriangulationIsland island, out int triangleIndex) {
-         var mc = e.MovementComponent;
-         terrainOverlayNetwork = terrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)mc.ComputedRadius);
+      private LocalizationState LocalizeEntityAndFixOutOfTriangulationBounds(Entity e) {
+         var mc = e.MotionComponent;
+         var network = terrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)mc.ComputedStatistics.Radius);
 
          for (var i = 0; i < 2; i++) {
             // which terrain overlay node are we on?
-            if (!terrainOverlayNetwork.TryFindTerrainOverlayNode(mc.WorldPosition, out terrainOverlayNetworkNode, out var lpos)) {
+            if (!network.TryFindTerrainOverlayNode(mc.Pose.WorldPosition, out var node, out var lpos)) {
                FixEntityInHole(e);
                continue;
             }
 
             // Additionally determine which triangle entity is sitting on in LGV triangulation.
             // TODO: Determinism
-            if (!terrainOverlayNetworkNode.LocalGeometryView.Triangulation.TryIntersect(lpos.X, lpos.Y, out island, out triangleIndex)) {
+            if (!node.LocalGeometryView.Triangulation.TryIntersect(lpos.X, lpos.Y, out var island, out var triangleIndex)) {
                FixEntityInHole(e);
                continue;
             }
 
-            localPosition = lpos.XY;
-            return;
+            var localPosition = lpos.XY;
+            return new LocalizationState {
+               TerrainOverlayNetwork = network,
+               TerrainOverlayNetworkNode = node,
+               LocalPosition = localPosition,
+               LocalPositionIv2 = localPosition.LossyToIntVector2(),
+               TriangulationIsland = island,
+               TriangleIndex = triangleIndex,
+            };
          }
          throw new InvalidStateException();
       }
 
       public List<PathfinderResultContext> RenderMe;
 
-      private void ExecutePathNonswarmer(Entity entity, MovementComponent movementComponent) {
-         if (movementComponent.PathingRoadmap == null) return;
-         if (!movementComponent.IsPathfindingEnabled) return;
+      private void ExecutePathNonswarmer(Entity entity, MotionComponent mc) {
+         if (mc.Steering.Roadmap == null) return;
+         if (!mc.Steering.IsPathfindingEnabled) return;
 
          var movementSpeed = statsCalculator.ComputeMovementSpeed(entity);
          var worldDistanceRemaining = movementSpeed * gameTimeManager.SecondsPerTick;
-         var plan = movementComponent.PathingRoadmap.Plan;
+         var plan = mc.Steering.Roadmap.Plan;
 
-         while (worldDistanceRemaining > CDoubleMath.c0 && movementComponent.PathingRoadmapProgressIndex < plan.Count) {
-            var action = plan[movementComponent.PathingRoadmapProgressIndex];
+         while (worldDistanceRemaining > CDoubleMath.c0 && mc.Steering.RoadmapProgressIndex < plan.Count) {
+            var action = plan[mc.Steering.RoadmapProgressIndex];
             switch (action) {
                case MotionRoadmapWalkAction wa:
-                  var currentSectorLocalPositionDotNet = Vector3.Transform(movementComponent.WorldPosition.ToDotNetVector(), wa.Node.SectorNodeDescription.WorldTransformInv).ToOpenMobaVector();
+                  var currentSectorLocalPositionDotNet = Vector3.Transform(mc.Pose.WorldPosition.ToDotNetVector(), wa.Node.SectorNodeDescription.WorldTransformInv).ToOpenMobaVector();
                   var currentSectorLocalPosition = new DoubleVector2(currentSectorLocalPositionDotNet.X, currentSectorLocalPositionDotNet.Y);
                   Trace.Assert(CDoubleMath.Abs(currentSectorLocalPositionDotNet.Z) < (cDouble)1E-3);
 
@@ -548,14 +542,14 @@ namespace Dargon.PlayOn.Foundation.ECS {
                   DoubleVector2 nextSectorLocalPosition;
                   if (worldDistance <= CDoubleMath.Epsilon || worldDistance <= worldDistanceRemaining) {
                      nextSectorLocalPosition = wa.Destination.ToDoubleVector2();
-                     movementComponent.PathingRoadmapProgressIndex++;
+                     mc.Steering.RoadmapProgressIndex++;
                      worldDistanceRemaining -= worldDistance;
                   } else {
                      nextSectorLocalPosition = currentSectorLocalPosition + pb * worldDistanceRemaining / worldDistance;
                      worldDistanceRemaining = CDoubleMath.c0;
                   }
 
-                  movementComponent.WorldPosition = Vector3.Transform(
+                  mc.Pose.WorldPosition = Vector3.Transform(
                      new Vector3(nextSectorLocalPosition.ToDotNetVector(), 0),
                      wa.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
                   break;
@@ -569,12 +563,12 @@ namespace Dargon.PlayOn.Foundation.ECS {
       private cDouble wwww = CDoubleMath.c0;
       private cDouble wmul = CDoubleMath.c1 / (cDouble)0.69;
 
-      private void ExecutePathSwarmer(Entity entity, MovementComponent movementComponent) {
+      private void ExecutePathSwarmer(Entity entity, MotionComponent mc) {
          // ReSharper disable once CompareOfFloatsByEqualityOperator
-         if (movementComponent.SumWeightsNBodyForces == CDoubleMath.c0) return;
-         if (movementComponent.WeightedSumNBodyForces == DoubleVector2.Zero) return;
+         if (mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights == CDoubleMath.c0) return;
+         if (mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces == DoubleVector2.Zero) return;
 
-         var k = movementComponent.WeightedSumNBodyForces / movementComponent.SumWeightsNBodyForces;
+         var k = mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces / mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights;
          zzzz++;
          wwww += k.Norm2D();
          if (zzzz % 1000 == 0) {
@@ -584,16 +578,17 @@ namespace Dargon.PlayOn.Foundation.ECS {
             zzzz = 0;
          }
 
-         var worldDistanceRemaining = (cDouble)movementComponent.ComputedSpeed * gameTimeManager.SecondsPerTick * wmul;
-         var localDistanceRemaining = worldDistanceRemaining * movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
+         var worldDistanceRemaining = (cDouble)mc.ComputedStatistics.Speed * gameTimeManager.SecondsPerTick * wmul;
+         var localDistanceRemaining = worldDistanceRemaining * mc.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
          var dv2 = ComputePositionUpdate(
             localDistanceRemaining,
-            movementComponent.LocalPosition,
-            movementComponent.WeightedSumNBodyForces / movementComponent.SumWeightsNBodyForces,
-            movementComponent.SwarmingIsland,
-            movementComponent.SwarmingTriangleIndex);
-         movementComponent.LocalPosition = dv2;
-         movementComponent.WorldPosition = movementComponent.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(dv2);
+            mc.Localization.LocalPosition,
+            mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces / mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights, // dupe of k above?
+            mc.Localization.TriangulationIsland,
+            mc.Localization.TriangleIndex);
+         mc.Localization.LocalPosition = dv2;
+         mc.Localization.LocalPositionIv2 = dv2.LossyToIntVector2();
+         mc.Pose.WorldPosition = mc.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(dv2);
       }
 
       private DoubleVector2 ComputePositionUpdate(cDouble distanceRemaining, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, TriangulationIsland island, int triangleIndex) {

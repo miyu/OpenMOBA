@@ -17,7 +17,7 @@ namespace Dargon.PlayOn.Foundation {
          var statsCalculator = new StatsCalculator();
          var pathfinderCalculator = new PathfinderCalculator(terrainService, statsCalculator);
 
-         var movementSystemService = new MovementSystem(entityService, gameTimeService, statsCalculator, terrainService, pathfinderCalculator);
+         var movementSystemService = new MotionSystem(entityService, gameTimeService, statsCalculator, terrainService, pathfinderCalculator);
          entityService.AddEntitySystem(movementSystemService);
 
          var gameLogicFacade = new GameLogicFacade(terrainService, movementSystemService);
@@ -27,7 +27,7 @@ namespace Dargon.PlayOn.Foundation {
             TerrainFacade = terrainService,
             EntityWorld = entityService,
             PathfinderCalculator = pathfinderCalculator,
-            MovementSystem = movementSystemService,
+            MotionSystem = movementSystemService,
             GameLogicFacade = gameLogicFacade
          };
          gameInstance.Initialize();

@@ -6,12 +6,17 @@ using cDouble = System.Double;
 
 namespace Dargon.PlayOn.Foundation.ECS {
    public class LogicSystem : EntitySystem, INetworkedSystem {
-      private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Logic);
+      private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Ai);
 
       public LogicSystem(EntityWorld entityWorld) : base(entityWorld, kComponentMask) {
       }
 
       public override void Execute() {
+         foreach (var entity in AssociatedEntities) {
+            var ai = entity.AiComponent;
+            var intent = ai.ComputeIntent();
+            intent.Execute(entity);
+         }
       }
 
       public object SaveState() {
@@ -20,31 +25,31 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public class AiComponentContext {
-      private readonly MovementSystem movementSystem;
+      private readonly MotionSystem motionSystem;
 
-      public AiComponentContext(MovementSystem movementSystem) {
-         this.movementSystem = movementSystem;
+      public AiComponentContext(MotionSystem motionSystem) {
+         this.motionSystem = motionSystem;
       }
 
-      public AiPathToCommand PathTo(Entity entity) {
+      public AiPathToIntent PathTo(Entity entity) {
          throw new System.NotImplementedException();
       }
 
-      public AiIdleCommand Idle() => AiIdleCommand.Instance;
+      public AiIdleIntent Idle() => AiIdleIntent.Instance;
    }
 
-   public abstract class AiCommand {
+   public abstract class AiIntent {
       public abstract void Execute(Entity entity);
    }
 
-   public class AiIdleCommand : AiCommand {
-      public static AiIdleCommand Instance { get; } = new AiIdleCommand();
+   public class AiIdleIntent : AiIntent {
+      public static AiIdleIntent Instance { get; } = new AiIdleIntent();
 
       public override void Execute(Entity entity) {
       }
    }
 
-   public class AiPathToCommand : AiCommand {
+   public class AiPathToIntent : AiIntent {
       public override void Execute(Entity entity) {
       }
 
@@ -52,28 +57,28 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public abstract class AiComponent : EntityComponent {
-      protected AiComponent(Entity entity) : base(EntityComponentType.Logic) {
+      protected AiComponent(Entity entity) : base(EntityComponentType.Ai) {
          Entity = entity;
       }
 
       public Entity Entity { get; }
 
-      public abstract AiCommand ComputeIntent();
+      public abstract AiIntent ComputeIntent();
 
       private AiComponentContext AiContext;
 
-      protected AiIdleCommand Idle() => AiContext.Idle();
+      protected AiIdleIntent Idle() => AiContext.Idle();
 
-      protected AiPathToCommand PathTo(Entity entity) => AiContext.PathTo(entity);
+      protected AiPathToIntent PathTo(Entity entity) => AiContext.PathTo(entity);
 
       // Attacks or idles (if in attack cd) if in range, else PathTo.
-      protected AiPathToCommand BasicAttack(Entity entity) => AiContext.PathTo(entity);
+      protected AiPathToIntent BasicAttack(Entity entity) => AiContext.PathTo(entity);
    }
 
    public class TrivialSeekAiComponent : AiComponent {
       public TrivialSeekAiComponent(Entity entity) : base(entity) { }
 
-      public override AiCommand ComputeIntent() {
+      public override AiIntent ComputeIntent() {
          var target = (Entity)null;
          var pathToTargetCommand = PathTo(target);
          if (pathToTargetCommand.Distance < 10) {
@@ -93,9 +98,9 @@ namespace Dargon.PlayOn.Foundation.ECS {
       public Entity Nexus { get; }
       public bool IsResourceHeld;
 
-      public override AiCommand ComputeIntent() {
+      public override AiIntent ComputeIntent() {
          var pathToGoal = PathTo(IsResourceHeld ? Nexus : Mine);
-         if (pathToGoal.Distance < (cDouble)Entity.MovementComponent.ComputedRadius) {
+         if (pathToGoal.Distance < (cDouble)Entity.MotionComponent.ComputedStatistics.Radius) {
             IsResourceHeld = !IsResourceHeld;
             pathToGoal = PathTo(IsResourceHeld ? Nexus : Mine);
          }
@@ -113,7 +118,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
       public dynamic EnemyTeam { get; }
       public Entity Target { get; private set; }
 
-      public override AiCommand ComputeIntent() {
+      public override AiIntent ComputeIntent() {
          var visionRange = VisionRange(Entity);
          if (Target != null && IsAlive(Target) && InRange(Target, visionRange)) {
             return BasicAttack(Target);

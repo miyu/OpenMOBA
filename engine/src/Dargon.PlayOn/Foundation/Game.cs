@@ -28,7 +28,7 @@ namespace Dargon.PlayOn.Foundation {
       public TerrainFacade TerrainFacade { get; set; }
       public EntityWorld EntityWorld { get; set; }
       public PathfinderCalculator PathfinderCalculator { get; set; }
-      public MovementSystem MovementSystem { get; set; }
+      public MotionSystem MotionSystem { get; set; }
       public GameLogicFacade GameLogicFacade { get; set; }
 
       public GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription dynamicTerrainHoleDescription) {

@@ -5,7 +5,7 @@
    /// </summary>
    public enum EntityComponentType {
       Movement,
-      Logic,
+      Ai,
       Status,
 
       Count

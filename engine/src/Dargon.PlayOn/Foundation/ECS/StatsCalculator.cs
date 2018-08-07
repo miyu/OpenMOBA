@@ -1,17 +1,29 @@
 ﻿using System;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace Dargon.PlayOn.Foundation.ECS {
    public class StatsCalculator {
-      public Double ComputeCharacterRadius(Entity entity) {
-         var movementComponent = entity.MovementComponent;
-         if (movementComponent == null) return CDoubleMath.c0;
-         return movementComponent.BaseRadius;
+      public MotionStatistics CalculateMotionStatistics(Entity entity) {
+         var mc = entity.MotionComponent;
+         if (mc == null) return default;
+         return mc.BaseStatistics;
       }
 
-      public Double ComputeMovementSpeed(Entity entity) {
-         var movementComponent = entity.MovementComponent;
-         if (movementComponent == null) return CDoubleMath.c0;
-         return movementComponent.BaseSpeed;
+      public cDouble ComputeCharacterRadius(Entity entity) {
+         var mc = entity.MotionComponent;
+         if (mc == null) return default;
+         return mc.BaseStatistics.Radius;
+      }
+
+      public cDouble ComputeMovementSpeed(Entity entity) {
+         var mc = entity.MotionComponent;
+         if (mc == null) return default;
+         return mc.BaseStatistics.Speed;
       }
    }
 }

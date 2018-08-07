@@ -3,7 +3,8 @@
       public int Id { get; set; }
       public EntityComponentsMask ComponentMask { get; set; }
       public EntityComponent[] ComponentsByType { get; } = new EntityComponent[(int)EntityComponentType.Count];
-      public MovementComponent MovementComponent => (MovementComponent)ComponentsByType[(int)EntityComponentType.Movement];
+      public MotionComponent MotionComponent => (MotionComponent)ComponentsByType[(int)EntityComponentType.Movement];
+      public AiComponent AiComponent => (AiComponent)ComponentsByType[(int)EntityComponentType.Ai];
 
       private Entity(int id) {
          this.Id = id;
