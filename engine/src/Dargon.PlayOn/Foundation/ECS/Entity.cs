@@ -1,4 +1,6 @@
-﻿namespace Dargon.PlayOn.Foundation.ECS {
+﻿using Dargon.PlayOn.Foundation.Terrain.Motion;
+
+namespace Dargon.PlayOn.Foundation.ECS {
    public class Entity {
       public int Id { get; set; }
       public EntityComponentsMask ComponentMask { get; set; }

@@ -14,6 +14,7 @@ using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Geometry;
 using SharpDX;
 using SDPoint = System.Drawing.Point;

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation;
 using Dargon.PlayOn.Foundation.ECS;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 using SharpDX;
