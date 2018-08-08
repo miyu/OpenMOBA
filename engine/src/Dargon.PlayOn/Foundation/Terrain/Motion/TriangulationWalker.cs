@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using Dargon.PlayOn.Foundation.Terrain;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Geometry;
 
 namespace Dargon.PlayOn.Foundation.ECS {

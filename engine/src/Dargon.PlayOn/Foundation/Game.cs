@@ -7,6 +7,7 @@ using Dargon.PlayOn.Debugging;
 using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.Vox;
 #if use_fixed

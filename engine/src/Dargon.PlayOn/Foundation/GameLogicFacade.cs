@@ -1,6 +1,7 @@
 using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 
 namespace Dargon.PlayOn.Foundation {
    public class GameLogicFacade {

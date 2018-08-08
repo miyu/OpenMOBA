@@ -73,8 +73,4 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Foundation\Terrain\Motion\Steering\" />
-  </ItemGroup>
-
 </Project>

@@ -1,6 +1,7 @@
 ﻿using System;
 using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 
 namespace Dargon.PlayOn.Foundation {

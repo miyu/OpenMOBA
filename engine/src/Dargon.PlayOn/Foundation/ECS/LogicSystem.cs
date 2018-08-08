@@ -1,6 +1,7 @@
 ﻿#if use_fixed
 using cDouble = FixMath.NET.Fix64;
 #else
+using Dargon.PlayOn.Foundation.Terrain.Motion;
 using cDouble = System.Double;
 #endif
 
