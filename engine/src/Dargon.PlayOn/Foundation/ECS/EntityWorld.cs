@@ -7,7 +7,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
       // Framework can (and probably will) roll randomness into hashcode (and thus
       // hashset order) to make less predictable vs attackers? -- warty
       private readonly HashSet<Entity> entities = new HashSet<Entity>();
-      private readonly List<EntitySystem> systems = new List<EntitySystem>();
+      private readonly List<IEntitySystem> systems = new List<IEntitySystem>();
       private int nextEntityId = 0;
 
       public IEnumerable<Entity> EnumerateEntities() => entities;
@@ -41,16 +41,10 @@ namespace Dargon.PlayOn.Foundation.ECS {
          }
       }
 
-      public IReadOnlyList<EntitySystem> EnumerateSystems() => systems;
+      public IReadOnlyList<IEntitySystem> EnumerateSystems() => systems;
 
-      public void AddEntitySystem(EntitySystem system) {
+      public void AddEntitySystem(IEntitySystem system) {
          systems.Add(system);
-      }
-
-      public void InitializeSystems() {
-         foreach (var system in systems) {
-            system.Initialize();
-         }
       }
 
       public void ProcessSystems() {

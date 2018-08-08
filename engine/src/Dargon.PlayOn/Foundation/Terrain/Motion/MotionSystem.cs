@@ -22,7 +22,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
       Completion
    }
 
-   public class MotionSystem : EntitySystem, INetworkedSystem {
+   public class MotionSystem : IEntitySystem, INetworkedSystem {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
       private readonly GameTimeManager gameTimeManager;
       private readonly PathfinderCalculator pathfinderCalculator;

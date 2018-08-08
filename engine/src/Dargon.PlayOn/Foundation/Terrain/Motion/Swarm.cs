@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 
-namespace Dargon.PlayOn.Foundation.ECS {
+namespace Dargon.PlayOn.Foundation.Terrain.Motion {
    public class Swarm {
       private readonly Dictionary<int, (TerrainOverlayNetworkNode, PathfinderResultContext)> pathfinderResultContextByComputedRadius = new Dictionary<int, (TerrainOverlayNetworkNode, PathfinderResultContext)>();
       private DoubleVector3 destination;
