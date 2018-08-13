@@ -6,13 +6,13 @@ using cDouble = System.Double;
 #endif
 
 namespace Dargon.PlayOn.Foundation.ECS {
-   public class LogicSystem : EntitySystem, INetworkedSystem {
+   public class LogicSystem : UnorderedEntitySystemBase, INetworkedSystem {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Ai);
 
       public LogicSystem(EntityWorld entityWorld) : base(entityWorld, kComponentMask) {
       }
 
-      public override void Execute() {
+      public void ExecuteAiLogic() {
          foreach (var entity in AssociatedEntities) {
             var ai = entity.AiComponent;
             var intent = ai.ComputeIntent();
@@ -101,7 +101,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
 
       public override AiIntent ComputeIntent() {
          var pathToGoal = PathTo(IsResourceHeld ? Nexus : Mine);
-         if (pathToGoal.Distance < (cDouble)Entity.MotionComponent.ComputedStatistics.Radius) {
+         if (pathToGoal.Distance < (cDouble)Entity.MotionComponent.Internals.ComputedStatistics.Radius) {
             IsResourceHeld = !IsResourceHeld;
             pathToGoal = PathTo(IsResourceHeld ? Nexus : Mine);
          }

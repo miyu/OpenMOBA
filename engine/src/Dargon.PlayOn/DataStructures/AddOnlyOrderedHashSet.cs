@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Dargon.PlayOn.DataStructures {
    public class AddOnlyOrderedHashSet<T> : IList<T>, IReadOnlyList<T> {
@@ -45,5 +46,8 @@ namespace Dargon.PlayOn.DataStructures {
 
       public IEnumerator<T> GetEnumerator() => list.GetEnumerator();
       IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+      public T[] ToArray() => list.ToArray();
+      public List<T> ToList() => new List<T>(list);
    }
 }

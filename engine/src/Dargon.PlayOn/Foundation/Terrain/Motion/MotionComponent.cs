@@ -4,26 +4,56 @@ using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 
 namespace Dargon.PlayOn.Foundation.Terrain.Motion {
-   public class MotionComponent : EntityComponent {
+   public class 
+      MotionComponent : EntityComponent {
       public MotionComponent() : base(EntityComponentType.Movement) {
          Internals = MotionComponentInternals.Create();
       }
 
       public MotionStatistics BaseStatistics;
       public MotionComponentInternals Internals;
+
+      public static MotionComponent Create(DoubleVector3 worldPosition) => new MotionComponent {
+         BaseStatistics = new MotionStatistics { Radius = 30, Speed = 100 },
+         Internals = { Pose = { WorldPosition = worldPosition } }
+      };
+
+      public static MotionComponent Create(DoubleVector3 worldPosition, MotionStatistics baseStatistics) => new MotionComponent {
+         BaseStatistics = baseStatistics,
+         Internals = { Pose = { WorldPosition = worldPosition } }
+      };
+
+      public static MotionComponent Create(DoubleVector3 worldPosition, MotionStatistics baseStatistics, DoubleVector3 initialPathfindingDestination) => new MotionComponent {
+         BaseStatistics = baseStatistics,
+         Internals = {
+            Pose = { WorldPosition = worldPosition },
+            Steering = {
+               Destination = initialPathfindingDestination,
+               Status = FlockingStatus.EnabledInvalidatedRoadmap
+            }
+         }
+      };
    }
 
    public struct MotionComponentInternals {
       public MotionPose Pose;
       public MotionStatistics ComputedStatistics;
+      public bool IsLocalizationInvalidated;
       public Localization Localization;
       public Swarm Swarm;
       public int SwarmIndex;
       public SteeringState Steering;
 
       public static MotionComponentInternals Create() => new MotionComponentInternals {
-         Pose = MotionPose.Create()
+         Pose = MotionPose.Create(),
+         IsLocalizationInvalidated = true,
       };
+   }
+
+   public static class MotionComponentInternalsStatics {
+      public static bool IsPathfindingEnabled(this SteeringState ss) {
+         return ss.Status != FlockingStatus.Disabled;
+      }
    }
 
    public struct SteeringState {

@@ -1,5 +1,6 @@
 ﻿using System;
 using Dargon.PlayOn.Foundation.ECS;
+using Dargon.PlayOn.Foundation.ECS.Utils;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
@@ -9,26 +10,38 @@ namespace Dargon.PlayOn.Foundation {
       public event EventHandler<Game> GameCreated;
 
       public Game Create() {
-         var gameTimeService = new GameTimeManager(30);
-         var gameLoop = new GameEventQueueManager(gameTimeService);
-         var terrainServiceStore = new SectorGraphDescriptionStore();
-         var terrainSnapshotBuilder = new TerrainSnapshotCompiler(terrainServiceStore);
-         var terrainService = new TerrainFacade(terrainServiceStore, terrainSnapshotBuilder);
-         var entityService = new EntityWorld();
-         var statsCalculator = new StatsCalculator();
-         var pathfinderCalculator = new PathfinderCalculator(terrainService, statsCalculator);
+         var gameTimeManager = new GameTimeManager(30);
+         var gameEventQueueManager = new GameEventQueueManager(gameTimeManager);
+         var sectorGraphDescriptionStore = new SectorGraphDescriptionStore();
 
-         var movementSystemService = new MotionSystem(entityService, gameTimeService, statsCalculator, terrainService, pathfinderCalculator);
-         entityService.AddEntitySystem(movementSystemService);
+         // Entity and Statistics
+         var entityWorld = new EntityWorld();
+         var statisticsCalculator = new StatisticsCalculator();
 
-         var gameLogicFacade = new GameLogicFacade(terrainService, movementSystemService);
+         // Terrain
+         var terrainSnapshotCompiler = new TerrainSnapshotCompiler(sectorGraphDescriptionStore);
+         var terrainFacade = new TerrainFacade(sectorGraphDescriptionStore, terrainSnapshotCompiler);
+
+         // Motion
+         var motionStateContainer = new AssociatedStateContainer<object>();
+         var pathfinderCalculator = new PathfinderCalculator(terrainFacade, statisticsCalculator);
+         var triangulationWalker = new TriangulationWalker();
+         var flockingSimulator = new FlockingSimulator(statisticsCalculator, pathfinderCalculator, terrainFacade, triangulationWalker);
+         var motionSystem = new MotionSystem(entityWorld, gameTimeManager, flockingSimulator, motionStateContainer);
+         var motionOperations = new MotionOperations(terrainFacade, pathfinderCalculator, statisticsCalculator);
+         var motionFacade = new MotionFacade(terrainFacade, pathfinderCalculator, statisticsCalculator, motionOperations);
+         entityWorld.AddEntitySystem(motionSystem);
+         entityWorld.AddStepHandler(StepHandlerPriority.Flocking, motionSystem.ExecuteFlocking);
+
+         var gameLogicFacade = new GameLogicFacade(terrainFacade, motionFacade);
          var gameInstance = new Game {
-            GameTimeManager = gameTimeService,
-            GameEventQueueManager = gameLoop,
-            TerrainFacade = terrainService,
-            EntityWorld = entityService,
+            GameTimeManager = gameTimeManager,
+            GameEventQueueManager = gameEventQueueManager,
+            TerrainFacade = terrainFacade,
+            EntityWorld = entityWorld,
             PathfinderCalculator = pathfinderCalculator,
-            MotionSystem = movementSystemService,
+            MotionSystem = motionSystem,
+            MotionFacade = motionFacade,
             GameLogicFacade = gameLogicFacade
          };
          gameInstance.Initialize();

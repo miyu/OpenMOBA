@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
+using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Geometry;
 using Dargon.PlayOn.ThirdParty.ClipperLib;
@@ -479,6 +480,10 @@ namespace Dargon.PlayOn.Foundation.Terrain {
 
       public TerrainSnapshot CompileSnapshot() {
          return snapshotCompiler.CompileSnapshot();
+      }
+
+      public TerrainOverlayNetwork CompileSnapshotAndTerrainOverlayNetwork(cDouble agentRadius) {
+         return snapshotCompiler.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
       }
    }
 

@@ -21,19 +21,19 @@ namespace Dargon.PlayOn.DevTool {
       public static void DrawEntityPaths(this IDebugCanvas debugCanvas, EntityWorld entityWorld) {
          foreach (var (i, entity) in entityWorld.EnumerateEntities().Enumerate()) {
             var mc = entity.MotionComponent;
-            if (mc?.Steering.Roadmap == null || mc?.Swarm != null || !mc.Steering.IsPathfindingEnabled) continue;
-            DrawRoadmap(debugCanvas, mc.Steering.Roadmap, mc);
+            if (mc?.Internals.Steering.Roadmap == null || mc?.Internals.Swarm != null || !mc.Internals.Steering.IsPathfindingEnabled()) continue;
+            DrawRoadmap(debugCanvas, mc.Internals.Steering.Roadmap, mc);
          }
       }
 
       public static void DrawRoadmap(this IDebugCanvas debugCanvas, MotionRoadmap roadmap, MotionComponent motionComponent = null) {
-         var skip = motionComponent?.Steering.RoadmapProgressIndex ?? 0;
+         var skip = motionComponent?.Internals.Steering.RoadmapProgressIndex ?? 0;
          foreach (var (i, action) in roadmap.Plan.Skip(skip).Enumerate()) {
             switch (action) {
                case MotionRoadmapWalkAction walk:
                   debugCanvas.Transform = Matrix4x4.Identity;
                   var s = i == 0 && motionComponent != null
-                     ? motionComponent.Pose.WorldPosition
+                     ? motionComponent.Internals.Pose.WorldPosition
                      : Vector3.Transform(new Vector3(walk.Source.X, walk.Source.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
                   var t = Vector3.Transform(new Vector3(walk.Destination.X, walk.Destination.Y, 0), walk.Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector();
                   //                     Console.WriteLine("S: " + s + "\t AND T: " + t);

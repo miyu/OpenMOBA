@@ -438,7 +438,9 @@ namespace Dargon.PlayOn.Geometry {
          uPlusV = cDouble.Round(uPlusV, 24);
          return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (uPlusV <= CDoubleMath.c1);
 #else
-         const double epsilon = 10E-12;
+         // Todo: If epsilon determines outcome (rare), report that and continue PIP
+         // comparisons (if additional ones exist), then pick the best positive.
+         const double epsilon = 10E-7;
          return (u >= -epsilon) && (v >= -epsilon) && (uPlusV <= CDoubleMath.c1 + epsilon);
 #endif
       }

@@ -5,23 +5,23 @@ using Dargon.PlayOn.Foundation.Terrain.Motion;
 
 namespace Dargon.PlayOn.Foundation {
    public class GameLogicFacade {
-      private readonly MotionSystem motionSystem;
       private readonly TerrainFacade terrainFacade;
+      private readonly MotionFacade motionFacade;
 
-      public GameLogicFacade(TerrainFacade terrainFacade, MotionSystem motionSystem) {
+      public GameLogicFacade(TerrainFacade terrainFacade, MotionFacade motionFacade) {
          this.terrainFacade = terrainFacade;
-         this.motionSystem = motionSystem;
+         this.motionFacade = motionFacade;
       }
 
       public void AddTemporaryHole(DynamicTerrainHoleDescription holeDescription) {
          terrainFacade.AddTemporaryHoleDescription(holeDescription);
          // todo: can optimize to only invalidate paths intersecting hole.
-         motionSystem.HandleHoleAdded(holeDescription);
+         motionFacade.HandleHoleAdded(holeDescription);
       }
 
       public void RemoveTemporaryHole(DynamicTerrainHoleDescription holeDescription) {
          terrainFacade.RemoveTemporaryHoleDescription(holeDescription);
-         motionSystem.InvalidatePaths();
+         motionFacade.InvalidatePaths();
       }
    }
 }

@@ -17,6 +17,15 @@ using cDouble = FixMath.NET.Fix64;
 #endif
 
 namespace Dargon.PlayOn.Foundation {
+   public enum StepHandlerPriority {
+      Lowest = Int32.MinValue,
+      
+      AiLogic = 0,
+      Flocking = 1,
+
+      Highest = Int32.MaxValue,
+   }
+
    public interface IGameEventFactory {
       GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription temporaryHoleDescription);
       GameEvent CreateRemoveTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription temporaryHoleDescription);
@@ -30,6 +39,7 @@ namespace Dargon.PlayOn.Foundation {
       public EntityWorld EntityWorld { get; set; }
       public PathfinderCalculator PathfinderCalculator { get; set; }
       public MotionSystem MotionSystem { get; set; }
+      public MotionFacade MotionFacade { get; set; }
       public GameLogicFacade GameLogicFacade { get; set; }
 
       public GameEvent CreateAddTemporaryHoleEvent(GameTime time, DynamicTerrainHoleDescription dynamicTerrainHoleDescription) {
@@ -40,9 +50,7 @@ namespace Dargon.PlayOn.Foundation {
          return new RemoveTemporaryHoleGameEvent(time, GameLogicFacade, dynamicTerrainHoleDescription);
       }
 
-      public void Initialize() {
-         EntityWorld.InitializeSystems();
-      }
+      public void Initialize() { }
 
       public void Run() {
          var sw = new Stopwatch();
@@ -69,7 +77,7 @@ namespace Dargon.PlayOn.Foundation {
 
          GameEventQueueManager.ProcessPendingGameEvents(out var eventsProcessed);
 
-         EntityWorld.ProcessSystems();
+         EntityWorld.ExecuteStepHandlers();
 
          foreach (var debugger in Debuggers) {
             debugger.HandleLeaveTick(new LeaveTickStatistics {

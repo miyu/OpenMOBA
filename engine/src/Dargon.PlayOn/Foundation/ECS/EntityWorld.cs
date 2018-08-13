@@ -8,6 +8,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
       // hashset order) to make less predictable vs attackers? -- warty
       private readonly HashSet<Entity> entities = new HashSet<Entity>();
       private readonly List<IEntitySystem> systems = new List<IEntitySystem>();
+      private readonly SortedDictionary<StepHandlerPriority, Action> orderedStepHandlers = new SortedDictionary<StepHandlerPriority, Action>();
       private int nextEntityId = 0;
 
       public IEnumerable<Entity> EnumerateEntities() => entities;
@@ -47,9 +48,11 @@ namespace Dargon.PlayOn.Foundation.ECS {
          systems.Add(system);
       }
 
-      public void ProcessSystems() {
-         foreach (var system in systems) {
-            system.Execute();
+      public void AddStepHandler(StepHandlerPriority priority, Action callback) => orderedStepHandlers.Add(priority, callback);
+
+      public void ExecuteStepHandlers() {
+         foreach (var (priority, stepHandler) in orderedStepHandlers) {
+            stepHandler.Invoke();
          }
       }
    }

@@ -20,9 +20,9 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       private static readonly StrokeStyle NearestLandStrokeStyle = new StrokeStyle(Color.Red, 1.0);
 
       public static void DrawWallPushGrid(this IDebugCanvas canvas, LocalGeometryView lgv, double holeDilationRadius, double xlow = -50, double xhigh = 1100, double xstep = 100, double ylow = -50, double yhigh = 1100, double ystep = 100) {
+         throw new NotImplementedException();
          for (double x = xlow; x < xhigh; x += xstep) {
             for (double y = ylow; y < yhigh; y += ystep) {
-               throw new NotImplementedException();
                //               var query = new DoubleVector2(x, y);
                //               DoubleVector2 nearestLandPoint;
                //               var isInHole = lgv.FindNearestLandPointAndIsInHole(query, out nearestLandPoint);

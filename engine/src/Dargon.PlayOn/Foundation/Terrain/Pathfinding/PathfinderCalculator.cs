@@ -17,12 +17,12 @@ using cDouble = System.Double;
 
 namespace Dargon.PlayOn.Foundation.Terrain.Pathfinding {
    public class PathfinderCalculator {
-      private readonly StatsCalculator statsCalculator;
+      private readonly StatisticsCalculator statisticsCalculator;
       private readonly TerrainFacade terrainFacade;
 
-      public PathfinderCalculator(TerrainFacade terrainFacade, StatsCalculator statsCalculator) {
+      public PathfinderCalculator(TerrainFacade terrainFacade, StatisticsCalculator statisticsCalculator) {
          this.terrainFacade = terrainFacade;
-         this.statsCalculator = statsCalculator;
+         this.statisticsCalculator = statisticsCalculator;
       }
 
       public bool IsDestinationReachable(cDouble holeDilationRadius, DoubleVector3 sourceWorld, DoubleVector3 destinationWorld) {

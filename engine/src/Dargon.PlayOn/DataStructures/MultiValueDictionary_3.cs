@@ -1,4 +1,8 @@
-﻿using System;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// via https://github.com/dotnet/corefxlab/blob/master/src/System.Collections.Generic.MultiValueDictionary/System/Collections/Generic/MultiValueDictionary.cs
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +24,10 @@ namespace Dargon.PlayOn.DataStructures {
    /// </summary>
    /// <typeparam name="TValue">The type of the key.</typeparam>
    /// <typeparam name="TValue">The type of the value.</typeparam>
-   public class MultiValueDictionary<TKey, TValue> :
-      IReadOnlyDictionary<TKey, IReadOnlyCollection<TValue>> {
+   public class MultiValueDictionary<TKey, TValue, TCollection> :
+      IReadOnlyDictionary<TKey, TCollection>
+      where TCollection : ICollection<TValue>, new() {
       #region Variables
-
       /*======================================================================
       ** Variables
       ======================================================================*/
@@ -37,7 +41,7 @@ namespace Dargon.PlayOn.DataStructures {
       /// The function to construct a new <see cref="ICollection{TValue}"/>
       /// </summary>
       /// <returns></returns>
-      private Func<ICollection<TValue>> NewCollectionFactory = () => new List<TValue>();
+      private Func<TCollection> NewCollectionFactory = () => new TCollection();
 
       /// <summary>
       /// The current version of this MultiValueDictionary used to determine MultiValueDictionary modification
@@ -48,7 +52,6 @@ namespace Dargon.PlayOn.DataStructures {
       #endregion
 
       #region Constructors
-
       /*======================================================================
       ** Constructors
       ======================================================================*/
@@ -132,7 +135,6 @@ namespace Dargon.PlayOn.DataStructures {
       #endregion
 
       #region Static Factories
-
       /*======================================================================
       ** Static Factories
       ======================================================================*/
@@ -157,12 +159,12 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>()
-         where TValueCollection : ICollection<TValue>, new() {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>()
+         where TValueCollection : TCollection, ICollection<TValue>, new() {
          if (new TValueCollection().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>();
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>();
          multiValueDictionary.NewCollectionFactory = () => new TValueCollection();
          return multiValueDictionary;
       }
@@ -189,14 +191,14 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(int capacity)
-         where TValueCollection : ICollection<TValue>, new() {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(int capacity)
+         where TValueCollection : TCollection, ICollection<TValue>, new() {
          if (capacity < 0)
             throw new ArgumentOutOfRangeException("capacity");
          if (new TValueCollection().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(capacity);
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(capacity);
          multiValueDictionary.NewCollectionFactory = () => new TValueCollection();
          return multiValueDictionary;
       }
@@ -223,12 +225,12 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(IEqualityComparer<TKey> comparer)
-         where TValueCollection : ICollection<TValue>, new() {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(IEqualityComparer<TKey> comparer)
+         where TValueCollection : TCollection, ICollection<TValue>, new() {
          if (new TValueCollection().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(comparer);
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(comparer);
          multiValueDictionary.NewCollectionFactory = () => new TValueCollection();
          return multiValueDictionary;
       }
@@ -257,14 +259,14 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(int capacity, IEqualityComparer<TKey> comparer)
-         where TValueCollection : ICollection<TValue>, new() {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(int capacity, IEqualityComparer<TKey> comparer)
+         where TValueCollection : ICollection<TValue>, TCollection, new() {
          if (capacity < 0)
             throw new ArgumentOutOfRangeException("capacity");
          if (new TValueCollection().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(capacity, comparer);
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(capacity, comparer);
          multiValueDictionary.NewCollectionFactory = () => new TValueCollection();
          return multiValueDictionary;
       }
@@ -291,14 +293,14 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable)
-         where TValueCollection : ICollection<TValue>, new() {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable)
+         where TValueCollection : ICollection<TValue>, TCollection, new() {
          if (enumerable == null)
             throw new ArgumentNullException("enumerable");
          if (new TValueCollection().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>();
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>();
          multiValueDictionary.NewCollectionFactory = () => new TValueCollection();
          foreach (var pair in enumerable)
             multiValueDictionary.AddRange(pair.Key, pair.Value);
@@ -329,14 +331,14 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable, IEqualityComparer<TKey> comparer)
-         where TValueCollection : ICollection<TValue>, new() {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable, IEqualityComparer<TKey> comparer)
+         where TValueCollection : ICollection<TValue>, TCollection, new() {
          if (enumerable == null)
             throw new ArgumentNullException("enumerable");
          if (new TValueCollection().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(comparer);
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(comparer);
          multiValueDictionary.NewCollectionFactory = () => new TValueCollection();
          foreach (var pair in enumerable)
             multiValueDictionary.AddRange(pair.Key, pair.Value);
@@ -346,7 +348,6 @@ namespace Dargon.PlayOn.DataStructures {
       #endregion
 
       #region Static Factories with Func parameters
-
       /*======================================================================
       ** Static Factories with Func parameters
       ======================================================================*/
@@ -373,13 +374,13 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(Func<TValueCollection> collectionFactory)
-         where TValueCollection : ICollection<TValue> {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(Func<TValueCollection> collectionFactory)
+         where TValueCollection : ICollection<TValue>, TCollection {
          if (collectionFactory().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>();
-         multiValueDictionary.NewCollectionFactory = (Func<ICollection<TValue>>)(Delegate)collectionFactory;
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>();
+         multiValueDictionary.NewCollectionFactory = (Func<TCollection>)(Delegate)collectionFactory;
          return multiValueDictionary;
       }
 
@@ -407,15 +408,15 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(int capacity, Func<TValueCollection> collectionFactory)
-         where TValueCollection : ICollection<TValue> {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(int capacity, Func<TValueCollection> collectionFactory)
+         where TValueCollection : ICollection<TValue>, TCollection {
          if (capacity < 0)
             throw new ArgumentOutOfRangeException("capacity");
          if (collectionFactory().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(capacity);
-         multiValueDictionary.NewCollectionFactory = (Func<ICollection<TValue>>)(Delegate)collectionFactory;
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(capacity);
+         multiValueDictionary.NewCollectionFactory = (Func<TCollection>)(Delegate)collectionFactory;
          return multiValueDictionary;
       }
 
@@ -443,13 +444,13 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(IEqualityComparer<TKey> comparer, Func<TValueCollection> collectionFactory)
-         where TValueCollection : ICollection<TValue> {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(IEqualityComparer<TKey> comparer, Func<TValueCollection> collectionFactory)
+         where TValueCollection : ICollection<TValue>, TCollection {
          if (collectionFactory().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(comparer);
-         multiValueDictionary.NewCollectionFactory = (Func<ICollection<TValue>>)(Delegate)collectionFactory;
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(comparer);
+         multiValueDictionary.NewCollectionFactory = (Func<TCollection>)(Delegate)collectionFactory;
          return multiValueDictionary;
       }
 
@@ -479,15 +480,15 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(int capacity, IEqualityComparer<TKey> comparer, Func<TValueCollection> collectionFactory)
-         where TValueCollection : ICollection<TValue> {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(int capacity, IEqualityComparer<TKey> comparer, Func<TValueCollection> collectionFactory)
+         where TValueCollection : ICollection<TValue>, TCollection {
          if (capacity < 0)
             throw new ArgumentOutOfRangeException("capacity");
          if (collectionFactory().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(capacity, comparer);
-         multiValueDictionary.NewCollectionFactory = (Func<ICollection<TValue>>)(Delegate)collectionFactory;
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(capacity, comparer);
+         multiValueDictionary.NewCollectionFactory = (Func<TCollection>)(Delegate)collectionFactory;
          return multiValueDictionary;
       }
 
@@ -515,15 +516,15 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable, Func<TValueCollection> collectionFactory)
-         where TValueCollection : ICollection<TValue> {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable, Func<TValueCollection> collectionFactory)
+         where TValueCollection : ICollection<TValue>, TCollection {
          if (enumerable == null)
             throw new ArgumentNullException("enumerable");
          if (collectionFactory().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>();
-         multiValueDictionary.NewCollectionFactory = (Func<ICollection<TValue>>)(Delegate)collectionFactory;
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>();
+         multiValueDictionary.NewCollectionFactory = (Func<TCollection>)(Delegate)collectionFactory;
          foreach (var pair in enumerable)
             multiValueDictionary.AddRange(pair.Key, pair.Value);
          return multiValueDictionary;
@@ -555,15 +556,15 @@ namespace Dargon.PlayOn.DataStructures {
       /// in addition to being constructable through new(). The collection returned from the constructor
       /// must also not have IsReadOnly set to True by default.
       /// </remarks>
-      public static MultiValueDictionary<TKey, TValue> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable, IEqualityComparer<TKey> comparer, Func<TValueCollection> collectionFactory)
-         where TValueCollection : ICollection<TValue> {
+      public static MultiValueDictionary<TKey, TValue, TCollection> Create<TValueCollection>(IEnumerable<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> enumerable, IEqualityComparer<TKey> comparer, Func<TValueCollection> collectionFactory)
+         where TValueCollection : ICollection<TValue>, TCollection {
          if (enumerable == null)
             throw new ArgumentNullException("enumerable");
          if (collectionFactory().IsReadOnly)
             throw new InvalidOperationException();
 
-         var multiValueDictionary = new MultiValueDictionary<TKey, TValue>(comparer);
-         multiValueDictionary.NewCollectionFactory = (Func<ICollection<TValue>>)(Delegate)collectionFactory;
+         var multiValueDictionary = new MultiValueDictionary<TKey, TValue, TCollection>(comparer);
+         multiValueDictionary.NewCollectionFactory = (Func<TCollection>)(Delegate)collectionFactory;
          foreach (var pair in enumerable)
             multiValueDictionary.AddRange(pair.Key, pair.Value);
          return multiValueDictionary;
@@ -572,7 +573,6 @@ namespace Dargon.PlayOn.DataStructures {
       #endregion
 
       #region Concrete Methods
-
       /*======================================================================
       ** Concrete Methods
       ======================================================================*/
@@ -720,7 +720,6 @@ namespace Dargon.PlayOn.DataStructures {
       #endregion
 
       #region Members implemented from IReadOnlyDictionary<TKey, IReadOnlyCollection<TValue>>
-
       /*======================================================================
       ** Members implemented from IReadOnlyDictionary<TKey, IReadOnlyCollection<TValue>>
       ======================================================================*/
@@ -751,7 +750,13 @@ namespace Dargon.PlayOn.DataStructures {
       /// in this <see cref="MultiValueDictionary{TKey,TValue}"/> that has one or more associated 
       /// <typeparamref name="TValue"/>.
       /// </value>
-      public IEnumerable<TKey> Keys { get { return dictionary.Keys; } }
+      public IEnumerable<TKey> Keys
+      {
+         get
+         {
+            return dictionary.Keys;
+         }
+      }
 
       /// <summary>
       /// Attempts to get the <typeparamref name="TValue"/> associated with the given
@@ -767,13 +772,13 @@ namespace Dargon.PlayOn.DataStructures {
       /// <typeparamref name="TKey"/>; otherwise, <c>false</c>.
       /// </returns>
       /// <exception cref="ArgumentNullException"><paramref name="key"/> must be non-null</exception>
-      public bool TryGetValue(TKey key, out IReadOnlyCollection<TValue> value) {
+      public bool TryGetValue(TKey key, out TCollection value) {
          if (key == null)
             throw new ArgumentNullException("key");
 
          InnerCollectionView collection;
          var success = dictionary.TryGetValue(key, out collection);
-         value = collection;
+         value = collection.collection;
          return success;
       }
 
@@ -784,7 +789,13 @@ namespace Dargon.PlayOn.DataStructures {
       /// </summary>
       /// <value>An IEnumerable of each <see cref="IReadOnlyCollection{TValue}"/> in this 
       /// <see cref="MultiValueDictionary{TKey,TValue}"/></value>
-      public IEnumerable<IReadOnlyCollection<TValue>> Values { get { return dictionary.Values; } }
+      public IEnumerable<TCollection> Values
+      {
+         get
+         {
+            return dictionary.Values.Select(v => v.collection);
+         }
+      }
 
       /// <summary>
       /// Get every <typeparamref name="TValue"/> associated with the given <typeparamref name="TKey"/>. If 
@@ -803,7 +814,7 @@ namespace Dargon.PlayOn.DataStructures {
       /// Note that the <see cref="IReadOnlyCollection{TValue}"/> returned will change alongside any changes 
       /// to the <see cref="MultiValueDictionary{TKey,TValue}"/> 
       /// </remarks>
-      public IReadOnlyCollection<TValue> this[TKey key]
+      public TCollection this[TKey key]
       {
          get
          {
@@ -812,7 +823,7 @@ namespace Dargon.PlayOn.DataStructures {
 
             InnerCollectionView collection;
             if (dictionary.TryGetValue(key, out collection))
-               return collection;
+               return collection.collection;
             else
                throw new KeyNotFoundException();
          }
@@ -823,7 +834,13 @@ namespace Dargon.PlayOn.DataStructures {
       /// in this <see cref="MultiValueDictionary{TKey,TValue}"/>.
       /// </summary>
       /// <value>The number of <typeparamref name="TKey"/>s in this <see cref="MultiValueDictionary{TKey,TValue}"/>.</value>
-      public int Count { get { return dictionary.Count; } }
+      public int Count
+      {
+         get
+         {
+            return dictionary.Count;
+         }
+      }
 
       /// <summary>
       /// Get an Enumerator over the <typeparamref name="TKey"/>-<see cref="IReadOnlyCollection{TValue}"/>
@@ -831,7 +848,7 @@ namespace Dargon.PlayOn.DataStructures {
       /// </summary>
       /// <returns>an Enumerator over the <typeparamref name="TKey"/>-<see cref="IReadOnlyCollection{TValue}"/>
       /// pairs in this <see cref="MultiValueDictionary{TKey,TValue}"/>.</returns>
-      public IEnumerator<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> GetEnumerator() {
+      public IEnumerator<KeyValuePair<TKey, TCollection>> GetEnumerator() {
          return new Enumerator(this);
       }
 
@@ -847,34 +864,30 @@ namespace Dargon.PlayOn.DataStructures {
       /// pairs.
       /// </summary>
       private class Enumerator :
-         IEnumerator<KeyValuePair<TKey, IReadOnlyCollection<TValue>>> {
-         private MultiValueDictionary<TKey, TValue> multiValueDictionary;
+         IEnumerator<KeyValuePair<TKey, TCollection>> {
+         private MultiValueDictionary<TKey, TValue, TCollection> multiValueDictionary;
          private int version;
-         private KeyValuePair<TKey, IReadOnlyCollection<TValue>> current;
+         private KeyValuePair<TKey, TCollection> current;
          private Dictionary<TKey, InnerCollectionView>.Enumerator enumerator;
-
-         private enum EnumerationState {
-            BeforeFirst,
-            During,
-            AfterLast
-         };
-
+         private enum EnumerationState { BeforeFirst, During, AfterLast };
          private EnumerationState state;
 
          /// <summary>
          /// Constructor for the enumerator
          /// </summary>
          /// <param name="multiValueDictionary">A MultiValueDictionary to iterate over</param>
-         internal Enumerator(MultiValueDictionary<TKey, TValue> multiValueDictionary) {
+         internal Enumerator(MultiValueDictionary<TKey, TValue, TCollection> multiValueDictionary) {
             this.multiValueDictionary = multiValueDictionary;
             this.version = multiValueDictionary.version;
             this.current = default;
             this.enumerator = multiValueDictionary.dictionary.GetEnumerator();
-            this.state = EnumerationState.BeforeFirst;
-            ;
+            this.state = EnumerationState.BeforeFirst; ;
          }
 
-         public KeyValuePair<TKey, IReadOnlyCollection<TValue>> Current { get { return current; } }
+         public KeyValuePair<TKey, TCollection> Current
+         {
+            get { return current; }
+         }
 
          object IEnumerator.Current
          {
@@ -902,7 +915,7 @@ namespace Dargon.PlayOn.DataStructures {
             if (version != multiValueDictionary.version) {
                throw new InvalidOperationException();
             } else if (enumerator.MoveNext()) {
-               current = new KeyValuePair<TKey, IReadOnlyCollection<TValue>>(enumerator.Current.Key, enumerator.Current.Value);
+               current = new KeyValuePair<TKey, TCollection>(enumerator.Current.Key, enumerator.Current.Value.collection);
                state = EnumerationState.During;
                return true;
             } else {
@@ -940,15 +953,14 @@ namespace Dargon.PlayOn.DataStructures {
          ICollection<TValue>,
          IReadOnlyCollection<TValue> {
          private TKey key;
-         private ICollection<TValue> collection;
+         public TCollection collection;
 
          #region Private Concrete API
-
          /*======================================================================
          ** Private Concrete API
          ======================================================================*/
 
-         public InnerCollectionView(TKey key, ICollection<TValue> collection) {
+         public InnerCollectionView(TKey key, TCollection collection) {
             this.key = key;
             this.collection = collection;
          }
@@ -964,7 +976,6 @@ namespace Dargon.PlayOn.DataStructures {
          #endregion
 
          #region Shared API
-
          /*======================================================================
          ** Shared API
          ======================================================================*/
@@ -986,9 +997,21 @@ namespace Dargon.PlayOn.DataStructures {
             collection.CopyTo(array, arrayIndex);
          }
 
-         public int Count { get { return collection.Count; } }
+         public int Count
+         {
+            get
+            {
+               return collection.Count;
+            }
+         }
 
-         public bool IsReadOnly { get { return true; } }
+         public bool IsReadOnly
+         {
+            get
+            {
+               return true;
+            }
+         }
 
          public IEnumerator<TValue> GetEnumerator() {
             return collection.GetEnumerator();
@@ -998,12 +1021,14 @@ namespace Dargon.PlayOn.DataStructures {
             return this.GetEnumerator();
          }
 
-         public TKey Key { get { return key; } }
+         public TKey Key
+         {
+            get { return key; }
+         }
 
          #endregion
 
          #region Public-Facing API
-
          /*======================================================================
          ** Public-Facing API
          ======================================================================*/
@@ -1023,4 +1048,7 @@ namespace Dargon.PlayOn.DataStructures {
          #endregion
       }
    }
+
+   public class ExposedArrayListMultiValueDictionary<TKey, TValue> : MultiValueDictionary<TKey, TValue, ExposedArrayList<TValue>> { }
+   public class ListMultiValueDictionary<TKey, TValue> : MultiValueDictionary<TKey, TValue, List<TValue>> { }
 }

@@ -60,40 +60,23 @@ namespace TestGameTheGame {
          var gameFactory = new GameFactory();
          game = gameFactory.Create();
 
-         var preset = SectorMetadataPresets.DotaStyleMoba;
+         var preset = SectorMetadataPresets.Blank2D; //.DotaStyleMoba;
          var snd = game.TerrainFacade.CreateSectorNodeDescription(preset);
          snd.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
          snd.WorldToLocalScalingFactor = (cDouble)preset.LocalBoundary.Width / (cDouble)1000;
          game.TerrainFacade.AddSectorNodeDescription(snd);
 
          player = game.EntityWorld.CreateEntity();
-         game.EntityWorld.AddEntityComponent(player, new MotionComponent {
-            Pose = { WorldPosition = new DoubleVector3(-450, -450, 0) },
-            BaseStatistics = { Radius = 30, Speed = 100 },
-            Steering = {
-               IsPathfindingEnabled = true,
-               Destination = new DoubleVector3(-450, -450, 0)
-            },
-         });
+         game.EntityWorld.AddEntityComponent(player, MotionComponent.Create(new DoubleVector3(-450, -450, 0)));
 
          baddie = game.EntityWorld.CreateEntity();
-         game.EntityWorld.AddEntityComponent(baddie, new MotionComponent {
-            Pose = { WorldPosition = new DoubleVector3(0, 0, 0) },
-            BaseStatistics = { Radius = 30, Speed = 100 },
-            Steering = {
-               IsPathfindingEnabled = true,
-               Destination = new DoubleVector3(0, 0, 0)
-            }
-         });
+         game.EntityWorld.AddEntityComponent(baddie, MotionComponent.Create(new DoubleVector3(0, 0, 0)));
 
          var r = new Random(0);
          for (var i = 0; i < 10; i++) {
             var rock = game.EntityWorld.CreateEntity();
-            game.EntityWorld.AddEntityComponent(rock, new MotionComponent {
-               Pose = { WorldPosition = new DoubleVector3(r.Next(-500, 500), r.Next(-500, 500), 0) },
-               BaseStatistics = { Radius = 10, Speed = 100 }
-            });
-            rocks.Add(rock);
+            var worldPosition = new DoubleVector3(r.Next(-500, 500), r.Next(-500, 500), 0);
+            game.EntityWorld.AddEntityComponent(rock, MotionComponent.Create(worldPosition));
          }
 
          var scene = new Scene();
@@ -131,7 +114,7 @@ namespace TestGameTheGame {
 
                // recompute intersectionWorld because floating point error in raycast logic
                var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
-               game.MotionSystem.Pathfind(player, intersectionWorld);
+               game.MotionFacade.SetPathfindingDestination(player, intersectionWorld);
             }
          }
 
@@ -145,13 +128,13 @@ namespace TestGameTheGame {
 
                var intersectionLocal = node.SectorNodeDescription.WorldToLocal(intersection.ToOpenMoba());
                if (!node.SectorNodeDescription.StaticMetadata.LocalBoundary.Contains(new SDPoint((int)intersectionLocal.X, (int)intersectionLocal.Y))) continue;
-               if (!node.LandPolyNode.PointInLandPolygonNonrecursive(player.MotionComponent.Localization.LocalPositionIv2)) continue;
+               if (!node.LandPolyNode.PointInLandPolygonNonrecursive(player.MotionComponent.Internals.Localization.LocalPositionIv2)) continue;
 
                // recompute intersectionWorld because floating point error in raycast logic
                var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
 
                var barriersBvh = node.LandPolyNode.FindContourAndChildHoleBarriersBvh();
-               var q = new IntLineSegment2(player.MotionComponent.Localization.LocalPositionIv2, intersectionLocal.XY.LossyToIntVector2());
+               var q = new IntLineSegment2(player.MotionComponent.Internals.Localization.LocalPositionIv2, intersectionLocal.XY.LossyToIntVector2());
                debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
                debugCanvas.DrawLine(q, StrokeStyle.RedHairLineSolid);
                foreach (var seg in barriersBvh.Segments) {
@@ -170,15 +153,15 @@ namespace TestGameTheGame {
                }
 
                debugCanvas.Transform = Matrix4x4.Identity;
-               debugCanvas.DrawLine(player.MotionComponent.Pose.WorldPosition, node.SectorNodeDescription.LocalToWorld(q.PointAt(tFar)), StrokeStyle.LimeThick5Solid);
+               debugCanvas.DrawLine(player.MotionComponent.Internals.Pose.WorldPosition, node.SectorNodeDescription.LocalToWorld(q.PointAt(tFar)), StrokeStyle.LimeThick5Solid);
             }
          }
 
          // i love rocks
          var rocksExisting = new List<Entity>();
          foreach (var rock in rocks) {
-            var distance = rock.MotionComponent.Pose.WorldPosition.To(player.MotionComponent.Pose.WorldPosition).Norm2D();
-            if (distance > player.MotionComponent.ComputedStatistics.Radius) {
+            var distance = rock.MotionComponent.Internals.Pose.WorldPosition.To(player.MotionComponent.Internals.Pose.WorldPosition).Norm2D();
+            if (distance > player.MotionComponent.Internals.ComputedStatistics.Radius) {
                rocksExisting.Add(rock);
                continue;
             }
@@ -274,8 +257,8 @@ namespace TestGameTheGame {
                SDXColor.White);
          }
 
-         if (terrainOverlayNetwork.TryFindTerrainOverlayNode(baddie.MotionComponent.Pose.WorldPosition, out var n)) {
-            debugCanvas.DrawCrossSectorVisibilityPolygon(n, baddie.MotionComponent.Localization.LocalPositionIv2);
+         if (terrainOverlayNetwork.TryFindTerrainOverlayNode(baddie.MotionComponent.Internals.Pose.WorldPosition, out var n)) {
+            debugCanvas.DrawCrossSectorVisibilityPolygon(n, baddie.MotionComponent.Internals.Localization.LocalPositionIv2);
          } else {
             Console.WriteLine("Err, can't find pos?");
          }
@@ -285,20 +268,20 @@ namespace TestGameTheGame {
 
          scene.AddRenderable(
             graphicsLoop.Presets.UnitSphere,
-            MatrixCM.Translation(player.MotionComponent.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)player.MotionComponent.BaseStatistics.Radius * 2),
+            MatrixCM.Translation(player.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)player.MotionComponent.BaseStatistics.Radius * 2),
             SomewhatRough,
             SDXColor.Lime);
 
          scene.AddRenderable(
             graphicsLoop.Presets.UnitSphere,
-            MatrixCM.Translation(baddie.MotionComponent.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)baddie.MotionComponent.BaseStatistics.Radius * 2),
+            MatrixCM.Translation(baddie.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)baddie.MotionComponent.BaseStatistics.Radius * 2),
             SomewhatRough,
             SDXColor.Red);
 
          foreach (var rock in rocks) {
             scene.AddRenderable(
                graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(rock.MotionComponent.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)rock.MotionComponent.BaseStatistics.Radius * 2),
+               MatrixCM.Translation(rock.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)rock.MotionComponent.BaseStatistics.Radius * 2),
                SomewhatRough,
                SDXColor.Brown);
          }

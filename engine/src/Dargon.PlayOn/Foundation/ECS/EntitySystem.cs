@@ -3,6 +3,12 @@ using System.Diagnostics;
 using Dargon.Commons;
 using Dargon.PlayOn.DataStructures;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace Dargon.PlayOn.Foundation.ECS {
    public interface IEntitySystem {
       EntityWorld EntityWorld { get; }
@@ -10,10 +16,9 @@ namespace Dargon.PlayOn.Foundation.ECS {
       IEnumerable<Entity> AssociatedEntities { get; }
       void AssociateEntity(Entity entity);
       void DisassociateEntity(Entity entity);
-      void Execute();
    }
 
-   public abstract class UnorderedEntitySystemBase {
+   public abstract class UnorderedEntitySystemBase : IEntitySystem {
       private readonly HashSet<Entity> associatedEntities = new HashSet<Entity>();
 
       protected UnorderedEntitySystemBase(EntityWorld entityWorld, EntityComponentsMask requiredComponentsMask) {
@@ -32,11 +37,9 @@ namespace Dargon.PlayOn.Foundation.ECS {
       public virtual void DisassociateEntity(Entity entity) {
          associatedEntities.Remove(entity);
       }
-
-      public abstract void Execute();
    }
 
-   public abstract class OrderedEntitySystemBase {
+   public abstract class OrderedEntitySystemBase : IEntitySystem {
       private readonly RemovalPermittingOrderedHashSet<Entity> associatedEntities = new RemovalPermittingOrderedHashSet<Entity>();
 
       protected OrderedEntitySystemBase(EntityWorld entityWorld, EntityComponentsMask requiredComponentsMask) {
@@ -46,7 +49,8 @@ namespace Dargon.PlayOn.Foundation.ECS {
 
       public EntityWorld EntityWorld { get; }
       public EntityComponentsMask RequiredComponentsMask { get; }
-      public virtual IEnumerable<Entity> AssociatedEntities => associatedEntities;
+      public RemovalPermittingOrderedHashSet<Entity> AssociatedEntities => associatedEntities;
+      IEnumerable<Entity> IEntitySystem.AssociatedEntities => associatedEntities;
 
       public virtual void AssociateEntity(Entity entity) {
          associatedEntities.TryAdd(entity, out var addedIndex);
@@ -63,7 +67,5 @@ namespace Dargon.PlayOn.Foundation.ECS {
       public abstract void HandleEntityAssociated(Entity entity);
 
       public abstract void HandleEntityDisassociated(Entity entity, int removedIndex, int replacementIndex);
-
-      public abstract void Execute();
    }
 }

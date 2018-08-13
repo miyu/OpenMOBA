@@ -67,6 +67,7 @@ namespace Dargon.PlayOn.Geometry {
       public static DoubleVector2 UnitX => new DoubleVector2(CDoubleMath.c1, CDoubleMath.c0);
       public static DoubleVector2 UnitY => new DoubleVector2(CDoubleMath.c0, CDoubleMath.c1);
 
+      public static DoubleVector2 operator -(DoubleVector2 a) => new DoubleVector2(-a.X, -a.Y);
       public static DoubleVector2 operator *(int a, DoubleVector2 b) => new DoubleVector2((cDouble)a * b.X, (cDouble)a * b.Y);
       public static DoubleVector2 operator *(DoubleVector2 a, int b) => new DoubleVector2((cDouble)b * a.X, (cDouble)b * a.Y);
       public static DoubleVector2 operator *(cDouble a, DoubleVector2 b) => new DoubleVector2(a * b.X, a * b.Y);
@@ -163,6 +164,7 @@ namespace Dargon.PlayOn.Geometry {
       public static IntVector2 UnitX => new IntVector2(1, 0);
       public static IntVector2 UnitY => new IntVector2(0, 1);
 
+      public static IntVector2 operator -(IntVector2 a) => new IntVector2(-a.X, -a.Y);
       public static IntVector2 operator *(int a, IntVector2 b) => new IntVector2(a * b.X, a * b.Y);
       public static IntVector2 operator *(IntVector2 a, int b) => new IntVector2(b * a.X, b * a.Y);
       public static IntVector2 operator +(IntVector2 a, IntVector2 b) => new IntVector2(a.X + b.X, a.Y + b.Y);

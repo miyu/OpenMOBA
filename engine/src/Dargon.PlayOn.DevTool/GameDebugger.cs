@@ -34,7 +34,7 @@ namespace Dargon.PlayOn.DevTool {
       private TerrainFacade TerrainFacade => Game.TerrainFacade;
       private EntityWorld EntityWorld => Game.EntityWorld;
 
-      public void HandleLeaveTick(LeaveTickStatistics statistics) {
+      public override void HandleLeaveTick(LeaveTickStatistics statistics) {
          if (statistics.EventsProcessed != 0 || GameTimeManager.Ticks % 1 == 0) RenderDebugFrame();
       }
 
@@ -117,7 +117,7 @@ namespace Dargon.PlayOn.DevTool {
                foreach (var (i, entity) in Game.EntityWorld.EnumerateEntities().Enumerate()) {
                   var mc = entity.MotionComponent;
                   var ton = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(CDoubleMath.c2);
-                  if (!ton.TryFindTerrainOverlayNode(mc.Pose.WorldPosition, out var tonn, out var plocal)) continue;
+                  if (!ton.TryFindTerrainOverlayNode(mc.Internals.Pose.WorldPosition, out var tonn, out var plocal)) continue;
                   if (i == 2 || i == 1) continue;
                   var color = Color.FromArgb(20, new[] {
                      Color.Red,
@@ -193,8 +193,8 @@ namespace Dargon.PlayOn.DevTool {
             var movementComponent = entity.MotionComponent;
             if (movementComponent != null) {
                debugCanvas.Transform = Matrix4x4.Identity;
-               debugCanvas.DrawPoint(movementComponent.Pose.WorldPosition, new StrokeStyle(Color.Black, 2 * (float)movementComponent.BaseStatistics.Radius));
-               debugCanvas.DrawPoint(movementComponent.Pose.WorldPosition, new StrokeStyle(Color.White, 2 * (float)movementComponent.BaseStatistics.Radius - 2));
+               debugCanvas.DrawPoint(movementComponent.Internals.Pose.WorldPosition, new StrokeStyle(Color.Black, 2 * (float)movementComponent.BaseStatistics.Radius));
+               debugCanvas.DrawPoint(movementComponent.Internals.Pose.WorldPosition, new StrokeStyle(Color.White, 2 * (float)movementComponent.BaseStatistics.Radius - 2));
 
                //               if (movementComponent.Swarm != null && movementComponent.WeightedSumNBodyForces.Norm2D() > GeometryOperations.kEpsilon) {
                //                  var direction = movementComponent.WeightedSumNBodyForces.ToUnit() * movementComponent.BaseRadius;
@@ -208,7 +208,7 @@ namespace Dargon.PlayOn.DevTool {
                //      new StrokeStyle(Color.Black));
                continue;
                var terrainOverlayNetwork = TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(entity.MotionComponent.BaseStatistics.Radius);
-               if (terrainOverlayNetwork.TryFindTerrainOverlayNode(movementComponent.Pose.WorldPosition, out var node, out var plocal)) {
+               if (terrainOverlayNetwork.TryFindTerrainOverlayNode(movementComponent.Internals.Pose.WorldPosition, out var node, out var plocal)) {
                   debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
                   //debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.BlackHairLineSolid);
                   if (node.LocalGeometryView.Triangulation.TryIntersect(plocal.X, plocal.Y, out var island, out var triangleIndex)) debugCanvas.DrawTriangle(island.Triangles[triangleIndex], StrokeStyle.RedHairLineSolid);
@@ -219,17 +219,18 @@ namespace Dargon.PlayOn.DevTool {
 
       private void DrawEntityMotionVectors(IDebugCanvas debugCanvas) {
          debugCanvas.Transform = Matrix4x4.Identity;
-         foreach (var (i, entity) in EntityWorld.EnumerateEntities().Enumerate()) {
-            var mc = entity.MotionComponent;
-            if (mc?.Swarm != null) {
-               var local = mc.Localization.LocalPosition;
-               var motionVectorUnnormalized = mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces;
-               if (motionVectorUnnormalized.Norm2D() < CDoubleMath.Epsilon) continue;
-               var v = motionVectorUnnormalized.ToUnit() * mc.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor * 100;
-               var goalWorld = mc.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(local + v);
-               debugCanvas.DrawLine(mc.Pose.WorldPosition, goalWorld, StrokeStyle.RedHairLineSolid);
-            }
-         }
+         throw new NotImplementedException("Force vectors no longer accessible? Maybe expose from flocking simulator.");
+         // foreach (var (i, entity) in EntityWorld.EnumerateEntities().Enumerate()) {
+         //    var mc = entity.MotionComponent;
+         //    if (mc?.Internals.Swarm != null) {
+         //       var local = mc.Internals.Localization.LocalPosition;
+         //       var motionVectorUnnormalized = mc.Internals.Steering.CurrentUpdateForceContributions.Aggregate.SumForces;
+         //       if (motionVectorUnnormalized.Norm2D() < CDoubleMath.Epsilon) continue;
+         //       var v = motionVectorUnnormalized.ToUnit() * mc.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor * 100;
+         //       var goalWorld = mc.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(local + v);
+         //       debugCanvas.DrawLine(mc.Pose.WorldPosition, goalWorld, StrokeStyle.RedHairLineSolid);
+         //    }
+         // }
       }
 
       private void DrawTestPathfindingQueries(IDebugCanvas debugCanvas, double agentRadius) {

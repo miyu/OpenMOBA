@@ -7,12 +7,12 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
    public class MotionOperations {
       private readonly TerrainFacade terrainFacade;
       private readonly PathfinderCalculator pathfinderCalculator;
-      private readonly StatsCalculator statsCalculator;
+      private readonly StatisticsCalculator statisticsCalculator;
 
-      public MotionOperations(TerrainFacade terrainFacade, PathfinderCalculator pathfinderCalculator, StatsCalculator statsCalculator) {
+      public MotionOperations(TerrainFacade terrainFacade, PathfinderCalculator pathfinderCalculator, StatisticsCalculator statisticsCalculator) {
          this.terrainFacade = terrainFacade;
          this.pathfinderCalculator = pathfinderCalculator;
-         this.statsCalculator = statsCalculator;
+         this.statisticsCalculator = statisticsCalculator;
       }
 
       public void SetPathfindingDestination(Entity entity, DoubleVector3 destination) {
@@ -29,7 +29,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       public void FixEntityInHole(Entity e) {
          var mc = e.MotionComponent;
-         var computedRadius = statsCalculator.ComputeCharacterRadius(e);
+         var computedRadius = statisticsCalculator.ComputeCharacterRadius(e);
          var network = terrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(computedRadius);
          var res = network.FindNearestLandPointLocalization(mc.Internals.Pose.WorldPosition, computedRadius);
          mc.Internals.Pose.WorldPosition = res.world;

@@ -82,6 +82,7 @@ namespace Dargon.PlayOn.Geometry {
       public static DoubleVector3 UnitY => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c1, CDoubleMath.c0);
       public static DoubleVector3 UnitZ => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c0, CDoubleMath.c1);
 
+      public static DoubleVector3 operator -(DoubleVector3 a) => new DoubleVector3(-a.X, -a.Y, -a.Z);
       public static DoubleVector3 operator *(int a, DoubleVector3 b) => new DoubleVector3((cDouble)a * b.X, (cDouble)a * b.Y, (cDouble)a * b.Z);
       public static DoubleVector3 operator *(DoubleVector3 a, int b) => new DoubleVector3((cDouble)b * a.X, (cDouble)b * a.Y, (cDouble)b * a.Z);
       public static DoubleVector3 operator *(cDouble a, DoubleVector3 b) => new DoubleVector3(a * b.X, a * b.Y, a * b.Z);
@@ -201,6 +202,7 @@ namespace Dargon.PlayOn.Geometry {
       public static IntVector3 UnitY => new IntVector3(0, 1, 0);
       public static IntVector3 UnitZ => new IntVector3(0, 0, 1);
 
+      public static IntVector3 operator -(IntVector3 a) => new IntVector3(-a.X, -a.Y, -a.Z);
       public static IntVector3 operator *(int a, IntVector3 b) => new IntVector3(a * b.X, a * b.Y, a * b.Z);
       public static IntVector3 operator *(IntVector3 a, int b) => new IntVector3(b * a.X, b * a.Y, b * a.Z);
       public static IntVector3 operator +(IntVector3 a, IntVector3 b) => new IntVector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);

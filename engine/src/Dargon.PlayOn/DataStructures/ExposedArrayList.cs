@@ -9,7 +9,10 @@ namespace Dargon.PlayOn.DataStructures {
       public int size = 0;
       public T[] store;
 
-      public ExposedArrayList(int capacity = 16) {
+      public ExposedArrayList() : this(16) {
+      }
+
+      public ExposedArrayList(int capacity) {
          store = new T[capacity];
       }
 
