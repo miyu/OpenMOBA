@@ -63,7 +63,6 @@ namespace Dargon.PlayOn.DevTool {
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeManager.Ticks);
-         return;
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
             //            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));
@@ -100,7 +99,8 @@ namespace Dargon.PlayOn.DevTool {
                var fillColor = colors[index / colors.Length % colors.Length];
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.ComputeErodedOuterContour(), StrokeStyle.BlackHairLineSolid, StrokeStyle.CyanThick3Solid);
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.DilatedHolesUnion, StrokeStyle.RedHairLineSolid, StrokeStyle.LimeThick5Solid);
-               debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray));
+               // debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray));
+               debugCanvas.FillTriangulation(terrainNode.LocalGeometryView.Triangulation, new FillStyle(Color.White));
                //debugCanvas.DrawTriangulation(terrainNode.LocalGeometryView.Triangulation, new StrokeStyle(Color.Black));
 
                foreach (var ((desc, version), (includedContours, excludedContours)) in terrainNode.LocalGeometryView.Job.DynamicHoles) {

@@ -1,4 +1,4 @@
-// #define PERMIT_STACKALLOC_OPTIMIZATIONS
+#define PERMIT_STACKALLOC_OPTIMIZATIONS
 
 using System;
 using System.Collections.Concurrent;
@@ -283,11 +283,7 @@ namespace Canvas3D {
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFrontBack);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
 
-         // while(true)
          renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.VertexDomainPixel);
-         return;
-
-         // return;
          renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.VertexDomainPixel);
          renderContext.SetConstantBuffer(2, _textureDescriptorBuffer, RenderStage.VertexDomainPixel);
 

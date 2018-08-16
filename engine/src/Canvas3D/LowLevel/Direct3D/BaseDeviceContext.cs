@@ -226,11 +226,14 @@ namespace Canvas3D.LowLevel.Direct3D {
 
       public void SetShaderResource(int slot, IShaderResourceView view, RenderStage stages) {
          var box = (ShaderResourceViewBox)view;
-         if ((stages & RenderStage.Pixel) != 0) {
-            _deviceContext.PixelShader.SetShaderResource(slot, box?.ShaderResourceView);
-         }
          if ((stages & RenderStage.Vertex) != 0) {
             _deviceContext.VertexShader.SetShaderResource(slot, box?.ShaderResourceView);
+         }
+         if ((stages & RenderStage.Domain) != 0) {
+            _deviceContext.DomainShader.SetShaderResource(slot, box?.ShaderResourceView);
+         }
+         if ((stages & RenderStage.Pixel) != 0) {
+            _deviceContext.PixelShader.SetShaderResource(slot, box?.ShaderResourceView);
          }
       }
 
@@ -281,8 +284,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          }
 
          var db = _deviceContext.MapSubresource(box.Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
-         Console.WriteLine(db.DataPointer + " " + db.RowPitch + " " + db.SlicePitch);
-         // Utilities.Write(db.DataPointer, arr, offset, count);
+         Utilities.Write(db.DataPointer, arr, offset, count);
          _deviceContext.UnmapSubresource(box.Buffer, 0);
       }
 
