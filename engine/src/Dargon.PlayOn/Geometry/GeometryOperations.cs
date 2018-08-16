@@ -27,6 +27,8 @@ namespace Dargon.PlayOn.Geometry {
       // https://www.johndcook.com/blog/2012/01/05/double-epsilon-dbl_epsilon/
       public const double kEpsilon = 10E-16;
 
+      private const double kPointInTriangleEpsilon = 5E-6;
+
       public static bool IsReal(double v) => !(double.IsNaN(v) || double.IsInfinity(v));
       public static bool IsReal(DoubleVector2 v) => IsReal(v.X) && IsReal(v.Y);
       public static bool IsReal(DoubleVector3 v) => IsReal(v.X) && IsReal(v.Y) && IsReal(v.Z);
@@ -253,18 +255,23 @@ namespace Dargon.PlayOn.Geometry {
          var p = new DoubleVector2(x, y);
 #endif
 
+         cDouble bestNearness = cDouble.MaxValue;
+         cDouble kAcceptableNearness = CDoubleMath.c0_1;
+         triangleIndex = -1;
          for (var i = 0; i < island.Triangles.Length; i++) {
 #if use_fixed
             // It's faster to check AABB before doing the full PIP math in fixed-point arithmetic.
             if (!island.FixedOptimizationTriangleBounds[i].Contains(ref p)) continue;
 #endif
 
-            if (!IsPointInTriangle(x, y, ref island.Triangles[i])) continue;
-            triangleIndex = i;
-            return true;
+            if (IsPointInTriangleWithNearness(x, y, ref island.Triangles[i], out var nearness)) {
+               triangleIndex = i;
+               return true;
+            } else if (nearness < bestNearness && nearness <= kAcceptableNearness) {
+               triangleIndex = i;
+            }
          }
-         triangleIndex = -1;
-         return false;
+         return triangleIndex != -1;
       }
 
       public static bool SegmentIntersectsConvexPolygonInterior(IntLineSegment2 s, IntVector2[] p) {
@@ -440,8 +447,69 @@ namespace Dargon.PlayOn.Geometry {
 #else
          // Todo: If epsilon determines outcome (rare), report that and continue PIP
          // comparisons (if additional ones exist), then pick the best positive.
-         const double epsilon = 10E-7;
+         const double epsilon = kPointInTriangleEpsilon;
          return (u >= -epsilon) && (v >= -epsilon) && (uPlusV <= CDoubleMath.c1 + epsilon);
+#endif
+      }
+
+      public static bool IsPointInTriangleWithNearness(cDouble px, cDouble py, ref Triangle3 triangle, out cDouble nearness) {
+         // Barycentric coordinates for PIP w/ triangle test http://blackpawn.com/texts/pointinpoly/
+
+         var ax = triangle.Points.A.X; // bounded 2^14
+         var ay = triangle.Points.A.Y;
+         var bx = triangle.Points.B.X;
+         var by = triangle.Points.B.Y;
+         var cx = triangle.Points.C.X;
+         var cy = triangle.Points.C.Y;
+
+         var v0x = cx - ax; // bounded 2^15
+         var v0y = cy - ay;
+         var v1x = bx - ax;
+         var v1y = by - ay;
+         var v2x = px - ax;
+         var v2y = py - ay;
+
+         var dot00 = v0x * v0x + v0y * v0y; // bounded 2^31
+         var dot01 = v0x * v1x + v0y * v1y;
+         var dot02 = v0x * v2x + v0y * v2y;
+         var dot11 = v1x * v1x + v1y * v1y;
+         var dot12 = v1x * v2x + v1y * v2y;
+
+#if !use_fixed
+         var invDenom = CDoubleMath.c1 / (dot00 * dot11 - dot01 * dot01);
+         var u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+         var v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+#else
+         // in OpenMOBA, above dots can each reach INT32_MAX/MIN. 
+         // This results in saturating overflow in the below divisor.
+         // The workaround is to multiply numerator/denominator vs small c
+         var c = (cDouble)1 / (cDouble)(1 << 16);
+         var invDenom = (cDouble)1 / ((dot00 * c) * (dot11 * c) - (dot01 * c) * (dot01 * c));
+         var u = ((dot11 * c) * (dot02 * c) - (dot01 * c) * (dot12 * c)) * invDenom;
+         var v = ((dot00 * c) * (dot12 * c) - (dot01 * c) * (dot02 * c)) * invDenom;
+#endif
+         var uPlusV = u + v;
+
+#if use_fixed
+throw new NotImplementedException();
+         u = cDouble.Round(u, 24);
+         v = cDouble.Round(v, 24);
+         uPlusV = cDouble.Round(uPlusV, 24);
+         return (u >= CDoubleMath.c0) && (v >= CDoubleMath.c0) && (uPlusV <= CDoubleMath.c1);
+#else
+         // Todo: If epsilon determines outcome (rare), report that and continue PIP
+         // comparisons (if additional ones exist), then pick the best positive.
+         const double epsilon = kPointInTriangleEpsilon;
+         if ((u >= 0) && (v >= 0) && (uPlusV <= CDoubleMath.c1)) {
+            nearness = 0.0;
+            return true;
+         } else {
+            nearness = 0.0;
+            if (u < 0) nearness -= u;
+            if (v < 0) nearness -= v;
+            if (uPlusV > 1) nearness += uPlusV - 1;
+            return false;
+         }
 #endif
       }
 

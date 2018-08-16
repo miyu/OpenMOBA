@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Dargon.Commons;
@@ -47,7 +48,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   mci.ComputedStatistics.Radius,
                   mci.Pose.WorldPosition,
                   new []{ mci.Steering.Destination },
-                  true);
+                  false);
                if (!prc.TryComputeRoadmap(0, out var roadmap)) {
                   continue;
                }
@@ -81,8 +82,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             // HACK: Always relocalize until we support updating localization.
             if (true || mc.Internals.IsLocalizationInvalidated) {
                mc.Internals.IsLocalizationInvalidated = false;
-               var terrainOverlayNetwork = terrainFacade.CompileSnapshotAndTerrainOverlayNetwork((cDouble)statistics.Speed);
+               var terrainOverlayNetwork = terrainFacade.CompileSnapshotAndTerrainOverlayNetwork((cDouble)statistics.Radius);
                var res = terrainOverlayNetwork.FindNearestLandPointLocalization(mc.Internals.Pose.WorldPosition, statistics.Radius);
+               // Console.WriteLine("Relocalize " + mc.Internals.Pose.WorldPosition + " => " + res.world);
                mc.Internals.Pose.WorldPosition = res.world;
                mc.Internals.Localization = res.localization;
             }
@@ -156,7 +158,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          foreach (var ((swarm, computedRadius), idEntityNodeAndTriangleIndexes) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
             if (!swarmAndRadiusToEntityTriangleCentroidPaths.TryGetValue((swarm, computedRadius), out var res)) continue;
             var (pathfinderResultContext, centroidIndicesByEntityIndex) = res;
-            foreach (var (i, entity, entityTerrainOverlayNode, island, triangleIndex) in idEntityNodeAndTriangleIndexes) {
+            // foreach (var (j, entity, entityTerrainOverlayNode, island, triangleIndex) in idEntityNodeAndTriangleIndexes) {
+            for (var i = 0; i < idEntityNodeAndTriangleIndexes.Count; i++) {
+               var (j, entity, entityTerrainOverlayNode, island, triangleIndex) = idEntityNodeAndTriangleIndexes[i];
                var mc = entity.MotionComponent;
                ref var steering = ref mc.Internals.Steering;
 
@@ -174,7 +178,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   }
 
                   // path-following vector is from destination to source because our multi-pathfind goes from destination to source.
-                  contributions[i] = -action.SourceToDestinationUnit;
+                  contributions[j] = -action.SourceToDestinationUnit;
                }
             }
          }
@@ -239,7 +243,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                mc.Internals.Localization.TriangleIndex,
                mc.Internals.Localization.LocalPosition,
                v,
-               e.MotionComponent.Internals.ComputedStatistics.Speed * dt);
+               e.MotionComponent.Internals.ComputedStatistics.Speed * dt * mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor);
             mc.Internals.Localization.LocalPosition = pNext;
             mc.Internals.Localization.LocalPositionIv2 = pNext.LossyToIntVector2();
             var tonn = mc.Internals.Localization.TerrainOverlayNetworkNode;

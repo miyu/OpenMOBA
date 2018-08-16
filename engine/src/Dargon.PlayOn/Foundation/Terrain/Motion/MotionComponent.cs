@@ -14,13 +14,16 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       public MotionComponentInternals Internals;
 
       public static MotionComponent Create(DoubleVector3 worldPosition) => new MotionComponent {
-         BaseStatistics = new MotionStatistics { Radius = 30, Speed = 100 },
+         BaseStatistics = new MotionStatistics { Radius = 100, Speed = 100 },
          Internals = { Pose = { WorldPosition = worldPosition } }
       };
 
-      public static MotionComponent Create(DoubleVector3 worldPosition, MotionStatistics baseStatistics) => new MotionComponent {
+      public static MotionComponent Create(DoubleVector3 worldPosition, MotionStatistics baseStatistics, Swarm swarm = null) => new MotionComponent {
          BaseStatistics = baseStatistics,
-         Internals = { Pose = { WorldPosition = worldPosition } }
+         Internals = {
+            Pose = { WorldPosition = worldPosition },
+            Swarm = swarm
+         }
       };
 
       public static MotionComponent Create(DoubleVector3 worldPosition, MotionStatistics baseStatistics, DoubleVector3 initialPathfindingDestination) => new MotionComponent {

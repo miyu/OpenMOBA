@@ -37,10 +37,13 @@ using cDouble = System.Double;
 
 namespace TestGameTheGame {
    public static class Program {
+      private const bool kTestMap = true;
+      private const float kMapScale = kTestMap ? 1.0f : 10.0f;
+
       private static readonly MaterialDescription SomewhatRough = new MaterialDescription { Properties = { Metallic = 0, Roughness = 0.04f } };
 
       private static SDXVector3 cameraTarget = new SDXVector3(0, 0, 0);
-      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 2000; //new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 1400 * kMapScale; //new Vector3(3, 2.5f, 5) - cameraTarget;
       private static SDXVector3 cameraUp = new SDXVector3(0, 1, 0);
 
       private static GraphicsLoop graphicsLoop;
@@ -51,32 +54,58 @@ namespace TestGameTheGame {
       private static Entity player;
       private static Entity baddie;
       private static List<Entity> rocks = new List<Entity>();
+      private static List<Entity> minions = new List<Entity>();
 
       private static List<IntVector2> fred = new List<IntVector2>();
 
       public static void Main(string[] args) {
-         graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
+         graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.EnableDebugStats);
 
          var gameFactory = new GameFactory();
          game = gameFactory.Create();
 
-         var preset = SectorMetadataPresets.Test2D; //.DotaStyleMoba;
+         var preset = kTestMap ? SectorMetadataPresets.Test2D : SectorMetadataPresets.DotaStyleMoba;
          var snd = game.TerrainFacade.CreateSectorNodeDescription(preset);
-         snd.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
-         snd.WorldToLocalScalingFactor = (cDouble)preset.LocalBoundary.Width / (cDouble)1000;
+         snd.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(kMapScale * 1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
+         snd.WorldToLocalScalingFactor = ((cDouble)preset.LocalBoundary.Width / (cDouble)1000) / kMapScale;
          game.TerrainFacade.AddSectorNodeDescription(snd);
 
          player = game.EntityWorld.CreateEntity();
-         game.EntityWorld.AddEntityComponent(player, MotionComponent.Create(new DoubleVector3(-450, -450, 0)));
+         game.EntityWorld.AddEntityComponent(
+            player, 
+            MotionComponent.Create(
+               new DoubleVector3(-450, -450, 0),
+               new MotionStatistics {
+                  Radius = kTestMap ? 30 : 100,
+                  Speed = kTestMap ? 100 : 355
+               }));
 
-         baddie = game.EntityWorld.CreateEntity();
-         game.EntityWorld.AddEntityComponent(baddie, MotionComponent.Create(new DoubleVector3(0, 0, 0)));
+         // baddie = game.EntityWorld.CreateEntity();
+         // game.EntityWorld.AddEntityComponent(baddie, MotionComponent.Create(new DoubleVector3(0, 0, 0)));
 
-         var r = new Random(0);
+         // var r = new Random(0);
+         // for (var i = 0; i < 10; i++) {
+         //    var rock = game.EntityWorld.CreateEntity();
+         //    var worldPosition = new DoubleVector3(r.Next(-500, 500), r.Next(-500, 500), 0);
+         //    game.EntityWorld.AddEntityComponent(rock, MotionComponent.Create(worldPosition));
+         // }
+
+         var swarm = new Swarm();
+         swarm.SetDestination(new DoubleVector3(50, 50, 0));
          for (var i = 0; i < 10; i++) {
-            var rock = game.EntityWorld.CreateEntity();
-            var worldPosition = new DoubleVector3(r.Next(-500, 500), r.Next(-500, 500), 0);
-            game.EntityWorld.AddEntityComponent(rock, MotionComponent.Create(worldPosition));
+            for (var j = 0; j < 10; j++) {
+               var minion = game.EntityWorld.CreateEntity();
+               game.EntityWorld.AddEntityComponent(
+                  minion,
+                  MotionComponent.Create(
+                     new DoubleVector3(-425 + i * 10, -425 + j * 10, 0),
+                     new MotionStatistics {
+                        Radius = 5,
+                        Speed = 100
+                     },
+                     swarm));
+               minions.Add(minion);
+            }
          }
 
          var scene = new Scene();
@@ -230,7 +259,7 @@ namespace TestGameTheGame {
             SDXColor.White);
 
          var terrainOverlayNetwork = game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
-         foreach (var node in terrainOverlayNetwork.TerrainNodes) {
+         foreach (var (nodeIndex, node) in terrainOverlayNetwork.TerrainNodes.Enumerate()) {
             if (!lgvMeshesByLgvGuid.TryGetValue(node.LocalGeometryView.Guid, out var mesh)) {
                VertexPositionNormalColorTexture[] F(Triangle3 triangle) {
                   return triangle.Points.Map(
@@ -255,13 +284,27 @@ namespace TestGameTheGame {
                ConvertSystemNumericsToSharpDX(Matrix4x4.Transpose(node.SectorNodeDescription.WorldTransform)),
                SomewhatRough,
                SDXColor.White);
+
+            debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
+            if (nodeIndex == 0) {
+               debugCanvas.DrawPolyNode(node.LandPolyNode);
+               debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.BlackThick3Solid);
+            } else {
+               debugCanvas.DrawPolyNode(node.LandPolyNode, StrokeStyle.LimeHairLineSolid, StrokeStyle.CyanHairLineSolid);
+               debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.MagentaHairLineSolid);
+            }
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.DrawPoint(new DoubleVector2(50, 50), StrokeStyle.RedThick25Solid);
+            // debugCanvas.DrawPoint(new DoubleVector2(-127.331153869629, -151.531051635742), StrokeStyle.RedThick25Solid);
+            // debugCanvas.DrawPoint(new DoubleVector2(-390.349945068359, -359.916748046875), StrokeStyle.LimeThick25Solid);
          }
 
-         if (terrainOverlayNetwork.TryFindTerrainOverlayNode(baddie.MotionComponent.Internals.Pose.WorldPosition, out var n)) {
-            debugCanvas.DrawCrossSectorVisibilityPolygon(n, baddie.MotionComponent.Internals.Localization.LocalPositionIv2);
-         } else {
-            Console.WriteLine("Err, can't find pos?");
-         }
+         // if (terrainOverlayNetwork.TryFindTerrainOverlayNode(baddie.MotionComponent.Internals.Pose.WorldPosition, out var n)) {
+         //    debugCanvas.DrawCrossSectorVisibilityPolygon(n, baddie.MotionComponent.Internals.Localization.LocalPositionIv2);
+         // } else {
+         //    Console.WriteLine("Err, can't find pos?");
+         // }
 
          debugCanvas.Transform = Matrix4x4.Identity;
          debugCanvas.DrawLineStrip(fred, StrokeStyle.RedThick5Solid);
@@ -272,11 +315,11 @@ namespace TestGameTheGame {
             SomewhatRough,
             SDXColor.Lime);
 
-         scene.AddRenderable(
-            graphicsLoop.Presets.UnitSphere,
-            MatrixCM.Translation(baddie.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)baddie.MotionComponent.BaseStatistics.Radius * 2),
-            SomewhatRough,
-            SDXColor.Red);
+         // scene.AddRenderable(
+         //    graphicsLoop.Presets.UnitSphere,
+         //    MatrixCM.Translation(baddie.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)baddie.MotionComponent.BaseStatistics.Radius * 2),
+         //    SomewhatRough,
+         //    SDXColor.Red);
 
          foreach (var rock in rocks) {
             scene.AddRenderable(
@@ -284,6 +327,14 @@ namespace TestGameTheGame {
                MatrixCM.Translation(rock.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)rock.MotionComponent.BaseStatistics.Radius * 2),
                SomewhatRough,
                SDXColor.Brown);
+         }
+
+         foreach (var minion in minions) {
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(minion.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)minion.MotionComponent.BaseStatistics.Radius * 2),
+               SomewhatRough,
+               SDXColor.Magenta);
          }
 
          debugCanvas.DrawEntityPaths(game.EntityWorld);
@@ -296,7 +347,7 @@ namespace TestGameTheGame {
       private static Matrix ComputeProjViewMatrix(Size clientSize) {
          var verticalFov = (float)Math.PI / 4;
          var aspect = clientSize.Width / (float)clientSize.Height;
-         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 500.0f, 3000.0f);
+         var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 500.0f, 100000.0f);
          var view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, cameraUp);
          return proj * view;
       }

@@ -10,7 +10,7 @@ namespace Dargon.PlayOn.Foundation {
       public event EventHandler<Game> GameCreated;
 
       public Game Create() {
-         var gameTimeManager = new GameTimeManager(30);
+         var gameTimeManager = new GameTimeManager(60);
          var gameEventQueueManager = new GameEventQueueManager(gameTimeManager);
          var sectorGraphDescriptionStore = new SectorGraphDescriptionStore();
 
