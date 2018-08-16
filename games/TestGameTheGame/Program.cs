@@ -60,7 +60,7 @@ namespace TestGameTheGame {
          var gameFactory = new GameFactory();
          game = gameFactory.Create();
 
-         var preset = SectorMetadataPresets.Blank2D; //.DotaStyleMoba;
+         var preset = SectorMetadataPresets.Test2D; //.DotaStyleMoba;
          var snd = game.TerrainFacade.CreateSectorNodeDescription(preset);
          snd.WorldTransform = Matrix4x4.Multiply(Matrix4x4.CreateScale(1000.0f / preset.LocalBoundary.Width), Matrix4x4.CreateTranslation(0, 0, 0));
          snd.WorldToLocalScalingFactor = (cDouble)preset.LocalBoundary.Width / (cDouble)1000;

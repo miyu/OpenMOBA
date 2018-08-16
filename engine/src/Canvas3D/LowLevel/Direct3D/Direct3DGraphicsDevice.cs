@@ -398,7 +398,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          var deviceCreationFlags = DeviceCreationFlags.Debug;
          Device device;
          SwapChain swapChain;
-         FeatureLevel[] featureLevels = { FeatureLevel.Level_12_1 };
+         FeatureLevel[] featureLevels = { FeatureLevel.Level_11_1 };
          Device.CreateWithSwapChain(DriverType.Hardware, deviceCreationFlags, featureLevels, swapChainDescription, out device, out swapChain);
          Console.WriteLine("Created device with feature level: " + device.FeatureLevel);
          var immediateContext = device.ImmediateContext;

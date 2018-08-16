@@ -43,7 +43,6 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             ref var mci = ref entity.MotionComponent.Internals;
 
             if (mci.Steering.Status == FlockingStatus.EnabledInvalidatedRoadmap) {
-               mci.Steering.Status = FlockingStatus.EnabledExecutingRoadmap;
                var prc = pathfinderCalculator.UniformCostSearch(
                   mci.ComputedStatistics.Radius,
                   mci.Pose.WorldPosition,
@@ -52,6 +51,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                if (!prc.TryComputeRoadmap(0, out var roadmap)) {
                   continue;
                }
+               mci.Steering.Status = FlockingStatus.EnabledExecutingRoadmap;
+               mci.Steering.Roadmap = roadmap;
                mci.Steering.RoadmapProgressIndex = 0;
             }
 

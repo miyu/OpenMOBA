@@ -146,11 +146,14 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          private Matrix4x4 transformDotNet = Matrix4x4.Identity;
          private Matrix transformSharpDx = Matrix.Identity;
 
+         private static int n = 0;
+
          public Canvas3DDebugCanvas(IGraphicsFacade graphicsFacade, IPresetsStore presets, Scene scene) {
             this.graphicsFacade = graphicsFacade;
             this.presets = presets;
             this.scene = scene;
 
+            Console.WriteLine(n++);
             unitTriangleMesh = graphicsFacade.CreateMesh(new[] {
                new VertexPositionNormalColorTexture(new Vector3(0, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(0, 0)),
                new VertexPositionNormalColorTexture(new Vector3(1, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(1, 0)),

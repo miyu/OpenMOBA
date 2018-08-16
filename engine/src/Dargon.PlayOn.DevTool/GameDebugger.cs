@@ -63,6 +63,7 @@ namespace Dargon.PlayOn.DevTool {
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
 
          var debugCanvas = DebugMultiCanvasHost.CreateAndAddCanvas(GameTimeManager.Ticks);
+         return;
          debugCanvas.BatchDraw(() => {
             debugCanvas.Transform = Matrix4x4.Identity;
             //            debugCanvas.FillPolygonTriangulation(Polygon2.CreateRect(-3500, -1500, 7000, 3000), new FillStyle(Color.Black));

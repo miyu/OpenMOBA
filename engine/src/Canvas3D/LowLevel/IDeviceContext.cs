@@ -1,4 +1,5 @@
 using System;
+using Canvas3D.LowLevel.Direct3D;
 using SharpDX;
 using SharpDX.Direct3D;
 
@@ -40,6 +41,7 @@ namespace Canvas3D.LowLevel {
       void SetIndexBuffer<T>(int slot, IBuffer<T> buffer) where T : struct;
       void SetIndexBuffer(int slot, int? @null);
       void SetConstantBuffer<T>(int slot, IBuffer<T> buffer, RenderStage stages) where T : struct;
+      void SetConstantBuffer(int slot, int? @null, RenderStage stages);
       void SetShaderResource(int slot, IShaderResourceView view, RenderStage stages);
 
       void Draw(int vertices, int verticesOffset);

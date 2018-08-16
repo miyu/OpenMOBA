@@ -1,4 +1,4 @@
-#define PERMIT_STACKALLOC_OPTIMIZATIONS
+// #define PERMIT_STACKALLOC_OPTIMIZATIONS
 
 using System;
 using System.Collections.Concurrent;
@@ -279,12 +279,15 @@ namespace Canvas3D {
       public unsafe void RenderScene(ISceneSnapshot scene) {
          scene.AddReference();
          _graphicsDevice.ImmediateContext.GetBackBufferViews(out var backBufferDepthStencilView, out var backBufferRenderTargetView);
-
          var renderContext = _graphicsDevice.ImmediateContext; // : _graphicsDevice.CreateDeferredRenderContext();
          renderContext.SetRasterizerConfiguration(RasterizerConfiguration.FillFrontBack);
          renderContext.SetDepthConfiguration(DepthConfiguration.Enabled);
 
+         // while(true)
          renderContext.SetConstantBuffer(0, _sceneBuffer, RenderStage.VertexDomainPixel);
+         return;
+
+         // return;
          renderContext.SetConstantBuffer(1, _batchBuffer, RenderStage.VertexDomainPixel);
          renderContext.SetConstantBuffer(2, _textureDescriptorBuffer, RenderStage.VertexDomainPixel);
 
@@ -293,6 +296,10 @@ namespace Canvas3D {
          } else {
 
          }
+
+         renderContext.SetConstantBuffer(0, null, RenderStage.VertexDomainPixel);
+         renderContext.SetConstantBuffer(1, null, RenderStage.VertexDomainPixel);
+         renderContext.SetConstantBuffer(2, null, RenderStage.VertexDomainPixel);
 
          _graphicsDevice.ImmediateContext.SetRenderTargets(backBufferDepthStencilView, backBufferRenderTargetView);
          _graphicsDevice.ImmediateContext.Present();
