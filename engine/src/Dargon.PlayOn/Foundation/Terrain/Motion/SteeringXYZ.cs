@@ -36,8 +36,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          var terrainSnapshot = terrainFacade.CompileSnapshot();
          var swarmAndRadiusToEntityAndLocalization = SwarmAndRadius_To_EntityAndLocalization(entities, terrainSnapshot);
          var swarmAndRadiusToPrcAndIndices = ComputeSwarmAndRadiusToEntityTriangleCentroidPaths(terrainSnapshot, swarmAndRadiusToEntityAndLocalization);
-         var seekingContributions = ContributeTriangleCentroidOptimalContinuousPathForceContributions(entities, swarmAndRadiusToEntityAndLocalization, swarmAndRadiusToPrcAndIndices);
-         var aggregate = AggregateForceContributions(seekingContributions);
+         var centroidOptimalContinuousContribution = ContributeTriangleCentroidOptimalContinuousPathForceContributions(entities, swarmAndRadiusToEntityAndLocalization, swarmAndRadiusToPrcAndIndices);
+         var centroidNonoptimalDiscreteAndCentroidDirectContribution = ContributeTriangleCentroidNonoptimalDiscreteSpanningDijkstrasAndCentroidDirectPathSteeringContribution(entities);
+         var aggregate = AggregateForceContributions(centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution);
          ApplyForceContributions(entities, aggregate, dt);
 
          foreach (var entity in entities) {
@@ -178,59 +179,98 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   }
 
                   // path-following vector is from destination to source because our multi-pathfind goes from destination to source.
-                  contributions[j] = -action.SourceToDestinationUnit;
+                  contributions[j] = action.DestinationToSourceUnit;
                }
             }
          }
          return contributions;
       }
 
-      // private void Execute_ContributeTriangleCentroidOptimalDiscreteSpanningDijkstrasPathSteeringBehavior(MotionComponent[] motionComponents) {
-      //    var islandAndGoalToRootTriangleIndex = new Dictionary<(TriangulationIsland, DoubleVector3), (int rootTriangleIndex, int[] predecessorByTriangleIndex, DoubleVector3 loc)>();
-      //    foreach (var mc in motionComponents) {
-      //       if (mc.Internals.Swarm == null) continue;
-      //       if (mc.Internals.Steering.Status == FlockingStatus.EnabledIdle) continue;
-      //
-      //       var key = (mc.Internals.Localization.TriangulationIsland, mc.Internals.Swarm.Destination);
-      //       if (!islandAndGoalToRootTriangleIndex.TryGetValue(key, out var t)) {
-      //          if (mc.Internals.Localization.TerrainOverlayNetworkNode.Contains(mc.Internals.Swarm.Destination, out var local)) {
-      //             // Contains can work but NN fail due to point-in-triangle robustness issues.
-      //             NN(mc.Internals.Localization.TriangulationIsland, local.XY, out var tt);
-      //             islandAndGoalToRootTriangleIndex[key] = t = (tt.rootTriangleIndex, tt.predecessorByTriangleIndex, local);
-      //          }
-      //       }
-      //
-      //       if (t.predecessorByTriangleIndex != null) {
-      //          var nti = t.predecessorByTriangleIndex[mc.Internals.Localization.TriangleIndex];
-      //          if (nti != Triangle3.NO_NEIGHBOR_INDEX) {
-      //             DoubleVector2 next = mc.Internals.Localization.TriangulationIsland.Triangles[nti].Centroid;
-      //
-      //             var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.Internals.Localization.TriangulationIsland.Triangles[mc.Internals.Localization.TriangleIndex].Centroid).ToUnit();
-      //
-      //             // Double mul = CDoubleMath.c0_8;
-      //             // mc.Internals.Steering.CurrentUpdateForceContributions.Seeking.SumForces += mul * triangleCentroidDijkstrasOptimalSeekUnit;
-      //             // mc.Internals.Steering.CurrentUpdateForceContributions.Seeking.SumWeights += mul;
-      //          }
-      //       }
-      //
-      //       // Normalize seek forces now that we've done centroid path-follow and optimal heuristics.
-      //       if (mc.Steering.CurrentUpdateForceContributions.Aggregate.SumWeights > CDoubleMath.c0) {
-      //          // TODO: This seems like a bugged normalization including test above?
-      //          Debugger.Break();
-      //          mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces = mc.Steering.CurrentUpdateForceContributions.Aggregate.SumForces.ToUnit();
-      //          mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights = CDoubleMath.c1;
-      //       }
-      //
-      //       Double k = (Double)Math.Min(gameTimeManager.Ticks, 19);
-      //       mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces += mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces * k;
-      //       mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights += mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights * k;
-      //
-      //       mc.Steering.CurrentUpdateForceContributions.Seeking.SumForces /= k + CDoubleMath.c1;
-      //       mc.Steering.CurrentUpdateForceContributions.Seeking.SumWeights /= k + CDoubleMath.c1;
-      //    }
-      // }
+      private (bool, DoubleVector2)[] ContributeTriangleCentroidNonoptimalDiscreteSpanningDijkstrasAndCentroidDirectPathSteeringContribution(Entity[] entities) {
+         var res = new (bool, DoubleVector2)[entities.Length];
+         var islandAndGoalToRootTriangleIndex = new Dictionary<(TriangulationIsland, DoubleVector3), (int rootTriangleIndex, int[] predecessorByTriangleIndex, DoubleVector3 loc)>();
+         for (var i = 0; i < entities.Length; i++) {
+            var mc = entities[i].MotionComponent;
+            if (mc.Internals.Swarm == null) continue;
+            if (mc.Internals.Steering.Status == FlockingStatus.EnabledIdle) continue;
 
-      private DoubleVector2[] AggregateForceContributions(DoubleVector2[] seek) => seek;
+            var key = (mc.Internals.Localization.TriangulationIsland, mc.Internals.Swarm.Destination);
+            if (!islandAndGoalToRootTriangleIndex.TryGetValue(key, out var t)) {
+               if (mc.Internals.Localization.TerrainOverlayNetworkNode.Contains(mc.Internals.Swarm.Destination, out var local)) {
+                  // Contains can work but NN fail due to point-in-triangle robustness issues. TODO: Is this comment stale?
+                  NN(mc.Internals.Localization.TriangulationIsland, local.XY, out var tt);
+                  islandAndGoalToRootTriangleIndex[key] = t = (tt.rootTriangleIndex, tt.predecessorByTriangleIndex, local);
+               }
+               // TODO: Should still cache something if fail - how do we handle case where pos/dest on different islands?
+            }
+
+            if (t.predecessorByTriangleIndex != null) {
+               var nti = t.predecessorByTriangleIndex[mc.Internals.Localization.TriangleIndex];
+               if (nti != Triangle3.NO_NEIGHBOR_INDEX) {
+                  DoubleVector2 next = mc.Internals.Localization.TriangulationIsland.Triangles[nti].Centroid;
+
+                  var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.Internals.Localization.TriangulationIsland.Triangles[mc.Internals.Localization.TriangleIndex].Centroid).ToUnit();
+                  res[i] = (false, triangleCentroidDijkstrasOptimalSeekUnit);
+               } else {
+                  // we're on the destination triangle.
+                  res[i] = (true, mc.Internals.Localization.LocalPosition.To(t.loc.XY).ToUnit());
+               }
+            }
+         }
+         return res;
+      }
+
+      private bool NN(TriangulationIsland island, DoubleVector2 destination, out (int rootTriangleIndex, int[] predecessorByTriangleIndex) res) {
+         if (!island.TryIntersect(destination.X, destination.Y, out var rootTriangleIndex)) {
+            res = (Triangle3.NO_NEIGHBOR_INDEX, null);
+            return false;
+         }
+
+         var prior = new int[island.Triangles.Length];
+         var costUpperBounds = new cDouble[island.Triangles.Length];
+         for (var i = 0; i < island.Triangles.Length; i++) {
+            prior[i] = int.MinValue;
+            costUpperBounds[i] = cDouble.MaxValue;
+         }
+
+         var q = new PriorityQueue<(cDouble, int, int)>((a, b) => a.Item1.CompareTo(b.Item1));
+         q.Enqueue((CDoubleMath.c0, rootTriangleIndex, -1));
+         while (q.Count > 0) {
+            var (ticost, ticur, tiprev) = q.Dequeue();
+            if (prior[ticur] != int.MinValue) continue;
+            prior[ticur] = tiprev;
+
+            for (var i = 0; i < 3; i++) {
+               var nti = island.Triangles[ticur].NeighborOppositePointIndices[i];
+               if (nti == Triangle3.NO_NEIGHBOR_INDEX) continue;
+
+               var edgeCost = (island.Triangles[nti].Centroid - island.Triangles[ticur].Centroid).Norm2D();
+               var ntiCost = ticost + edgeCost;
+               if (costUpperBounds[nti] <= ntiCost) continue;
+               costUpperBounds[nti] = ntiCost;
+               q.Enqueue((ntiCost, nti, ticur));
+            }
+         }
+
+         res = (rootTriangleIndex, prior);
+         return true;
+      }
+
+      private DoubleVector2[] AggregateForceContributions(DoubleVector2[] centroidSeekContinuous, (bool, DoubleVector2)[] centroidNonoptimalDiscreteAndCentroidDirectContribution) {
+         Assert.Equals(centroidSeekContinuous.Length, centroidNonoptimalDiscreteAndCentroidDirectContribution.Length);
+
+         var res = new DoubleVector2[centroidSeekContinuous.Length];
+         for (var i = 0; i < res.Length; i++) {
+            var csc = centroidSeekContinuous[i];
+            var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
+            if (isOnGoalTriangle) {
+               res[i] = csd;
+            } else {
+               res[i] = csc * CDoubleMath.c0_8 + csd * CDoubleMath.c0_2;
+            }
+         }
+         return res;
+      }
 
       private void ApplyForceContributions(Entity[] entities, DoubleVector2[] contributions, cDouble dt) {
          Assert.Equals(entities.Length, contributions.Length);

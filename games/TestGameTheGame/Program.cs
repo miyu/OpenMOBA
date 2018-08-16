@@ -258,7 +258,7 @@ namespace TestGameTheGame {
             SomewhatRough,
             SDXColor.White);
 
-         var terrainOverlayNetwork = game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+         var terrainOverlayNetwork = game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(5);
          foreach (var (nodeIndex, node) in terrainOverlayNetwork.TerrainNodes.Enumerate()) {
             if (!lgvMeshesByLgvGuid.TryGetValue(node.LocalGeometryView.Guid, out var mesh)) {
                VertexPositionNormalColorTexture[] F(Triangle3 triangle) {

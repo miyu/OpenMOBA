@@ -11,8 +11,12 @@ namespace Dargon.PlayOn {
       public static readonly cDouble c0_001 = (cDouble)1 / (cDouble)1000;
       public static readonly cDouble c0_01 = (cDouble)1 / (cDouble)100;
       public static readonly cDouble c0_1 = (cDouble)1 / (cDouble)10;
+      public static readonly cDouble c0_2 = (cDouble)2 / (cDouble)10;
       public static readonly cDouble c0_3 = (cDouble)3 / (cDouble)10;
-      public static readonly cDouble c0_5 = (cDouble)1 / (cDouble)2;
+      public static readonly cDouble c0_4 = (cDouble)4 / (cDouble)10;
+      public static readonly cDouble c0_5 = (cDouble)5 / (cDouble)10;
+      public static readonly cDouble c0_6 = (cDouble)6 / (cDouble)10;
+      public static readonly cDouble c0_7 = (cDouble)7 / (cDouble)10;
       public static readonly cDouble c0_8 = (cDouble)8 / (cDouble)10;
       public static readonly cDouble c0_9 = (cDouble)9 / (cDouble)10;
       public static readonly cDouble c1 = (cDouble)1;
