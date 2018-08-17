@@ -46,6 +46,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       public Swarm Swarm;
       public int SwarmIndex;
       public SteeringState Steering;
+      public DoubleVector2 Hack_CohesionSeparationVector;
 
       public static MotionComponentInternals Create() => new MotionComponentInternals {
          Pose = MotionPose.Create(),

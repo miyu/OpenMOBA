@@ -21,5 +21,9 @@ namespace Dargon.PlayOn.Geometry {
          else if (x < MaxLutIntExclusive) return IntSqrtLut[x];
          else return (Int32)Math.Sqrt(x);
       }
+
+      public static Int32 DivRoundUp(Int32 x, Int32 divisor) {
+         return (x + divisor - 1) / divisor;
+      }
    }
 }

@@ -296,6 +296,10 @@ namespace Dargon.PlayOn {
    }
 
    public static class DictionaryMapperExtensions {
+      public static Dictionary<K, V2> Map<K, V1, V2>(this Dictionary<K, V1> dict, Func<V1, V2> mapper) {
+         return DictionaryMapperInternals<K, V1, V2>.dictionaryMapper(dict, (k, v) => mapper(v));
+      }
+
       public static Dictionary<K, V2> Map<K, V1, V2>(this Dictionary<K, V1> dict, Func<K, V1, V2> mapper) {
          return DictionaryMapperInternals<K, V1, V2>.dictionaryMapper(dict, mapper);
       }
