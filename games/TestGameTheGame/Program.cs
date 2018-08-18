@@ -1,4 +1,6 @@
-﻿using System;
+﻿// #define ENABLE_SOFTWARE_RENDER
+
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -49,7 +51,7 @@ namespace TestGameTheGame {
       private static GraphicsLoop graphicsLoop;
       private static Game game;
 
-      private static Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas debugCanvas;
+      private static IDebugCanvas debugCanvas;
       private static Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>> lgvMeshesByLgvGuid = new Dictionary<Guid, IMesh<VertexPositionNormalColorTexture>>();
       private static Entity player;
       private static Entity baddie;
@@ -92,8 +94,8 @@ namespace TestGameTheGame {
 
          var swarm = new Swarm();
          swarm.SetDestination(new DoubleVector3(50, 50, 0));
-         for (var i = 0; i < 10; i++) {
-            for (var j = 0; j < 10; j++) {
+         for (var i = 0; i < 30; i++) {
+            for (var j = 0; j < 30; j++) {
                var minion = game.EntityWorld.CreateEntity();
                game.EntityWorld.AddEntityComponent(
                   minion,
@@ -109,12 +111,38 @@ namespace TestGameTheGame {
          }
 
          var scene = new Scene();
-         debugCanvas = new Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas(graphicsLoop.GraphicsFacade, graphicsLoop.Presets, scene);
 
+#if !ENABLE_SOFTWARE_RENDER
+         debugCanvas = new Canvas3DDebugMultiCanvasHost.Canvas3DDebugCanvas(graphicsLoop.GraphicsFacade, graphicsLoop.Presets, scene);
+#else
+         var rotation = 95 * Math.PI / 180.0;
+         var scale = 1.0f;
+         var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
+         var center = new SNVector3(0, 0, 0);
+         var projector = new PerspectiveProjector(
+            center + Vector3s.FromRadiusAngleAroundXAxis(500, (float)rotation),
+            //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
+            center,
+            Vector3s.FromRadiusAngleAroundXAxis(1, (float)(rotation - Math.PI / 2)),
+            displaySize.Width,
+            displaySize.Height);
+         //         projector = null;
+         //         var debugMultiCanvasHost = new MonoGameCanvasHost();
+         var debugMultiCanvasHost = DebugMultiCanvasHost.CreateAndShowCanvas(
+            displaySize,
+            new SDPoint(100, 100),
+            projector);
+#endif
          for (var frame = 0; graphicsLoop.IsRunning(out var renderer, out var input); frame++) {
+#if ENABLE_SOFTWARE_RENDER
+            debugCanvas = debugMultiCanvasHost.CreateAndAddCanvas(frame);
+#endif
             scene.Clear();
             Step(graphicsLoop, game, input, scene);
-            Render(scene, renderer);
+            debugCanvas.BatchDraw(() => Render(scene, renderer));
+#if ENABLE_SOFTWARE_RENDER
+            if (frame == 300) break;
+#endif
          }
       }
 
@@ -285,17 +313,19 @@ namespace TestGameTheGame {
                SomewhatRough,
                SDXColor.White);
 
+#if ENABLE_SOFTWARE_RENDER
             debugCanvas.Transform = node.SectorNodeDescription.WorldTransform;
-            if (nodeIndex == 0) {
-               debugCanvas.DrawPolyNode(node.LandPolyNode);
-               debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.BlackThick3Solid);
-            } else {
-               debugCanvas.DrawPolyNode(node.LandPolyNode, StrokeStyle.LimeHairLineSolid, StrokeStyle.CyanHairLineSolid);
-               debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.MagentaHairLineSolid);
-            }
+            debugCanvas.DrawPolyNode(node.LandPolyNode);
+            debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.BlackThick3Solid);
+#endif
+            // if (nodeIndex == 0) {
+            // } else {
+            //    debugCanvas.DrawPolyNode(node.LandPolyNode, StrokeStyle.LimeHairLineSolid, StrokeStyle.CyanHairLineSolid);
+            //    debugCanvas.DrawTriangulation(node.LocalGeometryView.Triangulation, StrokeStyle.MagentaHairLineSolid);
+            // }
 
             debugCanvas.Transform = Matrix4x4.Identity;
-            debugCanvas.DrawPoint(new DoubleVector2(50, 50), StrokeStyle.RedThick25Solid);
+            // debugCanvas.DrawPoint(new DoubleVector2(50, 50), StrokeStyle.RedThick25Solid);
             // debugCanvas.DrawPoint(new DoubleVector2(-127.331153869629, -151.531051635742), StrokeStyle.RedThick25Solid);
             // debugCanvas.DrawPoint(new DoubleVector2(-390.349945068359, -359.916748046875), StrokeStyle.LimeThick25Solid);
          }
@@ -335,6 +365,12 @@ namespace TestGameTheGame {
                MatrixCM.Translation(minion.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)minion.MotionComponent.BaseStatistics.Radius * 2),
                SomewhatRough,
                SDXColor.Magenta);
+
+#if ENABLE_SOFTWARE_RENDER
+            debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.DrawPoint(minion.MotionComponent.Internals.Pose.WorldPosition, new StrokeStyle(System.Drawing.Color.Black, 2 * (float)minion.MotionComponent.BaseStatistics.Radius));
+            debugCanvas.DrawPoint(minion.MotionComponent.Internals.Pose.WorldPosition, new StrokeStyle(System.Drawing.Color.White, 2 * (float)minion.MotionComponent.BaseStatistics.Radius - 2));
+#endif
          }
 
          debugCanvas.DrawEntityPaths(game.EntityWorld);

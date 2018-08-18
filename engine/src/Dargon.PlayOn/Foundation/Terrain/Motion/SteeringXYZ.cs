@@ -409,9 +409,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var csc = centroidSeekContinuous[i];
             var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
             var ccs = cohesionSeparation[i];
-            var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_8 + csd * CDoubleMath.c0_2;
-            res[i] = seek + ccs;
-            // res[i] = ccs;
+            var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
+            var v = seek + ccs;
+            res[i] = v == default ? default : v.ToUnit();
          }
          return res;
       }

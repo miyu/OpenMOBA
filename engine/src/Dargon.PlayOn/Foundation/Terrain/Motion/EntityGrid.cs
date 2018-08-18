@@ -243,7 +243,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          var res = new Dictionary<SectorNodeDescription, EntityGrid>();
          foreach (var (snd, entities) in sndToEntities) {
             var bounds = snd.StaticMetadata.LocalBoundary;
-            var cellSize = Math.Min(Math.Min((int)Math.Ceiling(snd.WorldToLocalScalingFactor * 100), bounds.Width / 50), bounds.Height / 50);
+            var cellSize = Math.Min(Math.Min((int)Math.Ceiling(snd.WorldToLocalScalingFactor * 100), bounds.Width / 100), bounds.Height / 100);
             var w = IntMath.DivRoundUp(bounds.Width, cellSize);
             var h = IntMath.DivRoundUp(bounds.Height, cellSize);
             var cells = new EntityGrid.Link[h, w];
