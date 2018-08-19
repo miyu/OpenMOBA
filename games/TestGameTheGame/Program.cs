@@ -93,7 +93,7 @@ namespace TestGameTheGame {
          // }
 
          var swarm = new Swarm();
-         swarm.SetDestination(new DoubleVector3(50, 50, 0));
+         swarm.SetDestination(new DoubleVector3(-50, -50, 0));
          for (var i = 0; i < 30; i++) {
             for (var j = 0; j < 30; j++) {
                var minion = game.EntityWorld.CreateEntity();

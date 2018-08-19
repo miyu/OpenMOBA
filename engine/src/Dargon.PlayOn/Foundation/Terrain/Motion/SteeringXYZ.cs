@@ -103,15 +103,15 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                      foreach (var neighbor in view.InQuarterCircleBRExcludeCenter(itx, ity, (int)(mc1.Internals.ComputedStatistics.Radius * snd.WorldToLocalScalingFactor))) {
                         var mc2 = neighbor.MotionComponent;
                         if (TryContribution(mc1, mc2, out var contribution)) {
-                           mc1.Internals.Hack_CohesionSeparationVector += contribution;
-                           mc2.Internals.Hack_CohesionSeparationVector -= contribution;
+                           mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
+                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v;
                         }
                      }
                      for (var it2 = it1.Next; it2 != null; it2 = it2.Next) {
                         var mc2 = it2.Entity.MotionComponent;
                         if (TryContribution(mc1, mc2, out var contribution)) {
-                           mc1.Internals.Hack_CohesionSeparationVector += contribution;
-                           mc2.Internals.Hack_CohesionSeparationVector -= contribution;
+                           mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
+                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v;
                         }
                      }
                   }
@@ -128,7 +128,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          }
          return res;
 
-         bool TryContribution(MotionComponent a, MotionComponent b, out DoubleVector2 contribution) {
+         bool TryContribution(MotionComponent a, MotionComponent b, out (bool isOverlapping, DoubleVector2 v) contribution) {
             // unpack motion component
             var amci = a.Internals;
             var bmci = b.Internals;
@@ -161,10 +161,10 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                var wLut = Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isOverlappingWeightLut ??
                           (Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isOverlappingWeightLut =
                              Frac01Lut.BuildLut((paramCenterDistance, paramRadiusSum) => {
-                                cDouble k = (cDouble)350;
+                                cDouble k = (cDouble)700;
 
                                 // w = k * k * (CDoubleMath.c1 - CDoubleMath.Pow((cDouble)centerDistance / (cDouble)radiusSum, CDoubleMath.c0_3)); // / (double)radiusSumSquared;
-                                return k * k * (CDoubleMath.c1 - Frac01Lut.Pow0_3(paramCenterDistance, paramRadiusSum));
+                                return k * k * (0.8 + 0.2 * (CDoubleMath.c1 - Frac01Lut.Pow0_3(paramCenterDistance, paramRadiusSum)));
                              }));
 
                // var centerDistance = CDoubleMath.Sqrt((cDouble)centerDistanceSquared);
@@ -198,9 +198,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                var wLut = Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isNonOverlappingWeightLut ??
                           (Execute_ContributeEntityCohesionAlignmentAndSeparationSteeringBehaviors_isNonOverlappingWeightLut =
                              Frac01Lut.BuildLut((maxAttractionDistsanceMinusSpacingBetweenBoundariesParam, maxAttractionDistanceParam) => {
-                                return CDoubleMath.c10 * Frac01Lut.Pow0_5(maxAttractionDistsanceMinusSpacingBetweenBoundariesParam, maxAttractionDistanceParam);
+                                return CDoubleMath.c0 * Frac01Lut.Pow1_8(maxAttractionDistsanceMinusSpacingBetweenBoundariesParam, maxAttractionDistanceParam);
                              }));
-               w = Frac01Lut.Lookup(wLut, maxAttractionDistance - spacingBetweenBoundaries, maxAttractionDistance);
+               w = 0; // Frac01Lut.Lookup(wLut, maxAttractionDistance - spacingBetweenBoundaries, maxAttractionDistance);
                Debug.Assert(GeometryOperations.IsReal(w));
 
                aForce = aToB;
@@ -216,7 +216,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             //var wf = w * aForce.ToDoubleVector2().ToUnit();
             var aForceMagSquared = aForce.SquaredNorm2();
             var aForceMag = (cDouble)IntMath.Sqrt(checked((int)aForceMagSquared));
-            contribution = new DoubleVector2((w * (cDouble)aForce.X) / aForceMag, (w * (cDouble)aForce.Y) / aForceMag);
+            var v = new DoubleVector2((w * (cDouble)aForce.X) / aForceMag, (w * (cDouble)aForce.Y) / aForceMag);
+            contribution = (isOverlapping, v);
             return true;
          }
       }
@@ -410,7 +411,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
             var ccs = cohesionSeparation[i];
             var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
-            var v = seek + ccs;
+            var v = seek * 1.4 + ccs;
             res[i] = v == default ? default : v.ToUnit();
          }
          return res;
