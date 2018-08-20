@@ -43,9 +43,11 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          var swarmAndRadiusToPrcAndIndices = ComputeSwarmAndRadiusToEntityTriangleCentroidPaths(terrainSnapshot, swarmAndRadiusToEntityAndLocalization);
          var centroidOptimalContinuousContribution = CalculateTriangleCentroidOptimalContinuousPathForceContributions(entities, swarmAndRadiusToEntityAndLocalization, swarmAndRadiusToPrcAndIndices);
          var centroidNonoptimalDiscreteAndCentroidDirectContribution = CalculateTriangleCentroidNonoptimalDiscreteSpanningDijkstrasAndCentroidDirectPathSteeringContribution(entities);
+         var steeringContribution = CalculateMergedSeekContributions(centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution);
          var cohesionSeparationContributions = CalculateCohesionSeparationContributions(entities, gridViews);
+         var alignmentContributions = CalculateAlignmentContributions(entities, gridViews, steeringContribution);
 
-         var aggregate = AggregateForceContributions(entities, centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution, cohesionSeparationContributions);
+         var aggregate = AggregateForceContributions(entities, centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution, cohesionSeparationContributions, alignmentContributions);
          ApplyForceContributions(entities, aggregate, dt);
 
          foreach (var entity in entities) {
@@ -57,7 +59,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   mci.Pose.WorldPosition,
                   new []{ mci.Steering.Destination },
                   false);
-               if (!prc.TryComputeRoadmap(0, out var roadmap)) {
+               if (prc == null || !prc.TryComputeRoadmap(0, out var roadmap)) {
+                  // prc null if src or dest can't be localized.
                   continue;
                }
                mci.Steering.Status = FlockingStatus.EnabledExecutingRoadmap;
@@ -95,24 +98,22 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
          foreach (var (snd, view) in gridViews) {
             var grid = view.Grid;
-            for (var ity = 0; ity < grid.Height; ity++) {
-               for (var itx = 0; itx < grid.Width; itx++) {
-                  var head = grid.Cells[ity, itx];
-                  for (var it1 = head; it1 != null; it1 = it1.Next) {
-                     var mc1 = it1.Entity.MotionComponent;
-                     foreach (var neighbor in view.InQuarterCircleBRExcludeCenter(itx, ity, (int)(mc1.Internals.ComputedStatistics.Radius * snd.WorldToLocalScalingFactor))) {
-                        var mc2 = neighbor.MotionComponent;
-                        if (TryContribution(mc1, mc2, out var contribution)) {
-                           mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
-                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v * 0.9;
-                        }
+            foreach (var (itx, ity) in grid.Occupancy) {
+               var head = grid.Cells[ity, itx];
+               for (var it1 = head; it1 != null; it1 = it1.Next) {
+                  var mc1 = it1.Entity.MotionComponent;
+                  foreach (var (nid, neighbor) in view.InQuarterCircleBRExcludeCenter(itx, ity, (int)(mc1.Internals.ComputedStatistics.Radius * snd.WorldToLocalScalingFactor))) {
+                     var mc2 = neighbor.MotionComponent;
+                     if (TryContribution(mc1, mc2, out var contribution)) {
+                        mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
+                        mc2.Internals.Hack_CohesionSeparationVector -= contribution.v * 0.9;
                      }
-                     for (var it2 = it1.Next; it2 != null; it2 = it2.Next) {
-                        var mc2 = it2.Entity.MotionComponent;
-                        if (TryContribution(mc1, mc2, out var contribution)) {
-                           mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
-                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v * 0.9;
-                        }
+                  }
+                  for (var it2 = it1.Next; it2 != null; it2 = it2.Next) {
+                     var mc2 = it2.Entity.MotionComponent;
+                     if (TryContribution(mc1, mc2, out var contribution)) {
+                        mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
+                        mc2.Internals.Hack_CohesionSeparationVector -= contribution.v * 0.9;
                      }
                   }
                }
@@ -363,6 +364,44 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          return res;
       }
 
+      private DoubleVector2[] CalculateMergedSeekContributions(DoubleVector2[] centroidSeekContinuous, (bool, DoubleVector2)[] centroidNonoptimalDiscreteAndCentroidDirectContribution) {
+         Assert.Equals(centroidSeekContinuous.Length, centroidNonoptimalDiscreteAndCentroidDirectContribution.Length);
+         var res = new DoubleVector2[centroidSeekContinuous.Length];
+         for (var i = 0; i < res.Length; i++) {
+            var csc = centroidSeekContinuous[i];
+            var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
+            res[i] = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_6 + csd * CDoubleMath.c0_4;
+         }
+         return res;
+      }
+
+      private DoubleVector2[] CalculateAlignmentContributions(Entity[] entities, Dictionary<SectorNodeDescription, EntityGridView> gridViews, DoubleVector2[] steeringContribution) {
+         var res = new DoubleVector2[entities.Length];
+         foreach (var (snd, view) in gridViews) {
+            var grid = view.Grid;
+            foreach (var (itx, ity) in grid.Occupancy) {
+               var head = grid.Cells[ity, itx];
+               for (var it1 = head; it1 != null; it1 = it1.Next) {
+                  var mc1 = it1.Entity.MotionComponent;
+                  var id1 = it1.EntityIndex;
+                  foreach (var (id2, neighbor) in view.InQuarterCircleBRExcludeCenter(itx, ity, (int)(mc1.Internals.ComputedStatistics.Radius * snd.WorldToLocalScalingFactor) * 5)) {
+                     res[id1] += steeringContribution[id2];
+                     res[id2] += steeringContribution[id1];
+                  }
+                  for (var it2 = it1.Next; it2 != null; it2 = it2.Next) {
+                     var id2 = it2.EntityIndex;
+                     res[id1] += steeringContribution[id2];
+                     res[id2] += steeringContribution[id1];
+                  }
+               }
+            }
+         }
+         for (var i = 0; i < res.Length; i++) {
+            res[i] = res[i] == default ? default : res[i].ToUnit();
+         }
+         return res;
+      }
+
       private bool NN(TriangulationIsland island, DoubleVector2 destination, out (int rootTriangleIndex, int[] predecessorByTriangleIndex) res) {
          if (!island.TryIntersect(destination.X, destination.Y, out var rootTriangleIndex)) {
             res = (Triangle3.NO_NEIGHBOR_INDEX, null);
@@ -399,7 +438,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          return true;
       }
 
-      private DoubleVector2[] AggregateForceContributions(Entity[] entities, DoubleVector2[] centroidSeekContinuous, (bool, DoubleVector2)[] centroidNonoptimalDiscreteAndCentroidDirectContribution, DoubleVector2[] cohesionSeparation) {
+      private DoubleVector2[] AggregateForceContributions(Entity[] entities, DoubleVector2[] centroidSeekContinuous, (bool, DoubleVector2)[] centroidNonoptimalDiscreteAndCentroidDirectContribution, DoubleVector2[] cohesionSeparation, DoubleVector2[] alignment) {
          Assert.Equals(centroidSeekContinuous.Length, centroidNonoptimalDiscreteAndCentroidDirectContribution.Length);
 
          var res = new DoubleVector2[centroidSeekContinuous.Length];
@@ -407,14 +446,23 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var csc = centroidSeekContinuous[i];
             var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
             var ccs = cohesionSeparation[i];
+            var ali = alignment[i];
+            Assert.IsTrue(GeometryOperations.IsReal(ali));
             var pushover = entities[i].MotionComponent.Internals.Steering.Status == FlockingStatus.EnabledIdle;
 
             var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_6 + csd * CDoubleMath.c0_4;
-            var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(new DoubleVector3(-50, -50, 0)).Norm2D();
-            var w = Math.Max(0.1, Math.Min(0.5, Math.Pow(d / 800, 1.5)));
-            var v = seek * w + ccs * 2;
+            var swarm = entities[i].MotionComponent.Internals.Swarm;
+            cDouble seekAlignWeight;
+            if (swarm == null) {
+               seekAlignWeight = 1.0;
+            } else {
+               var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(swarm.Destination).Norm2D();
+               seekAlignWeight = Math.Max(0.1, Math.Min(1, Math.Pow(d / 200, 1.5)));
+            }
+            // var v = seek * w + ccs * 2 + ali;
+            var wali = Math.Max(0, seek.Dot(ali));
+            var v = (seek * (1.0 - wali) + ali * wali) * seekAlignWeight + ccs;
 
-            // DoubleVector2 seek, v;
             // if (pushover) {
             //    seek = csd;
             //    var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(new DoubleVector3(-50, -50, 0)).Norm2D();

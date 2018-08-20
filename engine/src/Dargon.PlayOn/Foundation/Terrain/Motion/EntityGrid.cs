@@ -20,13 +20,15 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       private readonly int width;
       private readonly int height;
       private readonly Link[,] cells;
+      private readonly (int x, int y)[] occupancy;
 
-      internal EntityGrid(SectorNodeDescription sectorNodeDescription, int cellSize, int width, int height, Link[,] cells) {
+      internal EntityGrid(SectorNodeDescription sectorNodeDescription, int cellSize, int width, int height, Link[,] cells, (int x, int y)[] occupancy) {
          this.sectorNodeDescription = sectorNodeDescription;
          this.cellSize = cellSize;
          this.width = width;
          this.height = height;
          this.cells = cells;
+         this.occupancy = occupancy;
          this.Bounds = sectorNodeDescription.StaticMetadata.LocalBoundary;
       }
 
@@ -35,25 +37,27 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       public int Width => width;
       public int Height => height;
       public Link[,] Cells => cells;
+      public (int x, int y)[] Occupancy => occupancy;
       public Rectangle Bounds { get; }
 
-      public EnumeratorToEnumerableAdapter<Entity, Enumerator> View(int cx, int cy, (int, int, int)[] ranges) {
-         return EnumeratorToEnumerableAdapter<Entity>.Create(new Enumerator(this, cx, cy, ranges));
+      public EnumeratorToEnumerableAdapter<(int, Entity), Enumerator> View(int cx, int cy, (int, int, int)[] ranges) {
+         return EnumeratorToEnumerableAdapter<(int, Entity)>.Create(new Enumerator(this, cx, cy, ranges));
       }
 
       public class Link {
          public Entity Entity;
+         public int EntityIndex;
          public Link Next;
       }
 
-      public struct Enumerator : IEnumerator<Entity>, IEnumerator {
+      public struct Enumerator : IEnumerator<(int, Entity)>, IEnumerator {
          private readonly EntityGrid grid;
          private readonly int cx;
          private readonly int cy;
          private readonly (int offsetTop, int offsetLeft, int width)[] ranges;
          private int ity;
          private int itx;
-         private Entity current;
+         private (int, Entity) current;
          private Link link;
 
          public Enumerator(EntityGrid grid, int cx, int cy, (int offsetTop, int offsetLeft, int width)[] ranges) {
@@ -63,7 +67,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             this.ranges = ranges;
             this.ity = 0;
             this.itx = 0;
-            this.current = null;
+            this.current = (-1, null);
             this.link = null;
          }
 
@@ -73,7 +77,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             while (true) {
                // If we're on a link, traverse it.
                if (link != null) {
-                  current = link.Entity;
+                  current = (link.EntityIndex, link.Entity);
                   link = link.Next;
                   return true;
                }
@@ -119,11 +123,11 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          public void Reset() {
             ity = 0;
             itx = 0;
-            current = null;
+            current = (-1, null);
             link = null;
          }
 
-         public Entity Current {
+         public (int, Entity) Current {
             get {
                if (this.itx == 0 && this.ity == 0)
                   throw new IndexOutOfRangeException();
@@ -197,15 +201,15 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       public EntityGrid Grid => grid;
 
-      public EnumeratorToEnumerableAdapter<Entity, EntityGrid.Enumerator> InCircle(int cx, int cy, int agentRadius) {
+      public EnumeratorToEnumerableAdapter<(int, Entity), EntityGrid.Enumerator> InCircle(int cx, int cy, int agentRadius) {
          return grid.View(cx, cy, rangeCalculator.ComputeCircleRange(agentRadius, grid.CellSize));
       }
 
-      public EnumeratorToEnumerableAdapter<Entity, EntityGrid.Enumerator> InQuarterCircleBR(int cx, int cy, int agentRadius) {
+      public EnumeratorToEnumerableAdapter<(int, Entity), EntityGrid.Enumerator> InQuarterCircleBR(int cx, int cy, int agentRadius) {
          return grid.View(cx, cy, rangeCalculator.ComputeQuarterCircleBottomRightRange(agentRadius, grid.CellSize, true));
       }
 
-      public EnumeratorToEnumerableAdapter<Entity, EntityGrid.Enumerator> InQuarterCircleBRExcludeCenter(int cx, int cy, int agentRadius) {
+      public EnumeratorToEnumerableAdapter<(int, Entity), EntityGrid.Enumerator> InQuarterCircleBRExcludeCenter(int cx, int cy, int agentRadius) {
          return grid.View(cx, cy, rangeCalculator.ComputeQuarterCircleBottomRightRange(agentRadius, grid.CellSize, false));
       }
 
@@ -243,20 +247,24 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          var res = new Dictionary<SectorNodeDescription, EntityGrid>();
          foreach (var (snd, entities) in sndToEntities) {
             var bounds = snd.StaticMetadata.LocalBoundary;
-            var cellSize = Math.Min(Math.Min((int)Math.Ceiling(snd.WorldToLocalScalingFactor * 100), bounds.Width / 100), bounds.Height / 100);
+            var cellSize = (int)Math.Ceiling(snd.WorldToLocalScalingFactor * 10); //Math.Min(Math.Min((int)Math.Ceiling(snd.WorldToLocalScalingFactor * 100), bounds.Width / 100), bounds.Height / 100);
             var w = IntMath.DivRoundUp(bounds.Width, cellSize);
             var h = IntMath.DivRoundUp(bounds.Height, cellSize);
             var cells = new EntityGrid.Link[h, w];
-            foreach (var entity in entities) {
+            var occupancy = new SortedSet<(int x, int y)>();
+            for (var entityIndex = 0; entityIndex < entities.Count; entityIndex++) {
+               var entity = entities[entityIndex];
                var p = entity.MotionComponent.Internals.Localization.LocalPositionIv2;
                var x = (p.X - bounds.Left) / cellSize;
                var y = (p.Y - bounds.Top) / cellSize;
                cells[y, x] = new EntityGrid.Link {
                   Entity = entity,
+                  EntityIndex = entityIndex,
                   Next = cells[y, x]
                };
+               occupancy.Add((x, y));
             }
-            res[snd] = new EntityGrid(snd, cellSize, w, h, cells);
+            res[snd] = new EntityGrid(snd, cellSize, w, h, cells, occupancy.ToArray());
          }
          return res;
       }
