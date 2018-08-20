@@ -104,14 +104,14 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                         var mc2 = neighbor.MotionComponent;
                         if (TryContribution(mc1, mc2, out var contribution)) {
                            mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
-                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v;
+                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v * 0.9;
                         }
                      }
                      for (var it2 = it1.Next; it2 != null; it2 = it2.Next) {
                         var mc2 = it2.Entity.MotionComponent;
                         if (TryContribution(mc1, mc2, out var contribution)) {
                            mc1.Internals.Hack_CohesionSeparationVector += contribution.v;
-                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v;
+                           mc2.Internals.Hack_CohesionSeparationVector -= contribution.v * 0.9;
                         }
                      }
                   }
@@ -318,7 +318,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   Trace.Assert(action.Node == entityTerrainOverlayNode);
 
                   // HACK:
-                  if ((mc.Internals.Pose.WorldPosition - mc.Internals.Swarm.Destination).Norm2D() < 10) {
+                  if ((mc.Internals.Pose.WorldPosition - mc.Internals.Swarm.Destination).Norm2D() < 100) {
                      steering.Status = FlockingStatus.EnabledIdle;
                   }
 
@@ -336,7 +336,6 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          for (var i = 0; i < entities.Length; i++) {
             var mc = entities[i].MotionComponent;
             if (mc.Internals.Swarm == null) continue;
-            if (mc.Internals.Steering.Status == FlockingStatus.EnabledIdle) continue;
 
             var key = (mc.Internals.Localization.TriangulationIsland, mc.Internals.Swarm.Destination);
             if (!islandAndGoalToRootTriangleIndex.TryGetValue(key, out var t)) {
@@ -410,10 +409,10 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var ccs = cohesionSeparation[i];
             var pushover = entities[i].MotionComponent.Internals.Steering.Status == FlockingStatus.EnabledIdle;
 
-            var seek = isOnGoalTriangle || pushover ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
+            var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_6 + csd * CDoubleMath.c0_4;
             var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(new DoubleVector3(-50, -50, 0)).Norm2D();
-            var w = Math.Max(1, Math.Min(1.4, Math.Pow(d / 200, 1.5)));
-            var v = seek * w + ccs;
+            var w = Math.Max(0.1, Math.Min(0.5, Math.Pow(d / 800, 1.5)));
+            var v = seek * w + ccs * 2;
 
             // DoubleVector2 seek, v;
             // if (pushover) {
