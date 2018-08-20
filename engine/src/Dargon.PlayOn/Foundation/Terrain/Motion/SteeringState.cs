@@ -8,6 +8,6 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       Disabled = 0,
       EnabledIdle,
       EnabledExecutingRoadmap,
-      EnabledInvalidatedRoadmap
+      EnabledInvalidatedRoadmap,
    }
 }

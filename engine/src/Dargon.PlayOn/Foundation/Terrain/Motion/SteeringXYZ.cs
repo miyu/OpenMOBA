@@ -45,7 +45,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          var centroidNonoptimalDiscreteAndCentroidDirectContribution = CalculateTriangleCentroidNonoptimalDiscreteSpanningDijkstrasAndCentroidDirectPathSteeringContribution(entities);
          var cohesionSeparationContributions = CalculateCohesionSeparationContributions(entities, gridViews);
 
-         var aggregate = AggregateForceContributions(centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution, cohesionSeparationContributions);
+         var aggregate = AggregateForceContributions(entities, centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution, cohesionSeparationContributions);
          ApplyForceContributions(entities, aggregate, dt);
 
          foreach (var entity in entities) {
@@ -310,9 +310,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                var (j, entity, entityTerrainOverlayNode, island, triangleIndex) = idEntityNodeAndTriangleIndexes[i];
                var mc = entity.MotionComponent;
                ref var steering = ref mc.Internals.Steering;
-
-               if (steering.Status == FlockingStatus.EnabledIdle) continue;
-
+               
                var centroidIndex = centroidIndicesByEntityIndex[i];
                if (pathfinderResultContext.TryComputeRoadmap(centroidIndex, out var roadmap)) {
                   // path-following behavior. Recall from destination to source, so roadmap must be followed backward.
@@ -320,7 +318,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   Trace.Assert(action.Node == entityTerrainOverlayNode);
 
                   // HACK:
-                  if ((mc.Internals.Pose.WorldPosition - mc.Internals.Swarm.Destination).Norm2D() < CDoubleMath.c5) {
+                  if ((mc.Internals.Pose.WorldPosition - mc.Internals.Swarm.Destination).Norm2D() < 10) {
                      steering.Status = FlockingStatus.EnabledIdle;
                   }
 
@@ -352,13 +350,13 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
             if (t.predecessorByTriangleIndex != null) {
                var nti = t.predecessorByTriangleIndex[mc.Internals.Localization.TriangleIndex];
-               if (nti != Triangle3.NO_NEIGHBOR_INDEX) {
+               if (nti != Triangle3.NO_NEIGHBOR_INDEX && nti != t.rootTriangleIndex) {
                   DoubleVector2 next = mc.Internals.Localization.TriangulationIsland.Triangles[nti].Centroid;
 
                   var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.Internals.Localization.TriangulationIsland.Triangles[mc.Internals.Localization.TriangleIndex].Centroid).ToUnit();
                   res[i] = (false, triangleCentroidDijkstrasOptimalSeekUnit);
                } else {
-                  // we're on the destination triangle.
+                  // we're on the destination triangle or going straight to it.
                   res[i] = (true, mc.Internals.Localization.LocalPosition.To(t.loc.XY).ToUnit());
                }
             }
@@ -402,7 +400,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          return true;
       }
 
-      private DoubleVector2[] AggregateForceContributions(DoubleVector2[] centroidSeekContinuous, (bool, DoubleVector2)[] centroidNonoptimalDiscreteAndCentroidDirectContribution, DoubleVector2[] cohesionSeparation) {
+      private DoubleVector2[] AggregateForceContributions(Entity[] entities, DoubleVector2[] centroidSeekContinuous, (bool, DoubleVector2)[] centroidNonoptimalDiscreteAndCentroidDirectContribution, DoubleVector2[] cohesionSeparation) {
          Assert.Equals(centroidSeekContinuous.Length, centroidNonoptimalDiscreteAndCentroidDirectContribution.Length);
 
          var res = new DoubleVector2[centroidSeekContinuous.Length];
@@ -410,8 +408,28 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var csc = centroidSeekContinuous[i];
             var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
             var ccs = cohesionSeparation[i];
-            var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
-            var v = seek * 1.4 + ccs;
+            var pushover = entities[i].MotionComponent.Internals.Steering.Status == FlockingStatus.EnabledIdle;
+
+            var seek = isOnGoalTriangle || pushover ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
+            var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(new DoubleVector3(-50, -50, 0)).Norm2D();
+            var w = Math.Max(1, Math.Min(1.4, Math.Pow(d / 200, 1.5)));
+            var v = seek * w + ccs;
+
+            // DoubleVector2 seek, v;
+            // if (pushover) {
+            //    seek = csd;
+            //    var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(new DoubleVector3(-50, -50, 0)).Norm2D();
+            //    var w = Math.Min(1.4, Math.Pow(d / 200, 1.5));
+            //    v = seek * w + ccs;
+            //    // var comp = ccs.ProjectOntoComponentD(csc);
+            //    // if (comp < 0) {
+            //    //    v += ccs;
+            //    // }
+            // } else {
+            //    seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
+            //    v = seek * 1.1 + ccs;
+            // }
+
             res[i] = v == default ? default : v.ToUnit();
          }
          return res;

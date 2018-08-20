@@ -57,6 +57,7 @@ namespace TestGameTheGame {
       private static Entity baddie;
       private static List<Entity> rocks = new List<Entity>();
       private static List<Entity> minions = new List<Entity>();
+      private static Swarm minionSwarm = new Swarm();
 
       private static List<IntVector2> fred = new List<IntVector2>();
 
@@ -92,8 +93,7 @@ namespace TestGameTheGame {
          //    game.EntityWorld.AddEntityComponent(rock, MotionComponent.Create(worldPosition));
          // }
 
-         var swarm = new Swarm();
-         swarm.SetDestination(new DoubleVector3(-50, -50, 0));
+         minionSwarm.SetDestination(new DoubleVector3(-50, -50, 0));
          for (var i = 0; i < 30; i++) {
             for (var j = 0; j < 30; j++) {
                var minion = game.EntityWorld.CreateEntity();
@@ -105,7 +105,7 @@ namespace TestGameTheGame {
                         Radius = 5,
                         Speed = 100
                      },
-                     swarm));
+                     minionSwarm));
                minions.Add(minion);
             }
          }
@@ -171,7 +171,11 @@ namespace TestGameTheGame {
 
                // recompute intersectionWorld because floating point error in raycast logic
                var intersectionWorld = node.SectorNodeDescription.LocalToWorld(intersectionLocal.XY);
-               game.MotionFacade.SetPathfindingDestination(player, intersectionWorld);
+               // game.MotionFacade.SetPathfindingDestination(player, intersectionWorld);
+               minionSwarm.Destination = intersectionWorld;
+               foreach (var minion in minions) {
+                  minion.MotionComponent.Internals.Steering.Status = FlockingStatus.EnabledInvalidatedRoadmap;
+               }
             }
          }
 
