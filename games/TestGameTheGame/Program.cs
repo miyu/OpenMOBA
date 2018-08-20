@@ -159,7 +159,7 @@ namespace TestGameTheGame {
          var terrainOverlayNetwork = game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
 
          // rmb moves
-         if (input.IsMouseDown(MouseButtons.Right)) {
+         if (input.IsMouseDown(MouseButtons.Right) || input.IsMouseDown(MouseButtons.Left)) {
             foreach (var node in terrainOverlayNetwork.TerrainNodes) {
                var origin = node.SectorNodeDescription.LocalToWorld(DoubleVector2.Zero);
                var normal = node.SectorNodeDescription.LocalToWorldNormal(DoubleVector3.UnitZ);

@@ -450,7 +450,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             Assert.IsTrue(GeometryOperations.IsReal(ali));
             var pushover = entities[i].MotionComponent.Internals.Steering.Status == FlockingStatus.EnabledIdle;
 
-            var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_6 + csd * CDoubleMath.c0_4;
+            var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_8 + csd * CDoubleMath.c0_2;
             var swarm = entities[i].MotionComponent.Internals.Swarm;
             cDouble seekAlignWeight;
             if (swarm == null) {
