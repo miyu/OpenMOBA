@@ -181,6 +181,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   ? new IntVector2(2, 1)
                   : -1 * aToB;
             } else if (amci.Swarm == bmci.Swarm && amci.Swarm != null) {
+               contribution = default;
+               return false;
+
                // Case: Nonoverlapping, in same swarm. Push swarmlings near but nonoverlapping
                // TODO: Alignment force.
                const int groupingTolerance = 8;
