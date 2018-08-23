@@ -43,6 +43,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       public MotionStatistics ComputedStatistics;
       public bool IsLocalizationInvalidated;
       public Localization Localization;
+      public Localization DebugLastLocalization;
+      public Localization DebugLastLastLocalization;
       public Swarm Swarm;
       public int SwarmIndex;
       public SteeringState Steering;

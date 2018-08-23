@@ -45,7 +45,7 @@ namespace TestGameTheGame {
       private static readonly MaterialDescription SomewhatRough = new MaterialDescription { Properties = { Metallic = 0, Roughness = 0.04f } };
 
       private static SDXVector3 cameraTarget = new SDXVector3(0, 0, 0);
-      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 1400 * kMapScale; //new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static SDXVector3 cameraOffset = new SDXVector3(0, -0.1f, 1) * 1200 * kMapScale; //new Vector3(3, 2.5f, 5) - cameraTarget;
       private static SDXVector3 cameraUp = new SDXVector3(0, 1, 0);
 
       private static GraphicsLoop graphicsLoop;
@@ -94,8 +94,8 @@ namespace TestGameTheGame {
          // }
 
          minionSwarm.SetDestination(new DoubleVector3(-50, -50, 0));
-         for (var i = 0; i < 30; i++) {
-            for (var j = 0; j < 30; j++) {
+         for (var i = 0; i < 20; i++) {
+            for (var j = 0; j < 20; j++) {
                var minion = game.EntityWorld.CreateEntity();
                game.EntityWorld.AddEntityComponent(
                   minion,
@@ -366,7 +366,7 @@ namespace TestGameTheGame {
          foreach (var minion in minions) {
             scene.AddRenderable(
                graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(minion.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)minion.MotionComponent.BaseStatistics.Radius * 2),
+               MatrixCM.Translation(minion.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)minion.MotionComponent.BaseStatistics.Radius),
                SomewhatRough,
                SDXColor.Magenta);
 

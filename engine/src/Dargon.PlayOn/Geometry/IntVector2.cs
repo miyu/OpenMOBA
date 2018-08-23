@@ -55,6 +55,12 @@ namespace Dargon.PlayOn.Geometry {
 
       public DoubleVector2 ToUnit() => this / Norm2D();
 
+      // Up vector goes left.
+      public DoubleVector2 PerpLeft() => new DoubleVector2(-this.Y, this.X);
+
+      // Up vector goes right.
+      public DoubleVector2 PerpRight() => new DoubleVector2(this.Y, -this.X);
+
       [DebuggerStepThrough] [Pure] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)CDoubleMath.Floor(X), (cInt)CDoubleMath.Floor(Y));
 
       public override int GetHashCode() {
@@ -94,7 +100,7 @@ namespace Dargon.PlayOn.Geometry {
          y = Y;
       }
 
-      public override string ToString() => $"[{X}, {Y}]";
+      public override string ToString() => $"[{X:F5}, {Y:F5}]";
    }
 
    [StructLayout(LayoutKind.Sequential, Pack = 1)]

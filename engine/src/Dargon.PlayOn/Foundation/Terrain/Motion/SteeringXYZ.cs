@@ -19,6 +19,7 @@ using cDouble = System.Double;
 
 namespace Dargon.PlayOn.Foundation.Terrain.Motion {
    public class FlockingSimulator {
+      private const int kDebugEntityId = 274;
       private readonly EntityGridFacade entityGridFacade;
       private readonly StatisticsCalculator statisticsCalculator; // TODO: Feels out of place in this class.
       private readonly PathfinderCalculator pathfinderCalculator;
@@ -253,6 +254,17 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var e = entities[i];
             var mc = e.MotionComponent;
             // mc.Localization = LocalizeEntityAndFixOutOfTriangulationBounds(e);
+            var a = mc.Internals.DebugLastLastLocalization.LocalPositionIv2;
+            var b = mc.Internals.DebugLastLocalization.LocalPositionIv2;
+            var c = mc.Internals.Localization.LocalPositionIv2;
+            if (i == kDebugEntityId) Console.WriteLine(a + " => " + b + " => " + c);
+            if (a == c && i != 0 && i == kDebugEntityId) {
+               Console.WriteLine("NOT MOVING: " + i);
+            } else {
+               // Console.WriteLine($"{i}: {a} => {c} ({a.To(c).Norm2F()})");
+            }
+            mc.Internals.DebugLastLastLocalization = mc.Internals.DebugLastLocalization;
+            mc.Internals.DebugLastLocalization = mc.Internals.Localization;
 
             if (mc.Internals.Swarm == null) continue;
 
@@ -341,26 +353,44 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var mc = entities[i].MotionComponent;
             if (mc.Internals.Swarm == null) continue;
 
-            var key = (mc.Internals.Localization.TriangulationIsland, mc.Internals.Swarm.Destination);
+            ref var loc = ref mc.Internals.Localization;
+            var key = (loc.TriangulationIsland, mc.Internals.Swarm.Destination);
             if (!islandAndGoalToRootTriangleIndex.TryGetValue(key, out var t)) {
-               if (mc.Internals.Localization.TerrainOverlayNetworkNode.Contains(mc.Internals.Swarm.Destination, out var local)) {
+               if (loc.TerrainOverlayNetworkNode.Contains(mc.Internals.Swarm.Destination, out var local)) {
                   // Contains can work but NN fail due to point-in-triangle robustness issues. TODO: Is this comment stale?
-                  NN(mc.Internals.Localization.TriangulationIsland, local.XY, out var tt);
+                  NN(loc.TriangulationIsland, local.XY, out var tt);
                   islandAndGoalToRootTriangleIndex[key] = t = (tt.rootTriangleIndex, tt.predecessorByTriangleIndex, local);
                }
                // TODO: Should still cache something if fail - how do we handle case where pos/dest on different islands?
             }
 
             if (t.predecessorByTriangleIndex != null) {
-               var nti = t.predecessorByTriangleIndex[mc.Internals.Localization.TriangleIndex];
+               var nti = t.predecessorByTriangleIndex[loc.TriangleIndex];
                if (nti != Triangle3.NO_NEIGHBOR_INDEX && nti != t.rootTriangleIndex) {
-                  DoubleVector2 next = mc.Internals.Localization.TriangulationIsland.Triangles[nti].Centroid;
+                  ref var next = ref loc.TriangulationIsland.Triangles[nti];
+                  ref var cur = ref loc.TriangulationIsland.Triangles[loc.TriangleIndex];
+                  var triangleCentroidDijkstrasOptimalSeekUnit = (next.Centroid - cur.Centroid).ToUnit();
 
-                  var triangleCentroidDijkstrasOptimalSeekUnit = (next - mc.Internals.Localization.TriangulationIsland.Triangles[mc.Internals.Localization.TriangleIndex].Centroid).ToUnit();
-                  res[i] = (false, triangleCentroidDijkstrasOptimalSeekUnit);
+                  // If near walls, avoid them.
+                  var seek = triangleCentroidDijkstrasOptimalSeekUnit;
+                  var ntiNeighborIndex = 0;
+                  while (cur.NeighborOppositePointIndices[ntiNeighborIndex] != nti) ntiNeighborIndex++;
+                  
+                  // Points are in CCW order. 
+                  var ia = (ntiNeighborIndex + 1) % 3;
+                  var ib = (ntiNeighborIndex + 2) % 3;
+
+                  var na = cur.NeighborOppositePointIndices[ia];
+                  var nb = cur.NeighborOppositePointIndices[ib];
+
+                  //seek = default;
+                  if (na == Triangle3.NO_NEIGHBOR_INDEX) seek += 0.2 * cur.Points[ib].To(cur.Points[ntiNeighborIndex]).PerpLeft().ToUnit();
+                  if (nb == Triangle3.NO_NEIGHBOR_INDEX) seek += 0.2 * cur.Points[ntiNeighborIndex].To(cur.Points[ia]).PerpLeft().ToUnit();
+
+                  res[i] = (false, seek);
                } else {
                   // we're on the destination triangle or going straight to it.
-                  res[i] = (true, mc.Internals.Localization.LocalPosition.To(t.loc.XY).ToUnit());
+                  res[i] = (true, loc.LocalPosition.To(t.loc.XY).ToUnit());
                }
             }
          }
@@ -380,6 +410,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       private DoubleVector2[] CalculateAlignmentContributions(Entity[] entities, Dictionary<SectorNodeDescription, EntityGridView> gridViews, DoubleVector2[] steeringContribution) {
          var res = new DoubleVector2[entities.Length];
+         var count = new int[entities.Length];
          foreach (var (snd, view) in gridViews) {
             var grid = view.Grid;
             foreach (var (itx, ity) in grid.Occupancy) {
@@ -390,17 +421,21 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   foreach (var (id2, neighbor) in view.InQuarterCircleBRExcludeCenter(itx, ity, (int)(mc1.Internals.ComputedStatistics.Radius * snd.WorldToLocalScalingFactor) * 5)) {
                      res[id1] += steeringContribution[id2];
                      res[id2] += steeringContribution[id1];
+                     count[id1]++;
+                     count[id2]++;
                   }
                   for (var it2 = it1.Next; it2 != null; it2 = it2.Next) {
                      var id2 = it2.EntityIndex;
                      res[id1] += steeringContribution[id2];
                      res[id2] += steeringContribution[id1];
+                     count[id1]++;
+                     count[id2]++;
                   }
                }
             }
          }
          for (var i = 0; i < res.Length; i++) {
-            res[i] = res[i] == default ? default : res[i].ToUnit();
+            res[i] = res[i] == default || count[i] == 0 ? default : res[i] / count[i];
          }
          return res;
       }
@@ -450,37 +485,34 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var (isOnGoalTriangle, csd) = centroidNonoptimalDiscreteAndCentroidDirectContribution[i];
             var ccs = cohesionSeparation[i];
             var ali = alignment[i];
+            var coherence = ali.Norm2D();
             Assert.IsTrue(GeometryOperations.IsReal(ali));
-            var pushover = entities[i].MotionComponent.Internals.Steering.Status == FlockingStatus.EnabledIdle;
 
             var seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_8 + csd * CDoubleMath.c0_2;
             var swarm = entities[i].MotionComponent.Internals.Swarm;
-            cDouble seekAlignWeight;
+            cDouble seekAlignWeight, wccs;
             if (swarm == null) {
                seekAlignWeight = 1.0;
+               wccs = 1.0;
             } else {
-               var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(swarm.Destination).Norm2D();
-               seekAlignWeight = Math.Max(0.1, Math.Min(1, Math.Pow(d / 200, 1.5)));
+               seekAlignWeight = 1.0;
+               wccs = 1.3;
+
+               // // encourage pushing based on alignment
+               // var vToCenter = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(swarm.Destination);
+               // var d = vToCenter.Norm2D();
+               // var inner = Math.Max(0, Math.Min(1, 1 - d / 400)); // 1 at center, 0 at edge.
+               // // var outward = Math.Pow(Math.Max(0, ccs.Dot(ali) * 2 - 1), 4);
+               // wccs += inner * 5;
             }
             // var v = seek * w + ccs * 2 + ali;
-            var wali = Math.Max(0, seek.Dot(ali));
-            var v = (seek * (1.0 - wali) + ali * wali) * seekAlignWeight + ccs;
+            var wali = Math.Min(1, Math.Max(0, seek.Dot(ali)));
+            wali = wali * wali;
 
-            // if (pushover) {
-            //    seek = csd;
-            //    var d = entities[i].MotionComponent.Internals.Pose.WorldPosition.To(new DoubleVector3(-50, -50, 0)).Norm2D();
-            //    var w = Math.Min(1.4, Math.Pow(d / 200, 1.5));
-            //    v = seek * w + ccs;
-            //    // var comp = ccs.ProjectOntoComponentD(csc);
-            //    // if (comp < 0) {
-            //    //    v += ccs;
-            //    // }
-            // } else {
-            //    seek = isOnGoalTriangle ? csd : csc * CDoubleMath.c0_9 + csd * CDoubleMath.c0_1;
-            //    v = seek * 1.1 + ccs;
-            // }
-
+            var v = (seek * (1.0 - wali) + ali * wali) * seekAlignWeight + ccs * wccs;
             res[i] = v == default ? default : v.ToUnit();
+
+            if (i == kDebugEntityId) Console.WriteLine($"{kDebugEntityId}: csc {csc} igt {isOnGoalTriangle} csd {csd} ccs {ccs} ali {ali} coh {coherence} seek {seek} wali {wali} v {v}");
          }
          return res;
       }
