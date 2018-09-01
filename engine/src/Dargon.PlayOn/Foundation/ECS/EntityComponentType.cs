@@ -5,6 +5,7 @@
    /// </summary>
    public enum EntityComponentType {
       Movement,
+      Building,
       Ai,
       Status,
 

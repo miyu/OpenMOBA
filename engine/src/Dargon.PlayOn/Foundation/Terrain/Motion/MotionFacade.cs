@@ -28,6 +28,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       public void HandleHoleAdded(DynamicTerrainHoleDescription holeDescription) => throw new NotImplementedException();
 
+      public void ImmobilizeAsBuilding(Entity e) { }
+
       public void InvalidatePaths() => throw new NotImplementedException();
    }
 }

@@ -19,6 +19,7 @@ using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Geometry;
 using SharpDX;
+using Color = System.Drawing.Color;
 using SDPoint = System.Drawing.Point;
 using SDRectangle = System.Drawing.Rectangle;
 using SDXColor = SharpDX.Color;
@@ -58,7 +59,7 @@ namespace TestGameTheGame {
       private static List<Entity> rocks = new List<Entity>();
       private static List<Entity> minions = new List<Entity>();
       private static Swarm minionSwarm = new Swarm();
-      private static List<Entity> nexuses = new List<Entity>();
+      private static List<Entity> structures = new List<Entity>();
       private static List<Entity> mines = new List<Entity>();
       private static List<Entity> collectors = new List<Entity>();
 
@@ -102,7 +103,7 @@ namespace TestGameTheGame {
                var minion = game.EntityWorld.CreateEntity();
                game.EntityWorld.AddEntityComponent(
                   minion,
-                  MotionComponent.Create(
+                  MotionComponent.CreateWithSwarm(
                      new DoubleVector3(-425 + i * 10, -425 + j * 10, 0),
                      new MotionStatistics {
                         Radius = 5,
@@ -113,8 +114,9 @@ namespace TestGameTheGame {
             }
          }
 
-         var nexus = game.EntityWorld.CreateEntity(MotionComponent.Create(new DoubleVector3(-50, -300, 0), new MotionStatistics { Radius = 100 }));
-         nexuses.Add(nexus);
+         var nexusHoleStaticMetadata = new SphereHoleStaticMetadata { Radius = 50 };
+         var nexus = game.EntityWorld.CreateEntity(MotionComponent.CreateImmobileBuilding(new DoubleVector3(-50, -300, 0), nexusHoleStaticMetadata));
+         structures.Add(nexus);
 
          var mine1 = game.EntityWorld.CreateEntity(MotionComponent.Create(new DoubleVector3(-300, 0, 0), new MotionStatistics { Radius = 50 }));
          mines.Add(mine1);
@@ -403,21 +405,21 @@ namespace TestGameTheGame {
 #endif
          }
 
-         foreach (var nexus in nexuses) {
-            scene.AddRenderable(
-               graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(nexus.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)nexus.MotionComponent.BaseStatistics.Radius * 2),
-               SomewhatRough,
-               SDXColor.Yellow);
+         foreach (var structure in structures) {
+            ref var mci = ref structure.MotionComponent.Internals;
+            debugCanvas.Transform = mci.Structure.HoleDescription.WorldTransform;
+            if (mci.Structure.HoleDescription.StaticMetadata is SphereHoleStaticMetadata sphere) {
+               debugCanvas.DrawPoint(default, new StrokeStyle(Color.Yellow, sphere.Radius * 2));
+            }
          }
 
-         foreach (var mine in mines) {
-            scene.AddRenderable(
-               graphicsLoop.Presets.UnitSphere,
-               MatrixCM.Translation(mine.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)mine.MotionComponent.BaseStatistics.Radius * 2),
-               SomewhatRough,
-               SDXColor.Cyan);
-         }
+         // foreach (var mine in mines) {
+         //    scene.AddRenderable(
+         //       graphicsLoop.Presets.UnitSphere,
+         //       MatrixCM.Translation(mine.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)mine.MotionComponent.BaseStatistics.Radius * 2),
+         //       SomewhatRough,
+         //       SDXColor.Cyan);
+         // }
 
          debugCanvas.DrawEntityPaths(game.EntityWorld);
 

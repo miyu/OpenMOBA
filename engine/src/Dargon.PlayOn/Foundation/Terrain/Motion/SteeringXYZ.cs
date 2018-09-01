@@ -46,12 +46,13 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          var steeringContribution = CalculateMergedSeekContributions(centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution);
          var cohesionSeparationContributions = CalculateCohesionSeparationContributions(entities, gridViews);
          var alignmentContributions = CalculateAlignmentContributions(entities, gridViews, steeringContribution);
-
          var aggregate = AggregateForceContributions(entities, centroidOptimalContinuousContribution, centroidNonoptimalDiscreteAndCentroidDirectContribution, cohesionSeparationContributions, alignmentContributions);
          ApplyForceContributions(entities, aggregate, dt);
 
          foreach (var entity in entities) {
             ref var mci = ref entity.MotionComponent.Internals;
+
+            if (mci.Structure.IsEnabled) continue;
 
             if (mci.Steering.Status == FlockingStatus.EnabledInvalidatedRoadmap) {
                var prc = pathfinderCalculator.UniformCostSearch(
@@ -231,13 +232,21 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             var mc = entity.MotionComponent;
             var statistics = mc.Internals.ComputedStatistics = statisticsCalculator.CalculateMotionStatistics(entity);
             // HACK: Always relocalize until we support updating localization.
-            if (true || mc.Internals.IsLocalizationInvalidated) {
+            var localizationKnown = false && !mc.Internals.IsLocalizationInvalidated;
+            if (!localizationKnown) {
                mc.Internals.IsLocalizationInvalidated = false;
                var terrainOverlayNetwork = terrainFacade.CompileSnapshotAndTerrainOverlayNetwork((cDouble)statistics.Radius);
                var res = terrainOverlayNetwork.FindNearestLandPointLocalization(mc.Internals.Pose.WorldPosition, statistics.Radius);
                // Console.WriteLine("Relocalize " + mc.Internals.Pose.WorldPosition + " => " + res.world);
-               mc.Internals.Pose.WorldPosition = res.world;
-               mc.Internals.Localization = res.localization;
+               if (mc.Internals.Structure.IsEnabled) {
+                  mc.Internals.Localization = res.localization;
+                  mc.Internals.Localization.LocalPosition = res.localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocal(mc.Internals.Pose.WorldPosition).XY;
+                  mc.Internals.Localization.LocalPositionIv2 = mc.Internals.Localization.LocalPosition.LossyToIntVector2();
+                  mc.Internals.Localization.TriangleIndex = -1;
+               } else {
+                  mc.Internals.Pose.WorldPosition = res.world;
+                  mc.Internals.Localization = res.localization;
+               }
             }
          }
       }
@@ -255,6 +264,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             // mc.Localization = LocalizeEntityAndFixOutOfTriangulationBounds(e);
 
             if (mc.Internals.Swarm == null) continue;
+            if (mc.Internals.Structure.IsEnabled) continue;
 
             nodeIslandAndTriangleIndexesBySwarmAndComputedRadius.Add(
                (mc.Internals.Swarm, mc.Internals.ComputedStatistics.Radius),
@@ -490,6 +500,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          for (var i = 0; i < entities.Length; i++) {
             var e = entities[i];
             var mc = e.MotionComponent;
+
+            if (mc.Internals.Structure.IsEnabled) continue;
+
             var v = contributions[i];
             var pNext = triangulationWalker.WalkTriangulation(
                mc.Internals.Localization.TriangulationIsland,
