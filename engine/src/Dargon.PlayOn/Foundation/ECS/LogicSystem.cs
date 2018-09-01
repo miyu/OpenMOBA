@@ -58,11 +58,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public abstract class AiComponent : EntityComponent {
-      protected AiComponent(Entity entity) : base(EntityComponentType.Ai) {
-         Entity = entity;
-      }
-
-      public Entity Entity { get; }
+      protected AiComponent() : base(EntityComponentType.Ai) { }
 
       public abstract AiIntent ComputeIntent();
 
@@ -77,7 +73,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public class TrivialSeekAiComponent : AiComponent {
-      public TrivialSeekAiComponent(Entity entity) : base(entity) { }
+      public TrivialSeekAiComponent() { }
 
       public override AiIntent ComputeIntent() {
          var target = (Entity)null;
@@ -90,7 +86,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public class CollectorAiComponent : AiComponent {
-      public CollectorAiComponent(Entity entity, Entity mine, Entity nexus) : base(entity) {
+      public CollectorAiComponent(Entity mine, Entity nexus) {
          Mine = mine;
          Nexus = nexus;
       }
@@ -110,7 +106,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public class MinionAiComponent : AiComponent {
-      public MinionAiComponent(Entity entity, Entity enemyNexus, dynamic enemyTeam) : base(entity) {
+      public MinionAiComponent(Entity enemyNexus, dynamic enemyTeam) {
          EnemyNexus = enemyNexus;
          EnemyTeam = enemyTeam;
       }

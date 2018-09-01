@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Dargon.PlayOn.Foundation.Terrain.Motion;
+using Dargon.PlayOn.Geometry;
 
 namespace Dargon.PlayOn.Foundation.ECS {
    public class EntityWorld {
@@ -54,6 +56,29 @@ namespace Dargon.PlayOn.Foundation.ECS {
          foreach (var (priority, stepHandler) in orderedStepHandlers) {
             stepHandler.Invoke();
          }
+      }
+   }
+
+   public static class EntityWorldExtensions {
+      public static Entity CreateEntity(this EntityWorld world, EntityComponent c0) {
+         var entity = world.CreateEntity();
+         world.AddEntityComponent(entity, c0);
+         return entity;
+      }
+
+      public static Entity CreateEntity(this EntityWorld world, EntityComponent c0, EntityComponent c1) {
+         var entity = world.CreateEntity();
+         world.AddEntityComponent(entity, c0);
+         world.AddEntityComponent(entity, c1);
+         return entity;
+      }
+
+      public static Entity CreateEntity(this EntityWorld world, params EntityComponent[] components) {
+         var entity = world.CreateEntity();
+         foreach (var component in components) {
+            world.AddEntityComponent(entity, component);
+         }
+         return entity;
       }
    }
 }

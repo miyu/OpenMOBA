@@ -4,8 +4,7 @@ using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 
 namespace Dargon.PlayOn.Foundation.Terrain.Motion {
-   public class 
-      MotionComponent : EntityComponent {
+   public class MotionComponent : EntityComponent {
       public MotionComponent() : base(EntityComponentType.Movement) {
          Internals = MotionComponentInternals.Create();
       }

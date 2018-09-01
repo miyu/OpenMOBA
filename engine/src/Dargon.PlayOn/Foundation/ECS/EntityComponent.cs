@@ -4,6 +4,7 @@
          Type = type;
       }
 
+      public Entity Entity { get; } // populated by world AddComponent
       public EntityComponentType Type { get; }
    }
 }

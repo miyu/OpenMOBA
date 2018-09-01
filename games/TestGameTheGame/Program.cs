@@ -58,6 +58,9 @@ namespace TestGameTheGame {
       private static List<Entity> rocks = new List<Entity>();
       private static List<Entity> minions = new List<Entity>();
       private static Swarm minionSwarm = new Swarm();
+      private static List<Entity> nexuses = new List<Entity>();
+      private static List<Entity> mines = new List<Entity>();
+      private static List<Entity> collectors = new List<Entity>();
 
       private static List<IntVector2> fred = new List<IntVector2>();
 
@@ -94,8 +97,8 @@ namespace TestGameTheGame {
          // }
 
          minionSwarm.SetDestination(new DoubleVector3(-50, -50, 0));
-         for (var i = 0; i < 30; i++) {
-            for (var j = 0; j < 30; j++) {
+         for (var i = 0; i < 0; i++) {
+            for (var j = 0; j < 0; j++) {
                var minion = game.EntityWorld.CreateEntity();
                game.EntityWorld.AddEntityComponent(
                   minion,
@@ -109,6 +112,16 @@ namespace TestGameTheGame {
                minions.Add(minion);
             }
          }
+
+         var nexus = game.EntityWorld.CreateEntity(MotionComponent.Create(new DoubleVector3(-50, -300, 0), new MotionStatistics { Radius = 100 }));
+         nexuses.Add(nexus);
+
+         var mine1 = game.EntityWorld.CreateEntity(MotionComponent.Create(new DoubleVector3(-300, 0, 0), new MotionStatistics { Radius = 50 }));
+         mines.Add(mine1);
+
+         var collector = game.EntityWorld.CreateEntity(
+            MotionComponent.Create(default, new MotionStatistics { Radius = 25, Speed = 300 }));
+         collectors.Add(collector);
 
          var scene = new Scene();
 
@@ -375,6 +388,35 @@ namespace TestGameTheGame {
             debugCanvas.DrawPoint(minion.MotionComponent.Internals.Pose.WorldPosition, new StrokeStyle(System.Drawing.Color.Black, 2 * (float)minion.MotionComponent.BaseStatistics.Radius));
             debugCanvas.DrawPoint(minion.MotionComponent.Internals.Pose.WorldPosition, new StrokeStyle(System.Drawing.Color.White, 2 * (float)minion.MotionComponent.BaseStatistics.Radius - 2));
 #endif
+         }
+
+         foreach (var collector in collectors) {
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(collector.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)collector.MotionComponent.BaseStatistics.Radius * 2),
+               SomewhatRough,
+               SDXColor.Blue);
+
+#if ENABLE_SOFTWARE_RENDER
+            debugCanvas.Transform = Matrix4x4.Identity;
+            debugCanvas.DrawPoint(minion.MotionComponent.Internals.Pose.WorldPosition, new StrokeStyle(System.Drawing.Color.Blue, 2 * (float)minion.MotionComponent.BaseStatistics.Radius));
+#endif
+         }
+
+         foreach (var nexus in nexuses) {
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(nexus.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)nexus.MotionComponent.BaseStatistics.Radius * 2),
+               SomewhatRough,
+               SDXColor.Yellow);
+         }
+
+         foreach (var mine in mines) {
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitSphere,
+               MatrixCM.Translation(mine.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)mine.MotionComponent.BaseStatistics.Radius * 2),
+               SomewhatRough,
+               SDXColor.Cyan);
          }
 
          debugCanvas.DrawEntityPaths(game.EntityWorld);
