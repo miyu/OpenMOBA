@@ -118,7 +118,9 @@ namespace TestGameTheGame {
          var nexus = game.EntityWorld.CreateEntity(MotionComponent.CreateImmobileBuilding(new DoubleVector3(-50, -300, 0), nexusHoleStaticMetadata));
          structures.Add(nexus);
 
-         var mine1 = game.EntityWorld.CreateEntity(MotionComponent.Create(new DoubleVector3(-300, 0, 0), new MotionStatistics { Radius = 50 }));
+         var mineHoleStaticMetadata = new SphereHoleStaticMetadata { Radius = 25 };
+         var mine1 = game.EntityWorld.CreateEntity(MotionComponent.CreateImmobileBuilding(new DoubleVector3(-300, 0, 0), mineHoleStaticMetadata));
+         structures.Add(mine1);
          mines.Add(mine1);
 
          var collector = game.EntityWorld.CreateEntity(
@@ -412,14 +414,6 @@ namespace TestGameTheGame {
                debugCanvas.DrawPoint(default, new StrokeStyle(Color.Yellow, sphere.Radius * 2));
             }
          }
-
-         // foreach (var mine in mines) {
-         //    scene.AddRenderable(
-         //       graphicsLoop.Presets.UnitSphere,
-         //       MatrixCM.Translation(mine.MotionComponent.Internals.Pose.WorldPosition.ToSharpDX()) * MatrixCM.Scaling((float)mine.MotionComponent.BaseStatistics.Radius * 2),
-         //       SomewhatRough,
-         //       SDXColor.Cyan);
-         // }
 
          debugCanvas.DrawEntityPaths(game.EntityWorld);
 

@@ -7,5 +7,6 @@ namespace Dargon.PlayOn.Foundation.Terrain.Declarations {
       public Matrix4x4 WorldTransformInv = Matrix4x4.Identity;
 
       public AxisAlignedBoundingBox3 WorldAABB = null;
+      public bool EnableHolePathfindingWaypoints;
    }
 }

@@ -19,7 +19,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay {
       public readonly PolyNodeCrossoverPointManager CrossoverPointManager;
       public readonly MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup> InboundEdgeGroups = new MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup>();
       public readonly MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup> OutboundEdgeGroups = new MultiValueDictionary<TerrainOverlayNetworkNode, TerrainOverlayNetworkEdgeGroup>();
-      public TerrainOverlayNetwork Network;
+      public TerrainOverlayNetwork Network; // populated by TONN
 
       public override string ToString() => SectorNodeDescription.ToString();
    }

@@ -45,44 +45,32 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local {
       public Guid Guid => guid;
 
       private PolyTree _dilatedHolesUnion;
-      //private IntLineSegment2?[] _erodedCrossoverSegments;
       private PolyTree _punchedLand;
       private Triangulation _triangulation;
 
-      public PolyNode DilatedHolesUnion {
-         get {
-            return _dilatedHolesUnion ?? (_dilatedHolesUnion =
-                      PolygonOperations.Offset()
-                                       .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
-                                       .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)
-                                                   .Select(p => ClipHoleContour(p))
-                                                   .Where(p => p != null))
-                                       .Include(Job.DynamicHoles.Values.SelectMany(item =>
-                                          item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList()))
-                                       ).Select(p => ClipHoleContour(p)).Where(p => p != null))
-                                       .Dilate(HoleDilationRadius)
-                                       .Cleanup()
-                                       .Execute());
-         }
-      }
+      public PolyNode DilatedHolesUnion => _dilatedHolesUnion ?? (_dilatedHolesUnion =
+         PolygonOperations.Offset()
+                          .Include(Job.TerrainStaticMetadata.LocalExcludedContours)
+                          .Include(Job.DynamicHoles.Values.SelectMany(item => item.holeIncludedContours)
+                                      .Select(ClipHoleContour)
+                                      .Where(p => p != null))
+                          .Include(Job.DynamicHoles.Values.SelectMany(item =>
+                             item.holeExcludedContours.Select(p => new Polygon2(((IReadOnlyList<IntVector2>)p.Points).Reverse().ToList()))
+                             ).Select(ClipHoleContour).Where(p => p != null))
+                          .Dilate(HoleDilationRadius)
+                          .Cleanup()
+                          .Execute());
 
       private Polygon2 ClipHoleContour(Polygon2 polygon) {
          PolygonOperations.TryConvexClip(polygon, ClipperExtentsHoleClipPolygon, out var result);
          if (result != null) {
-            for (var i = 0; i < result.Points.Count; i++) {
-               var t = true;
-               ClipperBase.RangeTest(result.Points[i], ref t);
+            foreach (var p in result.Points) {
+               var useFullRange = true;
+               ClipperBase.RangeTest(p, ref useFullRange);
             }
          }
          return result;
       }
-
-      //public IntLineSegment2?[] ErodedBoundaryCrossoverSegments =>
-      //   _erodedCrossoverSegments ?? (_erodedCrossoverSegments =
-      //      Job.CrossoverSegments.Select(segment =>
-      //         segment.TryErode(CrossoverErosionRadius, out IntLineSegment2 erosionResult)
-      //            ? erosionResult
-      //            : (IntLineSegment2?)null).ToArray());
 
       public PolyTree ComputeErodedOuterContour() =>
          PolygonOperations.Offset()

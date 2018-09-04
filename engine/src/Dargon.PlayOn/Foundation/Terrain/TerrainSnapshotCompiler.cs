@@ -64,7 +64,6 @@ namespace Dargon.PlayOn.Foundation.Terrain {
          var edgeDescriptions = descriptionStore.EnumerateSectorEdgeDescriptions().ToList();
          var dynamicHoleDescriptions = descriptionStore.EnumerateDynamicTerrainHoleDescriptions().ToList();
 
-
          //----------------------------------------------------------------------------------------
          // Plan Local Geometry Jobs
          //----------------------------------------------------------------------------------------
