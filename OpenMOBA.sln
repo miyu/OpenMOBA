@@ -80,6 +80,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Repl", "engine\depen
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dargon-management-interface", "engine\dependencies\dargon\tools\src\dargon-management-interface\src\dargon-management-interface.csproj", "{2495AFDF-9C95-48AC-B766-8DD2F793C732}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VisibilityPolygonQueries", "engine\test\VisibilityPolygonQueries\VisibilityPolygonQueries.csproj", "{4316B193-DCC2-4548-A4CD-03B656187757}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -486,6 +488,18 @@ Global
 		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x64.Build.0 = Release|Any CPU
 		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x86.ActiveCfg = Release|Any CPU
 		{2495AFDF-9C95-48AC-B766-8DD2F793C732}.Release|x86.Build.0 = Release|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Debug|x64.Build.0 = Debug|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Debug|x86.Build.0 = Debug|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Release|x64.ActiveCfg = Release|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Release|x64.Build.0 = Release|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Release|x86.ActiveCfg = Release|Any CPU
+		{4316B193-DCC2-4548-A4CD-03B656187757}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -515,6 +529,7 @@ Global
 		{6D16C119-15D1-4544-A4A1-02AB45F38C3B} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 		{0367F390-3C13-4E91-8EA6-FE29419DD4D0} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 		{2495AFDF-9C95-48AC-B766-8DD2F793C732} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
+		{4316B193-DCC2-4548-A4CD-03B656187757} = {74294450-A622-43FE-8296-939C6420556C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}

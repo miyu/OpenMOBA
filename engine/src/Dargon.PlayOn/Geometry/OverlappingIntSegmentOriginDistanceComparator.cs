@@ -65,7 +65,7 @@ namespace Dargon.PlayOn.Geometry {
       }
 
       public static int Compare(ref DoubleVector2 p, ref IntLineSegment2 a, ref IntLineSegment2 b) {
-//#if DEBUG
+#if DEBUG
          if (GeometryOperations.Clockness(p.X, p.Y, (cDouble)a.X1, (cDouble)a.Y1, (cDouble)a.X2, (cDouble)a.Y2) != Clockness.Clockwise) {
             throw new InvalidStateException();
          }
@@ -87,7 +87,7 @@ namespace Dargon.PlayOn.Geometry {
 //            var bFlipped = new IntLineSegment2(b.Second, b.First);
 //            return Compare(ref p, ref a, ref bFlipped);
 //         }
-//#endif
+#endif
 
          var clk = GeometryOperations.Clockness(p.X, p.Y, (cDouble)a.X1, (cDouble)a.Y1, (cDouble)b.X1, (cDouble)b.Y1);
          if (clk != Clockness.Clockwise) {

@@ -33,10 +33,16 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          canvas.DrawPoints(p.Map(ToDV3), strokeStyle);
       }
 
+      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<IntVector2> poly, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(poly.Map(ToDV3), strokeStyle);
+      }
+
+      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> poly, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(poly.Map(ToDV3), strokeStyle);
+      }
+
       public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
-         for (var i = 0; i < poly.Points.Count - 1; i++) {
-            canvas.DrawLineStrip(poly.Points.Map(ToDV3), strokeStyle);
-         }
+         canvas.DrawLineStrip(poly.Points.Map(ToDV3), strokeStyle);
       }
 
       public static void DrawPolygonContours(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {

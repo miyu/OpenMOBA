@@ -2,10 +2,10 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using OpenMOBA;
-using OpenMOBA.Debugging;
-using OpenMOBA.DevTool.Debugging;
-using OpenMOBA.Geometry;
+using Dargon.PlayOn;
+using Dargon.PlayOn.Debugging;
+using Dargon.PlayOn.DevTool.Debugging;
+using Dargon.PlayOn.Geometry;
 
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
@@ -22,8 +22,8 @@ namespace VisibilityPolygonBenchmark {
 
       public static void Main(string[] args) {
          // RenderAlgorithmVisualizationFrames();
-         RenderRandomVisualizationFrames();
-         // Benchmark();
+         // RenderRandomVisualizationFrames();
+         Benchmark();
       }
 
       private static void RenderAlgorithmVisualizationFrames() {

@@ -489,6 +489,20 @@ namespace Dargon.PlayOn.Geometry {
          public cDouble ThetaStart; // inclusive
          public cDouble ThetaEnd; // exclusive
       }
+
+      private class EventIndexComparer : IComparer<int> {
+         private readonly (cDouble, int, bool)[] events;
+
+         public EventIndexComparer((double, int, bool)[] events) {
+            this.events = events;
+         }
+
+         public int Compare(int a, int b) {
+            var res = events[a].Item1.CompareTo(events[b].Item1);
+            if (res != 0) return res;
+            return events[a].Item3.CompareTo(events[b].Item3);
+         }
+      }
       
       // IV2 origin variant doesn't have significant perf gains - overhead is largely in struct copying
       // and tree structure stuff.
@@ -549,12 +563,14 @@ namespace Dargon.PlayOn.Geometry {
             eventIndices[i] = i;
          }
 
-         Array.Sort(eventIndices, 0, numEvents, Comparer<int>.Create((a, b) => {
-            var res = events[a].Item1.CompareTo(events[b].Item1);
-            if (res != 0) return res;
-            return events[a].Item3.CompareTo(events[b].Item3);
-         }));
+         Array.Sort(eventIndices, 0, numEvents, new EventIndexComparer(events));
+         // Array.Sort(eventIndices, 0, numEvents, Comparer<int>.Create((a, b) => {
+         //    var res = events[a].Item1.CompareTo(events[b].Item1);
+         //    if (res != 0) return res;
+         //    return events[a].Item3.CompareTo(events[b].Item3);
+         // }));
 
+#if DEBUG
          var temp = tlsEventBugCheck.UnsafeTakeAndGive(barriers.Length);
          Trace.Assert(temp.Length >= barriers.Length); // try to avoid bounds check
          for (var i = 0; i < barriers.Length; i++) {
@@ -567,6 +583,7 @@ namespace Dargon.PlayOn.Geometry {
             }
             temp[item.Item2] = item.Item3;
          }
+#endif
 
          var lastTheta = CDoubleMath.c0;
          var segmentComparer = Comparer<IntLineSegment2>.Create((a, b) => OverlappingIntSegmentOriginDistanceComparator.Compare(origin, a, b));

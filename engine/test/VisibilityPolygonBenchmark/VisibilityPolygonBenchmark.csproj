@@ -62,6 +62,14 @@
       <Project>{D46C606E-5826-465F-9983-251E3D3B2F1C}</Project>
       <Name>FixedMath.NET</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\src\Dargon.PlayOn.DevTool\Dargon.PlayOn.DevTool.csproj">
+      <Project>{e720e5db-081c-4abb-85b1-54722e58e357}</Project>
+      <Name>Dargon.PlayOn.DevTool</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Dargon.PlayOn\Dargon.PlayOn.csproj">
+      <Project>{f4047719-2523-46e7-b5ac-8d18c591e4b4}</Project>
+      <Name>Dargon.PlayOn</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
