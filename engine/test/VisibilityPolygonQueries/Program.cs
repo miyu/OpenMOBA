@@ -26,10 +26,24 @@ namespace VisibilityPolygonQueries {
       private static readonly DebugMultiCanvasHost host = DebugMultiCanvasHost.CreateAndShowCanvas(
          bounds,
          new Point(50, 50),
-         new OrthographicXYProjector(1));
+         new OrthographicXYProjector(
+            1.8, 
+            new IntVector2(500, 500),
+            new IntVector2(bounds.Width / 2, bounds.Height / 2),
+            true));
+      private static int nextFrameIndex = 0;
 
       public static void Main(string[] args) {
-         var sectorMetadataPresets = SectorMetadataPresets.Test2D;
+         RenderTestQueries(SectorMetadataPresets.Blank2D);
+         RenderTestQueries(SectorMetadataPresets.Test2D);
+         RenderTestQueries(SectorMetadataPresets.CrossCircle);
+         RenderTestQueries(SectorMetadataPresets.FourSquares2D);
+         RenderTestQueries(SectorMetadataPresets.HashCircle1);
+         RenderTestQueries(SectorMetadataPresets.DotaStyleMoba);
+         host.DumpScreenshotsToDocumentsPictures();
+      }
+
+      private static void RenderTestQueries(TerrainStaticMetadata sectorMetadataPresets) {
          var terrainStaticMetadata = new TerrainStaticMetadata {
             LocalBoundary = sectorMetadataPresets.LocalBoundary,
             LocalIncludedContours = sectorMetadataPresets.LocalIncludedContours,
@@ -40,8 +54,8 @@ namespace VisibilityPolygonQueries {
          var actorRadius = 1;
          var localGeometryView = localGeometryViewManager.GetErodedView(actorRadius);
 
-         var canvas = host.CreateAndAddCanvas(0);
-         canvas.Transform = Matrix4x4.CreateScale(1, -1, 1) * Matrix4x4.CreateScale(1000 / 60000.0f) * Matrix4x4.CreateTranslation(500, 500, 0);
+         var canvas = host.CreateAndAddCanvas(nextFrameIndex++);
+         canvas.Transform = Matrix4x4.CreateScale(1000 / 60000.0f) * Matrix4x4.CreateTranslation(500, 500, 0);
          canvas.DrawPolyNode(localGeometryView.PunchedLand, StrokeStyle.BlackHairLineSolid, StrokeStyle.RedHairLineSolid);
          canvas.DrawTriangulation(localGeometryView.Triangulation, StrokeStyle.CyanHairLineDashed5);
          foreach (var (i, island) in localGeometryView.Triangulation.Islands.Enumerate()) {
@@ -92,7 +106,7 @@ namespace VisibilityPolygonQueries {
             }
          }
 
-         var results = new List<DoubleVector2>(tris.Length * 2);
+         var results = new List<DoubleVector2>(tris.Length * 2 + 1);
 
          void Descend(int curti, int predti) {
             ref var triangle = ref tris[curti];
