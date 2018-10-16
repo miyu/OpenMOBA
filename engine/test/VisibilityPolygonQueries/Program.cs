@@ -59,9 +59,9 @@ namespace VisibilityPolygonQueries {
          canvas.DrawPolyNode(localGeometryView.PunchedLand, StrokeStyle.BlackHairLineSolid, StrokeStyle.RedHairLineSolid);
          canvas.DrawTriangulation(localGeometryView.Triangulation, StrokeStyle.CyanHairLineDashed5);
          foreach (var (i, island) in localGeometryView.Triangulation.Islands.Enumerate()) {
-            var simple = ConvertTriangulationToSimplePolygon(island, canvas);
+            var poly = ConvertTriangulationToWeaklySimplePolygon(island, canvas);
             var eroded = PolygonOperations.Offset()
-                                          .Include(new Polygon2(simple.Select(x => x.LossyToIntVector2()).ToList()))
+                                          .Include(new Polygon2(poly.Select(x => x.LossyToIntVector2()).ToList()))
                                           .Erode(500)
                                           .Execute();
             canvas.DrawPolyNode(eroded, StrokeStyle.CyanThick5Solid);
@@ -70,70 +70,82 @@ namespace VisibilityPolygonQueries {
 
       /// <summary>
       /// Builds MST of triangulation island graph { Nodes = Triangles, Edges = Neighbor Relationships }
-      /// Then walks MST CCW emitting polygon boundary.
+      /// Then walks MST CCW emitting a closed weakly simple polygon boundary.
       /// </summary>
-      private static List<DoubleVector2> ConvertTriangulationToSimplePolygon(TriangulationIsland island, IDebugCanvas canvas = null) {
+      private static List<DoubleVector2> ConvertTriangulationToWeaklySimplePolygon(TriangulationIsland island, IDebugCanvas canvas = null) {
          const int TREE_ROOT_TRIANGLE_INDEX = 0;
          const int NONE = Triangle3.NO_NEIGHBOR_INDEX;
 
          var tris = island.Triangles;
-         var store = new (int pred, int childLink, int nextChildIndex)[tris.Length];
-         for (var i = 0; i < store.Length; i++) {
-            store[i] = (NONE, NONE, NONE);
+
+         // Build any spanning tree (in this case via DFS), tracking parents (search predecessors)
+         var preds = new int[tris.Length];
+         for (var i = 0; i < preds.Length; i++) {
+            preds[i] = NONE;
          }
 
-         void Visit(int curti, int predti) {
+         void VisitDFS(int curti, int predti) {
             ref var triangle = ref tris[curti];
 
-            store[curti].pred = predti;
+            preds[curti] = predti;
 
             for (var i = 0; i < 3; i++) {
                var succti = triangle.NeighborOppositePointIndices[i];
                if (succti == NONE || succti == TREE_ROOT_TRIANGLE_INDEX) continue;
-               if (store[succti].pred != NONE) continue;
-
-               store[succti].nextChildIndex = store[curti].childLink;
-               store[curti].childLink = succti;
-               Visit(succti, curti);
+               if (preds[succti] != NONE) continue;
+               VisitDFS(succti, curti);
             }
          }
 
-         Visit(TREE_ROOT_TRIANGLE_INDEX, NONE);
+         VisitDFS(TREE_ROOT_TRIANGLE_INDEX, NONE);
 
-         for (var i = 0; i < store.Length; i++) {
-            if (store[i].pred != NONE) {
-               canvas.DrawLine(tris[i].Centroid, tris[store[i].pred].Centroid, StrokeStyle.RedThick5Solid);
+         canvas?.BatchDraw(() => {
+            for (var ti = 0; ti < tris.Length; ti++) {
+               if (preds[ti] != NONE) {
+                  canvas.DrawLine(tris[ti].Centroid, tris[preds[ti]].Centroid, StrokeStyle.RedThick5Solid);
+               }
             }
-         }
+         });
 
-         var results = new List<DoubleVector2>(tris.Length * 2 + 1);
+         // Walk spanning tree hugging CCW to emit weak simple polygon boundary.
+         // Additional 2 boundary points for root triangle.
+         var boundary = new List<DoubleVector2>(tris.Length * 2 + 2);
 
-         void Descend(int curti, int predti) {
+         // For a given triangle and predecessor-shared edge, emit CCW boundary
+         // Assume boudnary point from predecessor-shared edge is already emitted.
+         void WalkMSTAndEmitSimplePolygonBoundary(int curti, int predti) {
             ref var triangle = ref tris[curti];
 
-            var predei = predti == NONE ? NONE
+            var isCurrentTriangleRoot = predti == NONE;
+            var predei = isCurrentTriangleRoot ? NONE
                : triangle.NeighborOppositePointIndices.A == predti ? 0
                   : triangle.NeighborOppositePointIndices.B == predti ? 1 : 2;
 
-            // For a given triangle and predecessor-shared edge, emit CCW boundary
-            // Assume boudnary point from predecessor-shared edge is already emitted.
+            // For the root triangle, repeat the emitted point of the last iteration
+            // in the below for loop to form a closed polygon.
+            if (isCurrentTriangleRoot) {
+               boundary.Add(triangle.Points.A);
+            }
+
             // Loop invariant: the CCmost point of the next-to-emit edge is already emitted.
             // triangles are CCW, polygon2s are CCW.
-            var startEdgeIndexOffset = predti == NONE ? 0 : 1;
+            var startEdgeIndexOffset = isCurrentTriangleRoot ? 0 : 1;
             for (var i = startEdgeIndexOffset; i < 3; i++) {
                var succei = (predei + i + 3) % 3;
                var succti = triangle.NeighborOppositePointIndices[succei];
-               if (succti != NONE && store[succti].pred == curti) {
-                  Descend(succti, curti);
+               if (succti != NONE && preds[succti] == curti) {
+                  WalkMSTAndEmitSimplePolygonBoundary(succti, curti);
                }
                var pointIndexCounterClockWisemostOfEdge = (predei + i + 2) % 3;
-               results.Add(triangle.Points[pointIndexCounterClockWisemostOfEdge]);
+               boundary.Add(triangle.Points[pointIndexCounterClockWisemostOfEdge]);
             }
          }
          
-         Descend(TREE_ROOT_TRIANGLE_INDEX, NONE);
+         WalkMSTAndEmitSimplePolygonBoundary(TREE_ROOT_TRIANGLE_INDEX, NONE);
+         Trace.Assert(boundary.Count == boundary.Capacity);
+         Trace.Assert(boundary[0] == boundary[boundary.Count - 1]);
 
-         return results;
+         return boundary;
       }
    }
 }
