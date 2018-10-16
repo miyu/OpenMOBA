@@ -63,7 +63,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
    }
 
    public interface IDebugMultiCanvasHost {
-      IDebugCanvas CreateAndAddCanvas(int timestamp);
+      IDebugCanvas CreateAndAddCanvas(int frameIndex);
    }
 
    public interface IProjector {
@@ -74,14 +74,22 @@ namespace Dargon.PlayOn.DevTool.Debugging {
    public class OrthographicXYProjector : IProjector {
       public static readonly OrthographicXYProjector Instance = new OrthographicXYProjector();
 
-      private readonly double scale;
+      private readonly float scale;
+      private readonly IntVector2 cameraPosition;
+      private readonly IntVector2 canvasCenterOffset;
+      private readonly float flipY;
 
-      public OrthographicXYProjector(double scale = 1.0) {
-         this.scale = scale;
+      public OrthographicXYProjector(double scale = 1.0, IntVector2 cameraPosition = default, IntVector2 canvasCenterOffset = default, bool flipY = false) {
+         this.scale = (float)scale;
+         this.cameraPosition = cameraPosition;
+         this.canvasCenterOffset = canvasCenterOffset;
+         this.flipY = flipY ? -1 : 1;
       }
 
       public Vector2 Project(Vector3 p) {
-         return new Vector2(p.X, p.Y) * (float)scale;
+         return new Vector2(
+            (p.X - cameraPosition.X) * scale + canvasCenterOffset.X, 
+            (p.Y - cameraPosition.Y) * scale * flipY + canvasCenterOffset.Y);
       }
 
       public double ComputeApparentThickness(DoubleVector3 p, double thickness) {
@@ -172,6 +180,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       private bool isRecursion = false;
       private Graphics g;
 
+      internal Bitmap BitmapReadOnlyUnsafe => bitmap;
       public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
 
       public void BatchDraw(Action callback) {

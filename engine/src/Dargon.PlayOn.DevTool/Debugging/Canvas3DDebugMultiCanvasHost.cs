@@ -29,7 +29,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          this.presets = presets;
       }
 
-      public IDebugCanvas CreateAndAddCanvas(int timestamp) {
+      public IDebugCanvas CreateAndAddCanvas(int frameIndex) {
          var scene = new Scene();
          sceneQueue.Enqueue(scene);
          return new Canvas3DDebugCanvas(graphicsFacade, presets, scene);

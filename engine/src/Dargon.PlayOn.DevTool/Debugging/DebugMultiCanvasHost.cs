@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
@@ -8,7 +10,7 @@ using System.Windows.Forms;
 namespace Dargon.PlayOn.DevTool.Debugging {
    public class DebugMultiCanvasHost : IDebugMultiCanvasHost {
       private readonly object synchronization = new object();
-      private readonly List<CanvasAndTimeStamp> frames = new List<CanvasAndTimeStamp>();
+      private readonly List<CanvasAndFrameIndex> frames = new List<CanvasAndFrameIndex>();
       private const double scale = 1.0f;
       private readonly Size canvasSize;
       private readonly Point canvasPadding;
@@ -68,12 +70,13 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          };
       }
 
-      public IDebugCanvas CreateAndAddCanvas(int timestamp) {
+      public IDebugCanvas CreateAndAddCanvas(int frameIndex) {
          var canvas = new DebugCanvas(canvasSize, canvasPadding, projector);
          lock (synchronization) {
-            frames.Add(new CanvasAndTimeStamp {
+            frames.Add(new CanvasAndFrameIndex {
                Canvas = canvas,
-               Timestamp = timestamp
+               FrameIndex = frameIndex,
+               Timestamp = DateTime.Now
             });
             UpdateSlider();
          }
@@ -81,7 +84,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             var bitmapClone = (Bitmap)e.Bitmap.Clone();
             form.BeginInvoke(new Action(() => {
                lock (synchronization) {
-                  if (Enumerable.Last(frames, f => f.Timestamp <= slider.Value).Canvas == canvas) {
+                  if (Enumerable.Last(frames, f => f.FrameIndex <= slider.Value).Canvas == canvas) {
                      pb.Image = bitmapClone;
                   }
                }
@@ -93,11 +96,11 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       private void HandleSliderValueChanged(object sender, EventArgs e) {
          form.BeginInvoke(new Action(() => {
             lock (synchronization) {
-               var canvasAndTimestamp = Enumerable.Last(frames, f => f.Timestamp <= slider.Value);
+               var canvasAndTimestamp = Enumerable.Last(frames, f => f.FrameIndex <= slider.Value);
 
                canvasAndTimestamp.Canvas.EnterBitmapCriticalSection(
                   bitmap => {
-                     form.Text = canvasAndTimestamp.Timestamp + "";
+                     form.Text = canvasAndTimestamp.FrameIndex + "";
                      pb.Image = (Bitmap)bitmap.Clone();
                   }
                );
@@ -108,22 +111,46 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       private void UpdateSlider() {
          form.BeginInvoke(new Action(() => {
             lock (synchronization) {
-               slider.Minimum = Enumerable.First(frames).Timestamp;
-               slider.Maximum = Enumerable.Last(frames).Timestamp;
+               slider.Minimum = Enumerable.First(frames).FrameIndex;
+               slider.Maximum = Enumerable.Last(frames).FrameIndex;
                slider.TickFrequency = 1;
                if (pb.Image == null) {
                   HandleSliderValueChanged(this, EventArgs.Empty);
-               } else if (frames.Count - 3 >= 0 && slider.Value == frames[frames.Count - 3].Timestamp) {
+               } else if (frames.Count - 3 >= 0 && slider.Value == frames[frames.Count - 3].FrameIndex) {
                   // navigates to frame before last, not last because last is currently drawing.
-                  slider.Value = frames[frames.Count - 2].Timestamp;
+                  slider.Value = frames[frames.Count - 2].FrameIndex;
                }
             }
          }));
       }
 
-      private struct CanvasAndTimeStamp {
+      public void DumpScreenshotsToDocumentsPictures() {
+         var myPicturesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+         var outputDirectory = Path.Combine(myPicturesPath, "OpenMoba", "Dumps");
+         Directory.CreateDirectory(outputDirectory);
+
+         lock (synchronization) {
+            foreach (var frame in frames) {
+               var raw = frame.Canvas.BitmapReadOnlyUnsafe;
+               var bitmap = new Bitmap(raw.Width, raw.Height, raw.PixelFormat);
+               var rect = new Rectangle(0, 0, raw.Width, raw.Height);
+               using (var g = Graphics.FromImage(bitmap)) {
+                  g.Clear(SystemColors.Control);
+                  g.DrawImage(raw, rect, rect, GraphicsUnit.Pixel);
+               }
+
+               var outputFileName = frame.Timestamp.ToString("u").Replace(' ', '_').Replace(':', '.') + "_f" + frame.FrameIndex + ".jpg";
+               var outputFilePath = Path.Combine(outputDirectory, outputFileName);
+               Console.WriteLine("Dump " + outputFilePath);
+               bitmap.Save(outputFilePath, ImageFormat.Jpeg);
+            }
+         }
+      }
+
+      private struct CanvasAndFrameIndex {
          public DebugCanvas Canvas { get; set; }
-         public int Timestamp { get; set; }
+         public int FrameIndex { get; set; }
+         public DateTime Timestamp { get; set; }
       }
 
       public static DebugMultiCanvasHost CreateAndShowCanvas(Size canvasSize, Point canvasPadding, IProjector projector = null) {
