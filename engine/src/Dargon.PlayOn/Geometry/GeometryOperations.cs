@@ -233,6 +233,18 @@ namespace Dargon.PlayOn.Geometry {
          return false;
       }
 
+      public static DoubleVector2 PointAtX(this DoubleLineSegment2 seg, double x) {
+         var dx = seg.X2 - seg.X1;
+         var dy = seg.Y2 - seg.Y1;
+         return new DoubleVector2(x, seg.Y1 + (x - seg.X1) * dy / dx);
+      }
+
+      public static DoubleVector2 PointAtY(this DoubleLineSegment2 seg, double y) {
+         var dx = seg.X2 - seg.X1;
+         var dy = seg.Y2 - seg.Y1;
+         return new DoubleVector2(seg.X1 + (y - seg.Y1) * dx / dy, y);
+      }
+
       public static bool TryIntersect(this Triangulation triangulation, cDouble x, cDouble y, out TriangulationIsland island, out int triangleIndex) {
          foreach (var candidateIsland in triangulation.Islands) {
             if (candidateIsland.TryIntersect(x, y, out triangleIndex)) {

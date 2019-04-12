@@ -73,7 +73,7 @@ namespace Dargon.PlayOn.Geometry {
 
       public static Polygon2 CreateRect(Rectangle rectangle) => CreateRect(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
 
-      public static Polygon2 CreateRect(int x, int y, int width, int height) {
+      public static Polygon2 CreateRect(int x, int y, int width, int height, bool rev = false) {
          var points = new List<IntVector2> {
             new IntVector2(x, y),
             new IntVector2(x + width, y),
@@ -81,6 +81,7 @@ namespace Dargon.PlayOn.Geometry {
             new IntVector2(x, y + height),
          };
          ValidateHoleClockness(points);
+         if (rev) points.Reverse();
          return new Polygon2(points);
       }
 

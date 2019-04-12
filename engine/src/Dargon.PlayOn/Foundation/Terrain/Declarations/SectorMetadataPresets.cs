@@ -70,6 +70,16 @@ namespace Dargon.PlayOn.Foundation.Terrain.Declarations {
          }
       }.Twitch();
 
+      public static readonly TerrainStaticMetadata TestMiyu = new TerrainStaticMetadata {
+         Name = nameof(TestMiyu),
+         LocalBoundary = new Rectangle(0, 0, 1000, 1000),
+         LocalIncludedContours = new[] {
+            Polygon2.CreateRect(0, 0, 1000, 1000),
+            Polygon2.CreateRect(200, 200, 600, 600, rev: true),
+            Polygon2.CreateRect(400, 400, 200, 200), },
+         LocalExcludedContours = new Polygon2[] { }
+      }.Twitch();
+
       public static readonly TerrainStaticMetadata FourSquares2D = new TerrainStaticMetadata {
          Name = nameof(FourSquares2D),
          LocalBoundary = new Rectangle(0, 0, 1000, 1000),

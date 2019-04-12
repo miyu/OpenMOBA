@@ -112,7 +112,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local {
          _punchedLand ?? (_punchedLand =
             PostProcessPunchedLand(
                PolygonOperations.Punch()
-                                .IncludeOrExclude(ComputeErodedOuterContour().FlattenToPolygonAndIsHoles())
+                                .Include(ComputeErodedOuterContour().FlattenToPolygonAndIsHoles())
                                 .Include(ComputeCrossoverLandPolys())
                                 .Exclude(DilatedHolesUnion.FlattenToPolygonAndIsHoles())
                                 .Execute()

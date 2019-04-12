@@ -189,9 +189,10 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
          get { return m_Childs.Count; }
       }
 
-      public Path Contour
-      {
+      public Path Contour {
          get { return m_polygon; }
+         set { m_polygon = value; // miyu: added setter
+         }
       }
 
       internal void AddChild(PolyNode Child) {
@@ -4262,13 +4263,13 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      public void Execute(ref PolyTree solution, cDouble delta) {
+      public void Execute(ref PolyTree solution, cDouble delta, int clipperInitOptions = 0) {
          solution.Clear();
          FixOrientations();
          DoOffset(delta);
 
          //now clean up 'corners' ...
-         Clipper clpr = new Clipper();
+         Clipper clpr = new Clipper(clipperInitOptions);
          clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
          if (delta > cDouble_0) {
             clpr.Execute(ClipType.ctUnion, solution,

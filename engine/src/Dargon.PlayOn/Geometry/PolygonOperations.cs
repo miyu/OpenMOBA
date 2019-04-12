@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.ThirdParty.ClipperLib;
 using Poly2Tri.Triangulation;
 #if use_fixed
@@ -155,6 +156,19 @@ namespace Dargon.PlayOn.Geometry {
          public PunchOperation Include(IEnumerable<Polygon2> polygons) {
             foreach (var polygon in polygons) {
                clipper.AddPath(polygon.Points, PolyType.ptSubject, polygon.IsClosed);
+            }
+            return this;
+         }
+
+         public PunchOperation Include(IReadOnlyList<(Polygon2 polygon, bool isHole)> polygonAndIsHoles) {
+            foreach (var (polygon, isHole) in polygonAndIsHoles) {
+               var points = polygon.Points;
+               if (isHole) {
+                  points = points.ToList();
+                  points.Reverse();
+               }
+               clipper.AddPath(points, PolyType.ptSubject, polygon.IsClosed);
+
             }
             return this;
          }
@@ -318,7 +332,7 @@ namespace Dargon.PlayOn.Geometry {
                foreach (var contour in currentContours) {
                   clipper.AddPath(contour, JoinType.jtMiter, EndType.etClosedPolygon);
                }
-               clipper.Execute(ref polytree, offset);
+               clipper.Execute(ref polytree, offset, Clipper.ioStrictlySimple);
 
                // hack: cleanup
                while (i + 1 != offsets.Count && offsets[i + 1] == kSpecialOffsetCleanup) {
@@ -327,6 +341,22 @@ namespace Dargon.PlayOn.Geometry {
                }
 
                if (i + 1 == offsets.Count) {
+                  // clipper offset (presumably at mitering) can create slightly self-intersecting
+                  // polygons like 282, 554; 285, 557; 261, 576; 272, 557; 283, 554
+                  // This in turn will break p2t, which wants simple polygons.
+                  // As a workaround, do a click clean polygon pass.
+                  // TODO: Avoid gcalloc by editing list in-place?
+                  var s = new AddOnlyOrderedHashSet<PolyNode> { polytree };
+                  for (var j = 0; j < s.Count; j++) {
+                     var initialContour = s[j].Contour;
+                     var cleanedContour = Clipper.CleanPolygon(initialContour);
+                     if (initialContour.Count != 0 && cleanedContour.Count == 0) {
+                        s[j].Parent.Childs.Remove(s[j]);
+                        continue;
+                     }
+                     s[j].Contour = cleanedContour;
+                     foreach (var child in s[j].Childs) s.Add(child);
+                  }
                   return polytree;
                } else {
                   currentContours = polytree.FlattenToContours();

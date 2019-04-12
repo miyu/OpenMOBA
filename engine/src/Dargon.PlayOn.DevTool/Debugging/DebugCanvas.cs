@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
+using Dargon.Commons.Collections;
 using Dargon.PlayOn.ThirdParty.ClipperLib;
 using Dargon.PlayOn.Geometry;
 
@@ -217,6 +218,8 @@ namespace Dargon.PlayOn.DevTool.Debugging {
 
       public Vector3 ToNumerics(DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
 
+      private static readonly CopyOnAddDictionary<Color, SolidBrush> fillBrushCache = new CopyOnAddDictionary<Color, SolidBrush>();
+
       public void DrawPoint(DoubleVector3 point, StrokeStyle strokeStyle) {
          BatchDraw(() => {
             var p = Project(ToNumerics(point));
@@ -225,9 +228,21 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             var pointTransformed = Vector3.Transform(new Vector3((float)point.X, (float)point.Y, (float)point.Z), Transform).ToOpenMobaVector();
             var radius = ProjectThickness(pointTransformed, strokeStyle.Thickness) / 2.0f;
             var rect = new RectangleF(x - radius, y - radius, radius * 2, radius * 2);
-            using (var brush = new SolidBrush(strokeStyle.Color)) {
-               g.FillEllipse(brush, rect);
+            var overlap = !(rect.Right <= 0 || rect.Bottom <= 0 || rect.Left >= PaddedSize.Width || rect.Top >= PaddedSize.Height);
+            if (!overlap) return;
+            Console.WriteLine(rect);
+            SolidBrush added = null;
+            Console.WriteLine("Get brush");
+            var brush = fillBrushCache.GetOrAdd(
+               strokeStyle.Color,
+               add => added = new SolidBrush(strokeStyle.Color));
+            Console.WriteLine("Got brush");
+            if (brush != added && added != null) {
+               added.Dispose();
             }
+            Console.WriteLine("Fill");
+            g.FillEllipse(brush, rect);
+            Console.WriteLine("OK");
          });
       }
 
