@@ -1,6 +1,12 @@
-﻿namespace Dargon.PlayOn.Foundation.ECS {
+﻿#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
+namespace Dargon.PlayOn.Foundation.ECS {
    public struct MotionStatistics {
-      public int Radius;
-      public int Speed;
+      public cDouble Radius;
+      public cDouble Speed;
    }
 }

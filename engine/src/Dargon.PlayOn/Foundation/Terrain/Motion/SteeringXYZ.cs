@@ -229,34 +229,38 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       private void CalculateComputedStatsAndEnsureLocalizationValid(Entity[] entities) {
          foreach (var entity in entities) {
-            var mc = entity.MotionComponent;
-            var statistics = mc.Internals.ComputedStatistics = statisticsCalculator.CalculateMotionStatistics(entity);
-            // HACK: Always relocalize until we support updating localization.
-            var localizationKnown = false && !mc.Internals.IsLocalizationInvalidated;
-            if (!localizationKnown) {
-               mc.Internals.IsLocalizationInvalidated = false;
-               var terrainOverlayNetwork = terrainFacade.CompileSnapshotAndTerrainOverlayNetwork((cDouble)statistics.Radius);
-               var res = terrainOverlayNetwork.FindNearestLandPointLocalization(mc.Internals.Pose.WorldPosition, statistics.Radius);
-               // Console.WriteLine("Relocalize " + mc.Internals.Pose.WorldPosition + " => " + res.world);
-               if (mc.Internals.Structure.IsEnabled) {
-                  mc.Internals.Localization = res.localization;
-                  mc.Internals.Localization.LocalPosition = res.localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocal(mc.Internals.Pose.WorldPosition).XY;
-                  mc.Internals.Localization.LocalPositionIv2 = mc.Internals.Localization.LocalPosition.LossyToIntVector2();
-                  mc.Internals.Localization.TriangleIndex = -1;
-               } else {
-                  mc.Internals.Pose.WorldPosition = res.world;
-                  mc.Internals.Localization = res.localization;
-               }
+            CalculateComputedStatsAndEnsureLocalizationValid(entity);
+         }
+      }
+
+      private void CalculateComputedStatsAndEnsureLocalizationValid(Entity entity) {
+         var mc = entity.MotionComponent;
+         var statistics = mc.Internals.ComputedStatistics = statisticsCalculator.CalculateMotionStatistics(entity);
+         // HACK: Always relocalize until we support updating localization.
+         var localizationKnown = false && !mc.Internals.IsLocalizationInvalidated;
+         if (!localizationKnown) {
+            mc.Internals.IsLocalizationInvalidated = false;
+            var terrainOverlayNetwork = terrainFacade.CompileSnapshotAndTerrainOverlayNetwork((cDouble)statistics.Radius);
+            var res = terrainOverlayNetwork.FindNearestLandPointLocalization(mc.Internals.Pose.WorldPosition, statistics.Radius);
+            // Console.WriteLine("Relocalize " + mc.Internals.Pose.WorldPosition + " => " + res.world);
+            if (mc.Internals.Structure.IsEnabled) {
+               mc.Internals.Localization = res.localization;
+               mc.Internals.Localization.LocalPosition = res.localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocal(mc.Internals.Pose.WorldPosition).XY;
+               mc.Internals.Localization.LocalPositionIv2 = mc.Internals.Localization.LocalPosition.LossyToIntVector2();
+               mc.Internals.Localization.TriangleIndex = -1;
+            } else {
+               mc.Internals.Pose.WorldPosition = res.world;
+               mc.Internals.Localization = res.localization;
             }
          }
       }
 
-      private ExposedArrayListMultiValueDictionary<(Swarm, int), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)> 
+      private ExposedArrayListMultiValueDictionary<(Swarm, cDouble), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)> 
          SwarmAndRadius_To_EntityAndLocalization(
             Entity[] entities, 
             TerrainSnapshot terrainSnapshot
       ) {
-         var nodeIslandAndTriangleIndexesBySwarmAndComputedRadius = new ExposedArrayListMultiValueDictionary<(Swarm, int), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)>();
+         var nodeIslandAndTriangleIndexesBySwarmAndComputedRadius = new ExposedArrayListMultiValueDictionary<(Swarm, cDouble), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)>();
 
          for (var i = 0; i < entities.Length; i++) {
             var e = entities[i];
@@ -274,12 +278,12 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          return nodeIslandAndTriangleIndexesBySwarmAndComputedRadius;
       }
 
-      private Dictionary<(Swarm swarm, int computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)> 
+      private Dictionary<(Swarm swarm, cDouble computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)> 
          ComputeSwarmAndRadiusToEntityTriangleCentroidPaths(
             TerrainSnapshot terrainSnapshot, 
-            ExposedArrayListMultiValueDictionary<(Swarm, int), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)> nodeIslandAndTriangleIndexesBySwarmAndComputedRadius
+            ExposedArrayListMultiValueDictionary<(Swarm, cDouble), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)> nodeIslandAndTriangleIndexesBySwarmAndComputedRadius
          ) {
-         var swarmAndRadiusToEntityTriangleCentroidPaths = new Dictionary<(Swarm swarm, int computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)>();
+         var swarmAndRadiusToEntityTriangleCentroidPaths = new Dictionary<(Swarm swarm, cDouble computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)>();
 
          foreach (var ((swarm, computedRadius), entityNodeAndTriangleIndexes) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
             var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork((cDouble)computedRadius);
@@ -312,8 +316,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       private DoubleVector2[] CalculateTriangleCentroidOptimalContinuousPathForceContributions(
          Entity[] entities,
-         ExposedArrayListMultiValueDictionary<(Swarm, int), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)> nodeIslandAndTriangleIndexesBySwarmAndComputedRadius, 
-         Dictionary<(Swarm swarm, int computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)> swarmAndRadiusToEntityTriangleCentroidPaths
+         ExposedArrayListMultiValueDictionary<(Swarm, cDouble), (int, Entity, TerrainOverlayNetworkNode, TriangulationIsland, int)> nodeIslandAndTriangleIndexesBySwarmAndComputedRadius, 
+         Dictionary<(Swarm swarm, cDouble computedRadius), (PathfinderResultContext pathfinderResultContext, int[] centroidIndicesByEntityIndex)> swarmAndRadiusToEntityTriangleCentroidPaths
       ) {
          var contributions = new DoubleVector2[entities.Length];
          foreach (var ((swarm, computedRadius), idEntityNodeAndTriangleIndexes) in nodeIslandAndTriangleIndexesBySwarmAndComputedRadius) {
@@ -504,18 +508,33 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             if (mc.Internals.Structure.IsEnabled) continue;
 
             var v = contributions[i];
-            var pNext = triangulationWalker.WalkTriangulation(
-               mc.Internals.Localization.TriangulationIsland,
-               mc.Internals.Localization.TriangleIndex,
-               mc.Internals.Localization.LocalPosition,
-               v,
-               e.MotionComponent.Internals.ComputedStatistics.Speed * dt * mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor);
-            mc.Internals.Localization.LocalPosition = pNext;
-            mc.Internals.Localization.LocalPositionIv2 = pNext.LossyToIntVector2();
-            var tonn = mc.Internals.Localization.TerrainOverlayNetworkNode;
-            mc.Internals.Pose.WorldPosition = tonn.SectorNodeDescription.LocalToWorld(pNext);
-            mc.Internals.Pose.LookAt = tonn.SectorNodeDescription.LocalToWorldNormal(new DoubleVector3(v));
+            var worldToLocalScalingFactor = mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
+            var distance = e.MotionComponent.Internals.ComputedStatistics.Speed * dt * worldToLocalScalingFactor;
+            LocalVectorWalk(mc, v, distance);
          }
+      }
+
+      public void VectorWalk(Entity entity, DoubleVector3 worldVector) {
+         CalculateComputedStatsAndEnsureLocalizationValid(entity);
+         var mc = entity.MotionComponent;
+         var localVector = mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalNormal(worldVector);
+         var localVectorMagnitude = localVector.Norm2D();
+         LocalVectorWalk(mc, localVector.XY / localVectorMagnitude, localVectorMagnitude);
+      }
+
+      public void LocalVectorWalk(MotionComponent mc, DoubleVector2 localDirection, cDouble localMagnitude) {
+         Assert.IsTrue(localMagnitude >= 0, "LocalMagnitude wasn't >= 0");
+         var pNext = triangulationWalker.WalkTriangulation(
+            mc.Internals.Localization.TriangulationIsland,
+            mc.Internals.Localization.TriangleIndex,
+            mc.Internals.Localization.LocalPosition,
+            localDirection,
+            localMagnitude);
+         mc.Internals.Localization.LocalPosition = pNext;
+         mc.Internals.Localization.LocalPositionIv2 = pNext.LossyToIntVector2();
+         var tonn = mc.Internals.Localization.TerrainOverlayNetworkNode;
+         mc.Internals.Pose.WorldPosition = tonn.SectorNodeDescription.LocalToWorld(pNext);
+         mc.Internals.Pose.LookAt = tonn.SectorNodeDescription.LocalToWorldNormal(new DoubleVector3(localDirection));
       }
    }
 }

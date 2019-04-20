@@ -5,9 +5,15 @@ using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Pathfinding;
 using Dargon.PlayOn.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace Dargon.PlayOn.Foundation.Terrain.Motion {
    public class Swarm {
-      private readonly Dictionary<int, (TerrainOverlayNetworkNode, PathfinderResultContext)> pathfinderResultContextByComputedRadius = new Dictionary<int, (TerrainOverlayNetworkNode, PathfinderResultContext)>();
+      private readonly Dictionary<cDouble, (TerrainOverlayNetworkNode, PathfinderResultContext)> pathfinderResultContextByComputedRadius = new Dictionary<cDouble, (TerrainOverlayNetworkNode, PathfinderResultContext)>();
       private DoubleVector3 destination;
 
       public List<Entity> Entities { get; set; } = new List<Entity>();
@@ -22,7 +28,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          pathfinderResultContextByComputedRadius.Clear();
       }
 
-      public PathfinderResultContext GetPriorPathfinderResultContextOrNull(int computedRadius, TerrainOverlayNetworkNode destinationNode) {
+      public PathfinderResultContext GetPriorPathfinderResultContextOrNull(cDouble computedRadius, TerrainOverlayNetworkNode destinationNode) {
          if (!pathfinderResultContextByComputedRadius.TryGetValue(computedRadius, out var tuple) ||
              tuple.Item1 != destinationNode) {
             return null;
@@ -31,7 +37,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          return tuple.Item2;
       }
 
-      public void SetPriorPathfinderResultContext(int computedRadius, TerrainOverlayNetworkNode destinationNode, PathfinderResultContext pathfinderResultContext) {
+      public void SetPriorPathfinderResultContext(cDouble computedRadius, TerrainOverlayNetworkNode destinationNode, PathfinderResultContext pathfinderResultContext) {
          pathfinderResultContextByComputedRadius[computedRadius] = (destinationNode, pathfinderResultContext);
       }
    }

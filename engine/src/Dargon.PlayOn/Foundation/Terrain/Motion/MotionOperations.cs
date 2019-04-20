@@ -8,11 +8,13 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       private readonly TerrainFacade terrainFacade;
       private readonly PathfinderCalculator pathfinderCalculator;
       private readonly StatisticsCalculator statisticsCalculator;
+      private readonly FlockingSimulator flockingSimulator;
 
-      public MotionOperations(TerrainFacade terrainFacade, PathfinderCalculator pathfinderCalculator, StatisticsCalculator statisticsCalculator) {
+      public MotionOperations(TerrainFacade terrainFacade, PathfinderCalculator pathfinderCalculator, StatisticsCalculator statisticsCalculator, FlockingSimulator flockingSimulator) {
          this.terrainFacade = terrainFacade;
          this.pathfinderCalculator = pathfinderCalculator;
          this.statisticsCalculator = statisticsCalculator;
+         this.flockingSimulator = flockingSimulator;
       }
 
       public void SetPathfindingDestination(Entity entity, DoubleVector3 destination) {
@@ -35,5 +37,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
          mc.Internals.Pose.WorldPosition = res.world;
          mc.Internals.Localization = res.localization;
       }
+
+      public void VectorWalk(Entity entity, DoubleVector3 worldVector)
+         => flockingSimulator.VectorWalk(entity, worldVector);
    }
 }

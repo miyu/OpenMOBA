@@ -30,6 +30,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
       public void ImmobilizeAsBuilding(Entity e) { }
 
+      public void VectorWalk(Entity e, DoubleVector3 worldVector) => motionOperations.VectorWalk(e, worldVector);
+
       public void InvalidatePaths() => throw new NotImplementedException();
    }
 }
