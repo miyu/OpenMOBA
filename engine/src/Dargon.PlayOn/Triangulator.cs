@@ -38,7 +38,8 @@ namespace Dargon.PlayOn {
       public DoubleVector2 Centroid;
 
       // also in counterclockwise order, NO_NEIGHBOR_INDEX indicates no neighbor
-      public Array3<int> NeighborOppositePointIndices;
+      public Array3<int> NeighborOppositePointIndices; // triangle index
+      public Array3<int> NeighborVertexIndexSharingEdgeOppositePointIndices;
 
       public IntRect2 IntPaddedBounds2D;
    }
@@ -132,10 +133,31 @@ namespace Dargon.PlayOn {
             t.Centroid = (t.Points[0] + t.Points[1] + t.Points[2]) / CDoubleMath.c3;
             t.IntPaddedBounds2D = CreatePaddedIntAxisAlignedBoundingBoxXY2D(ref triangles[i].Points);
             for (int j = 0; j < 3; j++) {
-               if (p2tTriangle.Neighbors[j] != null && p2tTriangle.Neighbors[j].IsInterior)
-                  triangles[i].NeighborOppositePointIndices[j] = p2tTriangleToIndex[p2tTriangle.Neighbors[j]];
-               else
+               var neighbor = p2tTriangle.Neighbors[j];
+               if (neighbor != null && neighbor.IsInterior) {
+                  triangles[i].NeighborOppositePointIndices[j] = p2tTriangleToIndex[neighbor];
+
+                  // technically only need to check 1 vert assuming always same relative clockness order
+                  // Note: The shared edge is ordered opposite between two neighboring triangles.
+                  //   A______D => ABC, BAD
+                  //   /\    /
+                  //  /  \  /
+                  // /____\/
+                  // C     B
+                  var e0 = p2tTriangle.Points[j >= 2 ? j - 2 : j + 1];
+                  var e1 = p2tTriangle.Points[j >= 1 ? j - 1 : j + 2];
+                  triangles[i].NeighborVertexIndexSharingEdgeOppositePointIndices[j] =
+                     neighbor.Points[0].Equals(e1) && neighbor.Points[1].Equals(e0) ? 2 :
+                        neighbor.Points[1].Equals(e1) && neighbor.Points[2].Equals(e0) ? 0 :
+                           neighbor.Points[2].Equals(e1) && neighbor.Points[0].Equals(e0) ? 1 :
+                              throw new InvalidStateException();
+
+                  // todo: can populate other triangle node here too via symmetry optimization
+               } else {
                   triangles[i].NeighborOppositePointIndices[j] = Triangle3.NO_NEIGHBOR_INDEX;
+                  triangles[i].NeighborVertexIndexSharingEdgeOppositePointIndices[j] = Triangle3.NO_NEIGHBOR_INDEX;
+               }
+
 #if DEBUG
                var p0 = triangles[i].Points[0];
                var p1 = triangles[i].Points[1];

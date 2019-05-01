@@ -233,6 +233,63 @@ namespace Dargon.PlayOn.Geometry {
          return false;
       }
 
+      // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, segments should not have more than 1 point of intersection.
+      // if segments DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindNonoverlappingRaySegmentIntersectionT(ref IntVector2 p, ref IntVector2 dir, ref IntLineSegment2 segment, out cDouble tForRay) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var r = dir;
+         var q = segment.First;
+         var s = segment.First.To(segment.Second);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+
+         var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
+         if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
+            goto fail;
+         }
+
+         tForRay = t;
+         return true;
+
+         fail:
+         tForRay = default;
+         return false;
+      }
+
+      public static bool TryFindNonoverlappingRaySegmentIntersectionT(ref DoubleVector2 p, ref DoubleVector2 dir, ref DoubleLineSegment2 segment, out cDouble tForRay) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var r = dir;
+         var q = segment.First;
+         var s = segment.First.To(segment.Second);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+
+         var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
+         if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
+            goto fail;
+         }
+
+         tForRay = t;
+         return true;
+
+         fail:
+         tForRay = default;
+         return false;
+      }
+
       public static DoubleVector2 PointAtX(this DoubleLineSegment2 seg, double x) {
          var dx = seg.X2 - seg.X1;
          var dy = seg.Y2 - seg.Y1;
@@ -525,12 +582,15 @@ throw new NotImplementedException();
 #endif
       }
 
-      public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, ref Triangle3 triangle, out int indexOpposingEdge) {
+      public static bool TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(DoubleVector2 origin, DoubleVector2 direction, in Triangle3 triangle, out int indexOpposingEdge, int skippedEdge = -1) {
          // See my explanation on http://math.stackexchange.com/questions/2139740/fast-3d-algorithm-to-find-a-ray-triangle-edge-intersection/2197942#2197942
          // Note: Triangle points (A = p1, B = p2, C = p3) are CCW, origin is p, direction is v.
          // Results are undefined if ray origin is not in triangle (though you can probably math out what it means).
          // If a point is on the edge of the triangle, there will be neither-neither for clockness on the correct edge.
+         var skippedEdgeFirstIndex = skippedEdge == -1 ? -1 : (skippedEdge + 1) % 3;
          for (int i = 0; i < 3; i++) {
+            if (i == skippedEdgeFirstIndex) continue;
+
             var va = triangle.Points[i] - origin;
             var vb = triangle.Points[(i + 1) % 3] - origin;
             var cvad = Clockness(va, direction);

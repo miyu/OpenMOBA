@@ -7,14 +7,6 @@ using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Geometry;
 
 namespace Dargon.PlayOn.Foundation.Terrain.Motion {
-   public enum WalkResult {
-      PushInward,
-      CanPushInward,
-      Progress,
-      CanEdgeFollow,
-      Completion
-   }
-
    public class MotionSystem : OrderedEntitySystemBase {
       private static readonly EntityComponentsMask kComponentMask = ComponentMaskUtils.Build(EntityComponentType.Movement);
       private readonly GameTimeManager gameTimeManager;

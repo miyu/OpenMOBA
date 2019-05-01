@@ -30,9 +30,11 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
       public static StrokeStyle OrangeHairLineSolid = new StrokeStyle(Color.Orange, 1.0f);
       public static StrokeStyle OrangeThick3Solid = new StrokeStyle(Color.Orange, 3.0f);
+      public static StrokeStyle OrangeThick10Solid = new StrokeStyle(Color.Orange, 10.0f);
       public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
       public static StrokeStyle MagentaHairLineSolid = new StrokeStyle(Color.Magenta);
       public static StrokeStyle MagentaThick3Solid = new StrokeStyle(Color.Magenta, 3.0f);
+      public static StrokeStyle MagentaThick25Solid = new StrokeStyle(Color.Magenta, 25.0f);
       public static StrokeStyle MagentaThick3Dashed5 = new StrokeStyle(Color.Magenta, 3.0f, Dash5);
       public static StrokeStyle None = new StrokeStyle(Color.Transparent, 0);
 

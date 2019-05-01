@@ -13,6 +13,7 @@ namespace Dargon.PlayOn.Foundation {
          var gameTimeManager = new GameTimeManager(60);
          var gameEventQueueManager = new GameEventQueueManager(gameTimeManager);
          var sectorGraphDescriptionStore = new SectorGraphDescriptionStore();
+         var triangulationWalker2D = new TriangulationWalker2D();
 
          // Entity and Statistics
          var entityWorld = new EntityWorld();
@@ -26,10 +27,9 @@ namespace Dargon.PlayOn.Foundation {
          // Motion
          var motionStateContainer = new AssociatedStateContainer<object>();
          var pathfinderCalculator = new PathfinderCalculator(terrainFacade, statisticsCalculator);
-         var triangulationWalker = new TriangulationWalker();
-         var flockingSimulator = new FlockingSimulator(entityGridFacade, statisticsCalculator, pathfinderCalculator, terrainFacade, triangulationWalker);
+         var flockingSimulator = new FlockingSimulator(entityGridFacade, statisticsCalculator, pathfinderCalculator, terrainFacade, triangulationWalker2D);
          var motionSystem = new MotionSystem(entityWorld, gameTimeManager, terrainFacade, flockingSimulator, motionStateContainer);
-         var motionOperations = new MotionOperations(terrainFacade, pathfinderCalculator, statisticsCalculator, flockingSimulator);
+         var motionOperations = new MotionOperations(triangulationWalker2D, terrainFacade, pathfinderCalculator, statisticsCalculator, flockingSimulator);
          var motionFacade = new MotionFacade(terrainFacade, pathfinderCalculator, statisticsCalculator, motionOperations);
          entityWorld.AddEntitySystem(motionSystem);
          entityWorld.AddStepHandler(StepHandlerPriority.Flocking, motionSystem.ExecuteFlocking);
@@ -38,6 +38,7 @@ namespace Dargon.PlayOn.Foundation {
          var gameInstance = new Game {
             GameTimeManager = gameTimeManager,
             GameEventQueueManager = gameEventQueueManager,
+            TriangulationWalker2D = triangulationWalker2D,
             TerrainFacade = terrainFacade,
             EntityWorld = entityWorld,
             PathfinderCalculator = pathfinderCalculator,

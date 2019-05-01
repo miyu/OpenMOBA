@@ -35,6 +35,7 @@ namespace Dargon.PlayOn.Foundation {
       public List<GameEventListener> Debuggers { get; set; } = new List<GameEventListener> { new DebugProfiler() }; // really should be concurrentset
       public GameTimeManager GameTimeManager { get; set; }
       public GameEventQueueManager GameEventQueueManager { get; set; }
+      public TriangulationWalker2D TriangulationWalker2D { get; set; }
       public TerrainFacade TerrainFacade { get; set; }
       public EntityWorld EntityWorld { get; set; }
       public PathfinderCalculator PathfinderCalculator { get; set; }

@@ -9,6 +9,7 @@ using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation;
 using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
+using Dargon.PlayOn.Foundation.Terrain.CompilationResults;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Geometry;
 
@@ -101,7 +102,7 @@ namespace Dargon.PlayOn.DevTool {
                //debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.DilatedHolesUnion, StrokeStyle.RedHairLineSolid, StrokeStyle.LimeThick5Solid);
                // debugCanvas.DrawPolyNode(terrainNode.LocalGeometryView.PunchedLand, new StrokeStyle(Color.Gray));
                debugCanvas.FillTriangulation(terrainNode.LocalGeometryView.Triangulation, new FillStyle(Color.White));
-               //debugCanvas.DrawTriangulation(terrainNode.LocalGeometryView.Triangulation, new StrokeStyle(Color.Black));
+               debugCanvas.DrawTriangulation(terrainNode.LocalGeometryView.Triangulation, new StrokeStyle(Color.Black));
 
                foreach (var ((desc, version), (includedContours, excludedContours)) in terrainNode.LocalGeometryView.Job.DynamicHoles) {
                   debugCanvas.DrawPolygonContours(includedContours, StrokeStyle.RedHairLineSolid);
@@ -132,6 +133,8 @@ namespace Dargon.PlayOn.DevTool {
 
                debugCanvas.Transform = sectorNodeDescription.WorldTransform;
             }
+
+            DrawTestVectorWalkQueries(debugCanvas);
          });
       }
 
@@ -286,6 +289,17 @@ namespace Dargon.PlayOn.DevTool {
          foreach (var query in testPathFindingQueries) DrawPathfindingQueryResult(debugCanvas, agentRadius, query.Item1, query.Item2);
       }
 
+      private void DrawTestVectorWalkQueries(IDebugCanvas debugCanvas) {
+         var ton = Game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
+         if (!ton.TryFindPreciseLocalization(new DoubleVector3(-450, -350, 0), 0, out var loc)) {
+            Console.WriteLine("[gd] Fail to localize");
+            return;
+         }
+
+         debugCanvas.Transform = Matrix4x4.Identity;
+         Game.TriangulationWalker2D.WalkTriangulation(loc, new DoubleVector2(2, 0.5).ToUnit(), Game.GameTimeManager.Ticks * 100, debugCanvas);
+      }
+
       private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double agentRadius, DoubleVector3 source, DoubleVector3 dest) {
          if (Game.PathfinderCalculator.TryFindPath(agentRadius, source, dest, out var roadmap)) {
             Console.WriteLine("Yippee ");
@@ -301,10 +315,10 @@ namespace Dargon.PlayOn.DevTool {
          var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-         var center = new Vector3(0, 0, 0);
+         var center = new Vector3(-100, -100, 0);
          //         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
-            center + Vector3s.FromRadiusAngleAroundXAxis(1000, (float)rotation),
+            center + Vector3s.FromRadiusAngleAroundXAxis(1000 / 2, (float)rotation),
             //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
             center,
             Vector3s.FromRadiusAngleAroundXAxis(1, (float)(rotation - Math.PI / 2)),

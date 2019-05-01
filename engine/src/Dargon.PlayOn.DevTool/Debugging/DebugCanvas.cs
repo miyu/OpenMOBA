@@ -171,10 +171,12 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          this.drawPadding = drawPadding;
          this.projector = projector;
          PaddedSize = new Size(displaySize.Width + 2 * drawPadding.X, displaySize.Height + 2 * drawPadding.Y);
+         EffectiveRect = new Rectangle(-drawPadding.X, -drawPadding.Y, PaddedSize.Width, PaddedSize.Height);
          bitmap = new Bitmap(PaddedSize.Width, PaddedSize.Height);
       }
 
       public Size PaddedSize { get; }
+      public Rectangle EffectiveRect { get; }
 
       public Font Font => SystemFonts.DefaultFont;
 
@@ -228,21 +230,21 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             var pointTransformed = Vector3.Transform(new Vector3((float)point.X, (float)point.Y, (float)point.Z), Transform).ToOpenMobaVector();
             var radius = ProjectThickness(pointTransformed, strokeStyle.Thickness) / 2.0f;
             var rect = new RectangleF(x - radius, y - radius, radius * 2, radius * 2);
-            var overlap = !(rect.Right <= 0 || rect.Bottom <= 0 || rect.Left >= PaddedSize.Width || rect.Top >= PaddedSize.Height);
+            var overlap = !(rect.Right <= EffectiveRect.X || rect.Bottom <= EffectiveRect.Y || rect.Left >= EffectiveRect.Right || rect.Top >= EffectiveRect.Bottom);
+            //Console.WriteLine(overlap + " " + rect);
             if (!overlap) return;
-            Console.WriteLine(rect);
             SolidBrush added = null;
-            Console.WriteLine("Get brush");
+            // Console.WriteLine("Get brush");
             var brush = fillBrushCache.GetOrAdd(
                strokeStyle.Color,
                add => added = new SolidBrush(strokeStyle.Color));
-            Console.WriteLine("Got brush");
+            // Console.WriteLine("Got brush");
             if (brush != added && added != null) {
                added.Dispose();
             }
-            Console.WriteLine("Fill");
+            // Console.WriteLine("Fill");
             g.FillEllipse(brush, rect);
-            Console.WriteLine("OK");
+            // Console.WriteLine("OK");
          });
       }
 

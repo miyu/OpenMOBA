@@ -1,217 +1,214 @@
 ﻿using System;
 using System.Diagnostics;
+using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation.Terrain;
+using Dargon.PlayOn.Foundation.Terrain.CompilationResults;
+using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
 using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Geometry;
 
+#if use_fixed
+using cDouble = FixMath.NET.Fix64;
+#else
+using cDouble = System.Double;
+#endif
+
 namespace Dargon.PlayOn.Foundation.ECS {
-   public class TriangulationWalker {
-      public DoubleVector2 WalkTriangulation(TriangulationIsland island, int triangleIndex, DoubleVector2 p, DoubleVector2 preferredDirectionUnit, Double distanceRemaining) {
-         var allowPushIntoTriangle = true;
-         while (distanceRemaining > GeometryOperations.kEpsilon) {
-            DoubleVector2 np;
-            int nti;
-            var walkResult = WalkTriangle(p, preferredDirectionUnit, distanceRemaining, island, triangleIndex, allowPushIntoTriangle, true, out np, out nti);
-            switch (walkResult) {
-               case WalkResult.Completion:
-                  return np;
-               case WalkResult.Progress:
-                  distanceRemaining -= (p - np).Norm2D();
-                  p = np;
-                  triangleIndex = nti;
-                  allowPushIntoTriangle = true;
-                  continue;
-               case WalkResult.PushInward:
-                  distanceRemaining -= (p - np).Norm2D();
-                  p = np;
-                  triangleIndex = nti;
-                  allowPushIntoTriangle = false;
-                  break;
-               case WalkResult.CanPushInward:
-                  Console.WriteLine("Warning: Push inward didn't result in being in triangle?");
-                  return np;
-               case WalkResult.CanEdgeFollow:
-                  throw new Exception("Impossible CanEdgeFollow state");
-               default:
-                  throw new Exception("Impossible state " + walkResult);
-            }
-         }
-         return p;
+   public class TriangulationWalker2D {
+      public struct Localization2D {
+         public DoubleVector2 p;
+         public TriangulationIsland triangulationIsland;
+         public int triangleIndex;
       }
 
-      private WalkResult WalkTriangle(
-         DoubleVector2 position,
-         DoubleVector2 preferredDirectionUnit,
-         Double distanceRemaining,
-         TriangulationIsland island,
-         int triangleIndex,
-         bool allowPushIntoTriangle,
-         bool allowEdgeFollow,
-         out DoubleVector2 nextPosition,
-         out int nextTriangleIndex
-         ) {
-         Debug.Assert(GeometryOperations.IsReal(position));
-         Debug.Assert(GeometryOperations.IsReal(preferredDirectionUnit));
-         Debug.Assert(GeometryOperations.IsReal(distanceRemaining));
+      public struct WalkResult {
+         public Localization2D loc;
+      }
 
-         // Make this a ref in C# 7.0 for minor perf gains
-         ref var triangle = ref island.Triangles[triangleIndex];
 
-         // Find the edge of our container triangle that we're walking towards 
-         int opposingVertexIndex;
-         if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(position, preferredDirectionUnit, ref triangle, out opposingVertexIndex)) {
-            // Resolve if we're not inside the triangle.
-            if (!allowPushIntoTriangle) {
-               Console.WriteLine("Warning: Pushed into triangle, but immediately not in triangle?");
-               nextPosition = position;
-               nextTriangleIndex = triangleIndex;
-               return WalkResult.CanPushInward;
+      public WalkResult WalkTriangulation(Localization loc, DoubleVector2 direction, cDouble initialDistance, IDebugCanvas debugCanvas = null) {
+         var p = loc.LocalPosition;
+         var island = loc.TriangulationIsland;
+         var currentTriangleIndex = loc.TriangleIndex;
+         var distanceRemaining = initialDistance;
+         var outEdgeOpposingVertexIndex = FindOutEdgeIndex(p, direction, in island.Triangles[currentTriangleIndex]);
+
+         if (debugCanvas != null) debugCanvas.Transform = loc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldTransform;
+         debugCanvas?.DrawPoint(p, StrokeStyle.RedThick3Solid);
+         for (var i = 0; i < loc.TriangulationIsland.Triangles.Length; i++) {
+            var triangle = loc.TriangulationIsland.Triangles[i];
+            debugCanvas.DrawText(i.ToString(), triangle.Centroid.LossyToIntVector2());
+         }
+
+         DoubleVector2 Advance(DoubleVector2 from, DoubleVector2 to, IDebugCanvas dc) {
+            dc?.DrawLine(from, to, StrokeStyle.RedThick3Solid);
+            return to;
+         }
+
+         while (true) {
+            ref var currentTriangle = ref island.Triangles[currentTriangleIndex];
+
+            // == step to edge of current triangle ==
+            // Project p-e0 onto perp(e0-e1) to find shortest vector from position to edge.
+            // Intuitively an edge direction and the direction's perp form a vector
+            // space. A point within the triangle's offset from a vertex (which has two edges)
+            // is the sum of vector to point on nearest edge and vector from that point to the 
+            // vertex. These vectors are orthogonal, so intuitively if we project onto the perp
+            // we'll isolate the perp component.
+            var e0 = currentTriangle.Points[(outEdgeOpposingVertexIndex + 1) % 3];
+            var e1 = currentTriangle.Points[(outEdgeOpposingVertexIndex + 2) % 3];
+            debugCanvas.DrawLine(e0, e1, StrokeStyle.RedHairLineDashed5);
+            var e0e1 = new DoubleLineSegment2(e0, e1);
+            var e01 = e0.To(e1);
+            if (!GeometryOperations.TryFindNonoverlappingRaySegmentIntersectionT(ref p, ref direction, ref e0e1, out var tForRay)) {
+               throw new InvalidStateException();
             }
-            Console.WriteLine("Fix?");
+            var distanceToEdge = tForRay;
 
-            // If this fails, we're confused as to whether we're in the triangle or not, because we're on an
-            // edge and floating point arithmetic error makes us confused. Simply push us slightly into the triangle
-            // by pulling us towards its centroid
-            // (A previous variant pulled based on perp of nearest edge, however the results are probably pretty similar)
-            var offsetToCentroid = position.To(triangle.Centroid);
-            if (offsetToCentroid.Norm2D() < InternalTerrainCompilationConstants.TriangleEdgeBufferRadius) {
-               Console.WriteLine("Warning: Triangle width less than edge buffer radius!");
-               nextPosition = triangle.Centroid;
-               nextTriangleIndex = triangleIndex;
-               return WalkResult.PushInward;
+            // either can't reach edge or reached edge
+            var pAtEdge = p + direction * distanceToEdge;
+            debugCanvas.DrawPoint(p, StrokeStyle.BlackThick3Solid);
+            if (distanceToEdge >= distanceRemaining) {
+               p = Advance(p, p + direction * distanceRemaining, debugCanvas);
+               break;
+            }
+
+            // advance to edge
+            p = Advance(p, pAtEdge, debugCanvas);
+            distanceRemaining -= distanceToEdge;
+
+            // find next triangle to move into.
+            var neighborTriangleIndex = currentTriangle.NeighborOppositePointIndices[outEdgeOpposingVertexIndex];
+
+            // handle no neighbor
+            if (neighborTriangleIndex != Triangle3.NO_NEIGHBOR_INDEX) {
+               // move straight to neighbor
+               ref var neighborTriangle = ref island.Triangles[neighborTriangleIndex];
+               var sharedEdgeIndexInNeighborTriangle = currentTriangle.NeighborVertexIndexSharingEdgeOppositePointIndices[outEdgeOpposingVertexIndex];
+
+               // prepare for next step
+               debugCanvas.DrawLine(
+                  neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 1) % 3], 
+                  neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 2) % 3], 
+                  StrokeStyle.LimeHairLineSolid);
+               Console.WriteLine("Move into " + neighborTriangleIndex + " " + neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 1) % 3] + " AND " + neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 2) % 3]);
+               debugCanvas.DrawPoint(p, StrokeStyle.MagentaThick3Solid);
+               debugCanvas.DrawPoint(neighborTriangle.Centroid, StrokeStyle.OrangeThick3Solid);
+               if (neighborTriangleIndex == 8) {
+                  debugCanvas.DrawText("0", neighborTriangle.Points[0].LossyToIntVector2());
+                  debugCanvas.DrawText("1", neighborTriangle.Points[1].LossyToIntVector2());
+                  debugCanvas.DrawText("2", neighborTriangle.Points[2].LossyToIntVector2());
+                  Console.WriteLine("SEI " + sharedEdgeIndexInNeighborTriangle);
+               }
+               currentTriangleIndex = neighborTriangleIndex;
+               // if (neighborTriangleIndex == 8) return default;
+               outEdgeOpposingVertexIndex = FindOutEdgeIndex(p, direction, in neighborTriangle, sharedEdgeIndexInNeighborTriangle);
             } else {
-               nextPosition = position + offsetToCentroid.ToUnit() * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-               nextTriangleIndex = triangleIndex;
-               return WalkResult.PushInward;
-            }
-         }
+               // == Follow the edge, potentially past it across a corner (multiple edges!) or into another followed edge ==
+               // Figure out which edge vertex we're walking towards
+               var walkToEdgeVertex1 = direction.Dot(e01) > CDoubleMath.c0;
+               var corner = walkToEdgeVertex1 ? e1 : e0;
+               var pToCorner = p.To(corner);
+               var pToCornerMag = pToCorner.Norm2D();
+               var pToCornerDirection = pToCorner / pToCornerMag;
 
-         // Let d = remaining "preferred" motion.
-         var d = preferredDirectionUnit * distanceRemaining;
+               debugCanvas.DrawPoint(corner, StrokeStyle.LimeThick5Solid);
 
-         // Project p-e0 onto perp(e0-e1) to find shortest vector from position to edge.
-         // Intuitively an edge direction and the direction's perp form a vector
-         // space. A point within the triangle's offset from a vertex (which has two edges)
-         // is the sum of vector to point on nearest edge and vector from that point to the 
-         // vertex. These vectors are orthogonal, so intuitively if we project onto the perp
-         // we'll isolate the perp component.
-         var e0 = triangle.Points[(opposingVertexIndex + 1) % 3];
-         var e1 = triangle.Points[(opposingVertexIndex + 2) % 3];
-         var e01 = e0.To(e1); // NOTE: triangle points are CCW.
-         var e01Perp = new DoubleVector2(e01.Y, -e01.X); // points outside of current triangle, perp to edge we're crossing
-         Trace.Assert(triangle.Centroid.To(e0).ProjectOntoComponentD(e01Perp) > CDoubleMath.c0);
+               if (pToCornerMag >= distanceRemaining) {
+                  p = Advance(p, p + pToCornerDirection * distanceRemaining, debugCanvas);
+                  break;
+               }
+               
+               // advance to corner
+               p = Advance(p, corner, debugCanvas);
+               distanceRemaining -= pToCornerMag;
 
-         var pe0 = position.To(e0);
-         var pToEdge = pe0.ProjectOnto(e01Perp); // perp to plane normal.
-
-         // If we're sitting right on the edge, push us into the triangle before doing any work
-         // Otherwise, it can be ambiguous as to what edge we're passing through on exit.
-         // Don't delete this or we'll crash.
-         if (pToEdge.Norm2D() < GeometryOperations.kEpsilon) {
-            nextPosition = position - e01Perp.ToUnit() * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-            nextTriangleIndex = triangleIndex;
-            return WalkResult.Progress; // is this the best result?
-         }
-
-         // Project d onto pToEdge to see if we're moving beyond edge boundary
-         var pToEdgeComponentRemaining = d.ProjectOntoComponentD(pToEdge);
-         Debug.Assert(GeometryOperations.IsReal(pToEdgeComponentRemaining));
-
-         if (pToEdgeComponentRemaining < CDoubleMath.c1) {
-            // Motion finishes within triangle.
-            // TODO: Handle when this gets us very close to triangle edge e.g. cR = 0.99999.
-            // (We don't want to fall close to the triangle edge but no longer in the triangle
-            // due to floating point error)
-            nextPosition = position + d;
-            nextTriangleIndex = triangleIndex;
-            return WalkResult.Completion;
-         }
-
-         // Proposed motion would finish outside the triangle
-         var neighborTriangleIndex = triangle.NeighborOppositePointIndices[opposingVertexIndex];
-         var dToEdge = d / pToEdgeComponentRemaining;
-         Debug.Assert(GeometryOperations.IsReal(dToEdge));
-
-         if (neighborTriangleIndex != Triangle3.NO_NEIGHBOR_INDEX) {
-            // Move towards and past the edge between us and the other triangle.
-            // There's a potential bug here where the other triangle is a sliver.
-            // The edge buffer radius could potentially move us past TWO of its edges, out of it.
-            // In practice, this bug happens OFTEN and is counteracted by the in-hole hack-fix.
-            var dToAndPastEdge = dToEdge + dToEdge.ToUnit() * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-            nextPosition = position + dToAndPastEdge;
-            nextTriangleIndex = neighborTriangleIndex;
-            return WalkResult.Progress;
-         } else {
-            // We're running into an edge! First, place us as close to the edge as possible.
-            var dToNearEdge = dToEdge - dToEdge.ToUnit() * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
-            var pNearEdge = position + dToNearEdge;
-
-            // We have this guard so if we're edge following, we don't start an inner loop that's also
-            // edge following... which would probably lead to a stack overflow
-            if (!allowEdgeFollow) {
-               Console.WriteLine("Warning: Could edge follow, but was instructed not to?");
-               nextPosition = pNearEdge;
-               nextTriangleIndex = triangleIndex;
-               return WalkResult.CanEdgeFollow;
-            }
-
-            // We want to follow the edge, potentially past it if possible.
-            // Figure out which edge vertex we're walking towards
-            var walkToEdgeVertex1 = d.ProjectOntoComponentD(e01) > CDoubleMath.c0;
-            var vertexToWalkTowards = walkToEdgeVertex1 ? e1 : e0;
-            var directionToWalkAlongEdge = walkToEdgeVertex1 ? e01 : CDoubleMath.cNeg1 * e01;
-            var directionToWalkAlongEdgeUnit = directionToWalkAlongEdge.ToUnit();
-
-            // start tracking p/drem independently.
-            var p = pNearEdge;
-            var ti = triangleIndex;
-            var drem = dToNearEdge.Norm2D();
-            var allowPushInward = true;
-            while (drem > GeometryOperations.kEpsilon) {
-               DoubleVector2 np;
-               int nti;
-               var wres = WalkTriangle(
-                  pNearEdge,
-                  directionToWalkAlongEdgeUnit,
-                  distanceRemaining - dToNearEdge.Norm2D(),
-                  island,
-                  ti,
-                  allowPushInward,
-                  false,
-                  out np,
-                  out nti
-                  );
-               switch (wres) {
-                  case WalkResult.Completion:
-                     nextPosition = np;
-                     nextTriangleIndex = nti;
-                     return WalkResult.Completion;
-                  case WalkResult.CanEdgeFollow:
-                     // This is an error, so we just finish
-                     nextPosition = np;
-                     nextTriangleIndex = nti;
-                     return WalkResult.Completion;
-                  case WalkResult.Progress:
-                     // Woohoo! Walking along edge brought us into another triangle
-                     Trace.Assert(ti != nti);
-                     nextPosition = np;
-                     nextTriangleIndex = nti;
-                     return WalkResult.Progress;
-                  case WalkResult.PushInward:
-                     p = np; // HAHA
-                     ti = nti;
-                     allowPushInward = false;
-                     continue;
-                  case WalkResult.CanPushInward:
-                     nextPosition = np;
-                     nextTriangleIndex = nti;
-                     return WalkResult.Completion;
+               // round corner to determine next triangle.
+               var cornerIndex = walkToEdgeVertex1 ? (outEdgeOpposingVertexIndex + 2) % 3 : (outEdgeOpposingVertexIndex + 1) % 3;
+               var edgeToExit = walkToEdgeVertex1 ? (outEdgeOpposingVertexIndex + 1) % 3 : (outEdgeOpposingVertexIndex + 2) % 3;
+               var wrapDirection = walkToEdgeVertex1 ? Clockness.Clockwise : Clockness.CounterClockwise;
+               Console.WriteLine("Wrapping " + currentTriangleIndex + " " + cornerIndex + " " + edgeToExit);
+               if (currentTriangleIndex == 11) {
+                  Console.WriteLine("---");
+                  debugCanvas.DrawPoint(corner, StrokeStyle.LimeThick25Solid);
+                  debugCanvas.DrawPoint(currentTriangle.Points[edgeToExit], StrokeStyle.MagentaThick25Solid);
+                  Console.WriteLine("=== " + corner);
+                  //return default;
+               }
+               var res = FindExitTriangle(island, currentTriangleIndex, cornerIndex, edgeToExit, direction, wrapDirection, debugCanvas);
+               debugCanvas.DrawPoint(island.Triangles[res.Item2].Centroid, StrokeStyle.OrangeThick35Solid);
+               Console.WriteLine("Wrap to " + res + " " + wrapDirection);
+               bool ok;
+               (ok, currentTriangleIndex, outEdgeOpposingVertexIndex) = res;
+               if (!ok) {
+                  // caught in a corner!
+                  debugCanvas.DrawPoint(corner, StrokeStyle.OrangeThick10Solid);
+                  break;
                }
             }
+         }
 
-            nextPosition = p;
-            nextTriangleIndex = ti;
-            return WalkResult.Completion;
+         return new WalkResult {
+            loc = new Localization2D {
+               p = p,
+               triangleIndex = currentTriangleIndex,
+               triangulationIsland = island
+            }
+         };
+      }
+
+      private static int FindOutEdgeIndex(DoubleVector2 p, DoubleVector2 direction, in Triangle3 triangle, int skippedEdge = -1) {
+         int outEdgeOpposingVertexIndex;
+         if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p, direction, in triangle, out outEdgeOpposingVertexIndex, skippedEdge)) {
+            // fix - pull to centroid
+            throw new NotImplementedException();
+         }
+         return outEdgeOpposingVertexIndex;
+      }
+      
+      private static (bool, int, int) FindExitTriangle(TriangulationIsland island, int initialTriangleIndex, int initialCornerIndex, int initialEdgeToExit, DoubleVector2 direction, Clockness wrapDirection, IDebugCanvas debugCanvas = null) {
+         var currentTriangleIndex = initialTriangleIndex;
+         var currentCornerIndex = initialCornerIndex;
+         var corner = island.Triangles[currentTriangleIndex].Points[currentCornerIndex];
+         var edgeToExit = initialEdgeToExit;
+
+         while (true) {
+            Console.WriteLine("AT " + currentTriangleIndex + " " + currentCornerIndex);
+            ref var currentTriangle = ref island.Triangles[currentTriangleIndex];
+            var neighborIndex = currentTriangle.NeighborOppositePointIndices[edgeToExit];
+            var neighborInEdge = currentTriangle.NeighborVertexIndexSharingEdgeOppositePointIndices[edgeToExit]; // index of point opposing in-edge
+
+            if (neighborIndex == -1) {
+               return (false, currentTriangleIndex, currentCornerIndex);
+            }
+            
+            // find neighbor corner point index.
+            var currentTriangleCornerOffset = currentCornerIndex - edgeToExit; // offset from edgeToExit to corner index (-1 or 1 mod 3)
+            var neighborCornerIndex = ((neighborInEdge - currentTriangleCornerOffset) + 3) % 3; // corner index
+
+            // 2 cases: ray goes into neighbor triangle or wrap further along corner.
+            ref var neighborTriangle = ref island.Triangles[neighborIndex];
+            var neighborOutEdge = (neighborInEdge + currentTriangleCornerOffset + 3) % 3; // point of edge we might wrap past.
+
+            // Yes this seems flipped but it's correct. Note dual between edge index & point index.
+            var neighborInEdgePoint = neighborTriangle.Points[neighborOutEdge]; 
+            var neighborOutEdgePoint = neighborTriangle.Points[neighborInEdge]; 
+
+            debugCanvas.DrawPoint(neighborOutEdgePoint, StrokeStyle.RedThick25Solid);
+            debugCanvas.DrawPoint(neighborInEdgePoint, StrokeStyle.LimeThick25Solid);
+
+            var directionCrossOutEdgeRay = GeometryOperations.Clockness(direction, corner.To(neighborOutEdgePoint));
+            var directionCrossInEdgeRay = GeometryOperations.Clockness(direction, corner.To(neighborInEdgePoint));
+            Console.WriteLine("CMP " + directionCrossOutEdgeRay + " " + wrapDirection + " " + directionCrossInEdgeRay);
+            Console.WriteLine("DMP " + corner + " " + neighborOutEdgePoint + " " + neighborInEdgePoint + " " + direction);
+
+            if ((int)directionCrossOutEdgeRay != (int)wrapDirection || (int)directionCrossInEdgeRay != -(int)wrapDirection) {
+               currentTriangleIndex = neighborIndex;
+               currentCornerIndex = neighborCornerIndex;
+               edgeToExit = neighborOutEdge;
+            } else {
+               return (true, neighborIndex, neighborCornerIndex);
+            }
          }
       }
    }

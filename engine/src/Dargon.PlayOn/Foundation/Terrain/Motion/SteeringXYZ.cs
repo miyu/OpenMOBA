@@ -23,14 +23,14 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       private readonly StatisticsCalculator statisticsCalculator; // TODO: Feels out of place in this class.
       private readonly PathfinderCalculator pathfinderCalculator;
       private readonly TerrainFacade terrainFacade;
-      private readonly TriangulationWalker triangulationWalker;
+      private readonly TriangulationWalker2D triangulationWalker2D;
 
-      public FlockingSimulator(EntityGridFacade entityGridFacade, StatisticsCalculator statisticsCalculator, PathfinderCalculator pathfinderCalculator, TerrainFacade terrainFacade, TriangulationWalker triangulationWalker) {
+      public FlockingSimulator(EntityGridFacade entityGridFacade, StatisticsCalculator statisticsCalculator, PathfinderCalculator pathfinderCalculator, TerrainFacade terrainFacade, TriangulationWalker2D triangulationWalker2D) {
          this.entityGridFacade = entityGridFacade;
          this.statisticsCalculator = statisticsCalculator;
          this.pathfinderCalculator = pathfinderCalculator;
          this.terrainFacade = terrainFacade;
-         this.triangulationWalker = triangulationWalker;
+         this.triangulationWalker2D = triangulationWalker2D;
       }
 
       public void Step(Entity[] entities, cDouble dt) {
@@ -508,33 +508,13 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
             if (mc.Internals.Structure.IsEnabled) continue;
 
             var v = contributions[i];
+            var vMagnitude = v.Norm2D();
+            var vDirection = v / vMagnitude;
             var worldToLocalScalingFactor = mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
-            var distance = e.MotionComponent.Internals.ComputedStatistics.Speed * dt * worldToLocalScalingFactor;
-            LocalVectorWalk(mc, v, distance);
+            var distance = e.MotionComponent.Internals.ComputedStatistics.Speed * dt * worldToLocalScalingFactor * vMagnitude;
+            ref var localization = ref mc.Internals.Localization;
+            // triangulationWalker2D.WalkTriangulation(localization.TriangulationIsland, localization.TriangleIndex, localization.LocalPosition, vDirection, distance);
          }
-      }
-
-      public void VectorWalk(Entity entity, DoubleVector3 worldVector) {
-         CalculateComputedStatsAndEnsureLocalizationValid(entity);
-         var mc = entity.MotionComponent;
-         var localVector = mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalNormal(worldVector);
-         var localVectorMagnitude = localVector.Norm2D();
-         LocalVectorWalk(mc, localVector.XY / localVectorMagnitude, localVectorMagnitude);
-      }
-
-      public void LocalVectorWalk(MotionComponent mc, DoubleVector2 localDirection, cDouble localMagnitude) {
-         Assert.IsTrue(localMagnitude >= 0, "LocalMagnitude wasn't >= 0");
-         var pNext = triangulationWalker.WalkTriangulation(
-            mc.Internals.Localization.TriangulationIsland,
-            mc.Internals.Localization.TriangleIndex,
-            mc.Internals.Localization.LocalPosition,
-            localDirection,
-            localMagnitude);
-         mc.Internals.Localization.LocalPosition = pNext;
-         mc.Internals.Localization.LocalPositionIv2 = pNext.LossyToIntVector2();
-         var tonn = mc.Internals.Localization.TerrainOverlayNetworkNode;
-         mc.Internals.Pose.WorldPosition = tonn.SectorNodeDescription.LocalToWorld(pNext);
-         mc.Internals.Pose.LookAt = tonn.SectorNodeDescription.LocalToWorldNormal(new DoubleVector3(localDirection));
       }
    }
 }
