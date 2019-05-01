@@ -36,6 +36,7 @@ namespace Dargon.PlayOn.Foundation {
       public GameTimeManager GameTimeManager { get; set; }
       public GameEventQueueManager GameEventQueueManager { get; set; }
       public TriangulationWalker2D TriangulationWalker2D { get; set; }
+      public TriangulationWalker3D TriangulationWalker3D { get; set; }
       public TerrainFacade TerrainFacade { get; set; }
       public EntityWorld EntityWorld { get; set; }
       public PathfinderCalculator PathfinderCalculator { get; set; }
@@ -58,7 +59,7 @@ namespace Dargon.PlayOn.Foundation {
          sw.Start();
 
          while (true) {
-            if (GameTimeManager.Ticks >= GameTimeManager.TicksPerSecond * 20) {
+            if (GameTimeManager.Ticks >= 170) { //GameTimeManager.TicksPerSecond * 20) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeManager.Ticks}");
                foreach (var debugger in Debuggers) {
                   debugger.HandleEndOfGame();

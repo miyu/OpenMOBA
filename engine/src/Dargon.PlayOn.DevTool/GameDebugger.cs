@@ -58,7 +58,7 @@ namespace Dargon.PlayOn.DevTool {
       }
 
       private void RenderDebugFrame() {
-         var agentRadius = (double)0; //28.005;
+         var agentRadius = (double)10; //28.005;
 
          var terrainSnapshot = TerrainFacade.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
@@ -108,11 +108,11 @@ namespace Dargon.PlayOn.DevTool {
                   debugCanvas.DrawPolygonContours(includedContours, StrokeStyle.RedHairLineSolid);
                   debugCanvas.DrawPolygonContours(excludedContours, StrokeStyle.LimeHairLineSolid);
                }
-               continue;
                //               if (index == 0)
-               //debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeHairLineSolid);
-               //debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.ToArray(), StrokeStyle.CyanHairLineSolid);
-               //debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
+               debugCanvas.DrawPolygonContours(terrainNode.LocalGeometryView.ComputeCrossoverLandPolys().ToList(), StrokeStyle.LimeHairLineSolid);
+               debugCanvas.DrawLineList(localGeometryView.Job.CrossoverSegments.Select(x => x.segment).ToArray(), StrokeStyle.CyanHairLineSolid);
+               debugCanvas.DrawPoints(terrainNode.CrossoverPointManager.CrossoverPoints, StrokeStyle.RedThick10Solid);
+               continue;
 
                debugCanvas.Transform = Matrix4x4.Identity;
 
@@ -290,14 +290,31 @@ namespace Dargon.PlayOn.DevTool {
       }
 
       private void DrawTestVectorWalkQueries(IDebugCanvas debugCanvas) {
-         var ton = Game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(0);
-         if (!ton.TryFindPreciseLocalization(new DoubleVector3(-450, -350, 0), 0, out var loc)) {
-            Console.WriteLine("[gd] Fail to localize");
-            return;
+         var ton = Game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(10);
+
+         var colors = new[] { Color.Red, Color.Orange, Color.Yellow, Color.Lime, Color.Cyan, Color.Blue, Color.Magenta };
+
+         for (var i = 0; i < 30; i++) {
+            //if (i < 8) continue;
+            var r = new Random(i);
+            var p = 500 * (new DoubleVector3(r.NextDouble() * 2 - 1, r.NextDouble() * 2 - 1, 0));
+            if (!ton.TryFindPreciseLocalization(p, 0, out var loc)) {
+               continue;
+            }
+
+            var dir = (new DoubleVector3(r.NextDouble(), r.NextDouble(), r.NextDouble()) * 2.0 - DoubleVector3.One).ToUnit();
+
+            debugCanvas.Transform = Matrix4x4.Identity;
+            var stroke = new StrokeStyle(Color.FromArgb(190, colors[i % colors.Length]), 5);
+            Game.TriangulationWalker3D.WalkTriangulation(loc, dir, Game.GameTimeManager.Ticks * 10, debugCanvas, stroke);
          }
 
-         debugCanvas.Transform = Matrix4x4.Identity;
-         Game.TriangulationWalker2D.WalkTriangulation(loc, new DoubleVector2(2, 0.5).ToUnit(), Game.GameTimeManager.Ticks * 100, debugCanvas);
+         if (false) {
+            if (ton.TryFindPreciseLocalization(new DoubleVector3(-450, -350, 0), 0, out var loc)) {
+               Game.TriangulationWalker3D.WalkTriangulation(loc, new DoubleVector3(2, 0.4, 0).ToUnit(), Game.GameTimeManager.Ticks * 100, debugCanvas);
+               Game.TriangulationWalker3D.WalkTriangulation(loc, new DoubleVector3(1.7, 0.4, 0).ToUnit(), Game.GameTimeManager.Ticks * 100, debugCanvas);
+            }
+         }
       }
 
       private void DrawPathfindingQueryResult(IDebugCanvas debugCanvas, double agentRadius, DoubleVector3 source, DoubleVector3 dest) {
@@ -315,10 +332,10 @@ namespace Dargon.PlayOn.DevTool {
          var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-         var center = new Vector3(-100, -100, 0);
+         var center = new Vector3(0, 0, 0);
          //         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
-            center + Vector3s.FromRadiusAngleAroundXAxis(1000 / 2, (float)rotation),
+            center + Vector3s.FromRadiusAngleAroundXAxis(1000 / 1.3f, (float)rotation),
             //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
             center,
             Vector3s.FromRadiusAngleAroundXAxis(1, (float)(rotation - Math.PI / 2)),

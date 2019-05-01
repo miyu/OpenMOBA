@@ -21,6 +21,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       public static StrokeStyle CyanHairLineDashed5 = new StrokeStyle(Color.Cyan, 1.0f, Dash5);
       public static StrokeStyle CyanThick3Solid = new StrokeStyle(Color.Cyan, 3.0f);
       public static StrokeStyle CyanThick5Solid = new StrokeStyle(Color.Cyan, 5.0f);
+      public static StrokeStyle CyanThick10Solid = new StrokeStyle(Color.Cyan, 10.0f);
       public static StrokeStyle CyanThick25Solid = new StrokeStyle(Color.Cyan, 25.0f);
       public static StrokeStyle WhiteThick3Solid = new StrokeStyle(Color.White, 3.0f);
       public static StrokeStyle BlackHairLineSolid = new StrokeStyle(Color.Black);
@@ -34,6 +35,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
       public static StrokeStyle MagentaHairLineSolid = new StrokeStyle(Color.Magenta);
       public static StrokeStyle MagentaThick3Solid = new StrokeStyle(Color.Magenta, 3.0f);
+      public static StrokeStyle MagentaThick10Solid = new StrokeStyle(Color.Magenta, 10.0f);
       public static StrokeStyle MagentaThick25Solid = new StrokeStyle(Color.Magenta, 25.0f);
       public static StrokeStyle MagentaThick3Dashed5 = new StrokeStyle(Color.Magenta, 3.0f, Dash5);
       public static StrokeStyle None = new StrokeStyle(Color.Transparent, 0);

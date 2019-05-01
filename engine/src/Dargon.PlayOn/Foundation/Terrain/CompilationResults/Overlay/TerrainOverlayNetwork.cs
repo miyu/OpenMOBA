@@ -87,6 +87,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay {
             //                                              .ToArray();
             var edgeGroup = new TerrainOverlayNetworkEdgeGroup(sourceNode, destinationNode, edgeJob, edges);
             sourceNode.OutboundEdgeGroups.Add(destinationNode, edgeGroup);
+            sourceNode.OutboundEdgeGroupsBySegment.Add(edgeJob.SourceSegment, edgeGroup);
+            sourceNode.OutboundEdgeSegments.Add((edgeJob.SourceSegment, edgeJob.EdgeDescription.SourceInClockness));
             destinationNode.InboundEdgeGroups.Add(sourceNode, edgeGroup);
          }
 

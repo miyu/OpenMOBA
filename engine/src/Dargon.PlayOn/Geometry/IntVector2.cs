@@ -64,6 +64,7 @@ namespace Dargon.PlayOn.Geometry {
       }
 
       public static DoubleVector2 Zero => new DoubleVector2(CDoubleMath.c0, CDoubleMath.c0);
+      public static DoubleVector2 One => new DoubleVector2(CDoubleMath.c1, CDoubleMath.c1);
       public static DoubleVector2 UnitX => new DoubleVector2(CDoubleMath.c1, CDoubleMath.c0);
       public static DoubleVector2 UnitY => new DoubleVector2(CDoubleMath.c0, CDoubleMath.c1);
 

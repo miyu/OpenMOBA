@@ -263,7 +263,7 @@ namespace Dargon.PlayOn.Geometry {
          return false;
       }
 
-      public static bool TryFindNonoverlappingRaySegmentIntersectionT(ref DoubleVector2 p, ref DoubleVector2 dir, ref DoubleLineSegment2 segment, out cDouble tForRay) {
+      public static bool TryFindNonoverlappingRaySegmentIntersectionT(in DoubleVector2 p, in DoubleVector2 dir, in DoubleLineSegment2 segment, out cDouble tForRay) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var r = dir;
          var q = segment.First;
@@ -276,6 +276,9 @@ namespace Dargon.PlayOn.Geometry {
 
          var qmp = q - p;
          var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+         if (t < CDoubleMath.c0) {
+            goto fail;
+         }
 
          var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
          if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {

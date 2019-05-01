@@ -54,7 +54,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                   while (slider.Value == v && v != 0) {
                      v = Math.Max(v - 2 * speedup, 0);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
-                     Thread.Sleep(12);
+                     Thread.Sleep(25);
                   }
                }).Start();
             } else {
@@ -63,7 +63,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                   while (slider.Value == v && v != slider.Maximum) {
                      v = Math.Min(v + 1 * speedup, (int)slider.Maximum);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
-                     Thread.Sleep(12);
+                     Thread.Sleep(25);
                   }
                }).Start();
             }

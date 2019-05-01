@@ -14,6 +14,7 @@ namespace Dargon.PlayOn.Foundation {
          var gameEventQueueManager = new GameEventQueueManager(gameTimeManager);
          var sectorGraphDescriptionStore = new SectorGraphDescriptionStore();
          var triangulationWalker2D = new TriangulationWalker2D();
+         var triangulationWalker3D = new TriangulationWalker3D(triangulationWalker2D);
 
          // Entity and Statistics
          var entityWorld = new EntityWorld();
@@ -39,6 +40,7 @@ namespace Dargon.PlayOn.Foundation {
             GameTimeManager = gameTimeManager,
             GameEventQueueManager = gameEventQueueManager,
             TriangulationWalker2D = triangulationWalker2D,
+            TriangulationWalker3D = triangulationWalker3D,
             TerrainFacade = terrainFacade,
             EntityWorld = entityWorld,
             PathfinderCalculator = pathfinderCalculator,

@@ -78,6 +78,7 @@ namespace Dargon.PlayOn.Geometry {
       public DoubleVector3 MaxWith(DoubleVector3 o) => new DoubleVector3(CDoubleMath.Max(X, o.X), CDoubleMath.Max(Y, o.Y), CDoubleMath.Max(Z, o.Z));
 
       public static DoubleVector3 Zero => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c0, CDoubleMath.c0);
+      public static DoubleVector3 One => new DoubleVector3(CDoubleMath.c1, CDoubleMath.c1, CDoubleMath.c1);
       public static DoubleVector3 UnitX => new DoubleVector3(CDoubleMath.c1, CDoubleMath.c0, CDoubleMath.c0);
       public static DoubleVector3 UnitY => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c1, CDoubleMath.c0);
       public static DoubleVector3 UnitZ => new DoubleVector3(CDoubleMath.c0, CDoubleMath.c0, CDoubleMath.c1);
