@@ -32,24 +32,51 @@ namespace Dargon.PlayOn.Foundation.ECS {
       }
 
       private readonly Logger logger = new Logger(1);
+      private IDebugCanvas debugCanvas;
+      private StrokeStyle debugStroke;
 
-      public WalkResult WalkTriangulation(Localization loc, DoubleVector2 direction, double initialDistance, StrokeStyle stroke, IDebugCanvas debugCanvas = null, List<(DoubleLineSegment2, Clockness)> haltSegments = null) {
-         var p = loc.LocalPosition;
-         var island = loc.TriangulationIsland;
-         var currentTriangleIndex = loc.TriangleIndex;
-         var distanceRemaining = initialDistance;
-         var outEdgeOpposingVertexIndex = FindOutEdgeIndex(p, direction, in island.Triangles[currentTriangleIndex]);
-         var haltingSegment = (DoubleLineSegment2?)null;
-         var nextIterationShouldMovePAlongDirectionToEdge = true;
+      private DoubleVector2 p, direction;
+      private TriangulationIsland island;
+      private int currentTriangleIndex;
+      private double distanceRemaining;
+      private int outEdgeOpposingVertexIndex;
+      private List<(DoubleLineSegment2, Clockness)> haltSegments;
+      private DoubleLineSegment2? haltingSegment;
+      private bool nextIterationShouldMovePAlongDirectionToEdge;
 
-         if (debugCanvas != null) debugCanvas.Transform = loc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldTransform;
-         debugCanvas?.DrawPoint(p, StrokeStyle.RedThick3Solid);
+      public void SetDebug(IDebugCanvas debugCanvas, StrokeStyle stroke) {
+         this.debugCanvas = debugCanvas;
+         this.debugStroke = stroke;
+      }
 
-         // for (var i = 0; i < loc.TriangulationIsland.Triangles.Length; i++) {
-         //    var triangle = loc.TriangulationIsland.Triangles[i];
-         //    debugCanvas?.DrawText(i.ToString(), triangle.Centroid.LossyToIntVector2());
-         // }
+      public WalkResult WalkTriangulation(Localization loc, DoubleVector2 dir, double initialDistance, List<(DoubleLineSegment2, Clockness)> haltSegments = null) {
+         // initial state
+         p = loc.LocalPosition;
+         direction = dir;
+         island = loc.TriangulationIsland;
+         currentTriangleIndex = loc.TriangleIndex;
+         distanceRemaining = initialDistance;
+         outEdgeOpposingVertexIndex = FindOutEdgeIndex(p, direction, in island.Triangles[currentTriangleIndex]);
+         this.haltSegments = haltSegments;
+         haltingSegment = (DoubleLineSegment2?)null;
+         nextIterationShouldMovePAlongDirectionToEdge = true;
 
+         // prepare debug render state
+         if (debugCanvas != null) {
+            debugCanvas.Transform = loc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldTransform;
+            debugCanvas.DrawPoint(p, StrokeStyle.RedThick3Solid);
+
+            // for (var i = 0; i < loc.TriangulationIsland.Triangles.Length; i++) {
+            //    var triangle = loc.TriangulationIsland.Triangles[i];
+            //    debugCanvas.DrawText(i.ToString(), triangle.Centroid.LossyToIntVector2());
+            // }
+         }
+
+         // exec
+         return Execute();
+      }
+
+      WalkResult Execute() {
          while (true) {
             ref var currentTriangle = ref island.Triangles[currentTriangleIndex];
 
@@ -82,15 +109,15 @@ namespace Dargon.PlayOn.Foundation.ECS {
                // see if we run out of steam
                if (distanceToEdge >= distanceRemaining) {
                   var pCompletion = p + direction * distanceRemaining;
-                  if (haltSegments != null && HaltCheck(pCompletion, debugCanvas, haltSegments, distanceToEdge, ref p, ref distanceRemaining, ref haltingSegment, stroke)) break;
-                  p = Advance("ToEdgeCompletion", p, pCompletion, debugCanvas, stroke);
+                  if (haltSegments != null && HaltCheck(pCompletion, distanceRemaining)) break;
+                  p = Advance("ToEdgeCompletion", p, pCompletion);
                   distanceRemaining = 0;
                   break;
                }
 
                // advance to edge
-               if (haltSegments != null && HaltCheck(pAtEdge, debugCanvas, haltSegments, distanceToEdge, ref p, ref distanceRemaining, ref haltingSegment, stroke)) break;
-               p = Advance("ToEdge", p, pAtEdge, debugCanvas, stroke);
+               if (haltSegments != null && HaltCheck(pAtEdge, distanceToEdge)) break;
+               p = Advance("ToEdge", p, pAtEdge);
                distanceRemaining -= distanceToEdge;
             }
 
@@ -134,15 +161,15 @@ namespace Dargon.PlayOn.Foundation.ECS {
 
                if (pToCornerMag >= distanceRemaining) {
                   var pTowardCorner = p + pToCornerDirection * distanceRemaining;
-                  if (haltSegments != null && HaltCheck(pTowardCorner, debugCanvas, haltSegments, distanceToEdge, ref p, ref distanceRemaining, ref haltingSegment, stroke)) break;
-                  p = Advance("ToCornerCompletion", p, pTowardCorner, debugCanvas, stroke);
+                  if (haltSegments != null && HaltCheck(pTowardCorner, distanceRemaining)) break;
+                  p = Advance("ToCornerCompletion", p, pTowardCorner);
                   distanceRemaining = 0;
                   break;
                }
 
                // advance to corner
-               if (haltSegments != null && HaltCheck(corner, debugCanvas, haltSegments, distanceToEdge, ref p, ref distanceRemaining, ref haltingSegment, stroke)) break;
-               p = Advance("ToCorner", p, corner, debugCanvas, stroke);
+               if (haltSegments != null && HaltCheck(corner, distanceToEdge)) break;
+               p = Advance("ToCorner", p, corner);
                distanceRemaining -= pToCornerMag;
 
                // round corner to determine next triangle.
@@ -196,14 +223,14 @@ namespace Dargon.PlayOn.Foundation.ECS {
          };
       }
 
-      private bool HaltCheck(DoubleVector2 next, IDebugCanvas debugCanvas, List<(DoubleLineSegment2, Clockness)> haltSegments, double distanceToEdge, ref DoubleVector2 p, ref double distanceRemaining, ref DoubleLineSegment2? haltingSegment, StrokeStyle stroke) {
+      private bool HaltCheck(DoubleVector2 next, double distanceToEdge) {
          if (p == next) return false;
 
          var direction = p.To(next).ToUnit();
          var haltRes = TestHaltSegments(p, direction, haltSegments);
          if (haltRes.hit && haltRes.distance <= distanceToEdge) {
             var pAtHaltEdge = p + direction * haltRes.distance;
-            p = Advance("HALT", p, pAtHaltEdge, debugCanvas, stroke);
+            p = Advance("HALT", p, pAtHaltEdge);
             distanceRemaining -= haltRes.distance;
             haltingSegment = haltRes.seg;
             debugCanvas?.DrawPoint(pAtHaltEdge, StrokeStyle.MagentaThick10Solid);
@@ -212,9 +239,9 @@ namespace Dargon.PlayOn.Foundation.ECS {
          return false;
       }
 
-      private DoubleVector2 Advance(string op, DoubleVector2 @from, DoubleVector2 to, IDebugCanvas dc, StrokeStyle stroke) {
+      private DoubleVector2 Advance(string op, DoubleVector2 @from, DoubleVector2 to) {
          logger.Debug?.WriteLine($"[{op}] Advance {@from} => {to}");
-         dc?.DrawLine(@from, to, stroke);
+         debugCanvas?.DrawLine(@from, to, debugStroke);
          return to;
       }
 
@@ -327,7 +354,8 @@ namespace Dargon.PlayOn.Foundation.ECS {
             var currentSnd = currentTonn.SectorNodeDescription;
             var localDirection = currentSnd.WorldToLocalNormal(initialDirection).XY.ToUnit();
             var localDistanceRemaining = distanceRemaining * currentSnd.WorldToLocalScalingFactor;
-            var walkResult = triangulationWalker2D.WalkTriangulation(currentLoc, localDirection, localDistanceRemaining, stroke ?? StrokeStyle.RedThick3Solid, debugCanvas, currentTonn.OutboundEdgeSegments);
+            triangulationWalker2D.SetDebug(debugCanvas, stroke ?? StrokeStyle.RedThick3Solid);
+            var walkResult = triangulationWalker2D.WalkTriangulation(currentLoc, localDirection, localDistanceRemaining, currentTonn.OutboundEdgeSegments);
             var localDistanceWalked = localDistanceRemaining - walkResult.distanceRemaining;
             var worldDistanceWalked = localDistanceWalked * currentSnd.LocalToWorldScalingFactor;
 
