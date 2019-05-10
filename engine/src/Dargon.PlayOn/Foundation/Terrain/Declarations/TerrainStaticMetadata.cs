@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Drawing;
 using Dargon.PlayOn.Geometry;
+using Dargon.Vox;
 
 namespace Dargon.PlayOn.Foundation.Terrain.Declarations {
+   [AutoSerializable]
    public class TerrainStaticMetadata {
       public string Name;
       public Rectangle LocalBoundary;

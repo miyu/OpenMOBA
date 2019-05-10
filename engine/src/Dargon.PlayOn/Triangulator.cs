@@ -42,6 +42,8 @@ namespace Dargon.PlayOn {
       public Array3<int> NeighborVertexIndexSharingEdgeOppositePointIndices;
 
       public IntRect2 IntPaddedBounds2D;
+
+      public override string ToString() => $"[{Points.A} {Points.B} {Points.C}]";
    }
 
    public struct Array3<T> : IReadOnlyList<T> {

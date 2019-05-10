@@ -16,38 +16,57 @@ namespace Dargon.PlayOn.Geometry {
          }
       }
 
+      public static void AssertIsLandNode(this PolyNode node) {
+         if (node.IsHole || node.Contour.Count == 0) {
+            throw new ArgumentException("Expected polynode to be a land node?");
+         }
+      }
+
       /// <summary>
       /// Note: Containment definition varies by hole vs terrain: Containment for holes
       /// does not include the hole edge, containment for terrain includes the terrain edge.
       /// This is important, else e.g. knockback + terrain push placing an entity on an edge
       /// would potentially infinite loop.
       /// </summary>
-      public static void PickDeepestPolynode(this PolyNode polyTree, IntVector2 query, out PolyNode result, out bool isHole) {
-         polyTree.AssertIsContourlessRootHolePunchResult();
+      public static void PickDeepestPolynode(this PolyNode polyTree, IntVector2 query, out PolyNode result, out bool isHole, int pickDepth = -1) {
+         var currentIsHole = polyTree.IsHole;
+
          PolyNode current = polyTree;
          while (true) {
-            // current is a hole
-            PolyNode match;
-
-            // if we fail to find the first child land node border-inclusively containing the query point
-            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) != PolygonContainmentResult.OutsidePolygon, out match)) {
+            if (pickDepth-- == 0) {
                result = current;
-               isHole = true;
+               isHole = currentIsHole;
                return;
             }
 
-            // next off, current is land
-            current = match;
+            if (currentIsHole) {
+               // current is a hole
+               PolyNode match;
 
-            // If we fail to find a child hole border-excludingly containing the query point
-            if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) == PolygonContainmentResult.InPolygon, out match)) {
-               result = current;
-               isHole = false;
-               return;
+               // if we fail to find the first child land node border-inclusively containing the query point
+               if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) != PolygonContainmentResult.OutsidePolygon, out match)) {
+                  result = current;
+                  isHole = true;
+                  return;
+               }
+
+               // next off, current is land
+               current = match;
+               currentIsHole = false;
+            } else {
+               PolyNode match;
+
+               // If we fail to find a child hole border-excludingly containing the query point
+               if (!current.Childs.TryFindFirst(child => Clipper.PointInPolygon(new IntVector2(query.X, query.Y), child.Contour) == PolygonContainmentResult.InPolygon, out match)) {
+                  result = current;
+                  isHole = false;
+                  return;
+               }
+
+               // next off, current is a hole
+               current = match;
+               currentIsHole = true;
             }
-
-            // next off, current is a hole
-            current = match;
          }
       }
 

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using Dargon.Vox;
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
 #else
@@ -48,7 +49,10 @@ namespace Dargon.PlayOn.Geometry {
    }
 
    // polygon2 of rectangle should be counterclockwise
+   [AutoSerializable]
    public class Polygon2 {
+      private Polygon2() { } // for deserialization
+
       public Polygon2(List<IntVector2> points) {
          // enforce closed poly
          if (points[0] != points.Last()) {

@@ -22,6 +22,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults {
       public static (bool isHole, cDouble distance) FindNearestLandPoint(this LocalGeometryView localGeometryView, DoubleVector2 query, out DoubleVector2 nearestLandPoint) {
          var punchedLandPolytree = localGeometryView.PunchedLand;
          punchedLandPolytree.AssertIsContourlessRootHolePunchResult();
+
          punchedLandPolytree.PickDeepestPolynode(query.LossyToIntVector2(), out var pickedNode, out var isHole);
 
          // If query point not in a hole, nearest land point is query point
@@ -51,15 +52,43 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults {
          return (true, bestDistance);
       }
 
+      public static cDouble FindNearestLandPointNonrecursive(this PolyNode landNode, DoubleVector2 query, out DoubleVector2 nearestLandPoint) {
+         landNode.AssertIsLandNode();
+
+         var q = query.LossyToIntVector2();
+
+         // Case 1: We're outside the land node.
+         var landContourPipResult = Clipper.PointInPolygon(q, landNode.Contour);
+         if (landContourPipResult == PolygonContainmentResult.OutsidePolygon) {
+            var result = GeometryOperations.FindNearestPointOnContour(landNode.Contour, query);
+            nearestLandPoint = result.NearestPoint;
+            return result.Distance;
+         }
+
+         // Case 2: We're inside a child hole.
+         foreach (var holeNode in landNode.Childs) {
+            var holeContourPipResult = Clipper.PointInPolygon(q, holeNode.Contour);
+            if (holeContourPipResult == PolygonContainmentResult.OutsidePolygon) continue;
+            if (holeContourPipResult == PolygonContainmentResult.OnPolygon) break; // done, we're not in a hole
+            var result = GeometryOperations.FindNearestPointOnContour(holeNode.Contour, query);
+            nearestLandPoint = result.NearestPoint;
+            return result.Distance;
+         }
+
+         // Case 3: We're in/on land node contour & not in a child hole.
+         nearestLandPoint = query;
+         return CDoubleMath.c0;
+      }
+
       public static (DoubleVector3 world, Localization localization) FindNearestLandPointLocalization(this TerrainOverlayNetwork terrainOverlayNetwork, DoubleVector3 pWorld, cDouble computedRadius) {
-         var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
+         // var paddedHoleDilationRadius = computedRadius + InternalTerrainCompilationConstants.AdditionalHoleDilationRadius + InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
          var bestWorldDistance = cDouble.MaxValue;
          var bestWorld = DoubleVector3.Zero;
          var bestLocal = DoubleVector2.Zero;
          TerrainOverlayNetworkNode bestNode = null;
          foreach (var terrainOverlayNode in terrainOverlayNetwork.TerrainNodes) {
             var pLocal = (DoubleVector2)terrainOverlayNode.SectorNodeDescription.WorldToLocal(pWorld);
-            terrainOverlayNode.LocalGeometryView.FindNearestLandPoint(pLocal, out var pNearestLocal);
+            terrainOverlayNode.LandPolyNode.FindNearestLandPointNonrecursive(pLocal, out var pNearestLocal);
 
             var pNearestWorld = terrainOverlayNode.SectorNodeDescription.LocalToWorld(pNearestLocal);
             var worldDistance = pWorld.To(pNearestWorld).Norm2D();

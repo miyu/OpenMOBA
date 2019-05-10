@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
+using Dargon.Vox;
 using cInt = System.Int32;
 
 #if use_fixed
@@ -98,6 +99,7 @@ namespace Dargon.PlayOn.Geometry {
       public override string ToString() => $"[{X}, {Y}]";
    }
 
+   [AutoSerializable]
    [StructLayout(LayoutKind.Sequential, Pack = 1)]
    public struct IntVector2 {
       public cInt X;

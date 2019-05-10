@@ -31,7 +31,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
          public DoubleLineSegment2? haltingSegment;
       }
 
-      private readonly Logger logger = new Logger(1);
+      public Logger logger = new Logger(0);
       private IDebugCanvas debugCanvas;
       private StrokeStyle debugStroke;
 
@@ -56,15 +56,17 @@ namespace Dargon.PlayOn.Foundation.ECS {
          island = loc.TriangulationIsland;
          currentTriangleIndex = loc.TriangleIndex;
          distanceRemaining = initialDistance;
-         outEdgeOpposingVertexIndex = FindOutEdgeIndex(p, direction, in island.Triangles[currentTriangleIndex]);
+         outEdgeOpposingVertexIndex = FindOutEdgeIndex(ref p, direction, in island.Triangles[currentTriangleIndex], -1, logger);
          this.haltSegments = haltSegments;
          haltingSegment = (DoubleLineSegment2?)null;
          nextIterationShouldMovePAlongDirectionToEdge = true;
 
+         logger.Debug?.WriteLine($"START TI {loc.TriangleIndex} OEOVI {outEdgeOpposingVertexIndex}");
+
          // prepare debug render state
          if (debugCanvas != null) {
             debugCanvas.Transform = loc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldTransform;
-            debugCanvas.DrawPoint(p, StrokeStyle.RedThick3Solid);
+            debugCanvas.DrawPoint(p, debugStroke);
 
             // for (var i = 0; i < loc.TriangulationIsland.Triangles.Length; i++) {
             //    var triangle = loc.TriangulationIsland.Triangles[i];
@@ -80,6 +82,8 @@ namespace Dargon.PlayOn.Foundation.ECS {
          while (true) {
             ref var currentTriangle = ref island.Triangles[currentTriangleIndex];
 
+            logger.Debug?.WriteLine($"ITER {currentTriangleIndex} OEOVI {outEdgeOpposingVertexIndex}");
+
             // == step to edge of current triangle ==
             // Project p-e0 onto perp(e0-e1) to find shortest vector from position to edge.
             // Intuitively an edge direction and the direction's perp form a vector
@@ -89,7 +93,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
             // we'll isolate the perp component.
             var e0 = currentTriangle.Points[(outEdgeOpposingVertexIndex + 1) % 3];
             var e1 = currentTriangle.Points[(outEdgeOpposingVertexIndex + 2) % 3];
-            debugCanvas?.DrawLine(e0, e1, StrokeStyle.RedHairLineDashed5);
+            // debugCanvas?.DrawLine(e0, e1, StrokeStyle.RedHairLineDashed5);
             var e0e1 = new DoubleLineSegment2(e0, e1);
             var e01 = e0.To(e1);
 
@@ -97,14 +101,33 @@ namespace Dargon.PlayOn.Foundation.ECS {
             var pAtEdge = p;
 
             if (nextIterationShouldMovePAlongDirectionToEdge) {
-               if (!GeometryOperations.TryFindNonoverlappingRaySegmentIntersectionT(in p, in direction, in e0e1, out var tForRay)) {
-                  throw new InvalidStateException();
+               var line = new DoubleLineSegment2(p, p + direction);
+               GeometryOperations.TryFindNonoverlappingLineSegmentIntersectionT(in line, in e0e1, out var tForRay);
+               if (tForRay <= -0.001f) {
+                  logger.Warn?.WriteLine((tForRay < -0.1f ? "!!! " : "") + "L-S INT T<=-0.001f: " + tForRay + " " + line + " " + e0e1);
                }
+               // var it = 0;
+               // while(it < 10000) {
+               //    if (GeometryOperations.TryFindNonoverlappingRaySegmentIntersectionT(in p, in direction, in e0e1, out tForRay)) {
+               //       break;
+               //    } else {
+               //       if (it < 5) logger.Warn?.WriteLine("ITER " + p + " " + direction + " " + e0e1);
+               //       // proj p onto segment.
+               //       p -= direction * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
+               //       it++;
+               //
+               //       // tForRay = 0;
+               //       // break;
+               //       // PullToCentroid(ref p, in currentTriangle);
+               //       // if (it == 3) throw new InvalidStateException("Couldn't find r-s intersect t.");
+               //    }
+               // }
+               // if (it != 0) logger.Warn?.WriteLine("FIX ITERS " + it);
                distanceToEdge = tForRay;
 
                // either can't reach edge or reached edge
                pAtEdge = p + direction * distanceToEdge;
-               debugCanvas?.DrawPoint(p, StrokeStyle.BlackThick3Solid);
+               // debugCanvas?.DrawPoint(p, StrokeStyle.BlackThick3Solid);
 
                // see if we run out of steam
                if (distanceToEdge >= distanceRemaining) {
@@ -131,22 +154,22 @@ namespace Dargon.PlayOn.Foundation.ECS {
                var sharedEdgeIndexInNeighborTriangle = currentTriangle.NeighborVertexIndexSharingEdgeOppositePointIndices[outEdgeOpposingVertexIndex];
 
                // prepare for next step
-               debugCanvas?.DrawLine(
-                  neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 1) % 3], 
-                  neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 2) % 3], 
-                  StrokeStyle.LimeHairLineSolid);
+               // debugCanvas?.DrawLine(
+               //    neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 1) % 3], 
+               //    neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 2) % 3], 
+               //    StrokeStyle.LimeHairLineSolid);
                logger.Debug?.WriteLine("Move into " + neighborTriangleIndex + " " + neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 1) % 3] + " AND " + neighborTriangle.Points[(sharedEdgeIndexInNeighborTriangle + 2) % 3]);
-               debugCanvas?.DrawPoint(p, StrokeStyle.MagentaThick3Solid);
-               debugCanvas?.DrawPoint(neighborTriangle.Centroid, StrokeStyle.OrangeThick3Solid);
-               if (neighborTriangleIndex == 8) {
-                  debugCanvas?.DrawText("0", neighborTriangle.Points[0].LossyToIntVector2());
-                  debugCanvas?.DrawText("1", neighborTriangle.Points[1].LossyToIntVector2());
-                  debugCanvas?.DrawText("2", neighborTriangle.Points[2].LossyToIntVector2());
-                  logger.Verbose?.WriteLine("SEI " + sharedEdgeIndexInNeighborTriangle);
-               }
+               // debugCanvas?.DrawPoint(p, StrokeStyle.MagentaThick3Solid);
+               // debugCanvas?.DrawPoint(neighborTriangle.Centroid, StrokeStyle.OrangeThick3Solid);
+               // if (neighborTriangleIndex == 8) {
+                  // debugCanvas?.DrawText("0", neighborTriangle.Points[0].LossyToIntVector2());
+                  // debugCanvas?.DrawText("1", neighborTriangle.Points[1].LossyToIntVector2());
+                  // debugCanvas?.DrawText("2", neighborTriangle.Points[2].LossyToIntVector2());
+                  // logger.Verbose?.WriteLine("SEI " + sharedEdgeIndexInNeighborTriangle);
+               // }
                currentTriangleIndex = neighborTriangleIndex;
                // if (neighborTriangleIndex == 8) return default;
-               outEdgeOpposingVertexIndex = FindOutEdgeIndex(p, direction, in neighborTriangle, sharedEdgeIndexInNeighborTriangle);
+               outEdgeOpposingVertexIndex = FindOutEdgeIndex(ref p, direction, in neighborTriangle, sharedEdgeIndexInNeighborTriangle, logger);
                nextIterationShouldMovePAlongDirectionToEdge = true;
             } else {
                // == Follow the edge, potentially past it across a corner (multiple edges!) or into another followed edge ==
@@ -157,7 +180,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
                var pToCornerMag = pToCorner.Norm2D();
                var pToCornerDirection = pToCorner / pToCornerMag;
 
-               debugCanvas?.DrawPoint(corner, StrokeStyle.LimeThick5Solid);
+               // debugCanvas?.DrawPoint(corner, StrokeStyle.LimeThick5Solid);
 
                if (pToCornerMag >= distanceRemaining) {
                   var pTowardCorner = p + pToCornerDirection * distanceRemaining;
@@ -185,8 +208,8 @@ namespace Dargon.PlayOn.Foundation.ECS {
                   currentTriangleIndex = res.triangleIndex;
                   outEdgeOpposingVertexIndex = res.cornerIndex;
                   nextIterationShouldMovePAlongDirectionToEdge = true;
-                  debugCanvas?.DrawPoint(island.Triangles[res.triangleIndex].Points[res.cornerIndex], StrokeStyle.CyanThick10Solid);
-                  debugCanvas?.DrawPoint(island.Triangles[res.triangleIndex].Centroid, StrokeStyle.CyanThick10Solid);
+                  // debugCanvas?.DrawPoint(island.Triangles[res.triangleIndex].Points[res.cornerIndex], StrokeStyle.CyanThick10Solid);
+                  // debugCanvas?.DrawPoint(island.Triangles[res.triangleIndex].Centroid, StrokeStyle.CyanThick10Solid);
                } else { 
                   // Failed to wrap corner & exit at desired direction.
                   // We're either hitting a dead-end corner or need to follow edge to the next wrap.
@@ -194,16 +217,16 @@ namespace Dargon.PlayOn.Foundation.ECS {
                   var wrapEndCi = res.cornerIndex;
                   var otherVertOfFollowedEdge = (wrapEndCi - (int)wrapDirection + 3) % 3;
                   var vertToSlideToward = island.Triangles[wrapEndTi].Points[otherVertOfFollowedEdge];
-                  debugCanvas?.DrawPoint(vertToSlideToward, StrokeStyle.CyanThick10Solid);
-                  debugCanvas?.DrawPoint(corner, StrokeStyle.OrangeThick10Solid);
+                  // debugCanvas?.DrawPoint(vertToSlideToward, StrokeStyle.CyanThick10Solid);
+                  // debugCanvas?.DrawPoint(corner, StrokeStyle.OrangeThick10Solid);
                   if (corner.To(vertToSlideToward).Dot(direction) > 0) {
                      var edgeToWalkIndex = (wrapEndCi + (int)wrapDirection + 3) % 3;
                      logger.Debug?.WriteLine("Can slide " + wrapEndTi + " " + wrapEndCi + " " + edgeToWalkIndex);
                      currentTriangleIndex = wrapEndTi;
                      outEdgeOpposingVertexIndex = edgeToWalkIndex;
                      nextIterationShouldMovePAlongDirectionToEdge = false;
-                     debugCanvas?.DrawPoint(island.Triangles[wrapEndTi].Points[wrapEndCi], StrokeStyle.BlackThick25Solid);
-                     debugCanvas?.DrawPoint(island.Triangles[wrapEndTi].Points[edgeToWalkIndex], StrokeStyle.OrangeThick35Solid);
+                     // debugCanvas?.DrawPoint(island.Triangles[wrapEndTi].Points[wrapEndCi], StrokeStyle.BlackThick25Solid);
+                     // debugCanvas?.DrawPoint(island.Triangles[wrapEndTi].Points[edgeToWalkIndex], StrokeStyle.OrangeThick35Solid);
                   } else {
                      logger.Debug?.WriteLine("That's a snag! Can't slide.");
                      break;
@@ -233,7 +256,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
             p = Advance("HALT", p, pAtHaltEdge);
             distanceRemaining -= haltRes.distance;
             haltingSegment = haltRes.seg;
-            debugCanvas?.DrawPoint(pAtHaltEdge, StrokeStyle.MagentaThick10Solid);
+            // debugCanvas?.DrawPoint(pAtHaltEdge, StrokeStyle.MagentaThick10Solid);
             return true;
          }
          return false;
@@ -259,15 +282,40 @@ namespace Dargon.PlayOn.Foundation.ECS {
          return nearest;
       }
 
-      private static int FindOutEdgeIndex(DoubleVector2 p, DoubleVector2 direction, in Triangle3 triangle, int skippedEdge = -1) {
+      private static int FindOutEdgeIndex(ref DoubleVector2 p, DoubleVector2 direction, in Triangle3 triangle, int skippedEdge = -1, Logger logger = null) {
          int outEdgeOpposingVertexIndex;
-         if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p, direction, in triangle, out outEdgeOpposingVertexIndex, skippedEdge)) {
+         var it = 0;
+         var offset = DoubleVector2.Zero;
+         while (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p + offset, direction, in triangle, out outEdgeOpposingVertexIndex, skippedEdge)) {
             // fix - pull to centroid
-            throw new NotImplementedException();
+            //
+            offset -= direction * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
+            it++;
+            if (it % 5 == 4) {
+               PullToCentroid(ref p, in triangle);
+            }
+            // if (!GeometryOperations.TryIntersectRayWithContainedOriginForVertexIndexOpposingEdge(p, direction, in triangle, out outEdgeOpposingVertexIndex, skippedEdge)) {
+            //    throw new InvalidStateException($"Unable to localize p={p} in {triangle}");
+            // }
          }
+         if (it != 0) logger?.Warn?.WriteLine("FIX OEI ITERS " + it);
          return outEdgeOpposingVertexIndex;
       }
-      
+
+      private static void PullToCentroid(ref DoubleVector2 p, in Triangle3 triangle) {
+         // If this fails, we're confused as to whether we're in the triangle or not, because we're on an
+         // edge and floating point arithmetic error makes us confused. Simply push us slightly into the triangle
+         // by pulling us towards its centroid
+         // (A previous variant pulled based on perp of nearest edge, however the results are probably pretty similar)
+         var offsetToCentroid = p.To(triangle.Centroid);
+         if (offsetToCentroid.Norm2D() < InternalTerrainCompilationConstants.TriangleEdgeBufferRadius) {
+            Console.WriteLine("Warning: Triangle width less than edge buffer radius!");
+            p = triangle.Centroid;
+         } else {
+            p += offsetToCentroid.ToUnit() * InternalTerrainCompilationConstants.TriangleEdgeBufferRadius;
+         }
+      }
+
       private (bool ok, int triangleIndex, int cornerIndex) FindExitTriangle(TriangulationIsland island, int initialTriangleIndex, int initialCornerIndex, int initialEdgeToExit, DoubleVector2 direction, Clockness wrapDirection, IDebugCanvas debugCanvas = null) {
          var currentTriangleIndex = initialTriangleIndex;
          var currentCornerIndex = initialCornerIndex;
@@ -296,10 +344,10 @@ namespace Dargon.PlayOn.Foundation.ECS {
             var neighborInEdgePoint = neighborTriangle.Points[neighborOutEdge]; 
             var neighborOutEdgePoint = neighborTriangle.Points[neighborInEdge];
 
-            if (currentTriangleIndex == 38) {
-               debugCanvas?.DrawPoint(neighborOutEdgePoint, StrokeStyle.RedThick25Solid);
-               debugCanvas?.DrawPoint(neighborInEdgePoint, StrokeStyle.LimeThick25Solid);
-            }
+            // if (currentTriangleIndex == 38) {
+            //    debugCanvas?.DrawPoint(neighborOutEdgePoint, StrokeStyle.RedThick25Solid);
+            //    debugCanvas?.DrawPoint(neighborInEdgePoint, StrokeStyle.LimeThick25Solid);
+            // }
 
             var directionCrossOutEdgeRay = GeometryOperations.Clockness(direction, corner.To(neighborOutEdgePoint));
             var directionCrossInEdgeRay = GeometryOperations.Clockness(direction, corner.To(neighborInEdgePoint));
@@ -318,23 +366,28 @@ namespace Dargon.PlayOn.Foundation.ECS {
    }
 
    public class Logger {
-      public Log Error { get; }
-      public Log Warn { get; }
-      public Log Info { get; }
-      public Log Debug { get; }
-      public Log Verbose { get; }
+      public ILog Error { get; }
+      public ILog Warn { get; }
+      public ILog Info { get; }
+      public ILog Debug { get; }
+      public ILog Verbose { get; }
 
-      public Logger(int lv) {
-         Error = lv >= 0 ? new Log() : null;
-         Warn = lv >= 0 ? new Log() : null;
-         Info = lv >= 1 ? new Log() : null;
-         Debug = lv >= 2 ? new Log() : null;
-         Verbose = lv >= 3 ? new Log() : null;
+      public Logger(int lv, ILog log = null) {
+         log = log ?? new SystemConsoleLog();
+         Error = lv >= 0 ? log : null;
+         Warn = lv >= 0 ? log : null;
+         Info = lv >= 1 ? log : null;
+         Debug = lv >= 2 ? log : null;
+         Verbose = lv >= 3 ? log : null;
       }
 
-      public class Log {
+      public class SystemConsoleLog : ILog {
          public void WriteLine(string s) => Console.WriteLine(s);
       }
+   }
+
+   public interface ILog {
+      void WriteLine(string s); 
    }
 
    public class TriangulationWalker3D {
@@ -369,6 +422,9 @@ namespace Dargon.PlayOn.Foundation.ECS {
                if (walkResult.distanceRemaining > 0) {
                   logger.Debug?.WriteLine("Exit because snag");
                   break; // snagged a corner
+               } else {
+                  distanceRemaining = 0;
+                  break;
                }
             } else {
                // We're crossing a halting segment of a crossover edge

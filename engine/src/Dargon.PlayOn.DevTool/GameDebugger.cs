@@ -58,7 +58,7 @@ namespace Dargon.PlayOn.DevTool {
       }
 
       private void RenderDebugFrame() {
-         var agentRadius = (double)10; //28.005;
+         var agentRadius = (double)0.1f; //10; //28.005;
 
          var terrainSnapshot = TerrainFacade.CompileSnapshot();
          var terrainOverlayNetwork = terrainSnapshot.OverlayNetworkManager.CompileTerrainOverlayNetwork(agentRadius);
@@ -290,23 +290,63 @@ namespace Dargon.PlayOn.DevTool {
       }
 
       private void DrawTestVectorWalkQueries(IDebugCanvas debugCanvas) {
-         var ton = Game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(10);
+         var computedRadius = 0.1f;
+         var ton = Game.TerrainFacade.CompileSnapshot().OverlayNetworkManager.CompileTerrainOverlayNetwork(computedRadius);
 
          var colors = new[] { Color.Red, Color.Orange, Color.Yellow, Color.Lime, Color.Cyan, Color.Blue, Color.Magenta };
 
-         for (var i = 0; i < 30; i++) {
-            //if (i < 8) continue;
+         for (var i = 0; i < 20; i++) {
+            //if (i < 15) continue;
+            if (i != 19) continue;
             var r = new Random(i);
-            var p = 500 * (new DoubleVector3(r.NextDouble() * 2 - 1, r.NextDouble() * 2 - 1, 0));
+            var p = 1 * (new DoubleVector3(r.NextDouble() * 2 - 1 - 1, r.NextDouble() * 2 - 1 - 3, 0.06));
             if (!ton.TryFindPreciseLocalization(p, 0, out var loc)) {
+               Console.WriteLine(ton.TerrainNodes.First().SectorNodeDescription.LocalToWorld(DoubleVector2.Zero));
                continue;
             }
 
-            var dir = (new DoubleVector3(r.NextDouble(), r.NextDouble(), r.NextDouble()) * 2.0 - DoubleVector3.One).ToUnit();
+            // var dir = -DoubleVector3.UnitX;// (new DoubleVector3(r.NextDouble() - 1, r.NextDouble(), r.NextDouble()) * 2.0 - DoubleVector3.One).ToUnit();
+            var dir = new DoubleVector3(-0.999880909919739, 0.015432508662343, 1.83135271072388E-05);
 
             debugCanvas.Transform = Matrix4x4.Identity;
-            var stroke = new StrokeStyle(Color.FromArgb(190, colors[i % colors.Length]), 5);
-            Game.TriangulationWalker3D.WalkTriangulation(loc, dir, Game.GameTimeManager.Ticks * 10, debugCanvas, stroke);
+            var stroke = new StrokeStyle(Color.FromArgb(220, colors[i % colors.Length]), 0.05f);
+            var delta = 0.0999999f; //0.03f;
+            var distanceToMove = Game.GameTimeManager.Ticks * delta;
+
+            // debugCanvas.Transform = loc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldTransform;
+            // for (var ti = 0; ti < loc.TriangulationIsland.Triangles.Length; ti++) {
+            //    var t = loc.TriangulationIsland.Triangles[ti];
+            //    debugCanvas.DrawText(ti.ToString(), t.Centroid.LossyToIntVector2());
+            //    debugCanvas.DrawText(ti + "A", ((t.Centroid + t.Points.A) / 2).LossyToIntVector2());
+            //    debugCanvas.DrawText(ti + "B", ((t.Centroid + t.Points.B) / 2).LossyToIntVector2());
+            //    debugCanvas.DrawText(ti + "C", ((t.Centroid + t.Points.C) / 2).LossyToIntVector2());
+            // }
+
+            for (var step = 0; step < Game.GameTimeManager.Ticks; step++) {
+               var res = Game.TriangulationWalker3D.WalkTriangulation(loc, dir, delta, debugCanvas, stroke);
+               debugCanvas.Transform = loc.TerrainOverlayNetworkNode.SectorNodeDescription.WorldTransform;
+               if (step + 1 == Game.GameTimeManager.Ticks) debugCanvas.DrawPoint(loc.LocalPosition, new StrokeStyle(Color.Red, 0.05f));
+               // Console.WriteLine("S_A_" + step + " loc " + loc.LocalPosition + " => " + res.Item1.LocalPosition + " " + loc.LocalPosition.To(res.Item1.LocalPosition).Norm2D());
+               loc = res.Item1;
+               var tr = loc.TriangulationIsland.Triangles[loc.TriangleIndex];
+               // Console.WriteLine("TR " + tr + " " + loc.LocalPosition + " " + loc.TriangleIndex);
+               // Console.WriteLine("TR " + tr.Points[0].To(loc.LocalPosition).ProjectOntoComponentD(tr.Points[0].To(tr.Points[1])));
+               // Console.WriteLine("TR " + tr.Points[0].To(loc.LocalPosition).ProjectOntoComponentD(tr.Points[0].To(tr.Points[2])));
+               if (step + 1 == Game.GameTimeManager.Ticks) debugCanvas.DrawPoint(loc.LocalPosition, new StrokeStyle(Color.Lime, 0.04f));
+
+               var worldPosition = loc.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(loc.LocalPosition);
+               var rloc = ton.FindNearestLandPointLocalization(worldPosition, computedRadius);
+               // if (rloc.localization.LocalPosition.To(loc.LocalPosition).Norm2D() > 0.001f) {
+               // Console.WriteLine("S_B_"+step + " loc " + loc.LocalPosition + " => " + rloc.localization.LocalPosition + " " + loc.LocalPosition.To(rloc.localization.LocalPosition).Norm2D());
+               if (loc.LocalPosition.To(rloc.localization.LocalPosition).Norm2D() > 0.001f) Debugger.Break();
+               // }
+               loc = rloc.localization;
+               tr = loc.TriangulationIsland.Triangles[loc.TriangleIndex];
+               // Console.WriteLine("TR " + tr + " " + loc.LocalPosition + " " + loc.TriangleIndex);
+               // Console.WriteLine("TR " + tr.Points[0].To(loc.LocalPosition).ProjectOntoComponentD(tr.Points[0].To(tr.Points[1])));
+               // Console.WriteLine("TR " + tr.Points[0].To(loc.LocalPosition).ProjectOntoComponentD(tr.Points[0].To(tr.Points[2])));
+               if (step + 1 == Game.GameTimeManager.Ticks) debugCanvas.DrawPoint(loc.LocalPosition, new StrokeStyle(Color.Gray, 0.03f));
+            }
          }
 
          if (false) {
@@ -332,10 +372,11 @@ namespace Dargon.PlayOn.DevTool {
          var rotation = 95 * Math.PI / 180.0;
          var scale = 1.0f;
          var displaySize = new Size((int)(1400 * scale), (int)(700 * scale));
-         var center = new Vector3(0, 0, 0);
+         var center = new Vector3(-3, -4, 0);
          //         var center = new DoubleVector3(1500, 1500, 0);
          var projector = new PerspectiveProjector(
-            center + Vector3s.FromRadiusAngleAroundXAxis(1000 / 1.3f, (float)rotation),
+            center + Vector3s.FromRadiusAngleAroundXAxis(1, (float)rotation),
+            // center + Vector3s.FromRadiusAngleAroundXAxis(5, (float)rotation),
             //				center + DoubleVector3.FromRadiusAngleAroundXAxis(200, rotation),
             center,
             Vector3s.FromRadiusAngleAroundXAxis(1, (float)(rotation - Math.PI / 2)),

@@ -59,7 +59,7 @@ namespace Dargon.PlayOn.Foundation {
          sw.Start();
 
          while (true) {
-            if (GameTimeManager.Ticks >= 170) { //GameTimeManager.TicksPerSecond * 20) {
+            if (GameTimeManager.Ticks >= 80) { //GameTimeManager.TicksPerSecond * 20) {
                Console.WriteLine($"Done! {sw.Elapsed.TotalSeconds} at tick {GameTimeManager.Ticks}");
                foreach (var debugger in Debuggers) {
                   debugger.HandleEndOfGame();

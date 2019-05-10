@@ -31,7 +31,7 @@ namespace Dargon.PlayOn.Foundation {
          var flockingSimulator = new FlockingSimulator(entityGridFacade, statisticsCalculator, pathfinderCalculator, terrainFacade, triangulationWalker2D);
          var motionSystem = new MotionSystem(entityWorld, gameTimeManager, terrainFacade, flockingSimulator, motionStateContainer);
          var motionOperations = new MotionOperations(triangulationWalker2D, terrainFacade, pathfinderCalculator, statisticsCalculator, flockingSimulator);
-         var motionFacade = new MotionFacade(terrainFacade, pathfinderCalculator, statisticsCalculator, motionOperations);
+         var motionFacade = new MotionFacade(terrainFacade, pathfinderCalculator, statisticsCalculator, motionOperations, triangulationWalker3D);
          entityWorld.AddEntitySystem(motionSystem);
          entityWorld.AddStepHandler(StepHandlerPriority.Flocking, motionSystem.ExecuteFlocking);
 

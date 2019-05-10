@@ -249,6 +249,9 @@ namespace Dargon.PlayOn.Geometry {
 
          var qmp = q - p;
          var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+         if (t < CDoubleMath.c0) {
+            goto fail;
+         }
 
          var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
          if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
@@ -279,6 +282,65 @@ namespace Dargon.PlayOn.Geometry {
          if (t < CDoubleMath.c0) {
             goto fail;
          }
+
+         var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
+         if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
+            goto fail;
+         }
+
+         tForRay = t;
+         return true;
+
+         fail:
+         tForRay = default;
+         return false;
+      }
+
+      // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, segments should not have more than 1 point of intersection.
+      // if segments DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindNonoverlappingLineSegmentIntersectionT(ref IntLineSegment2 line, ref IntLineSegment2 segment, out cDouble tForRay) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var p = line.First;
+         var r = line.First.To(line.Second);
+         var q = segment.First;
+         var s = segment.First.To(segment.Second);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+
+         var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
+         if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
+            goto fail;
+         }
+
+         tForRay = t;
+         return true;
+
+         fail:
+         tForRay = default;
+         return false;
+      }
+
+      public static bool TryFindNonoverlappingLineSegmentIntersectionT(in DoubleLineSegment2 line, in DoubleLineSegment2 segment, out cDouble tForRay) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var p = line.First;
+         var r = line.First.To(line.Second);
+         var q = segment.First;
+         var s = segment.First.To(segment.Second);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
 
          var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
          if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
@@ -341,6 +403,7 @@ namespace Dargon.PlayOn.Geometry {
                return true;
             } else if (nearness < bestNearness && nearness <= kAcceptableNearness) {
                triangleIndex = i;
+               bestNearness = nearness;
             }
          }
          return triangleIndex != -1;
@@ -600,15 +663,8 @@ throw new NotImplementedException();
             var cdvb = Clockness(direction, vb);
 
             // In-triangle case
-            if (cvad == Geometry.Clockness.CounterClockwise &&
-                cdvb == Geometry.Clockness.CounterClockwise) {
-               indexOpposingEdge = (i + 2) % 3;
-               return true;
-            }
-
-            // On-edge case
-            if (cvad == Geometry.Clockness.Neither &&
-                cdvb == Geometry.Clockness.Neither) {
+            if (cvad != Geometry.Clockness.Clockwise &&
+                cdvb != Geometry.Clockness.Clockwise) {
                indexOpposingEdge = (i + 2) % 3;
                return true;
             }
