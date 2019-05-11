@@ -23,14 +23,14 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
       private readonly StatisticsCalculator statisticsCalculator; // TODO: Feels out of place in this class.
       private readonly PathfinderCalculator pathfinderCalculator;
       private readonly TerrainFacade terrainFacade;
-      private readonly TriangulationWalker2D triangulationWalker2D;
+      private readonly TriangulationWalker3D triangulationWalker3D;
 
-      public FlockingSimulator(EntityGridFacade entityGridFacade, StatisticsCalculator statisticsCalculator, PathfinderCalculator pathfinderCalculator, TerrainFacade terrainFacade, TriangulationWalker2D triangulationWalker2D) {
+      public FlockingSimulator(EntityGridFacade entityGridFacade, StatisticsCalculator statisticsCalculator, PathfinderCalculator pathfinderCalculator, TerrainFacade terrainFacade, TriangulationWalker3D triangulationWalker3D) {
          this.entityGridFacade = entityGridFacade;
          this.statisticsCalculator = statisticsCalculator;
          this.pathfinderCalculator = pathfinderCalculator;
          this.terrainFacade = terrainFacade;
-         this.triangulationWalker2D = triangulationWalker2D;
+         this.triangulationWalker3D = triangulationWalker3D;
       }
 
       public void Step(Entity[] entities, cDouble dt) {
@@ -374,7 +374,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
                   res[i] = (false, triangleCentroidDijkstrasOptimalSeekUnit);
                } else {
                   // we're on the destination triangle or going straight to it.
-                  res[i] = (true, mc.Internals.Localization.LocalPosition.To(t.loc.XY).ToUnit());
+                  var delta = mc.Internals.Localization.LocalPosition.To(t.loc.XY);
+                  res[i] = (true, delta == DoubleVector2.Zero ? DoubleVector2.Zero : delta.ToUnit());
                }
             }
          }
@@ -507,13 +508,17 @@ namespace Dargon.PlayOn.Foundation.Terrain.Motion {
 
             if (mc.Internals.Structure.IsEnabled) continue;
 
-            var v = contributions[i];
-            var vMagnitude = v.Norm2D();
-            var vDirection = v / vMagnitude;
-            var worldToLocalScalingFactor = mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription.WorldToLocalScalingFactor;
-            var distance = e.MotionComponent.Internals.ComputedStatistics.Speed * dt * worldToLocalScalingFactor * vMagnitude;
-            ref var localization = ref mc.Internals.Localization;
-            // triangulationWalker2D.WalkTriangulation(localization.TriangulationIsland, localization.TriangleIndex, localization.LocalPosition, vDirection, distance);
+            var initialSnd = mc.Internals.Localization.TerrainOverlayNetworkNode.SectorNodeDescription;
+
+            var c = contributions[i];
+            var cMag = c.Norm2D();
+            var cDirLocal = c / cMag;
+            var cDirWorld = initialSnd.LocalToWorldNormal(new DoubleVector3(cDirLocal.X, cDirLocal.Y, 0));
+
+            var distance = mc.Internals.ComputedStatistics.Speed * dt * cMag;
+            var (loc, distanceMoved) = triangulationWalker3D.WalkTriangulation(mc.Internals.Localization, cDirWorld, distance);
+            mc.Internals.Localization = loc;
+            mc.Internals.Pose.WorldPosition = loc.TerrainOverlayNetworkNode.SectorNodeDescription.LocalToWorld(loc.LocalPosition);
          }
       }
    }
