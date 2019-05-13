@@ -63,7 +63,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                   while (slider.Value == v && v != slider.Maximum) {
                      v = Math.Min(v + 1 * speedup, (int)slider.Maximum);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
-                     Thread.Sleep(25);
+                     Thread.Sleep(100);
                   }
                }).Start();
             }
@@ -80,15 +80,33 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             });
             UpdateSlider();
          }
+
+         object displayLock = new Object();
+         Bitmap updateToDisplay = null;
+         Bitmap lastDisplayedImage = null;
          canvas.Update += (s, e) => {
-            var bitmapClone = (Bitmap)e.Bitmap.Clone();
-            form.BeginInvoke(new Action(() => {
-               lock (synchronization) {
-                  if (Enumerable.Last(frames, f => f.FrameIndex <= slider.Value).Canvas == canvas) {
-                     pb.Image = bitmapClone;
+            bool shouldBeginInvoke = false;
+            lock (displayLock) {
+               shouldBeginInvoke = updateToDisplay == null;
+               updateToDisplay?.Dispose();
+               updateToDisplay = (Bitmap)e.Bitmap.Clone();
+            }
+            if (shouldBeginInvoke) {
+               form.BeginInvoke(new Action(() => {
+                  Bitmap b;
+                  lock (displayLock) {
+                     b = updateToDisplay;
+                     updateToDisplay = null;
                   }
-               }
-            }));
+                  lock (synchronization) {
+                     if (Enumerable.Last(frames, f => f.FrameIndex <= slider.Value).Canvas == canvas) {
+                        lastDisplayedImage?.Dispose();
+                        pb.Image = b;
+                        lastDisplayedImage = b;
+                     }
+                  }
+               }));
+            }
          };
          return canvas;
       }

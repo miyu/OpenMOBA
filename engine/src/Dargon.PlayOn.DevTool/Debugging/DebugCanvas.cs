@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
+using Dargon.Commons;
 using Dargon.Commons.Collections;
 using Dargon.PlayOn.ThirdParty.ClipperLib;
 using Dargon.PlayOn.Geometry;
@@ -30,11 +31,28 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          pb.SizeMode = PictureBoxSizeMode.Zoom;
          form.Controls.Add(pb);
 
+         var displayUpdateLock = new object();
+         Bitmap bitmapToDisplay = null;
+         Bitmap lastDisplayedBitmap = null;
          canvas.Update += (s, e) => {
-            Bitmap clonedBitmap = (Bitmap)e.Bitmap.Clone();
-            form.BeginInvoke(new Action(() => {
-               pb.Image = clonedBitmap;
-            }));
+            bool shouldBeginInvoke = false;
+            lock (displayUpdateLock) {
+               shouldBeginInvoke = bitmapToDisplay == null;
+               bitmapToDisplay?.Dispose();
+               bitmapToDisplay = (Bitmap)e.Bitmap.Clone();
+            }
+            if (shouldBeginInvoke) {
+               form.BeginInvoke(new Action(() => {
+                  Bitmap b;
+                  lock (displayUpdateLock) {
+                     b = bitmapToDisplay;
+                     bitmapToDisplay = null;
+                  }
+                  pb.Image = b;
+                  lastDisplayedBitmap?.Dispose();
+                  lastDisplayedBitmap = b;
+               }));
+            }
          };
       }
 
@@ -283,7 +301,8 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                if (points.Count <= 1) return;
 
                using (var pen = new Pen(strokeStyle.Color, (float)strokeStyle.Thickness)) {
-                  g.DrawLines(pen, points.Select(p => ProjectPointF(ToNumerics(p))).ToArray());
+                  var ps = points.Select(p => ProjectPointF(ToNumerics(p))).ToArray();
+                  g.DrawLines(pen, ps);
                   return;
                }
             }
