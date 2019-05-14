@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using Dargon.Commons;
 using Dargon.PlayOn;
 using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation;
@@ -18,10 +19,10 @@ namespace DistanceTransformTests {
       private static readonly Random random = new Random(3);
       private static readonly DebugMultiCanvasHost host = DebugMultiCanvasHost.CreateAndShowCanvas(bounds, new Point(50, 50), new OrthographicXYProjector());
       private static int frameCounter = 0;
-      private const int yScale = 10;
+      private const int yScale = 1;
 
       public static void Main(string[] args) {
-         var n = 64;
+         var n = 1024;
          var input = new float[n];
          for (var i = 0; i < n;) {
             var span = Math.Min(random.Next(10) + 1, n - i);
@@ -30,70 +31,114 @@ namespace DistanceTransformTests {
                input[i++] = val;
             }
          }
-         for (var i = 0; i < n; i++) {
-            input[i] = (float)Math.Sin(i * Math.PI * 2 / 32) * 2 * yScale + 6 * yScale;
-            if (i >= 35 && i < 40) input[i] -= 2 * yScale;
-            if (i == 10 || i == 45 || i == 46) input[i] -= 5 * yScale;
-            // if (i >= 58) input[i] = 9 * yScale;
-            if (i >= 20 && i <= 22) input[i] = float.PositiveInfinity;
-            if (i == n - 1) input[i] = 1 * yScale;
-         }
+         // for (var i = 0; i < n; i++) {
+         //    input[i] = (float)Math.Sin(i * Math.PI * 2 / 32) * 2 * yScale + 6 * yScale;
+         //    if (i >= 35 && i < 40) input[i] -= 2 * yScale;
+         //    if (i == 10 || i == 45 || i == 46) input[i] -= 5 * yScale;
+         //    // if (i >= 58) input[i] = 9 * yScale;
+         //    if (i >= 20 && i <= 22) input[i] = float.PositiveInfinity;
+         //    if (i == n - 1) input[i] = 1 * yScale;
+         // }
          EuclideanDistanceTransform1(input);
       }
 
       private static unsafe void EuclideanDistanceTransform1(float[] input) {
-         var output = new float[input.Length];
-         fixed (float* pInput = input)
-         fixed (float* pOutput = output)
-            EDT1(input.Length, pInput, pOutput, sizeof(float));
+         var output = stackalloc float[input.Length];
+         for (var i = 0; i < 10000; i++)
+            fixed (float* pInput = input)
+               EDT1(input.Length, pInput, output);
+
+         float avg = 0;
+         int n = 0;
+         while (true) {
+            var sw = new Stopwatch();
+            sw.Start();
+            var niters = 1000;
+            for (var i = 0; i < niters; i++) {
+               fixed (float* pInput = input)
+                  EDT1(input.Length, pInput, output);
+            }
+            var dt = sw.ElapsedMilliseconds;
+            avg = (avg * n + dt) / (n + 1);
+            n++;
+            Console.WriteLine(dt + " for " + niters + ": " + avg);
+         }
       }
 
-      private static unsafe void EDT1(int gridLength, float* input, float* output, int stride) {
+      private static unsafe void EDT1(int gridLength, float* input, float* output, IDebugMultiCanvasHost debugMultiCanvasHost = null) {
          var k = 0;
          var v = stackalloc int[gridLength]; v[0] = 0;
          var z = stackalloc float[gridLength + 1]; z[0] = float.NegativeInfinity; z[1] = float.PositiveInfinity;
-         EDT1Viz(gridLength, input, output, -1, v, z);
-         EDT1Viz(gridLength, input, output, k, v, z, 0);
-         for (var q = 1; q < gridLength; q++) {
-            six:
-            var vk = v[k];
-            var s = ((input[q] + q * q) - (input[vk] + vk * vk)) / (2 * q - 2 * vk);
-            if (float.IsNaN(s) || float.IsInfinity(input[q])) {
+#if DEBUG_VIZ
+         if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, -1, v, z);
+#endif
+         var q = 0;
+         for (; q < gridLength && input[q] == float.PositiveInfinity; q++) {
+#if DEBUG_VIZ
+            if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, 0);
+#endif
+         }
+         v[k] = q;
+#if DEBUG_VIZ
+         if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, 0);
+#endif
+         q++;
+
+         while (q < gridLength) {
+            var iq = input[q];
+            if (iq == float.PositiveInfinity) {
+#if DEBUG_VIZ
+               if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, q);
+#endif
+               q++;
                continue;
             }
 
+            var vk = v[k];
+            var ivk = input[vk];
+            var s = ((iq + q * q) - (ivk + vk * vk)) / (2 * (q - vk));
+            // Assert.IsTrue(!float.IsNaN(s) && !float.IsInfinity(s));
+
             if (s <= z[k]) {
-               if (k == 0) { // no further parabolas to drop, but current parabola is valid!
-                  v[0] = q;
-               } else {
-                  EDT1Viz(gridLength, input, output, k, v, z, q);
-                  z[k] = float.PositiveInfinity; // for debug viz
-                  z[k + 1] = float.NaN; // for debug viz
-                  k--;
-                  goto six;
-               }
+               // Assert.IsTrue(k != 0);
+#if DEBUG_VIZ
+               if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, q);
+               z[k] = float.PositiveInfinity; // for debug viz
+               z[k + 1] = float.NaN; // for debug viz
+#endif
+               k--;
             } else {
-               EDT1Viz(gridLength, input, output, k, v, z, q);
+#if DEBUG_VIZ
+               if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, q);
+#endif
                k++;
                v[k] = q;
                z[k] = s;
+#if DEBUG_VIZ
                z[k + 1] = float.PositiveInfinity;
+#endif
+               q++;
             }
          }
-         EDT1Viz(gridLength, input, output, k, v, z, gridLength - 1);
-         EDT1Viz(gridLength, input, output, k, v, z, -1);
-
+         z[k + 1] = float.PositiveInfinity;
+#if DEBUG_VIZ
+         if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, gridLength - 1);
+         if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, -1);
+#endif
          k = 0;
-         for (var q = 0; q < gridLength; q++) {
+         q = 0;
+
+         while (q < gridLength) {
             while (z[k + 1] < q) k++;
             var vk = v[k];
             var qmvk = (q - vk);
             output[q] = qmvk * qmvk + input[vk];
+            q++;
          }
       }
 
-      private static unsafe void EDT1Viz(int gridLength, float* input, float* output, int k, int* v, float* z, int? sweeplineIndex = null) {
-         var canvas = host.CreateAndAddCanvas(frameCounter++);
+      private static unsafe void EDT1Viz(IDebugMultiCanvasHost debugMultiCanvasHost, int gridLength, float* input, float* output, int k, int* v, float* z, int? sweeplineIndex = null) {
+         var canvas = debugMultiCanvasHost.CreateAndAddCanvas(frameCounter++);
          canvas.BatchDraw(() => {
             float displayHeight = 10 * yScale;
             canvas.Transform = Matrix4x4.CreateScale((float)bounds.Width / (gridLength - 1), bounds.Height / displayHeight, 1) * Matrix4x4.CreateScale(1, -1, 1) * Matrix4x4.CreateTranslation(0, bounds.Height, 0);

@@ -62,6 +62,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj">
+      <Project>{C5400969-291A-45E2-9C26-8B15A74DE190}</Project>
+      <Name>Dargon.Commons</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Canvas3D\Canvas3D.csproj">
       <Project>{22CF2B05-286F-4DFA-A5D0-8769C7991967}</Project>
       <Name>Canvas3D</Name>
