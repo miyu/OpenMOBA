@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Numerics;
 using Dargon.Commons;
@@ -22,6 +23,77 @@ namespace DistanceTransformTests {
       private const int yScale = 1;
 
       public static void Main(string[] args) {
+         TestEDT2("EDT2_In1");
+         // TestEDT1();
+      }
+
+      private unsafe static void TestEDT2(string img) {
+         var image = (Bitmap)Image.FromFile(img + ".png");
+         var imageWidth = image.Width;
+         var imageHeight = image.Height;
+         var bits = new bool[imageWidth * imageHeight];
+         for (var y = 0; y < imageHeight; y++) {
+            for (var x = 0; x < imageWidth; x++) {
+               bits[y * imageWidth + x] = image.GetPixel(x, y).R > 127;
+            }
+         }
+
+         var edt2 = new float[bits.Length];
+         EDT2(bits, edt2, imageWidth, imageHeight, img + "_INT");
+
+         while (true) {
+            var sw = new Stopwatch();
+            sw.Start();
+            var niters = 1000;
+            for (var i = 0; i < niters; i++)
+               EDT2(bits, edt2, imageWidth, imageHeight);
+            var ms = sw.ElapsedMilliseconds;
+            Console.WriteLine(niters + " IN " + ms + " " + imageWidth + "-by-" + imageHeight);
+         }
+
+         fixed (float* pEdt2Scan0 = edt2) {
+            DumpNormalizedImage2(pEdt2Scan0, imageWidth, imageHeight, img + "EDT2_OUT");
+         }
+      }
+
+      private static unsafe void DumpNormalizedImage2(float* imageData, int imageWidth, int imageHeight, string name, bool sqrt = false) {
+         var max = float.NegativeInfinity;
+         var size = imageWidth * imageHeight;
+         for (var i = 0; i < size; i++) {
+            var v = imageData[i];
+            if (v == float.PositiveInfinity) {
+               continue;
+            }
+            v = (float)Math.Sqrt(v);
+            if (v > max) max = v;
+         }
+
+         if (max <= 0) max = 1;
+
+         var outputBitmap = new Bitmap(imageWidth, imageHeight, PixelFormat.Format24bppRgb);
+         var outputBitmapData = outputBitmap.LockBits(new Rectangle(0, 0, imageWidth, imageHeight), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+         var pOutputScan0 = outputBitmapData.Scan0;
+         var outputStride = outputBitmapData.Stride;
+         var pInputCurrent = imageData;
+         for (var y = 0; y < imageHeight; y++) {
+            var pOutputCurrent = (byte*)pOutputScan0 + outputStride * y;
+            for (var x = 0; x < imageWidth; x++) {
+               var v = *pInputCurrent;
+               if (v == float.PositiveInfinity) v = max;
+               v = (float)Math.Sqrt(v);
+               var z = (byte)((v / max) * 255);
+               *(pOutputCurrent++) = z;
+               *(pOutputCurrent++) = z;
+               *(pOutputCurrent++) = z;
+               pInputCurrent++;
+            }
+         }
+         outputBitmap.UnlockBits(outputBitmapData);
+         outputBitmap.Save(Environment.CurrentDirectory + "/" + name + ".bmp", ImageFormat.Bmp);
+         Console.WriteLine("!! " + Environment.CurrentDirectory);
+      }
+
+      private static void TestEDT1() {
          var n = 1024;
          var input = new float[n];
          for (var i = 0; i < n;) {
@@ -31,15 +103,86 @@ namespace DistanceTransformTests {
                input[i++] = val;
             }
          }
-         // for (var i = 0; i < n; i++) {
-         //    input[i] = (float)Math.Sin(i * Math.PI * 2 / 32) * 2 * yScale + 6 * yScale;
-         //    if (i >= 35 && i < 40) input[i] -= 2 * yScale;
-         //    if (i == 10 || i == 45 || i == 46) input[i] -= 5 * yScale;
-         //    // if (i >= 58) input[i] = 9 * yScale;
-         //    if (i >= 20 && i <= 22) input[i] = float.PositiveInfinity;
-         //    if (i == n - 1) input[i] = 1 * yScale;
-         // }
+         for (var i = 0; i < n; i++) {
+            input[i] = (float)Math.Sin(i * Math.PI * 2 / 32) * 2 * yScale + 6 * yScale;
+            if (i >= 35 && i < 40) input[i] -= 2 * yScale;
+            if (i == 10 || i == 45 || i == 46) input[i] -= 5 * yScale;
+            // if (i >= 58) input[i] = 9 * yScale;
+            if (i >= 20 && i <= 22) input[i] = float.PositiveInfinity;
+            if (i == n - 1) input[i] = 1 * yScale;
+         }
          EuclideanDistanceTransform1(input);
+      }
+
+      private static unsafe void EDT2(bool[] inputBools, float[] output, int width, int height, string dumpName = null) {
+         Assert.Equals(width * height, inputBools.Length);
+         Assert.Equals(width * height, output.Length);
+
+         void Transpose(float* p, float* q, int w, int h) { // w h of p.
+            var pCurrent = p;
+            var qScan0 = q;
+            for (var y = 0; y < h; y++) {
+               var qCurrent = qScan0 + y;
+               for (var x = 0; x < w; x++) {
+                  *qCurrent = *pCurrent;
+                  pCurrent++;
+                  qCurrent += h;
+               }
+            }
+         }
+
+         void RowsEDT1(float* p, float* q, int w, int h) {
+            for (var y = 0; y < h; y++) {
+               EDT1(w, p, q);
+               p += w;
+               q += w;
+            }
+         }
+
+         void DumpRow(float* p, int w) {
+            Console.Write("RowDump: ");
+            for (var i = 0; i <w; i++) {
+               Console.Write(p[i] + " ");
+            }
+            Console.WriteLine();
+         }
+
+         fixed (bool* pInputBools = inputBools) 
+         fixed (float* m2 = output) {
+            var size = width * height;
+            var m1 = stackalloc float[size];
+
+            // 1. bool[,] => float[,] m2[h,w]
+            {
+               var p = pInputBools;
+               var q = m2;
+               for (var i = 0; i < size; i++)
+                  *(q++) = *(p++) ? 0 : float.PositiveInfinity;
+            }
+
+            if (dumpName != null) DumpNormalizedImage2(m2, width, height, dumpName + "_0_floats");
+            // DumpRow(&m2[(height - 1) * width], width);
+            
+            // m2[h,w] float[,] => map(rows, EDT1) m1[h,w]
+            RowsEDT1(m2, m1, width, height);
+            if (dumpName != null) DumpNormalizedImage2(m1, width, height, dumpName + "_1_edt");
+            // DumpRow(&m1[(height - 1) * width], width);
+
+            // m1[h,w] map(rows, EDT1) => transpose(map(rows, EDT1)) m2[w,h]
+            Transpose(m1, m2, width, height);
+            if (dumpName != null) DumpNormalizedImage2(m2, height, width, dumpName + "_2_tr");
+            // DumpRow(&m2[(width - 1) * height], height);
+
+            // m2[w,h] transpose(map(rows, EDT1)) => map(rows of transpose(map(rows, EDT1)), EDT1) m1[w,h]
+            RowsEDT1(m2, m1, height, width);
+            if (dumpName != null) DumpNormalizedImage2(m1, height, width, dumpName + "_3_edt");
+            // DumpRow(&m1[(width - 1) * height], height);
+
+            // m1[w,h] map(rows of transpose(map(rows, EDT1)), EDT1) => transpose(map(rows of transpose(map(rows, EDT1)), EDT1)) m2[h,w]
+            Transpose(m1, m2, height, width);
+            if (dumpName != null) DumpNormalizedImage2(m2, width, height, dumpName + "_4_tr");
+            // DumpRow(&m2[(height - 1) * width], width);
+         }
       }
 
       private static unsafe void EuclideanDistanceTransform1(float[] input) {
@@ -54,10 +197,10 @@ namespace DistanceTransformTests {
             var sw = new Stopwatch();
             sw.Start();
             var niters = 1000;
-            for (var i = 0; i < niters; i++) {
-               fixed (float* pInput = input)
+            fixed (float* pInput = input)
+               for (var i = 0; i < niters; i++) {
                   EDT1(input.Length, pInput, output);
-            }
+               }
             var dt = sw.ElapsedMilliseconds;
             avg = (avg * n + dt) / (n + 1);
             n++;
@@ -82,6 +225,11 @@ namespace DistanceTransformTests {
 #if DEBUG_VIZ
          if (debugMultiCanvasHost != null) EDT1Viz(debugMultiCanvasHost, gridLength, input, output, k, v, z, 0);
 #endif
+         if (q == gridLength) {
+            for (var i = 0; i < gridLength; i++) output[i] = float.PositiveInfinity;
+            return;
+         }
+
          q++;
 
          while (q < gridLength) {

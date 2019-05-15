@@ -81,6 +81,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="dummy.txt" />
+    <Content Include="EDT2_In0.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="EDT2_In1.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
