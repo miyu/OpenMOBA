@@ -56,7 +56,7 @@ namespace DistanceTransformTests {
          }
       }
 
-      private static unsafe void DumpNormalizedImage2(float* imageData, int imageWidth, int imageHeight, string name, bool sqrt = false) {
+      public static unsafe void DumpNormalizedImage2(float* imageData, int imageWidth, int imageHeight, string name, bool sqrt = false) {
          var max = float.NegativeInfinity;
          var size = imageWidth * imageHeight;
          for (var i = 0; i < size; i++) {
@@ -64,7 +64,7 @@ namespace DistanceTransformTests {
             if (v == float.PositiveInfinity) {
                continue;
             }
-            v = (float)Math.Sqrt(v);
+            if (sqrt) v = (float)Math.Sqrt(v);
             if (v > max) max = v;
          }
 
@@ -80,7 +80,7 @@ namespace DistanceTransformTests {
             for (var x = 0; x < imageWidth; x++) {
                var v = *pInputCurrent;
                if (v == float.PositiveInfinity) v = max;
-               v = (float)Math.Sqrt(v);
+               if (sqrt) v = (float)Math.Sqrt(v);
                var z = (byte)((v / max) * 255);
                *(pOutputCurrent++) = z;
                *(pOutputCurrent++) = z;
@@ -89,7 +89,7 @@ namespace DistanceTransformTests {
             }
          }
          outputBitmap.UnlockBits(outputBitmapData);
-         outputBitmap.Save(Environment.CurrentDirectory + "/" + name + ".bmp", ImageFormat.Bmp);
+         outputBitmap.Save(Environment.CurrentDirectory + "/" + name + ".png", ImageFormat.Png);
          Console.WriteLine("!! " + Environment.CurrentDirectory);
       }
 
@@ -114,38 +114,17 @@ namespace DistanceTransformTests {
          EuclideanDistanceTransform1(input);
       }
 
+      private static unsafe void DumpRow(float* p, int w) {
+         Console.Write("RowDump: ");
+         for (var i = 0; i < w; i++) {
+            Console.Write(p[i] + " ");
+         }
+         Console.WriteLine();
+      }
+
       private static unsafe void EDT2(bool[] inputBools, float[] output, int width, int height, string dumpName = null) {
          Assert.Equals(width * height, inputBools.Length);
          Assert.Equals(width * height, output.Length);
-
-         void Transpose(float* p, float* q, int w, int h) { // w h of p.
-            var pCurrent = p;
-            var qScan0 = q;
-            for (var y = 0; y < h; y++) {
-               var qCurrent = qScan0 + y;
-               for (var x = 0; x < w; x++) {
-                  *qCurrent = *pCurrent;
-                  pCurrent++;
-                  qCurrent += h;
-               }
-            }
-         }
-
-         void RowsEDT1(float* p, float* q, int w, int h) {
-            for (var y = 0; y < h; y++) {
-               EDT1(w, p, q);
-               p += w;
-               q += w;
-            }
-         }
-
-         void DumpRow(float* p, int w) {
-            Console.Write("RowDump: ");
-            for (var i = 0; i <w; i++) {
-               Console.Write(p[i] + " ");
-            }
-            Console.WriteLine();
-         }
 
          fixed (bool* pInputBools = inputBools) 
          fixed (float* m2 = output) {
@@ -163,6 +142,37 @@ namespace DistanceTransformTests {
             if (dumpName != null) DumpNormalizedImage2(m2, width, height, dumpName + "_0_floats");
             // DumpRow(&m2[(height - 1) * width], width);
             
+            EDT2(m1, m2, width, height, dumpName);
+         }
+      }
+
+      public static unsafe void EDT2(float* inoutrw, float* temp, int width, int height, string dumpName) {
+         var m2 = inoutrw;
+         var m1 = temp;
+
+         void RowsEDT1(float* p, float* q, int w, int h) {
+            for (var y = 0; y < h; y++) {
+               EDT1(w, p, q);
+               p += w;
+               q += w;
+            }
+         }
+
+         void Transpose(float* p, float* q, int w, int h) {
+            // w h of p.
+            var pCurrent = p;
+            var qScan0 = q;
+            for (var y = 0; y < h; y++) {
+               var qCurrent = qScan0 + y;
+               for (var x = 0; x < w; x++) {
+                  *qCurrent = *pCurrent;
+                  pCurrent++;
+                  qCurrent += h;
+               }
+            }
+         }
+
+         {
             // m2[h,w] float[,] => map(rows, EDT1) m1[h,w]
             RowsEDT1(m2, m1, width, height);
             if (dumpName != null) DumpNormalizedImage2(m1, width, height, dumpName + "_1_edt");

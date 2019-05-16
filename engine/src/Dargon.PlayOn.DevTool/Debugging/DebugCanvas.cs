@@ -224,6 +224,10 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          }
       }
 
+      public void BatchDraw(Action<Graphics> callback) {
+         BatchDraw(() => callback(g));
+      }
+
       private Vector2 Project(Vector3 p) {
          var transformed = Vector3.Transform(new Vector3((float)p.X, (float)p.Y, (float)p.Z), Transform);
          return projector.Project(transformed);

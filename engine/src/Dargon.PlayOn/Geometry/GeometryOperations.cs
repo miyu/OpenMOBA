@@ -367,6 +367,17 @@ namespace Dargon.PlayOn.Geometry {
          return new DoubleVector2(seg.X1 + (y - seg.Y1) * dx / dy, y);
       }
 
+      public static DoubleVector2 PreprocessXAtY(this DoubleLineSegment2 seg) {
+         var dx = seg.X2 - seg.X1;
+         var dy = seg.Y2 - seg.Y1;
+         var dxdy = dx / dy;
+         return new DoubleVector2(seg.X1 - seg.Y1 * dxdy, dxdy);
+      }
+
+      public static cDouble XAtYPreprocessed(this DoubleVector2 preprocess, double y) {
+         return preprocess.X + y * preprocess.Y;
+      }
+
       public static bool TryIntersect(this Triangulation triangulation, cDouble x, cDouble y, out TriangulationIsland island, out int triangleIndex) {
          foreach (var candidateIsland in triangulation.Islands) {
             if (candidateIsland.TryIntersect(x, y, out triangleIndex)) {
@@ -739,7 +750,7 @@ throw new NotImplementedException();
             return p1 + p1QueryProjP1P2Component * p1p2;
          }
       }
-
+      
       public static DoubleVector2 FindNearestPoint(IntLineSegment2 segment, DoubleVector2 query) {
          var p1 = segment.First.ToDoubleVector2();
          var p2 = segment.Second.ToDoubleVector2();

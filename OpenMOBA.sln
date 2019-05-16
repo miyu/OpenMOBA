@@ -84,6 +84,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VisibilityPolygonQueries", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DistanceTransformTests", "engine\test\DistanceTransformTests\DistanceTransformTests.csproj", "{CA0317E1-6DD9-4FE5-B0B2-76F0C2E035C9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyTreeRasterizerTests", "engine\test\PolyTreeRasterizerTests\PolyTreeRasterizerTests.csproj", "{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -514,6 +516,18 @@ Global
 		{CA0317E1-6DD9-4FE5-B0B2-76F0C2E035C9}.Release|x64.Build.0 = Release|Any CPU
 		{CA0317E1-6DD9-4FE5-B0B2-76F0C2E035C9}.Release|x86.ActiveCfg = Release|Any CPU
 		{CA0317E1-6DD9-4FE5-B0B2-76F0C2E035C9}.Release|x86.Build.0 = Release|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Debug|x64.Build.0 = Debug|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Debug|x86.Build.0 = Debug|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x64.ActiveCfg = Release|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x64.Build.0 = Release|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x86.ActiveCfg = Release|Any CPU
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -545,6 +559,7 @@ Global
 		{2495AFDF-9C95-48AC-B766-8DD2F793C732} = {CD4DC002-FD3B-4B31-A749-863E7B0A768F}
 		{4316B193-DCC2-4548-A4CD-03B656187757} = {74294450-A622-43FE-8296-939C6420556C}
 		{CA0317E1-6DD9-4FE5-B0B2-76F0C2E035C9} = {74294450-A622-43FE-8296-939C6420556C}
+		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9} = {74294450-A622-43FE-8296-939C6420556C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}
