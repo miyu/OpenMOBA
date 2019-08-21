@@ -7,11 +7,12 @@ using SharpDX;
 using SharpDX.DirectInput;
 using Color = SharpDX.Color;
 using Point = System.Drawing.Point;
+using SNVector3 = System.Numerics.Vector3;
 
 namespace Canvas3D {
    internal static class Program {
       private static Vector3 cameraTarget = new Vector3(-0.8f, -0.9f, 0.0f) * 0;
-      private static Vector3 cameraOffset = new Vector3(0.4f, 0.5f, 1) * 12 * 5;//new Vector3(3, 2.5f, 5) - cameraTarget;
+      private static Vector3 cameraOffset = new Vector3(0.4f, 0.5f, 1) * 5;//new Vector3(3, 2.5f, 5) - cameraTarget;
       private static Vector3 cameraUp = new Vector3(0, 1, 0);
       private static Matrix view = MatrixCM.ViewLookAtRH(cameraTarget + cameraOffset, cameraTarget, cameraUp);
       private static Matrix projView;
@@ -33,6 +34,33 @@ namespace Canvas3D {
          MatrixCM.RotationY(i)).ToArray();   
 
       public static void Main(string[] args) {
+         var shCoeffs = SH.ProjectSparse(
+            new[] {
+               (SNVector3.UnitZ, SNVector3.One, 1.0f),
+               (-SNVector3.UnitZ, SNVector3.UnitY, 1.0f),
+
+               (SNVector3.UnitX, SNVector3.UnitX, 1.0f),
+               (SNVector3.UnitY, SNVector3.UnitX, 1.0f),
+               (-SNVector3.UnitX, SNVector3.UnitX, 1.0f),
+               (-SNVector3.UnitY, SNVector3.UnitX, 1.0f),
+            });
+         Console.WriteLine(shCoeffs);
+         Console.WriteLine(SH.Evaluate(shCoeffs, SNVector3.UnitZ));
+         Console.WriteLine(SH.Evaluate(shCoeffs, -SNVector3.UnitZ));
+         Console.WriteLine(SH.Evaluate(shCoeffs, SNVector3.UnitX));
+         Console.WriteLine(SH.Evaluate(shCoeffs, SNVector3.UnitY));
+         Console.WriteLine(SH.Evaluate(shCoeffs, -SNVector3.UnitX));
+         Console.WriteLine(SH.Evaluate(shCoeffs, -SNVector3.UnitY));
+         Console.WriteLine("!");
+         Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, SNVector3.UnitZ));
+         Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, -SNVector3.UnitZ));
+         Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, SNVector3.UnitX));
+         Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, SNVector3.UnitY));
+         Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, -SNVector3.UnitX));
+         Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, -SNVector3.UnitY));
+         Console.WriteLine(SH.y0_c0 + " " + SH.y1_c0 + " " + SH.y2_c0 + " " + SH.y2_c1 + " " + SH.y2_c2 + " " + SH.y2_c3);
+         return;
+
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
          
@@ -47,16 +75,6 @@ namespace Canvas3D {
 
          UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);
 
-         //var projViewInv = MatrixCM.Invert(projView);
-         //projViewInv.Transpose();
-         //var asdf = Vector4.Transform(new Vector4(0, 0, 1, 1), projViewInv);
-         //Console.WriteLine(asdf / asdf.W);
-         //asdf = Vector4.Transform(new Vector4(1, 0, 1, 1), projViewInv);
-         //Console.WriteLine(asdf / asdf.W);
-         //asdf = Vector4.Transform(new Vector4(0, 1, 1, 1), projViewInv);
-         //Console.WriteLine(asdf / asdf.W);
-         //return;
-         
          var floatingCubesBatch = RenderJobBatch.Create(graphicsLoop.Presets.GetPresetMesh(MeshPreset.UnitCube));
          //floatingCubesBatch.Wireframe = true;
          foreach (var transform in cubeDefaultTransforms) {
@@ -129,14 +147,14 @@ namespace Canvas3D {
                   Color = Color.Black,
                });
             }
-            //scene.AddRenderJobBatch(raySphereBatch);
+            scene.AddRenderJobBatch(raySphereBatch);
 
             // Draw floor
-//            scene.AddRenderable(
-//               graphicsLoop.Presets.UnitCube,
-//               MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
-//               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
-//               Color.White);
+            scene.AddRenderable(
+               graphicsLoop.Presets.UnitCube,
+               MatrixCM.Scaling(4f, 0.1f, 4f) * MatrixCM.Translation(0, -0.5f, 0) * MatrixCM.RotationX((float)Math.PI),
+               new MaterialDescription { Properties = { Metallic = 0.0f, Roughness = 0.04f } },
+               Color.White);
             
             // Draw sun
 //            scene.AddRenderable(
@@ -168,7 +186,7 @@ namespace Canvas3D {
             floatingCubesBatch.MaterialResourcesIndexOverride = scene.AddMaterialResources(new MaterialResourcesDescription {
                BaseTexture = graphicsLoop.Presets.SolidCubeTextures[Color.Red, Color.Cyan, Color.Lime, Color.Magenta, Color.Blue, Color.Yellow]
             });
-            if (false) {
+            if (true) {
                floatingCubesBatch.MaterialResourcesIndexOverride = -1;
                for (var i = 0; i < floatingCubesBatch.Jobs.Count; i++) {
                   floatingCubesBatch.Jobs.store[i].MaterialResourcesIndex = scene.AddMaterialResources(new MaterialResourcesDescription {
@@ -176,15 +194,15 @@ namespace Canvas3D {
                   });
                }
             }
-//            scene.AddRenderJobBatch(floatingCubesBatch);
+            scene.AddRenderJobBatch(floatingCubesBatch);
 
             // Add spotlights
             scene.AddSpotlight(
-               new Vector3(5, 4, 3), new Vector3(0, 0, 0), Vector3.Up, (float)Math.PI / 8.0f,
-               Color.White, 100.0f,
-               0.0f, 6.0f, 3.0f,
+               new Vector3(10, 10, 10), new Vector3(0, 0, 0), Vector3.Up, (float)Math.PI / 8.0f,
+               Color.White, 2.0f,
+               100.0f, 0.0f, 6.0f, 3.0f,
                0.5f / 256.0f);
-            scene.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), Vector3.Up, (float)Math.PI / 8.0f, Color.White, 0.1f, 100.0f, 3.0f, 6.0f, 1.0f);
+            //scene.AddSpotlight(new Vector3(5, 4, -5), new Vector3(0, 0, 0), Vector3.Up, (float)Math.PI / 8.0f, Color.White, 0.1f, 100.0f, 3.0f, 6.0f, 1.0f);
 
             // Draw the scene
             var snapshot = scene.ExportSnapshot();

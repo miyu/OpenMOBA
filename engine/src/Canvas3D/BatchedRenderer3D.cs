@@ -271,9 +271,6 @@ namespace Canvas3D {
          Trace.Assert(Utilities.SizeOf<SpotlightDescription>() == SpotlightDescription.Size);
          Trace.Assert(Utilities.SizeOf<RenderJobDescription>() == RenderJobDescription.Size);
          Trace.Assert(Utilities.SizeOf<InternalMaterialResourcesDescription>() == InternalMaterialResourcesDescription.Size);
-
-         water = new WaterWip(graphicsFacade);
-         water.Initialize();
       }
 
       public unsafe void RenderScene(ISceneSnapshot scene) {
@@ -315,66 +312,16 @@ namespace Canvas3D {
          context.ClearDepthBuffer(1.0f);
          BindCommonShaderResourceViews(context);
 
-         // Atmosphere
-         if (false) {
-            _techniques.ForwardSkyFromAtmosphere.BeginPass(context, 0);
-            context.SetDepthConfiguration(DepthConfiguration.Disabled);
-            var (orthoProj, world) = ComputeSceneQuadProjWorld(backBufferRenderTargetView.Resolution, 0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height);
-            UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), orthoProj, MatrixCM.Invert(orthoProj), scene.ProjView, MatrixCM.Invert(scene.ProjView), false, false, scene.SpotlightInfos.Count, scene.Time);
-            UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
-            DrawScreenQuad(context, world, null);
-            context.SetDepthConfiguration(DepthConfiguration.Enabled);
-            {
-               var projViewInv = MatrixCM.Invert(scene.ProjView);
-               projViewInv.Transpose();
-               var a = Vector4.Transform(new Vector4(0, 0, 1, 1), projViewInv);
-               a /= a.W;
-               var av = (Vector3)a;
-               av.Normalize();
-               var b = Vector4.Transform(new Vector4(1, 0, 1, 1), projViewInv);
-               b /= b.W;
-               var bv = (Vector3)b;
-               bv.Normalize();
-               var c = Vector4.Transform(new Vector4(0, 1, 1, 1), projViewInv);
-               c /= c.W;
-               var cv = (Vector3)c;
-               cv.Normalize();
-               Console.WriteLine(av + " " + bv + " " + cv);
-            }
-         }
-
-         // Water
-         if (false) {
-            var pv = scene.ProjView;
-            pv.Transpose();
-            Console.WriteLine("!!!!!" + Vector3.Transform(new Vector3(-5.00f, -2.18557e-07f, -5.00f), pv));
-
-            _techniques.ForwardWater.BeginPass(context, 0);
-            UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), scene.ProjView, scene.ProjViewInv, scene.ProjView, scene.ProjViewInv, false, false, scene.SpotlightInfos.Count, scene.Time);
-            UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
-            var instancingBuffer = PickInstancingBuffer(8192);
-            context.SetVertexBuffer(1, instancingBuffer);
-            int n = 40;
-            using (var updater = context.TakeUpdater(instancingBuffer)) {
-               for (var y = -n; y <= n; y++) {
-                  for (var x = -n; x <= n; x++) {
-                     updater.Write(new RenderJobDescription {
-                        WorldTransform = MatrixCM.Scaling(10) * MatrixCM.Translation(x, 0, y) * MatrixCM.RotationX(-(float)Math.PI / 2.0f) * MatrixCM.Translation(-0.5f, -0.5f, 0),
-                        MaterialProperties = { Metallic = 0.0f, Roughness = 1.0f },
-                        MaterialResourcesIndex = -1,
-                        Color = Color.White,
-                     });
-                  }
-               }
-            }
-            context.SetShaderResource(30, _graphicsFacade.Presets.SolidTextures[Color4.White], RenderStage.Pixel);
-            var mrbu = context.TakeUpdater(_materialResourcesBuffer);
-            mrbu.Write(new InternalMaterialResourcesDescription() {
-               BaseColor = Color4.White
-            }.Resolve(30));
-            mrbu.UpdateCloseAndDispose();
-            water.Render(context, (2 * n + 1) * (2 * n + 1));
-         }
+         // // Atmosphere
+         // if (true) {
+         //    _techniques.ForwardSkyFromAtmosphere.BeginPass(context, 0);
+         //    context.SetDepthConfiguration(DepthConfiguration.Disabled);
+         //    var (orthoProj, world) = ComputeSceneQuadProjWorld(backBufferRenderTargetView.Resolution, 0, 0, backBufferRenderTargetView.Resolution.Width, backBufferRenderTargetView.Resolution.Height);
+         //    UpdateSceneConstantBuffer(context, new Vector4(scene.CameraEye, 1), orthoProj, MatrixCM.Invert(orthoProj), scene.ProjView, MatrixCM.Invert(scene.ProjView), false, false, scene.SpotlightInfos.Count, scene.Time);
+         //    UpdateBatchConstantBuffer(context, Matrix.Identity, DiffuseTextureSamplingMode.FlatUV, 0);
+         //    DrawScreenQuad(context, world, null);
+         //    context.SetDepthConfiguration(DepthConfiguration.Enabled);
+         // }
 
          // Forward render pass
          for (var pass = 0; pass < _techniques.Forward.Passes; pass++) {
@@ -441,7 +388,6 @@ namespace Canvas3D {
             fixed(int* pjobIndexer = jobIndexer)
                UnmanagedCollections.IndirectSort(pmris, pjobIndexer, 0, batch.Jobs.store.Length);
 #endif
-         //         UnmanagedCollections.IndirectSort(mris, jobIndexer, 0, batch.Jobs.store.Length);
 
 #if PERMIT_STACKALLOC_OPTIMIZATIONS
          var boundTextureSlotByTextureIndex = stackalloc int[scene.Textures.Count]; // todo: stackalloc

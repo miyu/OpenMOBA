@@ -86,6 +86,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DistanceTransformTests", "e
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyTreeRasterizerTests", "engine\test\PolyTreeRasterizerTests\PolyTreeRasterizerTests.csproj", "{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Funkeln", "engine\src\Dargon.Funkeln\Dargon.Funkeln.csproj", "{174D478F-DC4C-4DDF-8B99-AB80212F0327}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dargon.Luna", "engine\src\Dargon.Luna\Dargon.Luna.csproj", "{21D9002E-6E75-4E69-8DA5-785A23C19D68}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dargon.Luna.Transpiler", "engine\src\Dargon.Luna.Transpiler\Dargon.Luna.Transpiler.csproj", "{38C365E8-2962-4C82-A2FD-C2F47A6D8670}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -528,6 +534,42 @@ Global
 		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x64.Build.0 = Release|Any CPU
 		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x86.ActiveCfg = Release|Any CPU
 		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9}.Release|x86.Build.0 = Release|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Debug|x64.Build.0 = Debug|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Debug|x86.Build.0 = Debug|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Release|Any CPU.Build.0 = Release|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Release|x64.ActiveCfg = Release|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Release|x64.Build.0 = Release|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Release|x86.ActiveCfg = Release|Any CPU
+		{174D478F-DC4C-4DDF-8B99-AB80212F0327}.Release|x86.Build.0 = Release|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Debug|x64.Build.0 = Debug|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Debug|x86.Build.0 = Debug|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Release|x64.ActiveCfg = Release|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Release|x64.Build.0 = Release|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Release|x86.ActiveCfg = Release|Any CPU
+		{21D9002E-6E75-4E69-8DA5-785A23C19D68}.Release|x86.Build.0 = Release|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Debug|x64.Build.0 = Debug|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Debug|x86.Build.0 = Debug|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Release|x64.ActiveCfg = Release|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Release|x64.Build.0 = Release|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Release|x86.ActiveCfg = Release|Any CPU
+		{38C365E8-2962-4C82-A2FD-C2F47A6D8670}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
