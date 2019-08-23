@@ -1,5 +1,6 @@
 ﻿using System;
 using Dargon.Luna.Lang;
+using static Dargon.Luna.Lang.LunaIntrinsics;
 
 namespace Dargon.Luna.Demos {
    public class DiffuseShader : Shader {
@@ -25,9 +26,9 @@ namespace Dargon.Luna.Demos {
       }
 
       public float4 Frag(FragmentInput i) {
-         float3 n = normalize(i.normalWorld.xyz);
+         float3 n = i.normalWorld.xyz.normalize();
          ref var dl0 = ref Lighting.Directional[0];
-         float lambert = dot(i.normalWorld.xyz, dl0.direction.xyz);
+         float lambert = dot(n, dl0.direction.xyz);
          return float4(lambert * (i.color * dl0.color).xyz, 1);
       }
    }

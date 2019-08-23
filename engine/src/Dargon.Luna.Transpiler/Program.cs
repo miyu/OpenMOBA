@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.MSBuild;
+using MemberAccessException = System.MemberAccessException;
 
 namespace Dargon.Luna.Transpiler {
    public static class Program {
@@ -25,28 +26,35 @@ namespace Dargon.Luna.Transpiler {
          var shadersFound = TypeSearcher.FindShaders(compilation);
          Console.WriteLine(shadersFound.LangShaderSymbol);
          foreach (var shaderImplementation in shadersFound.ShaderImplementations) {
-            var tree = shaderImplementation.DeclaringSyntaxReferences.FirstAndOnly().SyntaxTree;
-
+            var shaderCds = (ClassDeclarationSyntax)shaderImplementation.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
             var shaderInput = FindMembers(shaderImplementation);
-            foreach (var method in shaderInput.Methods) {
-               var transpiler = new ShaderMethodTranspiler {
-                  Compilation = compilation,
-                  SemanticModelCache = semanticModelCache,
-               };
 
-               var decls = method.DeclaringSyntaxReferences;
-               Console.WriteLine(method.Name + " " + method.ToString() + " " + decls.Length);
-               if (decls.Length == 0) continue;
-               var decl = method.DeclaringSyntaxReferences.FirstAndOnly();
-               var mds = (MethodDeclarationSyntax)decl.GetSyntax();
-               if (mds.AttributeLists.Any(a => a.ToString().Contains("LunaIntrinsic"))) {
-                  continue;
-               }
+            var smil = new ShaderMethodInvocationLowerer {
+               Compilation = compilation,
+               SemanticModelCache = semanticModelCache,
+            };
+            var loweredShader = smil.TransformToCStyleInvokes(shaderInput);
+            Console.WriteLine(loweredShader);
 
-               transpiler.Visit(mds);
-
-               Console.WriteLine(transpiler.Output.ToString());
-            }
+            // foreach (var method in shaderInput.Methods) {
+            // var transpiler = new ShaderMethodTranspiler {
+            //    Compilation = compilation,
+            //    SemanticModelCache = semanticModelCache,
+            // };
+            //
+            // var decls = method.DeclaringSyntaxReferences;
+            // Console.WriteLine(method.Name + " " + method.ToString() + " " + decls.Length);
+            // if (decls.Length == 0) continue;
+            // var decl = method.DeclaringSyntaxReferences.FirstAndOnly();
+            // var mds = (MethodDeclarationSyntax)decl.GetSyntax();
+            // if (mds.AttributeLists.Any(a => a.ToString().Contains("LunaIntrinsic"))) {
+            //    continue;
+            // }
+            //
+            // transpiler.Visit(mds);
+            //
+            // Console.WriteLine(transpiler.Output.ToString());
+            // }
          }
       }
 
@@ -61,10 +69,219 @@ namespace Dargon.Luna.Transpiler {
             }
          }
          return new ShaderTranspilationInput {
+            ShaderClass = shaderImplementation,
             VertexShader = vs,
             PixelShader = ps,
             Methods = methods,
          };
+      }
+   }
+
+   public static class Diag {
+      public static void DumpExpressionAndSyntaxTree(SyntaxNode node) {
+         foreach (var (i, n) in (i: 0, node).Dfs(x => x.node.ChildNodes().Select(n => (x.i + 1, n))).Reverse()) {
+            Console.WriteLine(new string('\t', i) + n.GetType().Name + " " + n.ToString().Replace('\n', ' ').Replace('\r', ' '));
+         }
+         Console.WriteLine("Node: " + node);
+      }
+
+      public static Exception DumpExpressionAndSyntaxTreeThenReturnThrow(SyntaxNode node) {
+         DumpExpressionAndSyntaxTree(node);
+         return new InvalidOperationException();
+      }
+   }
+
+   /// <summary>
+   /// Lowers method invocations to C-style invokes, including devirtualization.
+   /// </summary>
+   public class ShaderMethodInvocationLowerer {
+      public static SyntaxTriviaList spaceTrivia = SyntaxFactory.TriviaList(SyntaxFactory.Whitespace(" "));
+
+      public Compilation Compilation { get; set; }
+      public SemanticModelCache SemanticModelCache { get; set; }
+
+      private string GetFullMangledName(MethodDeclarationSyntax mds) {
+         var s = new Stack<string>();
+         s.Push(mds.Identifier.Text);
+         foreach (var cds in mds.Ancestors().OfType<ClassDeclarationSyntax>()) {
+            s.Push(cds.Identifier.Text);
+         }
+         return s.Join("_");
+      }
+
+      public SyntaxNode TransformToCStyleInvokes(ShaderTranspilationInput input) {
+         var template = "class GeneratedClass { }";
+         var generatedFileTree = CSharpSyntaxTree.ParseText(template);
+         var c = Compilation.AddSyntaxTrees(generatedFileTree);
+
+         var shaderMethodInvocationRewriter = new ShaderMethodInvocationRewriter {
+            SemanticModelCache = SemanticModelCache,
+         };
+         var shaderRefFlattener = new ShaderRefFlattener();
+         var expressionBodiedMethodsToBlockMethods = new ExpressionBodiedMethodsToBlockMethods();
+
+         var methodsToExplore = new AddOnlyOrderedHashSet<(string, MethodDeclarationSyntax, IMethodSymbol)>();
+         var psMds = (MethodDeclarationSyntax)input.PixelShader.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
+         var vsMds = (MethodDeclarationSyntax)input.VertexShader.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
+
+         methodsToExplore.Add((GetFullMangledName(psMds), psMds, input.PixelShader));
+         methodsToExplore.Add((GetFullMangledName(vsMds), vsMds, input.VertexShader));
+
+         var rewrittenMethods = new Dictionary<string, (MethodDeclarationSyntax original, MethodDeclarationSyntax rewrite)>();
+         for (var i = 0; i < methodsToExplore.Count; i++) {
+            var (subjectMangledName, subjectMethodNode, subjectMethodSymbol) = methodsToExplore[i];
+            shaderMethodInvocationRewriter.Reset();
+            shaderRefFlattener.Reset();
+
+            if (!subjectMethodSymbol.IsStatic) {
+               Diag.DumpExpressionAndSyntaxTree(subjectMethodNode);
+               var parameters = new SeparatedSyntaxList<ParameterSyntax>();
+               parameters = parameters.Add(SyntaxFactory.Parameter(SyntaxFactory.Identifier("this")).WithType(SyntaxFactory.IdentifierName(subjectMethodSymbol.ContainingType.Name).WithTrailingTrivia(spaceTrivia)));
+               parameters = parameters.AddRange(subjectMethodNode.ParameterList.Parameters);
+               if (parameters.SeparatorCount > 0) {
+                  parameters = parameters.ReplaceSeparator(parameters.GetSeparator(0), parameters.GetSeparator(0).WithTrailingTrivia(spaceTrivia));
+               }
+               subjectMethodNode = subjectMethodNode.WithParameterList(SyntaxFactory.ParameterList(parameters));
+            }
+
+            var rewrite = (MethodDeclarationSyntax)shaderMethodInvocationRewriter.Visit(subjectMethodNode);
+            rewrite = rewrite.WithIdentifier(SyntaxFactory.Identifier(subjectMangledName));
+            rewrite = (MethodDeclarationSyntax)shaderRefFlattener.Visit(rewrite);
+            rewrite = (MethodDeclarationSyntax)expressionBodiedMethodsToBlockMethods.Visit(rewrite);
+
+            rewrittenMethods.Add(subjectMangledName, (subjectMethodNode, rewrite));
+
+            foreach (var (invokeeMangledName, invokeeMethod) in shaderMethodInvocationRewriter.InvokedMethodsByMangledName) {
+               var dsrs = invokeeMethod.DeclaringSyntaxReferences;
+               if (dsrs.Length == 0) {
+                  Diag.DumpExpressionAndSyntaxTree(subjectMethodNode);
+                  Console.WriteLine("Mangled Name: " + invokeeMangledName + " => " + invokeeMethod);
+                  throw new InvalidOperationException("Invocation has no declaring syntax reference");
+               }
+
+               var mds = (MethodDeclarationSyntax)dsrs.FirstAndOnly().GetSyntax();
+
+               // don't explore method (meaning rewrite it) if it's intrinsic. 
+               if (mds.AttributeLists.Any(a => a.ToString().Contains("LunaIntrinsic"))) {
+                  continue;
+               }
+
+               methodsToExplore.Add((invokeeMangledName, mds, invokeeMethod));
+            }
+         }
+
+         var generatedClass = SyntaxFactory.ClassDeclaration(SyntaxFactory.Identifier(spaceTrivia, "GeneratedClass", spaceTrivia));
+
+         foreach (var (mangledName, (original, rewrite)) in rewrittenMethods) {
+            Console.WriteLine("REWROTE " + mangledName);
+            Console.WriteLine("FROM: " + original);
+            Console.WriteLine("  TO: " + rewrite);
+            generatedClass = generatedClass.AddMembers(rewrite);
+         }
+
+         Console.WriteLine(generatedClass);
+         return null;
+      }
+
+      public class ShaderMethodInvocationRewriter : CSharpSyntaxRewriter {
+         public SemanticModelCache SemanticModelCache { get; set; }
+         public Dictionary<string, IMethodSymbol> InvokedMethodsByMangledName { get; private set; } = new Dictionary<string, IMethodSymbol>();
+
+         public void Reset() {
+            InvokedMethodsByMangledName.Clear();
+         }
+
+         public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node) {
+            var semanticModel = SemanticModelCache.Get(node.SyntaxTree);
+
+            var stack = new Stack<string>();
+            var currentExpression = node.Expression;
+            var invokedMethodSymbolInfo = (IMethodSymbol)semanticModel.GetSymbolInfo(currentExpression).Symbol;
+            stack.Push(invokedMethodSymbolInfo.Name);
+
+            var containingType = invokedMethodSymbolInfo.ContainingType;
+            while (containingType != null) {
+               stack.Push(containingType.Name);
+               containingType = containingType.ContainingType;
+            }
+
+            var flattenedName = stack.Join("_");
+            Console.WriteLine("VISITING NODE " + node + " HAS NAME " + flattenedName);
+            InvokedMethodsByMangledName[flattenedName] = (IMethodSymbol)semanticModel.GetSymbolInfo(node.Expression).Symbol;
+
+            // convert instance invoke to static invoke... left.M(params) => TypeName_M(left, params)
+            if (!invokedMethodSymbolInfo.IsStatic) {
+               var arguments = new SeparatedSyntaxList<ArgumentSyntax>();
+               if (node.Expression is MemberAccessExpressionSyntax maes) {
+                  arguments = arguments.Add(SyntaxFactory.Argument(maes.Expression));
+               } else if (node.Expression is IdentifierNameSyntax ins) {
+                  arguments = arguments.Add(SyntaxFactory.Argument(SyntaxFactory.ThisExpression()));
+               } else {
+                  throw Diag.DumpExpressionAndSyntaxTreeThenReturnThrow(node);
+               }
+
+               arguments = arguments.AddRange(node.ArgumentList.Arguments);
+               if (arguments.SeparatorCount > 0) {
+                  arguments = arguments.ReplaceSeparator(arguments.GetSeparator(0), arguments.GetSeparator(0).WithTrailingTrivia(spaceTrivia));
+               }
+               return SyntaxFactory.InvocationExpression(
+                  SyntaxFactory.IdentifierName(flattenedName),
+                  SyntaxFactory.ArgumentList(arguments));
+            }
+
+            return SyntaxFactory.InvocationExpression(
+               SyntaxFactory.IdentifierName(flattenedName),
+               node.ArgumentList);
+         }
+      }
+
+      public class ShaderRefFlattener : CSharpSyntaxRewriter {
+         private readonly Dictionary<string, SyntaxNode> identifierReplacements = new Dictionary<string, SyntaxNode>();
+
+         public void Reset() {
+            identifierReplacements.Clear();
+         }
+
+         public override SyntaxNode VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax ldss) {
+            var vds = ldss.Declaration;
+            if (vds.Type is RefTypeSyntax) {
+               foreach (var v in vds.Variables) {
+                  var res = (RefExpressionSyntax)v.Initializer.Value;
+                  identifierReplacements.Add(v.Identifier.Text, Visit(res.Expression));
+               }
+               return null;
+            }
+            return base.VisitLocalDeclarationStatement(ldss);
+         }
+
+         public override SyntaxNode VisitIdentifierName(IdentifierNameSyntax ins) {
+            var name = ins.Identifier.ValueText;
+            if (identifierReplacements.TryGetValue(name, out var replacement)) {
+               return replacement;
+            } else {
+               return base.VisitIdentifierName(ins);
+            }
+         }
+      }
+
+      public class ExpressionBodiedMethodsToBlockMethods : CSharpSyntaxRewriter {
+         public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node) {
+            if (node.ExpressionBody != null) {
+               return base.VisitMethodDeclaration(
+                  node.WithBody(
+                     SyntaxFactory.Block(
+                        SyntaxFactory.ReturnStatement(node.ExpressionBody.Expression.WithLeadingTrivia(spaceTrivia))
+                                     .WithLeadingTrivia(spaceTrivia)
+                                     .WithTrailingTrivia(spaceTrivia)
+                        ))
+                      .WithExpressionBody(null)
+                      .WithSemicolonToken(default)
+                      .WithTrailingTrivia(SyntaxFactory.Whitespace(Environment.NewLine))
+                  );
+            } else {
+               return base.VisitMethodDeclaration(node);
+            }
+         }
       }
    }
 
@@ -91,6 +308,7 @@ namespace Dargon.Luna.Transpiler {
    }
 
    public class ShaderTranspilationInput {
+      public INamedTypeSymbol ShaderClass;
       public IMethodSymbol VertexShader;
       public IMethodSymbol PixelShader;
       public List<IMethodSymbol> Methods;
@@ -102,7 +320,6 @@ namespace Dargon.Luna.Transpiler {
       private bool requireNewlineBefore;
       private bool requireWhitespaceBefore;
       private bool lastIsIdent;
-      private bool isStartOfLine;
       private int indent = 0;
 
       public void EmitIdentifier(string s) => EmitInternal(s, true, false, false, false, false);
@@ -170,18 +387,11 @@ namespace Dargon.Luna.Transpiler {
 
       public override void DefaultVisit(SyntaxNode node) {
          Console.WriteLine("Unknown Syntax: " + node.GetType());
-         Console.WriteLine(node);
-         DumpSyntaxTree(node);
+         Diag.DumpExpressionAndSyntaxTree(node);
 
          Console.WriteLine("Transpilation thus far:");
          Console.WriteLine(e.ToString());
          throw new NotImplementedException();
-      }
-
-      private static void DumpSyntaxTree(SyntaxNode node) {
-         foreach (var (i, n) in (i: 0, node).Dfs(x => x.node.ChildNodes().Select(n => (x.i + 1, n))).Reverse()) {
-             Console.WriteLine(new string('\t', i) + n.GetType().Name);
-         }
       }
 
       private TypeInfo GetTypeInfo(TypeSyntax ts) {
@@ -377,5 +587,34 @@ namespace Dargon.Luna.Transpiler {
 
       public static IEnumerable<ISymbol> GetBaseAndThisMembers(this ITypeSymbol type) 
          => type.GetBaseTypesAndThis().SelectMany(t => t.GetMembers());
+
+
+      /// <summary>
+      /// https://stackoverflow.com/questions/21435665/remove-extraneous-semicolons-in-c-sharp-using-roslyn-replace-w-empty-trivia
+      /// </summary>
+      public static T RemoveSemicolon<T>(this T node,
+         SyntaxToken semicolonToken,
+         Func<T, SyntaxToken, T> withSemicolonToken) where T : SyntaxNode {
+         if (semicolonToken.Kind() != SyntaxKind.None) {
+            var leadingTrivia = semicolonToken.LeadingTrivia;
+            var trailingTrivia = semicolonToken.TrailingTrivia;
+
+            SyntaxToken newToken = SyntaxFactory.Token(
+               leadingTrivia,
+               SyntaxKind.None,
+               trailingTrivia);
+
+            bool addNewline = semicolonToken.HasTrailingTrivia
+                              && trailingTrivia.FirstAndOnly().Kind() == SyntaxKind.EndOfLineTrivia;
+
+            var newNode = withSemicolonToken(node, newToken);
+
+            if (addNewline)
+               return newNode.WithTrailingTrivia(SyntaxFactory.Whitespace(Environment.NewLine));
+            else
+               return newNode;
+         }
+         return node;
+      }
    }
 }
