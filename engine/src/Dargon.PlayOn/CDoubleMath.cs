@@ -1,8 +1,16 @@
-﻿using System;
+﻿#define use_int32
+
+using System;
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
 #else
 using cDouble = System.Double;
+#endif
+
+#if use_int32
+using cInt = System.Int32;
+#else
+using cInt = System.Int64;
 #endif
 
 namespace Dargon.PlayOn {
@@ -113,6 +121,10 @@ namespace Dargon.PlayOn {
 #else
          return Math.Round(v);
 #endif
+      }
+
+      public static cInt CeilToInt(cDouble v) {
+         return (cInt)Math.Ceiling(v);
       }
 
       public static cDouble Ceiling(cDouble v) {

@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace Dargon.PlayOn.DevTool.Debugging {
+namespace Dargon.Dviz {
    public class FillStyle {
       public FillStyle(Color? color = null) {
          Color = color ?? Color.Black;

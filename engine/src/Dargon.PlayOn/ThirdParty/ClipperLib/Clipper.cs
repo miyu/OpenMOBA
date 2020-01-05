@@ -165,11 +165,11 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
 
    public class PolyNode {
       internal PolyNode m_Parent;
-      internal Path m_polygon = new Path();
+      public Path m_polygon = new Path();
       internal int m_Index;
       internal JoinType m_jointype;
       internal EndType m_endtype;
-      internal List<PolyNode> m_Childs = new List<PolyNode>();
+      public List<PolyNode> m_Childs = new List<PolyNode>();
 
       // Added by me for visgraph - miyu
       public ExtraNodeData visibilityGraphNodeData;
@@ -538,6 +538,10 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
       internal IntPoint OffPt;
    };
 
+   public class ClipperFactory {
+      
+   }
+
    public class ClipperBase {
       internal const double horizontal = -3.4E+38;
       internal const int Skip = -2;
@@ -834,7 +838,9 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
       //------------------------------------------------------------------------------
 
 
-      public bool AddPath(Path pg, PolyType polyType, bool Closed) {
+      // TODO: Better overload for array access
+      // Note: Changed this to support TPath-based generics rather than rigid List<intPoint> --miyu
+      public bool AddPath<TPath>(TPath pg, PolyType polyType, bool Closed) where TPath : IList<IntPoint> {
 #if use_lines
          if (!Closed && polyType == PolyType.ptClip)
             throw new ClipperException("AddPath: Open paths must be subject.");

@@ -49,6 +49,10 @@
    </ItemGroup>
 
    <ItemGroup>
+     <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
+   </ItemGroup>
+
+   <ItemGroup>
      <None Update="Assets\shaders\forward_skyfromatomsphere.hlsl">
        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
      </None>

@@ -4,8 +4,10 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.DevTool.Debugging;
+using Dargon.PlayOn.Dviz;
 using Dargon.PlayOn.Foundation;
 using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain;
@@ -384,7 +386,7 @@ namespace Dargon.PlayOn.DevTool {
             displaySize.Height);
          //         projector = null;
          //         var debugMultiCanvasHost = new MonoGameCanvasHost();
-         var debugMultiCanvasHost = Debugging.DebugMultiCanvasHost.CreateAndShowCanvas(
+         var debugMultiCanvasHost = Dargon.Dviz.DebugMultiCanvasHost.CreateAndShowCanvas(
             displaySize,
             new Point(100, 100),
             projector);

@@ -1,11 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.Geometry;
 
-namespace Dargon.PlayOn.DevTool.Debugging {
+namespace Dargon.Dviz {
    public static class DebugCanvas3DExtensions {
+      private static Vector3 ToV3(IntVector3 p) => new Vector3(p.X, p.Y, p.Z);
+      private static Vector3 ToV3(DoubleVector3 p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
+
+      public static void DrawPoint(this IDebugCanvas canvas, IntVector3 p, StrokeStyle strokeStyle) {
+         canvas.DrawPoint(ToV3(p), strokeStyle);
+      }
+
+      public static void DrawPoint(this IDebugCanvas canvas, DoubleVector3 p, StrokeStyle strokeStyle) {
+         canvas.DrawPoint(ToV3(p), strokeStyle);
+      }
+
       private static List<DoubleVector3> ToDoublePoints(IReadOnlyList<IntVector3> ps) {
          var result = new List<DoubleVector3>(ps.Count);
          for (var i = 0; i < ps.Count; i++) {
@@ -21,9 +34,16 @@ namespace Dargon.PlayOn.DevTool.Debugging {
       public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<DoubleVector3> points, StrokeStyle strokeStyle) {
          canvas.BatchDraw(() => {
             foreach (var point in points) {
-               canvas.DrawPoint(point, strokeStyle);
+               canvas.DrawPoint(ToV3(point), strokeStyle);
             }
          });
+      }
+      public static void DrawLine(this IDebugCanvas canvas, IntVector3 p1, IntVector3 p2, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToV3(p1), ToV3(p2), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, DoubleVector3 p1, DoubleVector3 p2, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToV3(p1), ToV3(p2), strokeStyle);
       }
 
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector3> points, StrokeStyle strokeStyle) {
@@ -39,7 +59,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             for (var i = 0; i < points.Count; i += 2) {
                var a = points[i];
                var b = points[i + 1];
-               canvas.DrawLine(a, b, strokeStyle);
+               canvas.DrawLine(ToV3(a), ToV3(b), strokeStyle);
             }
          });
       }
@@ -57,7 +77,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             for (var i = 0; i < points.Count - 1; i++) {
                var a = points[i];
                var b = points[i + 1];
-               canvas.DrawLine(a, b, strokeStyle);
+               canvas.DrawLine(ToV3(a), ToV3(b), strokeStyle);
             }
          });
       }
@@ -91,24 +111,25 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          var nbl = box.Center - extents;
          var ftr = box.Center + extents;
          canvas.BatchDraw(() => {
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, nbl.Y, nbl.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(nbl.X, ftr.Y, nbl.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, nbl.Z), new DoubleVector3(nbl.X, nbl.Y, ftr.Z), strokeStyle);
+            Vector3 V3(double x, double y, double z) => new Vector3((float)x, (float)y, (float)z);
 
-            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, nbl.Y, nbl.Z), V3(ftr.X, nbl.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, nbl.Y, nbl.Z), V3(nbl.X, ftr.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, nbl.Y, nbl.Z), V3(nbl.X, nbl.Y, ftr.Z), strokeStyle);
 
+            canvas.DrawLine(V3(nbl.X, ftr.Y, nbl.Z), V3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
 
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, ftr.Z), new DoubleVector3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, ftr.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, nbl.Y, ftr.Z), V3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, ftr.Y, ftr.Z), V3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
 
-            canvas.DrawLine(new DoubleVector3(nbl.X, nbl.Y, ftr.Z), new DoubleVector3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(nbl.X, ftr.Y, nbl.Z), new DoubleVector3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, nbl.Y, ftr.Z), V3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(nbl.X, ftr.Y, nbl.Z), V3(nbl.X, ftr.Y, ftr.Z), strokeStyle);
 
-            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, ftr.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(ftr.X, nbl.Y, nbl.Z), V3(ftr.X, ftr.Y, nbl.Z), strokeStyle);
+            canvas.DrawLine(V3(ftr.X, nbl.Y, ftr.Z), V3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
 
-            canvas.DrawLine(new DoubleVector3(ftr.X, nbl.Y, nbl.Z), new DoubleVector3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
-            canvas.DrawLine(new DoubleVector3(ftr.X, ftr.Y, nbl.Z), new DoubleVector3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(ftr.X, nbl.Y, nbl.Z), V3(ftr.X, nbl.Y, ftr.Z), strokeStyle);
+            canvas.DrawLine(V3(ftr.X, ftr.Y, nbl.Z), V3(ftr.X, ftr.Y, ftr.Z), strokeStyle);
          });
       }
    }

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace Dargon.PlayOn.DevTool.Debugging {
+namespace Dargon.Dviz {
    public class DebugMultiCanvasHost : IDebugMultiCanvasHost {
       private readonly object synchronization = new object();
       private readonly List<CanvasAndFrameIndex> frames = new List<CanvasAndFrameIndex>();

@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace Dargon.PlayOn.DevTool.Debugging {
+namespace Dargon.Dviz {
    public class StrokeStyle {
       public static float[] Dash5 = new[] { 5.0f, 5.0f };
       public static StrokeStyle LimeHairLineSolid = new StrokeStyle(Color.Lime);

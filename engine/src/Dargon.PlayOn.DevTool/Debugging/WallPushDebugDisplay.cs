@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
+using Dargon.Dviz;
 using Dargon.PlayOn.Debugging;
+using Dargon.PlayOn.Dviz;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
 using Dargon.PlayOn.Geometry;
@@ -59,18 +62,18 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             debugCanvas.FillTriangle(oxy, visibleStart, visibleEnd, fillStyle);
 
             debugCanvas.DrawLine(
-               new DoubleVector3(oxy.X, oxy.Y, (cDouble)z),
-               new DoubleVector3(visibleStart.X, visibleStart.Y, (cDouble)z),
+               new Vector3((float)oxy.X, (float)oxy.Y, (float)z),
+               new Vector3((float)visibleStart.X, (float)visibleStart.Y, (float)z),
                angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
 
             debugCanvas.DrawLine(
-               new DoubleVector3(oxy.X, oxy.Y, (cDouble)z),
-               new DoubleVector3(visibleEnd.X, visibleEnd.Y, (cDouble)z),
+               new Vector3((float)oxy.X, (float)oxy.Y, (float)z),
+               new Vector3((float)visibleEnd.X, (float)visibleEnd.Y, (float)z),
                angleBoundaryStrokeStyle ?? DefaultAngleBoundaryStrokeStyle);
 
             debugCanvas.DrawLine(
-               new DoubleVector3(visibleStart.X, visibleStart.Y, (cDouble)z),
-               new DoubleVector3(visibleEnd.X, visibleEnd.Y, (cDouble)z),
+               new Vector3((float)visibleStart.X, (float)visibleStart.Y, (float)z),
+               new Vector3((float)visibleEnd.X, (float)visibleEnd.Y, (float)z),
                visibleWallStrokeStyle ?? DefaultVisibleWallStrokeStyle);
          }
       }

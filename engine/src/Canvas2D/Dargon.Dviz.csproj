@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+   <PropertyGroup>
+      <OutputType>Library</OutputType>
+      <TargetFramework>net461</TargetFramework>
+      <ApplicationIcon />
+      <StartupObject />
+   </PropertyGroup>
+
+   <ItemGroup>
+     <PackageReference Include="Poly2Tri" Version="1.0.1" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
+     <ProjectReference Include="..\Canvas3D\Canvas3D.csproj" />
+   </ItemGroup>
+
+   <ItemGroup>
+     <Folder Include="Properties\" />
+   </ItemGroup>
+
+</Project>

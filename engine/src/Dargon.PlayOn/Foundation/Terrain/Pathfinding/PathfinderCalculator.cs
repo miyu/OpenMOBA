@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using Dargon.Commons;
+using Dargon.Commons.Collections;
+using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
-using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation.ECS;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
@@ -724,8 +726,8 @@ namespace Dargon.PlayOn.Foundation.Terrain.Pathfinding {
       private void DebugDrawLine(IDebugCanvas debugCanvas, TerrainOverlayNetworkNode p1Node, IntVector2 p1Local, TerrainOverlayNetworkNode p2Node, IntVector2 p2Local, StrokeStyle strokeStyle) {
          if (debugCanvas == null) return;
          debugCanvas.DrawLine(
-            Vector3.Transform(new Vector3(p1Local.X, p1Local.Y, 0), p1Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector(),
-            Vector3.Transform(new Vector3(p2Local.X, p2Local.Y, 0), p2Node.SectorNodeDescription.WorldTransform).ToOpenMobaVector(),
+            Vector3.Transform(new Vector3(p1Local.X, p1Local.Y, 0), p1Node.SectorNodeDescription.WorldTransform),
+            Vector3.Transform(new Vector3(p2Local.X, p2Local.Y, 0), p2Node.SectorNodeDescription.WorldTransform),
             strokeStyle);
       }
    }

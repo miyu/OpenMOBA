@@ -13,6 +13,7 @@ using System.Threading;
 using Canvas3D.LowLevel;
 using Canvas3D.LowLevel.Direct3D;
 using Canvas3D.LowLevel.Helpers;
+using Dargon.Commons.Collections;
 using SharpDX;
 using SharpDX.Direct3D11;
 using Color = SharpDX.Color;
@@ -179,7 +180,7 @@ namespace Canvas3D {
       public void ExportSnapshot(ISceneSnapshot s) {
          var snapshot = (SceneSnapshot)s;
          snapshot.Textures.Clear();
-         foreach (var tex in textures) snapshot.Textures.TryAdd(tex);
+         foreach (var tex in textures) snapshot.Textures.Add(tex);
 
          snapshot.Materials.Clear();
          foreach (var mat in materials) snapshot.Materials.Add(mat);

@@ -1,6 +1,8 @@
 ﻿using System.Drawing;
+using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.DevTool.Debugging;
+using Dargon.PlayOn.Dviz;
 
 namespace Dargon.PlayOn.DevTool.Debugging {
    public static class BvhDebugDisplay {

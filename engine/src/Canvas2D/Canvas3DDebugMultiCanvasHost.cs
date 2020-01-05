@@ -2,22 +2,20 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Numerics;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Canvas3D;
 using Canvas3D.LowLevel;
-using Dargon.PlayOn.Geometry;
-using SharpDX;
+using Matrix = SharpDX.Matrix;
 using Color = SharpDX.Color;
-using Vector2 = SharpDX.Vector2;
-using Vector3 = SharpDX.Vector3;
-using Vector4 = SharpDX.Vector4;
-using Quaternion = SharpDX.Quaternion;
+using SNVector2 = System.Numerics.Vector2;
+using SNVector3 = System.Numerics.Vector3;
+using SNVector4 = System.Numerics.Vector4;
+using SDXVector2 = SharpDX.Vector2;
+using SDXVector3 = SharpDX.Vector3;
+using SDXVector4 = SharpDX.Vector4;
 
-namespace Dargon.PlayOn.DevTool.Debugging {
+namespace Dargon.Dviz {
    public class Canvas3DDebugMultiCanvasHost : IDebugMultiCanvasHost {
       private readonly ConcurrentQueue<IScene> sceneQueue;
       private readonly IGraphicsFacade graphicsFacade;
@@ -35,8 +33,6 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          return new Canvas3DDebugCanvas(graphicsFacade, presets, scene);
       }
 
-      private static Vector3 ToV3(DoubleVector3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
-
       public static Canvas3DDebugMultiCanvasHost CreateAndShowCanvas(Size size) {
          var sceneQueue = new ConcurrentQueue<IScene>();
          var scenes = new List<IScene>();
@@ -50,21 +46,21 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             initLatch.Set();
 
             var rotation = 80 * Math.PI / 180.0;
-            var lookat = new DoubleVector3(0, 0, 0);
+            var lookat = new SDXVector3(0, 0, 0);
             //var lookat = new DoubleVector3(0, 0, 0); 
 
             // originally offset -10, -100, 70)
             //var offset = new DoubleVector3(-100, 100, 200) * 7;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
 //            var offset = new DoubleVector3(-10, -100, 70) * 30;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
 //            var offset = new DoubleVector3(-10, -100, 30) * 30;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
-            var offset = new DoubleVector3(0, -30, 200) * 5;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
-            var up = new DoubleVector3(-1, 0, 0).Cross(offset).ToUnit(); //DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2);
+            var offset = new SDXVector3(0, -30, 200) * 5;// DoubleVector3.FromRadiusAngleAroundXAxis(400, rotation) + new DoubleVector3(100, -50, -100);
+            var up = SDXVector3.Normalize(SDXVector3.Cross(new SDXVector3(-1, 0, 0), offset)); //DoubleVector3.FromRadiusAngleAroundXAxis(1, rotation - Math.PI / 2);
             Console.WriteLine(offset);
 
             IScene lastScene = null;
             while (graphicsLoop.IsRunning(out var renderer, out var input)) {
                while (sceneQueue.TryDequeue(out var res)) {
-                  res.SetCamera(Vector3.Zero, Matrix.Identity);
+                  res.SetCamera(SDXVector3.Zero, Matrix.Identity);
                   scenes.Add(res);
                   if (activeSceneIndex == scenes.Count - 2) {
                      activeSceneIndex = scenes.Count - 1;
@@ -73,7 +69,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
 
                var scene = activeSceneIndex == -1 ? new Scene() : scenes[activeSceneIndex];
                lock (scene) {
-                  var view = MatrixCM.ViewLookAtRH(ToV3(lookat + offset), ToV3(lookat), ToV3(up));
+                  var view = MatrixCM.ViewLookAtRH(lookat + offset, lookat, up);
                   var verticalFov = 105.0f * (float)Math.PI / 180.0f;
                   var aspect = size.Width / (float)size.Height;
                   var proj = MatrixCM.PerspectiveFovRH(verticalFov, aspect, 1.0f, 10000.0f);
@@ -107,11 +103,11 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                   if (scene != lastScene) {
                      lastScene = scene;
 
-                     scene.SetCamera(ToV3(lookat + offset), Matrix.Multiply(proj, view));
+                     scene.SetCamera(lookat + offset, Matrix.Multiply(proj, view));
                      scene.AddSpotlight(
-                        ToV3(lookat + offset * 3),
-                        ToV3(lookat),
-                        ToV3(up),
+                        lookat + offset * 3,
+                        lookat,
+                        up,
                         (float)Math.PI * 0.49f,
                         Color.White,
                         100f,
@@ -152,13 +148,13 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             this.scene = scene;
 
             unitTriangleMesh = graphicsFacade.CreateMesh(new[] {
-               new VertexPositionNormalColorTexture(new Vector3(0, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(0, 0)),
-               new VertexPositionNormalColorTexture(new Vector3(1, 0, 0), -Vector3.UnitZ, Color.White, new Vector2(1, 0)),
-               new VertexPositionNormalColorTexture(new Vector3(0, 1, 0), -Vector3.UnitZ, Color.White, new Vector2(0, 1)),
+               new VertexPositionNormalColorTexture(new SDXVector3(0, 0, 0), -SDXVector3.UnitZ, Color.White, new SDXVector2(0, 0)),
+               new VertexPositionNormalColorTexture(new SDXVector3(1, 0, 0), -SDXVector3.UnitZ, Color.White, new SDXVector2(1, 0)),
+               new VertexPositionNormalColorTexture(new SDXVector3(0, 1, 0), -SDXVector3.UnitZ, Color.White, new SDXVector2(0, 1)),
 
-               new VertexPositionNormalColorTexture(new Vector3(1, 0, 0), Vector3.UnitZ, Color.White, new Vector2(1, 0)),
-               new VertexPositionNormalColorTexture(new Vector3(0, 0, 0), Vector3.UnitZ, Color.White, new Vector2(0, 0)),
-               new VertexPositionNormalColorTexture(new Vector3(0, 1, 0), Vector3.UnitZ, Color.White, new Vector2(0, 1)),
+               new VertexPositionNormalColorTexture(new SDXVector3(1, 0, 0), SDXVector3.UnitZ, Color.White, new SDXVector2(1, 0)),
+               new VertexPositionNormalColorTexture(new SDXVector3(0, 0, 0), SDXVector3.UnitZ, Color.White, new SDXVector2(0, 0)),
+               new VertexPositionNormalColorTexture(new SDXVector3(0, 1, 0), SDXVector3.UnitZ, Color.White, new SDXVector2(0, 1)),
             });
          }
 
@@ -186,8 +182,10 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             }
          }
 
-         public void DrawPoint(DoubleVector3 p, StrokeStyle strokeStyle) {
-            var center = (Vector3)Vector4.Transform(new Vector4(ToV3(p), 1), transformSharpDx);
+         private SDXVector3 ToSDX(SNVector3 p) => new SDXVector3(p.X, p.Y, p.Z);
+
+         public void DrawPoint(Vector3 p, StrokeStyle strokeStyle) {
+            var center = (SDXVector3)SDXVector4.Transform(new SDXVector4(ToSDX(p), 1), transformSharpDx);
             lock (scene) {
                var translate = MatrixCM.Translation(center.X, center.Y, center.Z);
                var scale = MatrixCM.Scaling((float)strokeStyle.Thickness);
@@ -203,16 +201,16 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             }
          }
 
-         public void DrawLine(DoubleVector3 p1, DoubleVector3 p2, StrokeStyle strokeStyle) {
-            var from = (Vector3)Vector4.Transform(new Vector4(ToV3(p1), 1), transformSharpDx);
-            var to = (Vector3)Vector4.Transform(new Vector4(ToV3(p2), 1), transformSharpDx);
+         public void DrawLine(Vector3 p1, Vector3 p2, StrokeStyle strokeStyle) {
+            var from = (SDXVector3)SDXVector4.Transform(new SDXVector4(ToSDX(p1), 1), transformSharpDx);
+            var to = (SDXVector3)SDXVector4.Transform(new SDXVector4(ToSDX(p2), 1), transformSharpDx);
 
             lock (scene) {
                var thicknessMult = 4;
                var scale = MatrixCM.Scaling((float)strokeStyle.Thickness * thicknessMult, (float)strokeStyle.Thickness * thicknessMult, (from - to).Length());
                //var orien = Quaternion.RotationLookAtRH(from - to, Vector3.Cross(from - to, Vector3.UnitZ));
                //var lookat = MatrixCM.RotationLookAtRH(Vector3.UnitY, Vector3.UnitZ);
-               var lookat = MatrixCM.RotationLookAtRH(from - to, Vector3.UnitZ);
+               var lookat = MatrixCM.RotationLookAtRH(from - to, SDXVector3.UnitZ);
                var offset = MatrixCM.Translation((from.X + to.X) / 2, (from.Y + to.Y) / 2, (from.Z + to.Z) / 2);
                scene.AddRenderable(
                   presets.UnitCube,
@@ -224,7 +222,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             }
          }
 
-         public void DrawTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, StrokeStyle strokeStyle) {
+         public void DrawTriangle(SNVector3 p1, SNVector3 p2, SNVector3 p3, StrokeStyle strokeStyle) {
             BatchDraw(() => {
                DrawLine(p1, p2, strokeStyle);
                DrawLine(p2, p3, strokeStyle);
@@ -232,10 +230,10 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             });
          }
 
-         public void FillTriangle(DoubleVector3 p1, DoubleVector3 p2, DoubleVector3 p3, FillStyle fillStyle) {
-            var p1w = (Vector3)Vector4.Transform(new Vector4(ToV3(p1), 1), transformSharpDx);
-            var p2w = (Vector3)Vector4.Transform(new Vector4(ToV3(p2), 1), transformSharpDx);
-            var p3w = (Vector3)Vector4.Transform(new Vector4(ToV3(p3), 1), transformSharpDx);
+         public void FillTriangle(SNVector3 p1, SNVector3 p2, SNVector3 p3, FillStyle fillStyle) {
+            var p1w = (SDXVector3)SDXVector4.Transform(new SDXVector4(ToSDX(p1), 1), transformSharpDx);
+            var p2w = (SDXVector3)SDXVector4.Transform(new SDXVector4(ToSDX(p2), 1), transformSharpDx);
+            var p3w = (SDXVector3)SDXVector4.Transform(new SDXVector4(ToSDX(p3), 1), transformSharpDx);
 
             /**
              * [m00, m01, m02, m03] * [ 0 1 0 ] = [ orig.x, orig.x + v1.x, orig.x + v2.x]
@@ -261,10 +259,10 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             var unitTriangleToWorld = new Matrix();
             var a = p2w - p1w;
             var b = p3w - p1w;
-            unitTriangleToWorld.Column1 = new Vector4(a, 0);
-            unitTriangleToWorld.Column2 = new Vector4(b, 0);
-            unitTriangleToWorld.Column3 = new Vector4(Vector3.Cross(b, a), 0);
-            unitTriangleToWorld.Column4 = new Vector4(p1w, 1);
+            unitTriangleToWorld.Column1 = new SDXVector4(a, 0);
+            unitTriangleToWorld.Column2 = new SDXVector4(b, 0);
+            unitTriangleToWorld.Column3 = new SDXVector4(SDXVector3.Cross(b, a), 0);
+            unitTriangleToWorld.Column4 = new SDXVector4(p1w, 1);
 
 //            unitTriangleToWorld.Transpose();
 //            Console.WriteLine(p1w + " " + p2w + " " + p3w);
@@ -283,15 +281,13 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                Color.FromBgra(fillStyle.Color.ToArgb()));
          }
 
-         public void FillPolygon(IReadOnlyList<DoubleVector3> polygonPoints, FillStyle fillStyle) {
+         public void FillPolygon(IReadOnlyList<Vector3> polygonPoints, FillStyle fillStyle) {
             lock (scene) {
-
-
                DrawPolygon(polygonPoints, new StrokeStyle(fillStyle.Color));
             }
          }
 
-         public void DrawPolygon(IReadOnlyList<DoubleVector3> polygonPoints, StrokeStyle strokeStyle) {
+         public void DrawPolygon(IReadOnlyList<Vector3> polygonPoints, StrokeStyle strokeStyle) {
             lock (scene) {
                for (var i = 0; i < polygonPoints.Count; i++) {
                   DrawLine(polygonPoints[i], polygonPoints[(i + 1) % polygonPoints.Count], strokeStyle);
@@ -299,7 +295,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
             }
          }
 
-         public void DrawText(string text, DoubleVector3 point) {
+         public void DrawText(string text, Vector3 point) {
          }
       }
    }

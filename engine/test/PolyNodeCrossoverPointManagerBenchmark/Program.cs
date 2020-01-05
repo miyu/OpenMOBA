@@ -55,13 +55,13 @@ namespace PolyNodeCrossoverPointManagerBenchmark {
 
          PolyNodeCrossoverPointManager.DumpPerformanceCounters();
 
-         while (true) {
-            const int ntrials = 10;
-            var sw = new Stopwatch();
-            sw.Start();
-            for (var i = 0; i < ntrials; i++) BenchmarkAddCrossoverPoints(terrainStaticMetadata);
-            Console.WriteLine($"{ntrials} trials in {sw.ElapsedMilliseconds} ms");
-         }
+         // while (true) {
+         //    const int ntrials = 10;
+         //    var sw = new Stopwatch();
+         //    sw.Start();
+         //    for (var i = 0; i < ntrials; i++) BenchmarkAddCrossoverPoints(terrainStaticMetadata);
+         //    Console.WriteLine($"{ntrials} trials in {sw.ElapsedMilliseconds} ms");
+         // }
       }
 
       private static (LocalGeometryView, PolyNode, PolyNodeCrossoverPointManager) BenchmarkAddCrossoverPoints(TerrainStaticMetadata terrainStaticMetadata) {

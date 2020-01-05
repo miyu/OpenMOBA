@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
-using Dargon.PlayOn.DevTool.Debugging;
 using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay;
-using Dargon.PlayOn.Foundation.Terrain.Motion;
 using Dargon.PlayOn.Geometry;
 
 #if use_fixed

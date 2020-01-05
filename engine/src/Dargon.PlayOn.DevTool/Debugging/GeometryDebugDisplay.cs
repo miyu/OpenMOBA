@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
+using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
+using Dargon.PlayOn.Dviz;
 using Dargon.PlayOn.Geometry;
 using Dargon.PlayOn.ThirdParty.ClipperLib;
 
@@ -52,9 +55,9 @@ namespace Dargon.PlayOn.DevTool.Debugging {
 
       public static void FillTriangle(this IDebugCanvas canvas, Triangle3 triangle, FillStyle fillStyle) {
          canvas.FillTriangle(
-            new DoubleVector3(triangle.Points.A.X, triangle.Points.A.Y, 0),
-            new DoubleVector3(triangle.Points.B.X, triangle.Points.B.Y, 0),
-            new DoubleVector3(triangle.Points.C.X, triangle.Points.C.Y, 0),
+            new Vector3((float)triangle.Points.A.X, (float)triangle.Points.A.Y, 0),
+            new Vector3((float)triangle.Points.B.X, (float)triangle.Points.B.Y, 0),
+            new Vector3((float)triangle.Points.C.X, (float)triangle.Points.C.Y, 0),
             fillStyle);
       }
 
