@@ -1,8 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
    <PropertyGroup>
+      <TargetFramework>netcoreapp3.1</TargetFramework>
+      <UseWindowsForms>true</UseWindowsForms>
       <OutputType>Library</OutputType>
-      <TargetFramework>net461</TargetFramework>
       <ApplicationIcon />
       <StartupObject />
    </PropertyGroup>

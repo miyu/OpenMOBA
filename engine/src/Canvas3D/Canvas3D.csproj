@@ -1,12 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
    <PropertyGroup>
-      <TargetFramework>net461</TargetFramework>
+      <TargetFramework>netcoreapp3.1</TargetFramework>
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
       <AssemblyName>Canvas3D</AssemblyName>
       <OutputType>Exe</OutputType>
       <PackageId>Canvas3D</PackageId>
       <StartupObject>Canvas3D.Program</StartupObject>
+      <UseWindowsForms>true</UseWindowsForms>
    </PropertyGroup>
 
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
