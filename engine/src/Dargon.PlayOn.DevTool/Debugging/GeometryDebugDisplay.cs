@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using Dargon.Commons;
 using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.Dviz;
@@ -21,7 +22,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
          holeStroke = holeStroke ?? new StrokeStyle(Color.Brown);
 
          canvas.BatchDraw(() => {
-            var s = new Stack<PolyNode>();
+var s = new Stack<PolyNode>();
             s.Push(polytree);
             while (s.Any()) {
                var node = s.Pop();

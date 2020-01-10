@@ -2,13 +2,16 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using Dargon.Commons;
 using Dargon.Commons.Collections;
+using Dargon.Commons.Pooling;
 using Dargon.Dviz;
 using Dargon.PlayOn;
 using Dargon.PlayOn.DataStructures;
+using Dargon.PlayOn.Dviz;
 using Dargon.PlayOn.Foundation.Terrain;
 using Dargon.PlayOn.Foundation.Terrain.Declarations;
 using Dargon.PlayOn.Geometry;
@@ -89,6 +92,7 @@ namespace Dargon.Terragami {
    }
 
    public class Portal {
+      public int CrossoverPointsGenerated;
       public IntLineSegment2 Segment;
       public Clockness InClockness;
    }
@@ -125,7 +129,7 @@ namespace Dargon.Terragami {
          var points = new IntVector2[n];
          var mul = CDoubleMath.c2 * CDoubleMath.Pi / (cDouble)n;
          for (var i = 0; i < n; i++) {
-            var theta = -i * mul;
+            var theta = - i * mul;
             points[i] = new IntVector2(
                 (cInt)(radius * CDoubleMath.Sin(theta)),
                (cInt)(radius * CDoubleMath.Cos(theta))
@@ -164,24 +168,65 @@ namespace Dargon.Terragami {
 
    public class CompilationInput {
       public GeometryInput Land;
+      public HashSet<IntVector2> TraversableCorners;
+      public HashSet<IntVector2> PinPoints;
       public ExposedArrayList<Portal> Portals;
       public ExposedArrayList<HoleInput> Holes;
    }
 
    public class Program {
       public static void Main(string[] args) {
-         var blueprint = SectorBlueprints.Test2D;
+         var blueprint = SectorBlueprints.FourSquares2D;
          var input = new CompilationInput {
             Land = new GeometryInput {
                Blueprint = blueprint,
                Transform = new CoreTransform(Matrix4x4.Identity, Matrix4x4.Identity, 2.5f / blueprint.LocalBoundary.Width),
             },
-            Portals = new ExposedArrayList<Portal>(),
+            TraversableCorners = new HashSet<IntVector2> { }
+               .Concat(SectorBlueprints.FourSquares2D.Root.Children[0].Children[0].Contour)
+               .Concat(SectorBlueprints.FourSquares2D.Root.Children[0].Children[1].Contour)
+               .ToHashSet(),
+            PinPoints = new HashSet<IntVector2> {
+               blueprint.LocalBoundary.LossyPointAtRatio(0, 1, 2, 6),
+               blueprint.LocalBoundary.LossyPointAtRatio(0, 1, 4, 6),
+               blueprint.LocalBoundary.LossyPointAtRatio(1, 1, 2, 6),
+               blueprint.LocalBoundary.LossyPointAtRatio(1, 1, 4, 6),
+               blueprint.LocalBoundary.LossyPointAtRatio(2, 6, 0, 1),
+               blueprint.LocalBoundary.LossyPointAtRatio(4, 6, 0, 1),
+               blueprint.LocalBoundary.LossyPointAtRatio(2, 6, 1, 1),
+               blueprint.LocalBoundary.LossyPointAtRatio(4, 6, 1, 1),
+            },
+            Portals = new ExposedArrayList<Portal> {
+               new Portal {
+                  Segment = new IntLineSegment2(
+                     blueprint.LocalBoundary.LossyPointAtRatio(0, 1, 2, 6),
+                     blueprint.LocalBoundary.LossyPointAtRatio(0, 1, 4, 6)),
+                  CrossoverPointsGenerated = 10,
+               },
+               new Portal {
+                  Segment = new IntLineSegment2(
+                     blueprint.LocalBoundary.LossyPointAtRatio(1, 1, 2, 6),
+                     blueprint.LocalBoundary.LossyPointAtRatio(1, 1, 4, 6)),
+                  CrossoverPointsGenerated = 10,
+               },
+               new Portal {
+                  Segment = new IntLineSegment2(
+                     blueprint.LocalBoundary.LossyPointAtRatio(2, 6, 0, 1),
+                     blueprint.LocalBoundary.LossyPointAtRatio(4, 6, 0, 1)),
+                  CrossoverPointsGenerated = 10,
+               },
+               new Portal {
+                  Segment = new IntLineSegment2(
+                     blueprint.LocalBoundary.LossyPointAtRatio(2, 6, 1, 1),
+                     blueprint.LocalBoundary.LossyPointAtRatio(4, 6, 1, 1)),
+                  CrossoverPointsGenerated = 10,
+               },
+            },
             Holes = new ExposedArrayList<HoleInput> {
-               new HoleInput {
-                  HolePrimitive = new SphereHolePrimitive(0.5f),
-                  Transform = new CoreTransform(Matrix4x4.Identity, Matrix4x4.Identity, 1),
-               }
+               // new HoleInput {
+               //    HolePrimitive = new SphereHolePrimitive(0.5f),
+               //    Transform = new CoreTransform(Matrix4x4.Identity, Matrix4x4.Identity, 1),
+               // }
             },
          };
 
@@ -189,18 +234,20 @@ namespace Dargon.Terragami {
             new Size(800, 600), new Point(200, 200), 
             new OrthographicXYProjector(0.02f, default, new Vector2(400, 300), true));
          var sw = new Stopwatch();
+         var totalIters = 0;
+         var ntrialiters = 1;
          while (true) {
-            var ntrialiters = 1;
-            var niters = 100;
-            for (var i = 0; i < niters; i++) {
-               var canvas = i < ntrialiters ? debugMultiCanvasHost.CreateAndAddCanvas(i) : null;
+            var niters = 1000;
+            for (var i = 0; i < niters; i++, totalIters++) {
+               var canvas = totalIters < ntrialiters ? debugMultiCanvasHost.CreateAndAddCanvas(i) : null;
                Eval(input, canvas);
 
                if (i + 1 == ntrialiters) {
                   sw.Restart();
                }
             }
-            Console.WriteLine(sw.ElapsedMilliseconds / (float)(niters - ntrialiters) + " ms");
+            var ms = sw.Elapsed.TotalMilliseconds;
+            Console.WriteLine(niters + "iters " + ms + " => " + ms / niters + " ms");
          }
       }
 
@@ -226,7 +273,6 @@ namespace Dargon.Terragami {
                foreach (var p in n.Contour) {
                   var q = Vector2.Transform(p.ToDotNetVector(), mat).ToOpenMobaVector().LossyToIntVector2();
                   transformedContour.Add(q);
-                  Console.WriteLine(q);
                }
                punch.Exclude(transformedContour);
             }
@@ -236,6 +282,103 @@ namespace Dargon.Terragami {
          if (debugCanvasOpt != null) {
             debugCanvasOpt.Transform = Matrix4x4.Identity;
             debugCanvasOpt.DrawPolygonNode(punchedLand);
+            debugCanvasOpt.DrawPoints(input.PinPoints.ToArray(), StrokeStyle.RedThick25Solid);
+            debugCanvasOpt.DrawPoints(input.TraversableCorners.ToArray(), StrokeStyle.LimeThick25Solid);
+         }
+
+         var portals = input.Portals;
+         var portalPoints = new IntVector2[portals.Count][];
+         for (var i = 0; i < portals.Count; i++) {
+            var pi = portals[i];
+            var points = portalPoints[i] = new IntVector2[pi.CrossoverPointsGenerated];
+            for (var j = 0; j < points.Length; j++) {
+               points[j] = pi.Segment.PointAtRatioLossy(j, points.Length - 1);
+            }
+         }
+
+         var segs = new BarrierCalculator().CalculateContourAndChildHoleBarriers(punchedLand);
+         var bvh = BvhILS2.Build(segs);
+
+         if (debugCanvasOpt != null) {
+            debugCanvasOpt.DrawLineList(
+               input.Portals.SelectMany(p => new[] { p.Segment.First, p.Segment.Second }).ToArray(),
+               StrokeStyle.LimeThick5Solid);
+            debugCanvasOpt.DrawLineList(segs, StrokeStyle.GrayHairLineSolid);
+         }
+
+         for (var a = 0; a < portals.Count; a++) {
+            var portalA = portals[a];
+            var pointsA = portalPoints[a];
+
+            for (var b = 0; b < portals.Count; b++) {
+               var portalB = portals[b];
+               var pointsB = portalPoints[b];
+
+               var linkStates = new LinkState[pointsA.Length * pointsB.Length];
+               var linkStateIndex = 0;
+               for (var i = 0; i < pointsA.Length; i++) {
+                  var pa = pointsA[i];
+                  for (var j = 0; j < pointsB.Length; j++) {
+                     var pb = pointsB[j];
+                     var occluded = pa == pb || bvh.Intersects(new IntLineSegment2(pa, pb), false);
+                     linkStates[linkStateIndex] = new LinkState { 
+                        Occluded = occluded,
+                     };
+                  }
+               }
+            }
+         }
+      }
+
+      public struct LinkState {
+         public bool Occluded;
+      }
+
+      public class BarrierCalculator {
+         // To compute barriers, dilate polytrees (so hole regions are away from waypoints
+         // then expand segments so they cross each other and are watertight
+         private const int kBarrierPolyTreeDilationFactor = 5; // dilation to move holes inward
+         private const int kBarrierSegmentExpansionFactor = 10; // expansion to make corners hit
+         private const int kBarrierOverDilationFactor = 3;
+         
+         public static TlsBackedObjectPool<List<IntLineSegment2>> tlsFindContourAndChildHoleBarriersStore = TlsBackedObjectPool.Create<List<IntLineSegment2>>();
+
+         public IntLineSegment2[] CalculateContourAndChildHoleBarriers(PolygonNode root, int exaggerationFactor = 10) {
+            var results = tlsFindContourAndChildHoleBarriersStore.UnsafeTakeAndGive();
+            results.Clear();
+            foreach (var node in root.Dfs((cb, n) => n.Children.ForEach(cb))) {
+               if (node.Contour == null) continue;
+
+               var pointCount = node.Contour.Length;
+               var isHole = node.IsHole;
+               var dilationDirection = isHole ? 1 : 1; // Note: Same value, as hole clockness is opposite of land clockness.
+
+               // TODO: This algo is far faster than dilating the polynode like I did before. However, it probably introduces
+               // leaks for sharp corners. Consider working around that by instead dilating corners along their pointed direction
+               // & then expanding segments after that.
+               for (var i = 0; i < pointCount; i++) {
+                  var a = node.Contour[i];
+                  var b = node.Contour[(i + 1) % pointCount];
+
+                  var dx = b.X - a.X;
+                  var dy = b.Y - a.Y;
+                  var mag = (cInt)Math.Sqrt(dx * dx + dy * dy); // normalizing on xy plane.
+
+                  // Move segment toward outside of node.
+                  var dilateOffsetX = exaggerationFactor * dilationDirection * dy * kBarrierPolyTreeDilationFactor / mag;
+                  var dilateOffsetY = exaggerationFactor * dilationDirection * -dx * kBarrierPolyTreeDilationFactor / mag;
+
+                  // Expand segment to fill leaks at endpoint.
+                  var expandOffsetX = exaggerationFactor * dx * kBarrierSegmentExpansionFactor / mag;
+                  var expandOffsetY = exaggerationFactor * dy * kBarrierSegmentExpansionFactor / mag;
+
+                  var p1 = new IntVector2(a.X - expandOffsetX + dilateOffsetX, a.Y - expandOffsetY + dilateOffsetY);
+                  var p2 = new IntVector2(b.X + expandOffsetX + dilateOffsetX, b.Y + expandOffsetY + dilateOffsetY);
+
+                  results.Add(isHole ? new IntLineSegment2(p2, p1) : new IntLineSegment2(p1, p2));
+               }
+            }
+            return results.ToArray();
          }
       }
 

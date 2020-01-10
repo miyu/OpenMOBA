@@ -5,7 +5,7 @@ using Dargon.PlayOn.ThirdParty.ClipperLib;
 namespace Dargon.Terragami {
    public class PolygonNode {
       public PolygonNode Parent;
-      public IntVector2[] Contour; // null if root
+      public IntVector2[] Contour; // null if root, flipped clockness for holes
       public bool IsHole;
       public PolygonNode[] Children;
 

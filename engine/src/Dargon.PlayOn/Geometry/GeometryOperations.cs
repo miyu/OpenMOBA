@@ -469,14 +469,18 @@ namespace Dargon.PlayOn.Geometry {
                // var xya = Clockness(x, y, a);
                // var xyb = Clockness(x, y, b);
                // if (xya != xyb || xya == Clk.Neither || xyb == Clk.Neither) return true;
-               if (IntLineSegment2.Intersects(a.X, a.Y, b.X, b.Y, x.X, x.Y, y.X, y.Y)) {
+               if (IntLineSegment2.Intersects(a.X, a.Y, b.X, b.Y, x.X, x.Y, y.X, y.Y, 
+                  true // todo decide a good value
+                  )) {
                   return true;
                }
             }
          }
          for (; i < p.Length; i++, a = b) {
             b = p[i];
-            if (IntLineSegment2.Intersects(a.X, a.Y, b.X, b.Y, x.X, x.Y, y.X, y.Y)) {
+            if (IntLineSegment2.Intersects(a.X, a.Y, b.X, b.Y, x.X, x.Y, y.X, y.Y,
+                  true // todo decide a good value
+                  )) {
                return true;
             }
          }

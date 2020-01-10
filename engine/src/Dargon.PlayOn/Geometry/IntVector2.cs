@@ -187,6 +187,14 @@ namespace Dargon.PlayOn.Geometry {
          x = X;
          y = Y;
       }
+
+      public static IntVector2 RatioLerp(IntVector2 a, IntVector2 b, int num, int denom) {
+         if (denom <= 0) throw new ArgumentOutOfRangeException();
+         num = Math.Max(0, Math.Min(num, denom));
+         return new IntVector2(
+            (a.X * num + b.X * (denom - num)) / denom,
+            (a.Y * num + b.Y * (denom - num)) / denom);
+      }
    }
 }
 

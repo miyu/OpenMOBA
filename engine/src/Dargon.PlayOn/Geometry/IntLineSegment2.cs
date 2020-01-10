@@ -47,18 +47,38 @@ namespace Dargon.PlayOn.Geometry {
 
       public IntVector2[] Points => new[] { First, Second };
 
+      /// <summary>
+      /// Extra expensive, counts intersection if one segment contains anothers' endpoint
+      /// </summary>
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Intersects(IntLineSegment2 other) {
          cInt ax = X1, ay = Y1, bx = X2, by = Y2;
          cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
-         return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy, true);
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public bool Intersects(ref IntLineSegment2 other) {
          cInt ax = X1, ay = Y1, bx = X2, by = Y2;
          cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
-         return Intersects(ax, ay, bx, by, cx, cy, dx, dy);
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy, true);
+      }
+
+      /// <summary>
+      /// Faster, doesn't detect intersection where segment contains others' endpoint.
+      /// </summary>
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool OpenIntersects(IntLineSegment2 other) {
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy, false);
+      }
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      public bool OpenIntersects(ref IntLineSegment2 other) {
+         cInt ax = X1, ay = Y1, bx = X2, by = Y2;
+         cInt cx = other.X1, cy = other.Y1, dx = other.X2, dy = other.Y2;
+         return Intersects(ax, ay, bx, by, cx, cy, dx, dy, false);
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -113,22 +133,38 @@ namespace Dargon.PlayOn.Geometry {
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy) {
+      public static bool Intersects(cInt ax, cInt ay, cInt bx, cInt by, cInt cx, cInt cy, cInt dx, cInt dy, bool detectEndpointContainment) {
          // https://www.cdn.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
          // Note, didn't do SO variant because not robust to collinear segments
          // http://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
-         var o1 = GeometryOperations.Clockness(ax, ay, bx, by, cx, cy);
-         var o2 = GeometryOperations.Clockness(ax, ay, bx, by, dx, dy);
-         var o3 = GeometryOperations.Clockness(cx, cy, dx, dy, ax, ay);
-         var o4 = GeometryOperations.Clockness(cx, cy, dx, dy, bx, by);
+         // (bx - ax, by - ay, bx - cx, by - cy);
+         var bax = bx - ax;
+         var bay = by - ay;
+         var bcx = bx - cx;
+         var bcy = by - cy;
+         var bdx = bx - dx;
+         var bdy = by - dy;
+         var o1 = GeometryOperations.Clockness(bax, bay, bcx, bcy); // GeometryOperations.Clockness(ax, ay, bx, by, cx, cy);
+         var o2 = GeometryOperations.Clockness(bax, bay, bdx, bdy); // GeometryOperations.Clockness(ax, ay, bx, by, dx, dy);
+         if (o1 != o2 && !detectEndpointContainment) return false;
 
+         var dcx = dx - cx;
+         var dcy = dy - cy;
+         var dax = dx - ax;
+         var day = dy - ay;
+         var dbx = dx - bx;
+         var dby = dy - by;
+         var o3 = GeometryOperations.Clockness(dcx, dcy, dax, day); // GeometryOperations.Clockness(cx, cy, dx, dy, ax, ay);
+         var o4 = GeometryOperations.Clockness(dcx, dcy, dbx, dby); // GeometryOperations.Clockness(cx, cy, dx, dy, bx, by);
          if (o1 != o2 && o3 != o4) return true;
 
          // handle endpoint containment.
-         if (o1 == 0 && Contains(ax, ay, bx, by, cx, cy)) return true;
-         if (o2 == 0 && Contains(ax, ay, bx, by, dx, dy)) return true;
-         if (o3 == 0 && Contains(cx, cy, dx, dy, ax, ay)) return true;
-         if (o4 == 0 && Contains(cx, cy, dx, dy, bx, by)) return true;
+         if (detectEndpointContainment) {
+            if (o1 == 0 && Contains(ax, ay, bx, by, cx, cy)) return true;
+            if (o2 == 0 && Contains(ax, ay, bx, by, dx, dy)) return true;
+            if (o3 == 0 && Contains(cx, cy, dx, dy, ax, ay)) return true;
+            if (o4 == 0 && Contains(cx, cy, dx, dy, bx, by)) return true;
+         }
 
          return false;
       }
@@ -174,6 +210,8 @@ namespace Dargon.PlayOn.Geometry {
       public DoubleVector2 PointAt(cDouble t) {
          return First.ToDoubleVector2() * (CDoubleMath.c1 - t) + Second.ToDoubleVector2() * t;
       }
+
+      public IntVector2 PointAtRatioLossy(int num, int denom) => IntVector2.RatioLerp(First, Second, num, denom);
 
       public void Deconstruct(out IntVector2 first, out IntVector2 second) {
          first = First;

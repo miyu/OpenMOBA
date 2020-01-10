@@ -23,19 +23,23 @@ namespace Dargon.PlayOn.DataStructures {
          Bounds = bounds;
       }
 
-      public bool Intersects(IntLineSegment2 segment) {
-         return Intersects(ref segment);
+      public bool Intersects(IntLineSegment2 segment, bool testSegmentEndpointContainment = true) {
+         return Intersects(ref segment, testSegmentEndpointContainment);
       }
 
-      public bool Intersects(ref IntLineSegment2 segment) {
+      public bool Intersects(ref IntLineSegment2 segment, bool testSegmentEndpointContainment = true) {
          if (!Bounds.ContainsOrIntersects(ref segment)) {
             return false;
          }
          if (First != null) {
-            return First.Intersects(ref segment) || Second.Intersects(ref segment);
+            return First.Intersects(ref segment, testSegmentEndpointContainment) || 
+                   Second.Intersects(ref segment, testSegmentEndpointContainment);
          }
          for (var i = SegmentsStartIndexInclusive; i < SegmentsEndIndexExclusive; i++) {
-            if (Segments[i].Intersects(ref segment)) {
+            var intersects = testSegmentEndpointContainment
+               ? Segments[i].Intersects(ref segment)
+               : Segments[i].OpenIntersects(ref segment);
+            if (intersects) {
                return true;
             }
          }
@@ -93,7 +97,10 @@ namespace Dargon.PlayOn.DataStructures {
       }
 
       public static BvhILS2 Build(IEnumerable<IntLineSegment2> segmentEnumerable) {
-         var inputSegments = segmentEnumerable.ToArray();
+         return Build(segmentEnumerable.ToArray());
+      }
+
+      public static BvhILS2 Build(IntLineSegment2[] inputSegments) {
          var inputSegmentMidpoints = inputSegments.Map(s => s.ComputeMidpoint());
          var segmentIndices = Util.Generate(inputSegments.Length, i => i);
          var xComparer = Comparer<int>.Create((a, b) => inputSegmentMidpoints[a].X.CompareTo(inputSegmentMidpoints[b].X));

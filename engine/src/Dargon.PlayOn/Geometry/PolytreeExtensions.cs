@@ -126,7 +126,9 @@ namespace Dargon.PlayOn.Geometry {
                if ((current == q1 && last == q2) || (current == q2 && last == q1)) {
                   return PolygonContainmentResult.OnPolygon;
                }
-               if (IntLineSegment2.Intersects(current.X, current.Y, last.X, last.Y, q1.X, q1.Y, q2.X, q2.Y)) {
+
+               // OK to not detect endpoint containment here, instead fall into PIP case later.
+               if (IntLineSegment2.Intersects(current.X, current.Y, last.X, last.Y, q1.X, q1.Y, q2.X, q2.Y, false)) {
                   return PolygonContainmentResult.IntersectsPolygon;
                }
                last = current;

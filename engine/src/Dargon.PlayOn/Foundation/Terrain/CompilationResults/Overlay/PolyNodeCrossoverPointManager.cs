@@ -209,7 +209,9 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Overlay {
 
                   if (IntLineSegment2.Intersects(
                      p.X, p.Y, crossoverPoints[cpi].X, crossoverPoints[cpi].Y, 
-                     candidateBarriers[bi].X1, candidateBarriers[bi].Y1, candidateBarriers[bi].X2, candidateBarriers[bi].Y2))
+                     candidateBarriers[bi].X1, candidateBarriers[bi].Y1, candidateBarriers[bi].X2, candidateBarriers[bi].Y2,
+                     true // todo decide a good value
+                     ))
                      isDirectPath = false;
                   //if (seg.Intersects(ref candidateBarriers[bi])) isDirectPath = false;
                }
