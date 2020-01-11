@@ -4,8 +4,10 @@
 // Windows Header Files
 #include <windows.h>
 
+#include <bitset>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <fstream>
 #include <string>

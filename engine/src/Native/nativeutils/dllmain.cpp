@@ -23,6 +23,8 @@ struct seg2i16 {
    short x1, y1, x2, y2;
 };
 
+static_assert(sizeof(seg2i16) == 8, "seg2i16 must be packed");
+
 std::vector<seg2i16> parse(const std::string& fileName) {
    std::vector<seg2i16> res;
 
@@ -89,6 +91,31 @@ bool anyIntersections(seg2i16 query, const std::vector<seg2i16>& segments, bool 
 
       auto o3 = clk(dcx, dcy, dax, day);
       auto o4 = clk(dcx, dcy, dbx, dby);
+
+      // std::cout
+      //    << bax * bcy - bay * bcx << " "
+      //    << bax * bdy - bay * bdx << " "
+      //    << dcx * day - dcy * dax << " "
+      //    << dcx * dby - dcy * dbx << std::endl;
+
+      // std::cout
+      //    << bax * bcy << " " << bay * bcx << " "
+      //    << bax * bdy << " " << bay * bdx << " "
+      //    << dcx * day << " " << dcy * dax << " "
+      //    << dcx * dby << " " << dcy * dbx << std::endl;
+
+      // bax bcy + aby bcx
+      // bax bdy + aby bdx
+      // cdx ady + dcy adx
+      // cdx bdy + dcy bdx
+      // std::cout
+      //    << bax << " " << bcy << " " << -bay << " " << bcx << " "
+      //    << bax << " " << bdy << " " << -bay << " " << bdx << " "
+      //    << -dcx << " " << -day << " " << dcy << " " << -dax << " "
+      //    << -dcx << " " << -dby << " " << dcy << " " << -dbx << std::endl;
+      
+      // std::cout << o1 << " " << o2 << " " << o3 << " " << o4 << std::endl;
+
       if (o1 != o2 && o3 != o4) return true;
 
       if (detectEndpointContainment) {
@@ -108,6 +135,25 @@ int benchIter(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& 
    return pass;
 }
 
+// #define EnableDebugDump
+
+#ifndef EnableDebugDump
+#define DumpI16s(reg)
+#define DumpI32s(reg)
+#define IfDump(x)
+#else
+#define DumpI16s(reg) std::cout << #reg << " : " \
+   << (int16_t)_mm256_extract_epi16(reg, 0) << " " << (int16_t)_mm256_extract_epi16(reg, 1) << " " << (int16_t)_mm256_extract_epi16(reg, 2) << " " << (int16_t)_mm256_extract_epi16(reg, 3) << " " \
+   << (int16_t)_mm256_extract_epi16(reg, 4) << " " << (int16_t)_mm256_extract_epi16(reg, 5) << " " << (int16_t)_mm256_extract_epi16(reg, 6) << " " << (int16_t)_mm256_extract_epi16(reg, 7) << " " \
+   << (int16_t)_mm256_extract_epi16(reg, 8) << " " << (int16_t)_mm256_extract_epi16(reg, 9) << " " << (int16_t)_mm256_extract_epi16(reg, 10) << " " << (int16_t)_mm256_extract_epi16(reg, 11) << " " \
+   << (int16_t)_mm256_extract_epi16(reg, 12) << " " << (int16_t)_mm256_extract_epi16(reg, 13) << " " << (int16_t)_mm256_extract_epi16(reg, 14) << " " << (int16_t)_mm256_extract_epi16(reg, 15) << std::endl
+
+#define DumpI32s(reg) std::cout << #reg << " : " \
+   << _mm256_extract_epi32(reg, 0) << " " << _mm256_extract_epi32(reg, 1) << " " << _mm256_extract_epi32(reg, 2) << " " << (int16_t)_mm256_extract_epi32(reg, 3) << " " \
+   << _mm256_extract_epi32(reg, 4) << " " << _mm256_extract_epi32(reg, 5) << " " << _mm256_extract_epi32(reg, 6) << " " << (int16_t)_mm256_extract_epi32(reg, 7) << std::endl
+#define IfDump(x) x;
+#endif
+
 bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, bool detectEndpointContainment) {
    short ax = query.x1;
    short ay = query.y1;
@@ -115,34 +161,86 @@ bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, b
    short by = query.y2;
 
    short bax = bx - ax;
-   short bay = by - ay;
+   short aby = ay - by;
 
+   __m256i ones8xi32 = _mm256_set1_epi32(1);
+   __m256i zeros8xi32 = _mm256_setzero_si256();
+   DumpI32s(ones8xi32);
+   DumpI32s(zeros8xi32);
+
+   __m256i rhsleft = _mm256_setr_epi16(
+      query.y2, query.x2, // by bx
+      query.y2, query.x2, // by bx
+      query.y1, query.x1, // ay ax
+      query.y2, query.x2, // by bx
+
+      query.y2, query.x2,
+      query.y2, query.x2,
+      query.y1, query.x1,
+      query.y2, query.x2);
+   DumpI16s(rhsleft);
+
+   auto simdIters = segments.size() / 4;
    auto pCurrent = (const short*)(&segments[0]);
-   auto simdIters = segments.size() / 2;
    for (auto i = 0; i < simdIters; i++) {
-      #define val(i, n) (pCurrent[i * 4 + n])
+      IfDump(std::cout << "iter " << i << std::endl);
 
-      __m256i t = _mm256_set_epi16(
-         query.y2, query.x2,
-         query.y2, query.x2,
-         query.y1, query.x1,
-         query.y2, query.x2,
+      // bax .bcy - bay .bcx
+      // bax .bdy - bay .bdx
+      // dcx .day - dcy .dax
+      // dcx .dby - dcy .dbx
 
-         query.y2, query.x2,
-         query.y2, query.x2,
-         query.y1, query.x1,
-         query.y2, query.x2);
+      // lhs rhs    lhs rhs
+      // bax .bcy + aby .bcx
+      // bax .bdy + aby .bdx
+      // -dcx .ady - cdy .adx
+      // -dcx .bdy - cdy .bdx
+      //
+      // lhs rhs    lhs rhs
+      // bax .bcy + aby .bcx
+      // bax .bdy + aby .bdx
+      // cdx .ady + dcy .adx
+      // cdx .bdy + dcy .bdx
+
+      // retry:
+      // bax bcy + aby bcx
+      // bax bdy + aby bdx
+      // cdx ady + dcy adx
+      // cdx bdy + dcy bdx
+
+      // seg2i16 a = ((seg2i16*)pCurrent)[0];
+      // seg2i16 b = ((seg2i16*)pCurrent)[1];
+      // seg2i16 c = ((seg2i16*)pCurrent)[2];
+      // seg2i16 d = ((seg2i16*)pCurrent)[3];
+      // pCurrent += 16;
+      // auto cx1 = a.x1;
+      // auto cy1 = a.y1;
+      // auto dx1 = a.x2;
+      // auto dy1 = a.y2;
+      // auto cx2 = b.x1;
+      // auto cy2 = b.y1;
+      // auto dx2 = b.x2;
+      // auto dy2 = b.y2;
+      // auto cx3 = c.x1;
+      // auto cy3 = c.y1;
+      // auto dx3 = c.x2;
+      // auto dy3 = c.y2;
+      // auto cx4 = d.x1;
+      // auto cy4 = d.y1;
+      // auto dx4 = d.x2;
+      // auto dy4 = d.y2;
 
       short cx1 = *(pCurrent++);
       short cy1 = *(pCurrent++);
       short dx1 = *(pCurrent++);
       short dy1 = *(pCurrent++);
+      
       short cx2 = *(pCurrent++);
       short cy2 = *(pCurrent++);
       short dx2 = *(pCurrent++);
       short dy2 = *(pCurrent++);
 
-      __m256i p = _mm256_set_epi16(
+      __m256i rhsright1 = _mm256_setr_epi16(
          cy1, cx1,
          dy1, dx1,
          dy1, dx1,
@@ -153,59 +251,215 @@ bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, b
          dy2, dx2,
          dy2, dx2
       );
+      DumpI16s(rhsright1);
 
-      __m256i q = _mm256_mullo_epi16(t, p);
+      __m256i rhs1 = _mm256_sub_epi16(rhsleft, rhsright1);
+      DumpI16s(rhs1);
 
-      short bcx1 = bx - cx1;
-      short bcy1 = by - cy1;
-      short bdx1 = bx - dx1;
-      short bdy1 = by - dy1;
+      short cx3 = *(pCurrent++);
+      short cy3 = *(pCurrent++);
+      short dx3 = *(pCurrent++);
+      short dy3 = *(pCurrent++);
+      
+      short cx4 = *(pCurrent++);
+      short cy4 = *(pCurrent++);
+      short dx4 = *(pCurrent++);
+      short dy4 = *(pCurrent++);
 
-      short bcx2 = bx - cx2;
-      short bcy2 = by - cy2;
-      short bdx2 = bx - dx2;
-      short bdy2 = by - dy2;
+      __m256i rhsright2 = _mm256_setr_epi16(
+         cy3, cx3,
+         dy3, dx3,
+         dy3, dx3,
+         dy3, dx3,
 
-      __m256i lhs = _mm256_set_epi16(
-         bax, -bay,
-         bax, -bay,
-         cx1 - dx1, dy1 - cy1,
-         cx1 - dx1, dy1 - cy1,
-
-         bax, -bay,
-         bax, -bay,
-         cx2 - dx2, dy2 - cy2,
-         cx2 - dx2, dy2 - cy2
+         cy4, cx4,
+         dy4, dx4,
+         dy4, dx4,
+         dy4, dx4
       );
+      DumpI16s(rhsright2);
 
-      __m256i crosses = _mm256_madd_epi16(lhs, q);
+      __m256i rhs2 = _mm256_sub_epi16(rhsleft, rhsright2);
+      DumpI16s(rhs2);
 
-
-      // bax .bcy - bay .bcx
-      // bax .bdy - bay .bdx
-      // dcx .day - dcy .dax
-      // dcx .dby - dcy .dbx
-
+      // lhs rhs    lhs rhs
       // bax .bcy + aby .bcx
       // bax .bdy + aby .bdx
-      // -dcx .ady - cdy .adx
-      // -dcx .bdy - cdy .bdx
+      // cdx .ady + dcy .adx
+      // cdx .bdy + dcy .bdx
+
+      int cdx1 = cx1 - dx1;
+      int dcy1 = dy1 - cy1;
+      int cdx2 = cx2 - dx2;
+      int dcy2 = dy2 - cy2;
+      int cdx3 = cx3 - dx3;
+      int dcy3 = dy3 - cy3;
+      int cdx4 = cx4 - dx4;
+      int dcy4 = dy4 - cy4;
+
+      __m256i lhs1 = _mm256_setr_epi16(
+         bax, aby,
+         bax, aby,
+         cdx1, dcy1,
+         cdx1, dcy1,
+
+         bax, aby,
+         bax, aby,
+         cdx2, dcy2,
+         cdx2, dcy2
+      );
+      DumpI16s(lhs1);
+
+      __m256i lhs2 = _mm256_setr_epi16(
+         bax, aby,
+         bax, aby,
+         cdx3, dcy3,
+         cdx3, dcy3,
+
+         bax, aby,
+         bax, aby,
+         cdx4, dcy4,
+         cdx4, dcy4
+      );
+      DumpI16s(lhs1);
+
+      // std::cout
+      //    << bax << " " << bcy << " " << -bay << " " << bcx << " "
+      //    << bax << " " << bdy << " " << -bay << " " << bdx << " "
+      //    << -dcx << " " << -day << " " << dcy << " " << -dax << " "
+      //    << -dcx << " " << -dby << " " << dcy << " " << -dbx << std::endl;
+
+      // std::cout << "bax is? " << bax << " " << _mm256_extract_epi16(lhs1, 0) << " " << _mm256_extract_epi16(lhs1, 15) << std::endl;
+      // std::cout
+      //    << "bcy is? " << by - cy1 << " " << (int16_t)_mm256_extract_epi16(rhs1, 0) << " " << (int16_t)_mm256_extract_epi16(rhs1, 15)
+      //    << " More: " << (int16_t)_mm256_extract_epi16(rhsleft, 0) - (int16_t)_mm256_extract_epi16(rhsright1, 0)
+      //    << " " << (int16_t)_mm256_extract_epi16(rhsleft, 0) << " from " << query.y2 << " " << (int16_t)_mm256_extract_epi16(rhsright1, 0) << " from " << cy1
+      //    << std::endl;
+
+      // std::cout
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 0) << " " << (int16_t)_mm256_extract_epi16(rhs1, 0) << " " << (int16_t)_mm256_extract_epi16(lhs1, 1) << " " << (int16_t)_mm256_extract_epi16(rhs1, 1) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 2) << " " << (int16_t)_mm256_extract_epi16(rhs1, 2) << " " << (int16_t)_mm256_extract_epi16(lhs1, 3) << " " << (int16_t)_mm256_extract_epi16(rhs1, 3) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 4) << " " << (int16_t)_mm256_extract_epi16(rhs1, 4) << " " << (int16_t)_mm256_extract_epi16(lhs1, 5) << " " << (int16_t)_mm256_extract_epi16(rhs1, 5) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 6) << " " << (int16_t)_mm256_extract_epi16(rhs1, 6) << " " << (int16_t)_mm256_extract_epi16(lhs1, 7) << " " << (int16_t)_mm256_extract_epi16(rhs1, 7) << std::endl;
+      //
+      // std::cout
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 0) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 0) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 1) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 1) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 2) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 2) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 3) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 3) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 4) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 4) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 5) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 5) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 6) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 6) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 7) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 7) << std::endl;
+
+      __m256i crosses1 = _mm256_madd_epi16(lhs1, rhs1); // Note: This gives 8 i32s
+      DumpI32s(crosses1);
+
+      // std::cout
+      //    << "Ac "
+      //    << _mm256_extract_epi32(crosses1, 0) << " "
+      //    << _mm256_extract_epi32(crosses1, 1) << " "
+      //    << _mm256_extract_epi32(crosses1, 2) << " "
+      //    << _mm256_extract_epi32(crosses1, 3) << " "
+      //    << _mm256_extract_epi32(crosses1, 4) << " "
+      //    << _mm256_extract_epi32(crosses1, 5) << " "
+      //    << _mm256_extract_epi32(crosses1, 6) << " "
+      //    << _mm256_extract_epi32(crosses1, 7) << std::endl;
+
+      // std::cout
+      //    << "Ac1 " << bax * (by - cy1) + aby * (by - cx1) << " "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 0) * (int16_t)_mm256_extract_epi16(rhs1, 0) +
+      //       (int16_t)_mm256_extract_epi16(lhs1, 1) * (int16_t)_mm256_extract_epi16(rhs1, 1)
+      //    << " aka "
+      //    << bax << " * " << (by - cy1) << " + " << aby << " * " << (by - cx1) << " aka "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 0) << " * " << (int16_t)_mm256_extract_epi16(rhs1, 0) << " + "
+      //    << (int16_t)_mm256_extract_epi16(lhs1, 1) << " * " << (int16_t)_mm256_extract_epi16(rhs1, 1)
+      //    << std::endl;
 
 
-      auto o1 = clk(bax, bay, bcx, bcy);
-      auto o2 = clk(bax, bay, bdx, bdy);
-      if (o1 == o2 && !detectEndpointContainment) continue;
+      __m256i clocknesses1 = _mm256_sign_epi32(ones8xi32, crosses1);
+      DumpI32s(clocknesses1);
 
-      short dcx = dx - cx;
-      short dcy = dy - cy;
-      short dax = dx - ax;
-      short day = dy - ay;
-      short dbx = dx - bx;
-      short dby = dy - by;
+      // std::cout
+      //    << "A "
+      //    << _mm256_extract_epi32(clocknesses1, 0) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 1) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 2) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 3) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 4) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 5) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 6) << " "
+      //    << _mm256_extract_epi32(clocknesses1, 7) << std::endl;
 
-      auto o3 = clk(dcx, dcy, dax, day);
-      auto o4 = clk(dcx, dcy, dbx, dby);
-      if (o1 != o2 && o3 != o4) return true;
+      __m256i crosses2 = _mm256_madd_epi16(lhs2, rhs2); // Note: This gives 8 i32s
+      DumpI32s(crosses2);
+
+      __m256i clocknesses2 = _mm256_sign_epi32(ones8xi32, crosses2);
+      DumpI32s(clocknesses2);
+
+      // std::cout
+      //    << "Bc "
+      //    << _mm256_extract_epi32(crosses2, 0) << " "
+      //    << _mm256_extract_epi32(crosses2, 1) << " "
+      //    << _mm256_extract_epi32(crosses2, 2) << " "
+      //    << _mm256_extract_epi32(crosses2, 3) << " "
+      //    << _mm256_extract_epi32(crosses2, 4) << " "
+      //    << _mm256_extract_epi32(crosses2, 5) << " "
+      //    << _mm256_extract_epi32(crosses2, 6) << " "
+      //    << _mm256_extract_epi32(crosses2, 7) << std::endl;
+
+      // std::cout
+      //    << "B "
+      //    << _mm256_extract_epi32(clocknesses2, 0) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 1) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 2) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 3) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 4) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 5) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 6) << " "
+      //    << _mm256_extract_epi32(clocknesses2, 7) << std::endl;
+
+      // quirk: this interweaves the horizontal subtract.
+      // (g1ao1 != g1ao2, g1ao3 != g1ao4, g2ao1 != g2ao2, g2ao3 != g2ao4,
+      //  g1bo1 != g1bo2, g1bo3 != g1bo4, g2bo1 != g2bo2, g2bo3 != g2bo4)
+      __m256i cmp = _mm256_hsub_epi32(clocknesses1, clocknesses2); // 8x i32
+      DumpI32s(cmp);
+
+      __m256i win = _mm256_cmpeq_epi32(cmp, zeros8xi32); // (a= o1 == o2, o3 == o4, ...), 32 bits per bool.
+      DumpI32s(win);
+
+      unsigned int mask = (unsigned int)_mm256_movemask_epi8(win); // e.g. aaaabbbbccccdddd_eeeeffffgggghhhh
+      IfDump(std::cout << "mask. : " << std::bitset<32>(mask) << std::endl);
+
+      // intersect if !(o1 == o2) && !(o3 == o4) AKA bit seq 00000000 aligned to i8 boundaries
+      //
+      // Note mask bits above. We want something like a == 0 && b == 0
+      int abits = (mask & 0b10000000100000001000000010000000); // ...... a0000000c0000000e0000000g0000000
+      int bbits = (mask & 0b00001000000010000000100000001000) << 4; // . b0000000d0000000f0000000h0000000
+      IfDump(std::cout << "abits : " << std::bitset<32>(abits) << std::endl);
+      IfDump(std::cout << "bbits : " << std::bitset<32>(bbits) << std::endl);
+
+      int intersects = (abits | bbits) != 0b10000000100000001000000010000000;
+      IfDump(std::cout << std::endl);
+
+      if (intersects) {
+         return true;
+      }
+
+      
+
+
+
+      // auto o1 = clk(bax, bay, bcx, bcy);
+      // auto o2 = clk(bax, bay, bdx, bdy);
+      // if (o1 == o2 && !detectEndpointContainment) continue;
+      //
+      // short dcx = dx - cx;
+      // short dcy = dy - cy;
+      // short dax = dx - ax;
+      // short day = dy - ay;
+      // short dbx = dx - bx;
+      // short dby = dy - by;
+      //
+      // auto o3 = clk(dcx, dcy, dax, day);
+      // auto o4 = clk(dcx, dcy, dbx, dby);
+      // if (o1 != o2 && o3 != o4) return true;
 
       if (detectEndpointContainment) {
          throw std::exception("not implemented");
@@ -228,13 +482,17 @@ int main() {
    auto barriers = parse("barriers.txt");
    auto queries = parse("queries.txt");
 
-   auto pass = benchIter(barriers, queries);
+   // benchIter(barriers, queries);
+   // return 0;
+
+   auto pass = benchIterAvx2(barriers, queries);
    std::cout << pass << std::endl;
 
    while (true) {
       auto niters = 10000;
       auto start = std::chrono::system_clock::now();
       for (auto i = 0; i < niters; i++) {
+         // benchIter(barriers, queries);
          benchIterAvx2(barriers, queries);
       }
       auto end = std::chrono::system_clock::now();
