@@ -298,6 +298,9 @@ namespace Dargon.Terragami {
 
          var segs = new BarrierCalculator().CalculateContourAndChildHoleBarriers(punchedLand);
          var bvh = BvhILS2.Build(segs);
+         foreach (var seg in segs) {
+            // Console.WriteLine($"{seg.First.X},{seg.First.Y},{seg.Second.X},{seg.Second.Y}");
+         }
 
          if (debugCanvasOpt != null) {
             debugCanvasOpt.DrawLineList(
@@ -306,11 +309,13 @@ namespace Dargon.Terragami {
             debugCanvasOpt.DrawLineList(segs, StrokeStyle.GrayHairLineSolid);
          }
 
+         var pass = 0;
+         var queries = new List<IntLineSegment2>();
          for (var a = 0; a < portals.Count; a++) {
             var portalA = portals[a];
             var pointsA = portalPoints[a];
 
-            for (var b = 0; b < portals.Count; b++) {
+            for (var b = a + 1; b < portals.Count; b++) {
                var portalB = portals[b];
                var pointsB = portalPoints[b];
 
@@ -324,11 +329,84 @@ namespace Dargon.Terragami {
                      linkStates[linkStateIndex] = new LinkState { 
                         Occluded = occluded,
                      };
+                     if (!occluded) pass++;
+                     queries.Add(new IntLineSegment2(pa, pb));
+                     // Console.WriteLine($"{pa.X},{pa.Y},{pb.X},{pb.Y}");
+                     // debugCanvasOpt?.DrawLine(pa, pb, occluded ? StrokeStyle.RedHairLineSolid : StrokeStyle.CyanHairLineSolid);
                   }
                }
             }
          }
+
+         if (debugCanvasOpt != null) {
+            Console.WriteLine(pass);
+         }
+
+         
+         while (true) {
+            var pazz = 0;
+            var niters = 10000;
+            var sw = new Stopwatch();
+            sw.Start();
+            for (var i = 0; i < niters; i++) {
+               foreach (var query in queries) {
+                  var occluded = anyIntersections(query, segs, false);
+                  if (!occluded) pazz++;
+               }
+            }
+
+            var ms = sw.Elapsed.TotalMilliseconds;
+            Console.WriteLine(ms + " " + (ms / niters));
+         }
       }
+      static bool anyIntersections(IntLineSegment2 query, IntLineSegment2[] segments, bool detectEndpointContainment) {
+         int clk(int ax, int ay, int bx, int by) {
+            // sign(ax * by - ay * bx);
+            var v0 = ax * by;
+            var v1 = ay * bx;
+            return v0 > v1 ? 1 : v0 < v1 ? -1 : 0;
+         }
+
+         int ax = query.First.X;
+         int ay = query.First.Y;
+         int bx = query.Second.X;
+         int by = query.Second.Y;
+
+         int bax = bx - ax;
+         int bay = by - ay;
+
+         foreach (var seg in segments) {
+            int cx = seg.First.X;
+            int cy = seg.First.Y;
+            int dx = seg.Second.X;
+            int dy = seg.Second.Y;
+
+            int bcx = bx - cx;
+            int bcy = by - cy;
+            int bdx = bx - dx;
+            int bdy = by - dy;
+
+            var o1 = clk(bax, bay, bcx, bcy);
+            var o2 = clk(bax, bay, bdx, bdy);
+            if (o1 == o2 && !detectEndpointContainment) continue;
+
+            int dcx = dx - cx;
+            int dcy = dy - cy;
+            int dax = dx - ax;
+            int day = dy - ay;
+            int dbx = dx - bx;
+            int dby = dy - by;
+
+            var o3 = clk(dcx, dcy, dax, day);
+            var o4 = clk(dcx, dcy, dbx, dby);
+            if (o1 != o2 && o3 != o4) return true;
+
+            if (detectEndpointContainment) {
+            }
+         }
+         return false;
+      }
+
 
       public struct LinkState {
          public bool Occluded;

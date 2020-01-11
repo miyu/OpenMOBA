@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 using cInt = System.Int32;
 
 #if use_fixed
@@ -146,7 +147,7 @@ namespace Dargon.PlayOn.Geometry {
          var bdy = by - dy;
          var o1 = GeometryOperations.Clockness(bax, bay, bcx, bcy); // GeometryOperations.Clockness(ax, ay, bx, by, cx, cy);
          var o2 = GeometryOperations.Clockness(bax, bay, bdx, bdy); // GeometryOperations.Clockness(ax, ay, bx, by, dx, dy);
-         if (o1 != o2 && !detectEndpointContainment) return false;
+         if (o1 == o2 && !detectEndpointContainment) return false;
 
          var dcx = dx - cx;
          var dcy = dy - cy;
@@ -167,6 +168,9 @@ namespace Dargon.PlayOn.Geometry {
          }
 
          return false;
+      }
+
+      public static void IntersectsAvx2Precompute() {
       }
 
       public Rectangle ToBoundingBox() {

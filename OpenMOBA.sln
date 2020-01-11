@@ -96,7 +96,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.PolyClip", "engine\s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Terragami", "engine\src\Dargon.Terragami\Dargon.Terragami.csproj", "{2C96AE94-7837-41DE-9802-B98837C6FDB9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dargon.Dviz", "engine\src\Canvas2D\Dargon.Dviz.csproj", "{831E6C33-F084-4DC8-9547-B9A2DDBE3D40}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Dviz", "engine\src\Canvas2D\Dargon.Dviz.csproj", "{831E6C33-F084-4DC8-9547-B9A2DDBE3D40}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Native", "Native", "{7201D5A9-772F-4075-AEE0-CA7D53892BD6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nativeutils", "engine\src\Native\nativeutils\nativeutils.vcxproj", "{A5A9666E-1A4A-4080-9562-A9068FFFCC78}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -612,6 +616,16 @@ Global
 		{831E6C33-F084-4DC8-9547-B9A2DDBE3D40}.Release|x64.Build.0 = Release|Any CPU
 		{831E6C33-F084-4DC8-9547-B9A2DDBE3D40}.Release|x86.ActiveCfg = Release|Any CPU
 		{831E6C33-F084-4DC8-9547-B9A2DDBE3D40}.Release|x86.Build.0 = Release|Any CPU
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Debug|x64.ActiveCfg = Debug|x64
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Debug|x64.Build.0 = Debug|x64
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Debug|x86.ActiveCfg = Debug|Win32
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Debug|x86.Build.0 = Debug|Win32
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|Any CPU.ActiveCfg = Release|Win32
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x64.ActiveCfg = Release|x64
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x64.Build.0 = Release|x64
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x86.ActiveCfg = Release|Win32
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -644,6 +658,7 @@ Global
 		{4316B193-DCC2-4548-A4CD-03B656187757} = {74294450-A622-43FE-8296-939C6420556C}
 		{CA0317E1-6DD9-4FE5-B0B2-76F0C2E035C9} = {74294450-A622-43FE-8296-939C6420556C}
 		{CA0318F3-1DD9-4FE5-B0B2-76F0C2E035C9} = {74294450-A622-43FE-8296-939C6420556C}
+		{A5A9666E-1A4A-4080-9562-A9068FFFCC78} = {7201D5A9-772F-4075-AEE0-CA7D53892BD6}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1FD68494-2499-4843-A91B-C0043F09C550}

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Intrinsics.X86;
 using Dargon.Commons;
 using Dargon.PlayOn.Geometry;
 using cInt = System.Int32;
@@ -106,6 +107,12 @@ namespace Dargon.PlayOn.DataStructures {
          var xComparer = Comparer<int>.Create((a, b) => inputSegmentMidpoints[a].X.CompareTo(inputSegmentMidpoints[b].X));
          var yComparer = Comparer<int>.Create((a, b) => inputSegmentMidpoints[a].Y.CompareTo(inputSegmentMidpoints[b].Y));
          var outputSegments = new IntLineSegment2[inputSegments.Length];
+
+         unsafe {
+            fixed (IntLineSegment2* pls2 = outputSegments) {
+
+            }
+         }
 
          IntRect2 BoundingSegments(int startIndexInclusive, int endIndexExclusive) {
             cInt minX = cInt.MaxValue, minY = cInt.MaxValue, maxX = cInt.MinValue, maxY = cInt.MinValue;
