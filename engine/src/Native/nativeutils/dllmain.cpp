@@ -157,7 +157,7 @@ int benchIter(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& 
 #define IfDump(x) x;
 #endif
 
-bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, bool detectEndpointContainment) {
+bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCount) {
    short ax = query.x1;
    short ay = query.y1;
    short bx = query.x2;
@@ -183,105 +183,78 @@ bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, b
       query.y2, query.x2);
    DumpI16s(rhsleft);
 
-   auto simdIters = segments.size() / 4;
-   auto pCurrent = (const short*)(&segments[0]);
-   for (auto i = 0; i < simdIters; i++) {
+   __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
+
+   __m256i lhsadd = _mm256_setr_epi16(
+      bax, aby,
+      bax, aby,
+      0, 0,
+      0, 0,
+
+      bax, aby,
+      bax, aby,
+      0, 0,
+      0, 0
+   );
+
+   __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
+
+   auto nextChunk = segChunks;
+   for (auto i = 0; i < chunkCount; i += 2) {
       g_segs += 4;
 
       IfDump(std::cout << "iter " << i << std::endl);
 
-      // bax .bcy - bay .bcx
-      // bax .bdy - bay .bdx
-      // dcx .day - dcy .dax
-      // dcx .dby - dcy .dbx
+      // cy1, cx1,
+      // dy1, dx1,
+      // cdx1, dcy1,
+      // 0, 0
+      __m256i chunk1 = _mm256_load_si256(nextChunk);
+      DumpI16s(chunk1);
 
-      // lhs rhs    lhs rhs
-      // bax .bcy + aby .bcx
-      // bax .bdy + aby .bdx
-      // -dcx .ady - cdy .adx
-      // -dcx .bdy - cdy .bdx
+      __m256i chunk2 = _mm256_load_si256(nextChunk + 1);
+      DumpI16s(chunk2);
+      nextChunk += 2;
+
+      // __m256i rhsright1 = _mm256_setr_epi16(
+      //    cy1, cx1,
+      //    dy1, dx1,
+      //    dy1, dx1,
+      //    dy1, dx1,
       //
-      // lhs rhs    lhs rhs
-      // bax .bcy + aby .bcx
-      // bax .bdy + aby .bdx
-      // cdx .ady + dcy .adx
-      // cdx .bdy + dcy .bdx
-
-      // retry:
-      // bax bcy + aby bcx
-      // bax bdy + aby bdx
-      // cdx ady + dcy adx
-      // cdx bdy + dcy bdx
-
-      // seg2i16 a = ((seg2i16*)pCurrent)[0];
-      // seg2i16 b = ((seg2i16*)pCurrent)[1];
-      // seg2i16 c = ((seg2i16*)pCurrent)[2];
-      // seg2i16 d = ((seg2i16*)pCurrent)[3];
-      // pCurrent += 16;
-      // auto cx1 = a.x1;
-      // auto cy1 = a.y1;
-      // auto dx1 = a.x2;
-      // auto dy1 = a.y2;
-      // auto cx2 = b.x1;
-      // auto cy2 = b.y1;
-      // auto dx2 = b.x2;
-      // auto dy2 = b.y2;
-      // auto cx3 = c.x1;
-      // auto cy3 = c.y1;
-      // auto dx3 = c.x2;
-      // auto dy3 = c.y2;
-      // auto cx4 = d.x1;
-      // auto cy4 = d.y1;
-      // auto dx4 = d.x2;
-      // auto dy4 = d.y2;
-
-      short cx1 = *(pCurrent++);
-      short cy1 = *(pCurrent++);
-      short dx1 = *(pCurrent++);
-      short dy1 = *(pCurrent++);
-      
-      short cx2 = *(pCurrent++);
-      short cy2 = *(pCurrent++);
-      short dx2 = *(pCurrent++);
-      short dy2 = *(pCurrent++);
-
-      __m256i rhsright1 = _mm256_setr_epi16(
-         cy1, cx1,
-         dy1, dx1,
-         dy1, dx1,
-         dy1, dx1,
-
-         cy2, cx2,
-         dy2, dx2,
-         dy2, dx2,
-         dy2, dx2
-      );
+      //    cy2, cx2,
+      //    dy2, dx2,
+      //    dy2, dx2,
+      //    dy2, dx2
+      // );
+      __m256i rhsright1 = _mm256_permutevar8x32_epi32(chunk1, rhsrightswizzle);
       DumpI16s(rhsright1);
 
       __m256i rhs1 = _mm256_sub_epi16(rhsleft, rhsright1);
       DumpI16s(rhs1);
 
-      short cx3 = *(pCurrent++);
-      short cy3 = *(pCurrent++);
-      short dx3 = *(pCurrent++);
-      short dy3 = *(pCurrent++);
-      
-      short cx4 = *(pCurrent++);
-      short cy4 = *(pCurrent++);
-      short dx4 = *(pCurrent++);
-      short dy4 = *(pCurrent++);
+      // short cx3 = *(pCurrent++);
+      // short cy3 = *(pCurrent++);
+      // short dx3 = *(pCurrent++);
+      // short dy3 = *(pCurrent++);
+      //
+      // short cx4 = *(pCurrent++);
+      // short cy4 = *(pCurrent++);
+      // short dx4 = *(pCurrent++);
+      // short dy4 = *(pCurrent++);
 
-      __m256i rhsright2 = _mm256_setr_epi16(
-         cy3, cx3,
-         dy3, dx3,
-         dy3, dx3,
-         dy3, dx3,
-
-         cy4, cx4,
-         dy4, dx4,
-         dy4, dx4,
-         dy4, dx4
-      );
+      // __m256i rhsright2 = _mm256_setr_epi16(
+      //    cy3, cx3,
+      //    dy3, dx3,
+      //    dy3, dx3,
+      //    dy3, dx3,
+      //
+      //    cy4, cx4,
+      //    dy4, dx4,
+      //    dy4, dx4,
+      //    dy4, dx4
+      // );
+      __m256i rhsright2 = _mm256_permutevar8x32_epi32(chunk2, rhsrightswizzle);
       DumpI16s(rhsright2);
 
       __m256i rhs2 = _mm256_sub_epi16(rhsleft, rhsright2);
@@ -293,38 +266,46 @@ bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, b
       // cdx .ady + dcy .adx
       // cdx .bdy + dcy .bdx
 
-      int cdx1 = cx1 - dx1;
-      int dcy1 = dy1 - cy1;
-      int cdx2 = cx2 - dx2;
-      int dcy2 = dy2 - cy2;
-      int cdx3 = cx3 - dx3;
-      int dcy3 = dy3 - cy3;
-      int cdx4 = cx4 - dx4;
-      int dcy4 = dy4 - cy4;
+      // int cdx1 = cx1 - dx1;
+      // int dcy1 = dy1 - cy1;
+      // int cdx2 = cx2 - dx2;
+      // int dcy2 = dy2 - cy2;
+      // int cdx3 = cx3 - dx3;
+      // int dcy3 = dy3 - cy3;
+      // int cdx4 = cx4 - dx4;
+      // int dcy4 = dy4 - cy4;
 
-      __m256i lhs1 = _mm256_setr_epi16(
-         bax, aby,
-         bax, aby,
-         cdx1, dcy1,
-         cdx1, dcy1,
-
-         bax, aby,
-         bax, aby,
-         cdx2, dcy2,
-         cdx2, dcy2
+      // __m256i lhs1 = _mm256_setr_epi16(
+      //    bax, aby,
+      //    bax, aby,
+      //    cdx1, dcy1,
+      //    cdx1, dcy1,
+      //
+      //    bax, aby,
+      //    bax, aby,
+      //    cdx2, dcy2,
+      //    cdx2, dcy2
+      // );
+      __m256i lhs1 = _mm256_add_epi16(
+         lhsadd,
+         _mm256_permutevar8x32_epi32(chunk1, lhsswizzle)
       );
       DumpI16s(lhs1);
 
-      __m256i lhs2 = _mm256_setr_epi16(
-         bax, aby,
-         bax, aby,
-         cdx3, dcy3,
-         cdx3, dcy3,
-
-         bax, aby,
-         bax, aby,
-         cdx4, dcy4,
-         cdx4, dcy4
+      // __m256i lhs2 = _mm256_setr_epi16(
+      //    bax, aby,
+      //    bax, aby,
+      //    cdx3, dcy3,
+      //    cdx3, dcy3,
+      //
+      //    bax, aby,
+      //    bax, aby,
+      //    cdx4, dcy4,
+      //    cdx4, dcy4
+      // );
+      __m256i lhs2 = _mm256_add_epi16(
+         lhsadd,
+         _mm256_permutevar8x32_epi32(chunk2, lhsswizzle)
       );
       DumpI16s(lhs1);
 
@@ -466,17 +447,47 @@ bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, b
       // auto o4 = clk(dcx, dcy, dbx, dby);
       // if (o1 != o2 && o3 != o4) return true;
 
-      if (detectEndpointContainment) {
-         throw std::exception("not implemented");
-      }
+      // if (detectEndpointContainment) {
+      //    throw std::exception("not implemented");
+      // }
    }
    return false;
 }
 
+static thread_local short* tlsChunkBuff = nullptr;
+static thread_local size_t tlsChunkBuffNumChunks = 0;
+
 int benchIterAvx2(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& queries) {
+   auto numChunks = ((barriers.size() + 3) / 4) * 2;
+   if (numChunks > tlsChunkBuffNumChunks) {
+      tlsChunkBuff = (short*)_aligned_realloc(tlsChunkBuff, numChunks * 32, 32);
+      tlsChunkBuffNumChunks = numChunks;
+   }
+
+   short* buff = tlsChunkBuff; // (short*)_aligned_malloc(numChunks * 32, 32);
+   memset((char*)buff + (numChunks - 2) * 32, 0, 64); // zero last two blocks
+
+   auto curr = buff;
+   int z = 0;
+   for (const auto& barrier : barriers) {
+      *(curr++) = barrier.y1;
+      *(curr++) = barrier.x1;
+      *(curr++) = barrier.y2;
+      *(curr++) = barrier.x2;
+      *(curr++) = barrier.x1 - barrier.x2;
+      *(curr++) = barrier.y2 - barrier.y1;
+      *(curr++) = 0;
+      *(curr++) = 0;
+
+      IfDump(if (z <= 4) {
+         std::cout << z << " : " << barrier.y1 << " " << barrier.x1 << " " << barrier.y2 << " " << barrier.x2 << std::endl;
+      }
+      z++;)
+   }
+
    int pass = 0;
    for (const auto& query : queries) {
-      auto occluded = anyIntersectionsAvx2(query, barriers, false);
+      auto occluded = anyIntersectionsAvx2(query, (__m256i*)buff, numChunks);
       pass += !occluded;
    }
 
@@ -487,11 +498,7 @@ int main() {
    auto barriers = parse("barriers.txt");
    auto queries = parse("queries.txt");
 
-   // benchIter(barriers, queries);
-   // return 0;
-
-   auto pass = benchIterAvx2(barriers, queries);
-   std::cout << pass << std::endl;
+   std::cout << benchIter(barriers, queries) << " " << benchIterAvx2(barriers, queries) << std::endl;
 
    while (true) {
       auto niters = 10000;
