@@ -58,6 +58,8 @@ int clk(short ax, short ay, short bx, short by) {
    return cmp(v0, v1);
 }
 
+int g_segs = 0;
+
 bool anyIntersections(seg2i16 query, const std::vector<seg2i16>& segments, bool detectEndpointContainment) {
    short ax = query.x1;
    short ay = query.y1;
@@ -68,6 +70,7 @@ bool anyIntersections(seg2i16 query, const std::vector<seg2i16>& segments, bool 
    short bay = by - ay;
 
    for (const auto& seg : segments) {
+      g_segs++;
       short cx = seg.x1;
       short cy = seg.y1;
       short dx = seg.x2;
@@ -183,6 +186,8 @@ bool anyIntersectionsAvx2(seg2i16 query, const std::vector<seg2i16>& segments, b
    auto simdIters = segments.size() / 4;
    auto pCurrent = (const short*)(&segments[0]);
    for (auto i = 0; i < simdIters; i++) {
+      g_segs += 4;
+
       IfDump(std::cout << "iter " << i << std::endl);
 
       // bax .bcy - bay .bcx
@@ -491,15 +496,13 @@ int main() {
    while (true) {
       auto niters = 10000;
       auto start = std::chrono::system_clock::now();
+      g_segs = 0;
       for (auto i = 0; i < niters; i++) {
          // benchIter(barriers, queries);
          benchIterAvx2(barriers, queries);
       }
       auto end = std::chrono::system_clock::now();
-      auto ms = std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(end - start);
-      std::cout << ms.count() << " : " << ms.count() / niters << std::endl;
+      auto ms = std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(end - start).count();
+      std::cout << ms << " : " << ms / niters << " / " << g_segs << " : " << g_segs / ms << std::endl;
    }
-
-   __m256i a = _mm256_set_epi32(1, 2, 3, 4, 5, 6, 7, 8);
-   __m256i b = _mm256_set_epi32(10, 20, 30, 40, 50, 60, 70, 80);
 }
