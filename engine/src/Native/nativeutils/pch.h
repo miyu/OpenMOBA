@@ -10,5 +10,10 @@
 // add headers that you want to pre-compile here
 #include "framework.h"
 
+#define IN
+#define OUT
+#define FORCE_INLINE __forceinline
+
+#define OPAQUE_HANDLE void*
 
 #endif //PCH_H

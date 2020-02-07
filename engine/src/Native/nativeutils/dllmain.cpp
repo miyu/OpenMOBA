@@ -60,7 +60,7 @@ int clk(short ax, short ay, short bx, short by) {
 
 int g_segs = 0;
 
-bool anyIntersections(seg2i16 query, const std::vector<seg2i16>& segments, bool detectEndpointContainment) {
+bool AnyIntersections(seg2i16 query, const std::vector<seg2i16>& segments, bool detectEndpointContainment) {
    short ax = query.x1;
    short ay = query.y1;
    short bx = query.x2;
@@ -128,10 +128,10 @@ bool anyIntersections(seg2i16 query, const std::vector<seg2i16>& segments, bool 
    return false;
 }
 
-int benchIter(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& queries) {
+int CountIntersections(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& queries) {
    int pass = 0;
    for (const auto& query : queries) {
-      auto occluded = anyIntersections(query, barriers, false);
+      auto occluded = AnyIntersections(query, barriers, false);
       pass += !occluded;
    }
 
@@ -157,7 +157,7 @@ int benchIter(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& 
 #define IfDump(x) x;
 #endif
 
-bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCount) {
+FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCount) {
    short ax = query.x1;
    short ay = query.y1;
    short bx = query.x2;
@@ -233,16 +233,6 @@ bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCoun
       __m256i rhs1 = _mm256_sub_epi16(rhsleft, rhsright1);
       DumpI16s(rhs1);
 
-      // short cx3 = *(pCurrent++);
-      // short cy3 = *(pCurrent++);
-      // short dx3 = *(pCurrent++);
-      // short dy3 = *(pCurrent++);
-      //
-      // short cx4 = *(pCurrent++);
-      // short cy4 = *(pCurrent++);
-      // short dx4 = *(pCurrent++);
-      // short dy4 = *(pCurrent++);
-
       // __m256i rhsright2 = _mm256_setr_epi16(
       //    cy3, cx3,
       //    dy3, dx3,
@@ -259,12 +249,6 @@ bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCoun
 
       __m256i rhs2 = _mm256_sub_epi16(rhsleft, rhsright2);
       DumpI16s(rhs2);
-
-      // lhs rhs    lhs rhs
-      // bax .bcy + aby .bcx
-      // bax .bdy + aby .bdx
-      // cdx .ady + dcy .adx
-      // cdx .bdy + dcy .bdx
 
       // int cdx1 = cx1 - dx1;
       // int dcy1 = dy1 - cy1;
@@ -309,97 +293,22 @@ bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCoun
       );
       DumpI16s(lhs1);
 
-      // std::cout
-      //    << bax << " " << bcy << " " << -bay << " " << bcx << " "
-      //    << bax << " " << bdy << " " << -bay << " " << bdx << " "
-      //    << -dcx << " " << -day << " " << dcy << " " << -dax << " "
-      //    << -dcx << " " << -dby << " " << dcy << " " << -dbx << std::endl;
-
-      // std::cout << "bax is? " << bax << " " << _mm256_extract_epi16(lhs1, 0) << " " << _mm256_extract_epi16(lhs1, 15) << std::endl;
-      // std::cout
-      //    << "bcy is? " << by - cy1 << " " << (int16_t)_mm256_extract_epi16(rhs1, 0) << " " << (int16_t)_mm256_extract_epi16(rhs1, 15)
-      //    << " More: " << (int16_t)_mm256_extract_epi16(rhsleft, 0) - (int16_t)_mm256_extract_epi16(rhsright1, 0)
-      //    << " " << (int16_t)_mm256_extract_epi16(rhsleft, 0) << " from " << query.y2 << " " << (int16_t)_mm256_extract_epi16(rhsright1, 0) << " from " << cy1
-      //    << std::endl;
-
-      // std::cout
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 0) << " " << (int16_t)_mm256_extract_epi16(rhs1, 0) << " " << (int16_t)_mm256_extract_epi16(lhs1, 1) << " " << (int16_t)_mm256_extract_epi16(rhs1, 1) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 2) << " " << (int16_t)_mm256_extract_epi16(rhs1, 2) << " " << (int16_t)_mm256_extract_epi16(lhs1, 3) << " " << (int16_t)_mm256_extract_epi16(rhs1, 3) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 4) << " " << (int16_t)_mm256_extract_epi16(rhs1, 4) << " " << (int16_t)_mm256_extract_epi16(lhs1, 5) << " " << (int16_t)_mm256_extract_epi16(rhs1, 5) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 6) << " " << (int16_t)_mm256_extract_epi16(rhs1, 6) << " " << (int16_t)_mm256_extract_epi16(lhs1, 7) << " " << (int16_t)_mm256_extract_epi16(rhs1, 7) << std::endl;
-      //
-      // std::cout
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 0) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 0) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 1) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 1) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 2) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 2) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 3) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 3) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 4) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 4) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 5) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 5) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 8 + 6) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 6) << " " << (int16_t)_mm256_extract_epi16(lhs1, 8 + 7) << " " << (int16_t)_mm256_extract_epi16(rhs1, 8 + 7) << std::endl;
-
+      // lhs rhs    lhs rhs
+      // bax .bcy + aby .bcx
+      // bax .bdy + aby .bdx
+      // cdx .ady + dcy .adx
+      // cdx .bdy + dcy .bdx
       __m256i crosses1 = _mm256_madd_epi16(lhs1, rhs1); // Note: This gives 8 i32s
       DumpI32s(crosses1);
-
-      // std::cout
-      //    << "Ac "
-      //    << _mm256_extract_epi32(crosses1, 0) << " "
-      //    << _mm256_extract_epi32(crosses1, 1) << " "
-      //    << _mm256_extract_epi32(crosses1, 2) << " "
-      //    << _mm256_extract_epi32(crosses1, 3) << " "
-      //    << _mm256_extract_epi32(crosses1, 4) << " "
-      //    << _mm256_extract_epi32(crosses1, 5) << " "
-      //    << _mm256_extract_epi32(crosses1, 6) << " "
-      //    << _mm256_extract_epi32(crosses1, 7) << std::endl;
-
-      // std::cout
-      //    << "Ac1 " << bax * (by - cy1) + aby * (by - cx1) << " "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 0) * (int16_t)_mm256_extract_epi16(rhs1, 0) +
-      //       (int16_t)_mm256_extract_epi16(lhs1, 1) * (int16_t)_mm256_extract_epi16(rhs1, 1)
-      //    << " aka "
-      //    << bax << " * " << (by - cy1) << " + " << aby << " * " << (by - cx1) << " aka "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 0) << " * " << (int16_t)_mm256_extract_epi16(rhs1, 0) << " + "
-      //    << (int16_t)_mm256_extract_epi16(lhs1, 1) << " * " << (int16_t)_mm256_extract_epi16(rhs1, 1)
-      //    << std::endl;
-
 
       __m256i clocknesses1 = _mm256_sign_epi32(ones8xi32, crosses1);
       DumpI32s(clocknesses1);
 
-      // std::cout
-      //    << "A "
-      //    << _mm256_extract_epi32(clocknesses1, 0) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 1) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 2) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 3) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 4) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 5) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 6) << " "
-      //    << _mm256_extract_epi32(clocknesses1, 7) << std::endl;
-
       __m256i crosses2 = _mm256_madd_epi16(lhs2, rhs2); // Note: This gives 8 i32s
-      DumpI32s(crosses2);
+      DumpI32s(crosses2); 
 
       __m256i clocknesses2 = _mm256_sign_epi32(ones8xi32, crosses2);
       DumpI32s(clocknesses2);
-
-      // std::cout
-      //    << "Bc "
-      //    << _mm256_extract_epi32(crosses2, 0) << " "
-      //    << _mm256_extract_epi32(crosses2, 1) << " "
-      //    << _mm256_extract_epi32(crosses2, 2) << " "
-      //    << _mm256_extract_epi32(crosses2, 3) << " "
-      //    << _mm256_extract_epi32(crosses2, 4) << " "
-      //    << _mm256_extract_epi32(crosses2, 5) << " "
-      //    << _mm256_extract_epi32(crosses2, 6) << " "
-      //    << _mm256_extract_epi32(crosses2, 7) << std::endl;
-
-      // std::cout
-      //    << "B "
-      //    << _mm256_extract_epi32(clocknesses2, 0) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 1) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 2) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 3) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 4) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 5) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 6) << " "
-      //    << _mm256_extract_epi32(clocknesses2, 7) << std::endl;
 
       // quirk: this interweaves the horizontal subtract.
       // (g1ao1 != g1ao2, g1ao3 != g1ao4, g2ao1 != g2ao2, g2ao3 != g2ao4,
@@ -427,29 +336,6 @@ bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCoun
       if (intersects) {
          return true;
       }
-
-      
-
-
-
-      // auto o1 = clk(bax, bay, bcx, bcy);
-      // auto o2 = clk(bax, bay, bdx, bdy);
-      // if (o1 == o2 && !detectEndpointContainment) continue;
-      //
-      // short dcx = dx - cx;
-      // short dcy = dy - cy;
-      // short dax = dx - ax;
-      // short day = dy - ay;
-      // short dbx = dx - bx;
-      // short dby = dy - by;
-      //
-      // auto o3 = clk(dcx, dcy, dax, day);
-      // auto o4 = clk(dcx, dcy, dbx, dby);
-      // if (o1 != o2 && o3 != o4) return true;
-
-      // if (detectEndpointContainment) {
-      //    throw std::exception("not implemented");
-      // }
    }
    return false;
 }
@@ -457,37 +343,45 @@ bool anyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCoun
 static thread_local short* tlsChunkBuff = nullptr;
 static thread_local size_t tlsChunkBuffNumChunks = 0;
 
-int benchIterAvx2(const std::vector<seg2i16>& barriers, const std::vector<seg2i16>& queries) {
+typedef struct Avx2IntersectionPrequeryState_s {
+   int NumChunks;
+   std::shared_ptr<char> ChunkBuffer;
+} Avx2IntersectionPrequeryState;
+
+std::shared_ptr<Avx2IntersectionPrequeryState> LoadPrequeryBarriersIntersectionState(const std::vector<seg2i16>& barriers) {
    auto numChunks = ((barriers.size() + 3) / 4) * 2;
-   if (numChunks > tlsChunkBuffNumChunks) {
-      tlsChunkBuff = (short*)_aligned_realloc(tlsChunkBuff, numChunks * 32, 32);
-      tlsChunkBuffNumChunks = numChunks;
-   }
+   auto chunkBuffer = _aligned_malloc(numChunks * 32, 32);
 
-   short* buff = tlsChunkBuff; // (short*)_aligned_malloc(numChunks * 32, 32);
-   memset((char*)buff + (numChunks - 2) * 32, 0, 64); // zero last two blocks
+   // zero last two chunks (4 segments) as only 1 segment might be stored & the remaining 3
+   // should not detect an intersect.
+   memset(reinterpret_cast<char*>(chunkBuffer) + (numChunks - 2) * 32, 0, 64);
 
-   auto curr = buff;
-   int z = 0;
+   // Load 128 bits = half chunk = (y1, x1, y2, x2, x1 - x2, y2 - y1, 0, 0)
+   auto pCurrent = reinterpret_cast<short*>(chunkBuffer);
    for (const auto& barrier : barriers) {
-      *(curr++) = barrier.y1;
-      *(curr++) = barrier.x1;
-      *(curr++) = barrier.y2;
-      *(curr++) = barrier.x2;
-      *(curr++) = barrier.x1 - barrier.x2;
-      *(curr++) = barrier.y2 - barrier.y1;
-      *(curr++) = 0;
-      *(curr++) = 0;
-
-      IfDump(if (z <= 4) {
-         std::cout << z << " : " << barrier.y1 << " " << barrier.x1 << " " << barrier.y2 << " " << barrier.x2 << std::endl;
-      }
-      z++;)
+      *(pCurrent++) = barrier.y1;
+      *(pCurrent++) = barrier.x1;
+      *(pCurrent++) = barrier.y2;
+      *(pCurrent++) = barrier.x2;
+      *(pCurrent++) = barrier.x1 - barrier.x2;
+      *(pCurrent++) = barrier.y2 - barrier.y1;
+      *(pCurrent++) = 0;
+      *(pCurrent++) = 0;
    }
+
+   auto state = std::make_shared<Avx2IntersectionPrequeryState>();
+   state->NumChunks = numChunks;
+   state->ChunkBuffer = std::shared_ptr<char>((char*)chunkBuffer, &_aligned_free);
+   return state;
+}
+
+int CountIntersectionsAvx2(std::shared_ptr<Avx2IntersectionPrequeryState> prequeryState, const std::vector<seg2i16>& queries) {
+   auto numChunks = prequeryState->NumChunks;
+   auto buff = (__m256i*)prequeryState->ChunkBuffer.get();
 
    int pass = 0;
    for (const auto& query : queries) {
-      auto occluded = anyIntersectionsAvx2(query, (__m256i*)buff, numChunks);
+      auto occluded = AnyIntersectionsAvx2(query, buff, numChunks);
       pass += !occluded;
    }
 
@@ -498,15 +392,16 @@ int main() {
    auto barriers = parse("barriers.txt");
    auto queries = parse("queries.txt");
 
-   std::cout << benchIter(barriers, queries) << " " << benchIterAvx2(barriers, queries) << std::endl;
+   auto prequeryState = LoadPrequeryBarriersIntersectionState(barriers);
+   std::cout << CountIntersections(barriers, queries) << " " << CountIntersectionsAvx2(prequeryState, queries) << std::endl;
 
    while (true) {
       auto niters = 10000;
       auto start = std::chrono::system_clock::now();
       g_segs = 0;
       for (auto i = 0; i < niters; i++) {
-         // benchIter(barriers, queries);
-         benchIterAvx2(barriers, queries);
+         // CountIntersections(barriers, queries);
+         CountIntersectionsAvx2(prequeryState, queries);
       }
       auto end = std::chrono::system_clock::now();
       auto ms = std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(end - start).count();
