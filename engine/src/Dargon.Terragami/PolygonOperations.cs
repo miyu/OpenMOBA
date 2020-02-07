@@ -6,7 +6,8 @@ using Dargon.Commons.Collections;
 using Dargon.PlayOn;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.Geometry;
-using Dargon.PlayOn.ThirdParty.ClipperLib;
+using Dargon.Terragami;
+using Dargon.Terragami.ThirdParty.ClipperLib;
 using Poly2Tri.Triangulation;
 
 namespace Dargon.Terragami {
@@ -160,6 +161,8 @@ namespace Dargon.Terragami {
          }
       }
 
+      public class ClipperCache { }
+
       public class PunchOperation
       {
          private readonly Clipper clipper = new Clipper { StrictlySimple = true };
@@ -272,10 +275,14 @@ namespace Dargon.Terragami {
          }
 
 
-         public PolygonNode Execute(Double additionalErosionDilation = default)
+         public PolygonNode Execute(Double additionalErosionDilation = default, bool cleanupDegeneraciesWithOffset = true)
          {
             var polytree = new PolyTree();
             clipper.Execute(ClipType.ctDifference, polytree, PolyFillType.pftPositive, PolyFillType.pftPositive);
+
+            if (!cleanupDegeneraciesWithOffset) {
+               return PolygonNode.FromClipperPolyTree(polytree);
+            }
 
             // Used to remove degeneracies where additionalErosion is 0.
 #if use_fixed

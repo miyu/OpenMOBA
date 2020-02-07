@@ -278,13 +278,15 @@ namespace Dargon.Terragami {
             }
          }
 
-         var punchedLand = punch.Execute();
+         // 46ms
+         var punchedLand = punch.Execute(0, cleanupDegeneraciesWithOffset: false);
          if (debugCanvasOpt != null) {
             debugCanvasOpt.Transform = Matrix4x4.Identity;
             debugCanvasOpt.DrawPolygonNode(punchedLand);
             debugCanvasOpt.DrawPoints(input.PinPoints.ToArray(), StrokeStyle.RedThick25Solid);
             debugCanvasOpt.DrawPoints(input.TraversableCorners.ToArray(), StrokeStyle.LimeThick25Solid);
          }
+         return;
 
          var portals = input.Portals;
          var portalPoints = new IntVector2[portals.Count][];
@@ -309,8 +311,9 @@ namespace Dargon.Terragami {
             debugCanvasOpt.DrawLineList(segs, StrokeStyle.GrayHairLineSolid);
          }
 
+         // 50ms
+         var allLinkStates = new List<LinkState[]>();
          var pass = 0;
-         var queries = new List<IntLineSegment2>();
          for (var a = 0; a < portals.Count; a++) {
             var portalA = portals[a];
             var pointsA = portalPoints[a];
@@ -330,33 +333,15 @@ namespace Dargon.Terragami {
                         Occluded = occluded,
                      };
                      if (!occluded) pass++;
-                     queries.Add(new IntLineSegment2(pa, pb));
-                     // Console.WriteLine($"{pa.X},{pa.Y},{pb.X},{pb.Y}");
-                     // debugCanvasOpt?.DrawLine(pa, pb, occluded ? StrokeStyle.RedHairLineSolid : StrokeStyle.CyanHairLineSolid);
                   }
                }
+
+               allLinkStates.Add(linkStates);
             }
          }
 
          if (debugCanvasOpt != null) {
             Console.WriteLine(pass);
-         }
-
-         
-         while (true) {
-            var pazz = 0;
-            var niters = 10000;
-            var sw = new Stopwatch();
-            sw.Start();
-            for (var i = 0; i < niters; i++) {
-               foreach (var query in queries) {
-                  var occluded = anyIntersections(query, segs, false);
-                  if (!occluded) pazz++;
-               }
-            }
-
-            var ms = sw.Elapsed.TotalMilliseconds;
-            Console.WriteLine(ms + " " + (ms / niters));
          }
       }
       static bool anyIntersections(IntLineSegment2 query, IntLineSegment2[] segments, bool detectEndpointContainment) {
