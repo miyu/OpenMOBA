@@ -74,10 +74,14 @@
 //using System.Windows.Forms; //debugging to clipboard
 using System;
 using System.Collections.Generic;
+using Dargon.Commons;
 using Dargon.Commons.Exceptions;
 using Dargon.Commons.Pooling;
-using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
-using Dargon.PlayOn.Geometry;
+using Dargon.Terragami;
+using Dargon.Terragami.Geometry;
+// using Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local;
+// using Dargon.PlayOn.Geometry;
+using Dargon.Terragami.ThirdParty.ClipperLib;
 #if use_intvector
 #if use_xyz
 using IntPoint = OpenMOBA.Geometry.IntVector3;
@@ -86,24 +90,48 @@ using IntPoint = Dargon.PlayOn.Geometry.IntVector2;
 #endif
 #endif
 
-namespace Dargon.Terragami.ThirdParty.ClipperLib {
-
 #if use_int32
-  using cInt = Int32;
+using cInt = System.Int32;
 #else
-   using cInt = Int64;
+   using cInt = System.Int64;
 #endif
 
 #if use_fixed
-  using cDouble = Fix64;
+  using cDouble = System.Fix64;
 #else
-  using cDouble = System.Double;
+using cDouble = System.Double;
 #endif
 
-   using Path = List<IntPoint>;
-   using Paths = List<List<IntPoint>>;
-   using ReadOnlyPath = IReadOnlyList<IntPoint>;
-   using ReadOnlyPaths = IReadOnlyList<IReadOnlyList<IntPoint>>;
+using Path = System.Collections.Generic.List<Dargon.PlayOn.Geometry.IntVector2>;
+using Paths = System.Collections.Generic.List<System.Collections.Generic.List<Dargon.PlayOn.Geometry.IntVector2>>;
+using ReadOnlyPath = System.Collections.Generic.IReadOnlyList<Dargon.PlayOn.Geometry.IntVector2>;
+using ReadOnlyPaths = System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyList<Dargon.PlayOn.Geometry.IntVector2>>;
+
+namespace Dargon.Terragami.ThirdParty.ClipperLib {
+
+   public class ClipperObjectPools {
+      internal TakeManyReturnOnceObjectPool<TEdge> EdgePool;
+      internal TakeManyReturnOnceObjectPool<OutPt> OutPtPool;
+
+      public ClipperObjectPools() {
+         EdgePool = TakeManyReturnOnceObjectPool.CreateWithObjectZeroAndReconstruction<TEdge>(
+            0,
+            zeroOverride: e => e.ZeroForPool());
+
+         // lv0 - clipper, lv1 - cleanpoly
+         OutPtPool = TakeManyReturnOnceObjectPool.CreateWithObjectZeroAndReconstruction<OutPt>(1);
+
+         ResetPools();
+      }
+
+      public void ResetPools() {
+         EdgePool.LeaveAllLevelsReturningTakenInstances();
+         OutPtPool.LeaveAllLevelsReturningTakenInstances();
+
+         EdgePool.EnterLevel();
+         OutPtPool.EnterLevel();
+      }
+   }
 
    public struct DoublePoint {
       public cDouble X;
@@ -120,9 +148,6 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       }
    };
 
-   public class ClipperObjectPool {
-   }
-
    //------------------------------------------------------------------------------
    // PolyTree & PolyNode classes
    //------------------------------------------------------------------------------
@@ -131,7 +156,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       internal List<PolyNode> m_AllPolys = new List<PolyNode>();
 
       // Added by me for visgraph - miyu
-      public PolyNodeVisbilityGraphTreeData visibilityGraphTreeData;
+      // public PolyNodeVisbilityGraphTreeData visibilityGraphTreeData;
 
 
       //The GC probably handles this cleanup more efficiently ...
@@ -173,7 +198,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       public List<PolyNode> m_Childs = new List<PolyNode>();
 
       // Added by me for visgraph - miyu
-      public ExtraNodeData visibilityGraphNodeData;
+      // public ExtraNodeData visibilityGraphNodeData;
 
       private bool IsHoleNode() {
          bool result = true;
@@ -461,24 +486,33 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
    internal enum Direction { dRightToLeft, dLeftToRight };
 
    internal class TEdge {
-      internal IntPoint Bot;
-      internal IntPoint Curr; //current (updated for every new scanbeam)
-      internal IntPoint Top;
-      internal IntPoint Delta;
-      internal double Dx;
-      internal PolyType PolyTyp;
-      internal EdgeSide Side; //side only refers to current side of solution poly
-      internal int WindDelta; //1 or -1 depending on winding direction
+      internal IntPoint Bot; // init2
+      internal IntPoint Curr; //current (updated for every new scanbeam) // init0
+      internal IntPoint Top; // init2
+      internal IntPoint Delta; // init2
+      internal double Dx; // init2
+      internal PolyType PolyTyp; // init2
+      internal EdgeSide Side; //side only refers to current side of solution poly // init4
+      internal int WindDelta; //1 or -1 depending on winding direction // init4
       internal int WindCnt;
       internal int WindCnt2; //winding count of the opposite polytype
-      internal int OutIdx;
-      internal TEdge Next;
-      internal TEdge Prev;
+      internal int OutIdx; // init0
+      internal TEdge Next; // init0
+      internal TEdge Prev; // init0
       internal TEdge NextInLML;
       internal TEdge NextInAEL;
       internal TEdge PrevInAEL;
       internal TEdge NextInSEL;
       internal TEdge PrevInSEL;
+
+      public void ZeroForPool() {
+         WindCnt = WindCnt2 = 0;
+         NextInLML = null;
+         NextInAEL = null;
+         PrevInAEL = null;
+         NextInSEL = null;
+         PrevInSEL = null;
+      }
    };
 
    public class IntersectNode {
@@ -542,8 +576,152 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
    public class ClipperFactory {
       
    }
+   public class ClipperClass {
+      public ClipperObjectPools pools;
 
-   public class ClipperBase {
+      // moved from Clipper to ClipperBase so accessible from offset instance --miyu
+      private static cDouble DistanceFromLineSqrd(IntPoint pt, IntPoint ln1, IntPoint ln2) {
+         long a = ln1.Y - ln2.Y; // up to 2^15
+         long b = ln2.X - ln1.X; // up to 2^15
+         long c = a * ln1.X + b * ln1.Y; // up to 2^30
+         c = a * pt.X + b * pt.Y - c; // up to 2^31
+
+#if use_fixed
+         // c*c goes up to 2^62, a*a+b*b goes up to 2^31
+         // we want to compute c*c/(a*a+b*b) without overflowing,
+         // but c*c will overflow Q31.32.
+         // As workaround, compute c/(a*a+b*b), then square with
+         // saturated overflow.
+         var temp = Fix64.Abs((Fix64)c / (Fix64)(a * a + b * b));
+         if (temp > Fix64.Floor(Fix64.Sqrt(Fix64.MaxValue))) {
+            return cDouble.MaxValue;
+         }
+         return temp * temp;
+#else
+         //The equation of a line in general form (Ax + By + C = 0)
+         //given 2 points (x¹,y¹) & (x²,y²) is ...
+         //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0
+         //A = (y¹ - y²); B = (x² - x¹); C = (y² - y¹)x¹ - (x² - x¹)y¹
+         //perpendicular distance of point (x³,y³) = (Ax³ + By³ + C)/Sqrt(A² + B²)
+         //see http://en.wikipedia.org/wiki/Perpendicular_distance
+         cDouble A = (cDouble)ln1.Y - (cDouble)ln2.Y;
+         cDouble B = (cDouble)ln2.X - (cDouble)ln1.X;
+         cDouble C = A * (cDouble)ln1.X + B * (cDouble)ln1.Y;
+         C = A * (cDouble)pt.X + B * (cDouble)pt.Y - C;
+         return (C * C) / (A * A + B * B);
+#endif
+      }
+
+      //---------------------------------------------------------------------------
+      // moved from Clipper to ClipperBase so accessible from offset instance --miyu
+      private static bool SlopesNearCollinear(IntPoint pt1,
+         IntPoint pt2, IntPoint pt3, cDouble distSqrd) {
+         //this function is more accurate when the point that's GEOMETRICALLY 
+         //between the other 2 points is the one that's tested for distance.  
+         //nb: with 'spikes', either pt1 or pt3 is geometrically between the other pts                    
+         if (Math.Abs(pt1.X - pt2.X) > Math.Abs(pt1.Y - pt2.Y)) {
+            if ((pt1.X > pt2.X) == (pt1.X < pt3.X))
+               return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
+            else if ((pt2.X > pt1.X) == (pt2.X < pt3.X))
+               return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
+            else
+               return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
+         } else {
+            if ((pt1.Y > pt2.Y) == (pt1.Y < pt3.Y))
+               return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
+            else if ((pt2.Y > pt1.Y) == (pt2.Y < pt3.Y))
+               return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
+            else
+               return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
+         }
+      }
+      //------------------------------------------------------------------------------
+      // moved from Clipper to ClipperBase so accessible from offset instance --miyu
+      private static bool PointsAreClose(IntPoint pt1, IntPoint pt2, cDouble distSqrd) {
+         cDouble dx = (cDouble)pt1.X - (cDouble)pt2.X;
+         cDouble dy = (cDouble)pt1.Y - (cDouble)pt2.Y;
+         return ((dx * dx) + (dy * dy) <= distSqrd);
+      }
+      //------------------------------------------------------------------------------
+      // moved from Clipper to ClipperBase so accessible from offset instance --miyu
+      private static OutPt ExcludeOp(OutPt op) {
+         OutPt result = op.Prev;
+         result.Next = op.Next;
+         op.Next.Prev = result;
+         result.Idx = 0;
+         return result;
+      }
+      //------------------------------------------------------------------------------
+
+      //------------------------------------------------------------------------------
+      // static -> instance so can use pooling w/o TLS --miyu
+      // moved from Clipper to ClipperBase so accessible from offset instance --miyu
+      public Path CleanPolygon(Path path, cDouble? distance_ = null) {
+         var distance = distance_ ?? (cDouble)1.415;
+         //distance = proximity in units/pixels below which vertices will be stripped. 
+         //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have 
+         //both x & y coords within 1 unit, then the second vertex will be stripped.
+
+         int cnt = path.Count;
+
+         if (cnt == 0) return new Path();
+
+         OutPt[] outPts = new OutPt[cnt];
+         pools.OutPtPool.EnterLevel();
+         for (int i = 0; i < cnt; ++i) outPts[i] = pools.OutPtPool.Take();
+
+         for (int i = 0; i < cnt; ++i) {
+            outPts[i].Pt = path[i];
+            outPts[i].Next = outPts[(i + 1) % cnt];
+            outPts[i].Next.Prev = outPts[i];
+            outPts[i].Idx = 0;
+         }
+
+         cDouble distSqrd = distance * distance;
+         OutPt op = outPts[0];
+         while (op.Idx == 0 && op.Next != op.Prev) {
+            if (PointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
+               op = ExcludeOp(op);
+               cnt--;
+            } else if (PointsAreClose(op.Prev.Pt, op.Next.Pt, distSqrd)) {
+               ExcludeOp(op.Next);
+               op = ExcludeOp(op);
+               cnt -= 2;
+            } else if (SlopesNearCollinear(op.Prev.Pt, op.Pt, op.Next.Pt, distSqrd)) {
+               op = ExcludeOp(op);
+               cnt--;
+            } else {
+               op.Idx = 1;
+               op = op.Next;
+            }
+         }
+
+         if (cnt < 3) cnt = 0;
+         Path result = new Path(cnt);
+         for (int i = 0; i < cnt; ++i) {
+            result.Add(op.Pt);
+            op = op.Next;
+         }
+         outPts = null;
+         pools.OutPtPool.LeaveLevelReturningTakenInstances();
+         return result;
+      }
+      //------------------------------------------------------------------------------
+
+      // static -> instance so CleanPolygon can use pooling without TLS --miyu
+      // moved from Clipper to ClipperBase so accessible from offset instance --miyu
+      public Paths CleanPolygons(Paths polys,
+         cDouble? distance_ = null) {
+         var distance = distance_ ?? (cDouble)1.415;
+         Paths result = new Paths(polys.Count);
+         for (int i = 0; i < polys.Count; i++)
+            result.Add(CleanPolygon(polys[i], distance));
+         return result;
+      }
+      //------------------------------------------------------------------------------
+   }
+
+   public class ClipperBase : ClipperClass {
       internal const double horizontal = -3.4E+38;
       internal const int Skip = -2;
       internal const int Unassigned = -1;
@@ -857,7 +1035,15 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
 
          //create a new edge array ...
          List<TEdge> edges = new List<TEdge>(highI + 1);
-         for (int i = 0; i <= highI; i++) edges.Add(new TEdge());
+         for (int i = 0; i <= highI; i++) edges.Add(pools.EdgePool.Take());
+
+#if DEBUG
+         foreach (var e in edges) {
+            if (e.PrevInSEL != null || e.PrevInAEL != null || e.NextInLML != null || e.NextInAEL != null) {
+               throw new InvalidOperationException();
+            }
+         }
+#endif
 
          bool IsFlat = true;
 
@@ -865,7 +1051,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          edges[1].Curr = pg[1];
          RangeTest(pg[0], ref m_UseFullRange);
          RangeTest(pg[highI], ref m_UseFullRange);
-         InitEdge(edges[0], edges[1], edges[highI], pg[0]);
+         InitEdge(edges[0], edges[1], edges[highI], pg[0]); // next prev cur outidx
          InitEdge(edges[highI], edges[0], edges[highI - 1], pg[highI]);
          for (int i = highI - 1; i >= 1; --i) {
             RangeTest(pg[i], ref m_UseFullRange);
@@ -1264,8 +1450,6 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          e.NextInAEL = null;
          e.PrevInAEL = null;
       }
-      //------------------------------------------------------------------------------
-
    } //end ClipperBase
 
    public class Clipper : ClipperBase {
@@ -1291,9 +1475,6 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
         IntPoint bot2, IntPoint top2, ref IntPoint pt);
       public ZFillCallback ZFillFunction { get; set; }
 #endif
-
-      // Clipper shouldn't be reentrant, though ClipperOffset does call Clipper.
-      private static readonly TlsTakeManyReturnOnceObjectPool<OutPt> tlsPoolOutPts = TlsTakeManyReturnOnceObjectPool.CreateWithObjectZeroAndReconstruction<OutPt>(1);
 
       public Clipper(int InitOptions = 0) : base() //constructor
       {
@@ -1381,7 +1562,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          m_ClipType = clipType;
          m_UsingPolyTree = false;
 
-         tlsPoolOutPts.EnterLevel();
+         pools.OutPtPool.EnterLevel();
 
          bool succeeded;
          try {
@@ -1391,7 +1572,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          } finally {
             DisposeAllPolyPts();
             m_ExecuteLocked = false;
-            tlsPoolOutPts.LeaveLevelReturningTakenInstances();
+            pools.OutPtPool.LeaveLevelReturningTakenInstances();
          }
          return succeeded;
       }
@@ -1406,8 +1587,6 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          m_ClipType = clipType;
          m_UsingPolyTree = true;
 
-         tlsPoolOutPts.EnterLevel();
-
          bool succeeded;
          try {
             succeeded = ExecuteInternal();
@@ -1416,7 +1595,6 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          } finally {
             DisposeAllPolyPts();
             m_ExecuteLocked = false;
-            tlsPoolOutPts.LeaveLevelReturningTakenInstances();
          }
          return succeeded;
       }
@@ -1962,7 +2140,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          if (e.OutIdx < 0) {
             OutRec outRec = CreateOutRec();
             outRec.IsOpen = (e.WindDelta == 0);
-            OutPt newOp = tlsPoolOutPts.Take();//new OutPt();
+            OutPt newOp = pools.OutPtPool.Take();//new OutPt();
             outRec.Pts = newOp;
             newOp.Idx = outRec.Idx;
             newOp.Pt = pt;
@@ -1980,7 +2158,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
             if (ToFront && pt == op.Pt) return op;
             else if (!ToFront && pt == op.Prev.Pt) return op.Prev;
 
-            OutPt newOp = tlsPoolOutPts.Take();
+            OutPt newOp = pools.OutPtPool.Take();
             newOp.Idx = outRec.Idx;
             newOp.Pt = pt;
             newOp.Next = op;
@@ -3086,7 +3264,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       //------------------------------------------------------------------------------
 
       OutPt DupOutPt(OutPt outPt, bool InsertAfter) {
-         OutPt result = tlsPoolOutPts.Take();
+         OutPt result = pools.OutPtPool.Take();
          result.Pt = outPt.Pt;
          result.Idx = outPt.Idx;
          if (InsertAfter) {
@@ -3685,140 +3863,6 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       }
       //------------------------------------------------------------------------------
 
-      private static cDouble DistanceFromLineSqrd(IntPoint pt, IntPoint ln1, IntPoint ln2) {
-         long a = ln1.Y - ln2.Y; // up to 2^15
-         long b = ln2.X - ln1.X; // up to 2^15
-         long c = a * ln1.X + b * ln1.Y; // up to 2^30
-         c = a * pt.X + b * pt.Y - c; // up to 2^31
-
-#if use_fixed
-         // c*c goes up to 2^62, a*a+b*b goes up to 2^31
-         // we want to compute c*c/(a*a+b*b) without overflowing,
-         // but c*c will overflow Q31.32.
-         // As workaround, compute c/(a*a+b*b), then square with
-         // saturated overflow.
-         var temp = Fix64.Abs((Fix64)c / (Fix64)(a * a + b * b));
-         if (temp > Fix64.Floor(Fix64.Sqrt(Fix64.MaxValue))) {
-            return cDouble.MaxValue;
-         }
-         return temp * temp;
-#else
-         //The equation of a line in general form (Ax + By + C = 0)
-         //given 2 points (x¹,y¹) & (x²,y²) is ...
-         //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0
-         //A = (y¹ - y²); B = (x² - x¹); C = (y² - y¹)x¹ - (x² - x¹)y¹
-         //perpendicular distance of point (x³,y³) = (Ax³ + By³ + C)/Sqrt(A² + B²)
-         //see http://en.wikipedia.org/wiki/Perpendicular_distance
-         cDouble A = (cDouble)ln1.Y - (cDouble)ln2.Y;
-         cDouble B = (cDouble)ln2.X - (cDouble)ln1.X;
-         cDouble C = A * (cDouble)ln1.X + B * (cDouble)ln1.Y;
-         C = A * (cDouble)pt.X + B * (cDouble)pt.Y - C;
-         return (C * C) / (A * A + B * B);
-#endif
-      }
-      //---------------------------------------------------------------------------
-
-      private static bool SlopesNearCollinear(IntPoint pt1,
-         IntPoint pt2, IntPoint pt3, cDouble distSqrd) {
-         //this function is more accurate when the point that's GEOMETRICALLY 
-         //between the other 2 points is the one that's tested for distance.  
-         //nb: with 'spikes', either pt1 or pt3 is geometrically between the other pts                    
-         if (Math.Abs(pt1.X - pt2.X) > Math.Abs(pt1.Y - pt2.Y)) {
-            if ((pt1.X > pt2.X) == (pt1.X < pt3.X))
-               return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
-            else if ((pt2.X > pt1.X) == (pt2.X < pt3.X))
-               return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
-            else
-               return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
-         } else {
-            if ((pt1.Y > pt2.Y) == (pt1.Y < pt3.Y))
-               return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
-            else if ((pt2.Y > pt1.Y) == (pt2.Y < pt3.Y))
-               return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
-            else
-               return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
-         }
-      }
-      //------------------------------------------------------------------------------
-
-      private static bool PointsAreClose(IntPoint pt1, IntPoint pt2, cDouble distSqrd) {
-         cDouble dx = (cDouble)pt1.X - (cDouble)pt2.X;
-         cDouble dy = (cDouble)pt1.Y - (cDouble)pt2.Y;
-         return ((dx * dx) + (dy * dy) <= distSqrd);
-      }
-      //------------------------------------------------------------------------------
-
-      private static OutPt ExcludeOp(OutPt op) {
-         OutPt result = op.Prev;
-         result.Next = op.Next;
-         op.Next.Prev = result;
-         result.Idx = 0;
-         return result;
-      }
-      //------------------------------------------------------------------------------
-
-      public static Path CleanPolygon(Path path, cDouble? distance_ = null) {
-         var distance = distance_ ?? (cDouble)1.415;
-         //distance = proximity in units/pixels below which vertices will be stripped. 
-         //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have 
-         //both x & y coords within 1 unit, then the second vertex will be stripped.
-
-         int cnt = path.Count;
-
-         if (cnt == 0) return new Path();
-
-         OutPt[] outPts = new OutPt[cnt];
-         tlsPoolOutPts.EnterLevel();
-         for (int i = 0; i < cnt; ++i) outPts[i] = tlsPoolOutPts.Take();
-
-         for (int i = 0; i < cnt; ++i) {
-            outPts[i].Pt = path[i];
-            outPts[i].Next = outPts[(i + 1) % cnt];
-            outPts[i].Next.Prev = outPts[i];
-            outPts[i].Idx = 0;
-         }
-
-         cDouble distSqrd = distance * distance;
-         OutPt op = outPts[0];
-         while (op.Idx == 0 && op.Next != op.Prev) {
-            if (PointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
-               op = ExcludeOp(op);
-               cnt--;
-            } else if (PointsAreClose(op.Prev.Pt, op.Next.Pt, distSqrd)) {
-               ExcludeOp(op.Next);
-               op = ExcludeOp(op);
-               cnt -= 2;
-            } else if (SlopesNearCollinear(op.Prev.Pt, op.Pt, op.Next.Pt, distSqrd)) {
-               op = ExcludeOp(op);
-               cnt--;
-            } else {
-               op.Idx = 1;
-               op = op.Next;
-            }
-         }
-
-         if (cnt < 3) cnt = 0;
-         Path result = new Path(cnt);
-         for (int i = 0; i < cnt; ++i) {
-            result.Add(op.Pt);
-            op = op.Next;
-         }
-         outPts = null;
-         tlsPoolOutPts.LeaveLevelReturningTakenInstances();
-         return result;
-      }
-      //------------------------------------------------------------------------------
-
-      public static Paths CleanPolygons(Paths polys,
-         cDouble? distance_ = null) {
-         var distance = distance_ ?? (cDouble)1.415;
-         Paths result = new Paths(polys.Count);
-         for (int i = 0; i < polys.Count; i++)
-            result.Add(CleanPolygon(polys[i], distance));
-         return result;
-      }
-      //------------------------------------------------------------------------------
-
       internal static Paths Minkowski(Path pattern, Path path, bool IsSum, bool IsClosed) {
          int delta = (IsClosed ? 1 : 0);
          int polyCnt = pattern.Count;
@@ -3942,7 +3986,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
 
    } //end Clipper
 
-   public class ClipperOffset {
+   public class ClipperOffset : ClipperClass {
       private Paths m_destPolys;
       private Path m_srcPoly;
       private Path m_destPoly;
@@ -4276,7 +4320,8 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          DoOffset(delta);
 
          //now clean up 'corners' ...
-         Clipper clpr = new Clipper(clipperInitOptions);
+         // Clipper clpr =  new Clipper(clipperInitOptions);
+         var clpr = ClipperAllocator.AllocClipper();
          clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
          if (delta > cDouble_0) {
             clpr.Execute(ClipType.ctUnion, solution,
@@ -4304,6 +4349,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
             } else
                solution.Clear();
          }
+         ClipperAllocator.FreeClipper(ref clpr);
       }
       //------------------------------------------------------------------------------
 
@@ -4389,5 +4435,4 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       public ClipperException(string description) : base(description) { }
    }
    //------------------------------------------------------------------------------
-
 } //end ClipperLib namespace

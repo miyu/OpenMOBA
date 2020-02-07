@@ -10,10 +10,10 @@ namespace Dargon.Terragami {
    public static class PolyTreePruningExtensions {
       public static readonly long kMinAreaPrune = 16;
 
-      public static void Prune(this PolyNode polyTree, cDouble actorRadius, long areaPruneThreshold = -1) {
+      public static void Prune(this PolyNode polyTree, ClipperClass hackClipperInst, cDouble actorRadius, long areaPruneThreshold = -1) {
          if (areaPruneThreshold < kMinAreaPrune) areaPruneThreshold = kMinAreaPrune;
 
-         var cleaned = Clipper.CleanPolygon(polyTree.Contour, actorRadius / CDoubleMath.c5 + CDoubleMath.c2);
+         var cleaned = hackClipperInst.CleanPolygon(polyTree.Contour, actorRadius / CDoubleMath.c5 + CDoubleMath.c2);
          if (cleaned.Count > 0) {
             polyTree.Contour.Clear();
             polyTree.Contour.AddRange(cleaned);
@@ -29,7 +29,7 @@ namespace Dargon.Terragami {
             }
 
 //            cDouble kMinimumChildRelativeArea = CDoubleMath.c1 / (cDouble)1000; // prev 1 / 1000, 1 / 1000000 
-            child.Prune(actorRadius, Math.Max(kMinAreaPrune, childArea / 1000));
+            child.Prune(hackClipperInst, actorRadius, Math.Max(kMinAreaPrune, childArea / 1000));
          }
       }
 

@@ -237,7 +237,7 @@ namespace Dargon.Terragami {
          var totalIters = 0;
          var ntrialiters = 1;
          while (true) {
-            var niters = 1000;
+            var niters = 10000;
             for (var i = 0; i < niters; i++, totalIters++) {
                var canvas = totalIters < ntrialiters ? debugMultiCanvasHost.CreateAndAddCanvas(i) : null;
                Eval(input, canvas);

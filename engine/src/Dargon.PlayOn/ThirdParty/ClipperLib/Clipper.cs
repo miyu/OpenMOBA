@@ -119,9 +119,6 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
       }
    };
 
-   public class ClipperObjectPool {
-   }
-
    //------------------------------------------------------------------------------
    // PolyTree & PolyNode classes
    //------------------------------------------------------------------------------
@@ -537,10 +534,6 @@ namespace Dargon.PlayOn.ThirdParty.ClipperLib {
       internal OutPt OutPt2;
       internal IntPoint OffPt;
    };
-
-   public class ClipperFactory {
-      
-   }
 
    public class ClipperBase {
       internal const double horizontal = -3.4E+38;
