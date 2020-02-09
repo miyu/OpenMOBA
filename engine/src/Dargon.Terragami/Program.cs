@@ -324,12 +324,15 @@ namespace Dargon.Terragami {
                var portalB = portals[b];
                var pointsB = portalPoints[b];
 
-               var linkStates = new LinkState[pointsA.Length * pointsB.Length];
+               var numLinks = pointsA.Length * pointsB.Length;
+               var linkStates = new LinkState[numLinks];
                var linkStateIndex = 0;
+
+               var queries = stackalloc seg2i16[numLinks];
+               var pNextQuerySegment = queries;
+
                for (var i = 0; i < pointsA.Length; i++) {
                   var pa = pointsA[i];
-                  var queries = stackalloc seg2i16[pointsB.Length];
-                  var pNextQuerySegment = queries;
                   for (var j = 0; j < pointsB.Length; j++) {
                      var pb = pointsB[j];
                      pNextQuerySegment->x1 = (short)pa.X;
@@ -338,21 +341,23 @@ namespace Dargon.Terragami {
                      pNextQuerySegment->y2 = (short)pb.Y;
                      pNextQuerySegment++;
                   }
+               }
 
-                  var results = stackalloc byte[pointsB.Length];
-                  NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, queries, pointsB.Length, results);
-
+               var results = stackalloc byte[numLinks];
+               NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, queries, numLinks, results);
+               for (var i = 0; i < pointsA.Length; i++) {
                   for (var j = 0; j < pointsB.Length; j++) {
                      var occluded = *results != 0;
-                     linkStates[linkStateIndex] = new LinkState { 
+                     linkStates[linkStateIndex] = new LinkState {
                         Occluded = occluded,
                      };
                      linkStateIndex++;
                      results++;
                      if (!occluded) pass++;
                   }
+               }
 
-                  // for (var j = 0; j < pointsB.Length; j++) {
+               // for (var j = 0; j < pointsB.Length; j++) {
                   //    var pb = pointsB[j];
                   //    bool occluded = false;
                   //    if (pa == pb) {
@@ -383,7 +388,6 @@ namespace Dargon.Terragami {
                   //    linkStateIndex++;
                   //    if (!occluded) pass++;
                   // }
-               }
 
                allLinkStates.Add(linkStates);
             }
