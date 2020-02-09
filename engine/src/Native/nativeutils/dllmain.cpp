@@ -1,5 +1,7 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "pch.h"
+#include "dllmain.hpp"
+#include <cassert>
 
 #if WINDOWS
 BOOL APIENTRY DllMain( HMODULE hModule,
@@ -343,22 +345,20 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
 static thread_local short* tlsChunkBuff = nullptr;
 static thread_local size_t tlsChunkBuffNumChunks = 0;
 
-typedef struct Avx2IntersectionPrequeryState_s {
-   int NumChunks;
-   std::shared_ptr<char> ChunkBuffer;
-} Avx2IntersectionPrequeryState;
-
-std::shared_ptr<Avx2IntersectionPrequeryState> LoadPrequeryBarriersIntersectionState(const std::vector<seg2i16>& barriers) {
-   auto numChunks = ((barriers.size() + 3) / 4) * 2;
+std::shared_ptr<Avx2IntersectionPrequeryState> LoadPrequeryBarriersIntersectionState(const seg2i16* barriers, int numBarriers) {
+   auto numChunks = ((numBarriers + 3) / 4) * 2;
    auto chunkBuffer = _aligned_malloc(numChunks * 32, 32);
+   assert(chunkBuffer);
 
    // zero last two chunks (4 segments) as only 1 segment might be stored & the remaining 3
    // should not detect an intersect.
-   memset(reinterpret_cast<char*>(chunkBuffer) + (numChunks - 2) * 32, 0, 64);
+   memset(static_cast<char*>(chunkBuffer) + (numChunks - 2) * 32, 0, 64);
 
    // Load 128 bits = half chunk = (y1, x1, y2, x2, x1 - x2, y2 - y1, 0, 0)
    auto pCurrent = reinterpret_cast<short*>(chunkBuffer);
-   for (const auto& barrier : barriers) {
+   auto currentBarrier = barriers;
+   for (auto i = 0; i < numBarriers; i++) {
+      const auto barrier = *currentBarrier;
       *(pCurrent++) = barrier.y1;
       *(pCurrent++) = barrier.x1;
       *(pCurrent++) = barrier.y2;
@@ -367,6 +367,7 @@ std::shared_ptr<Avx2IntersectionPrequeryState> LoadPrequeryBarriersIntersectionS
       *(pCurrent++) = barrier.y2 - barrier.y1;
       *(pCurrent++) = 0;
       *(pCurrent++) = 0;
+      currentBarrier++;
    }
 
    auto state = std::make_shared<Avx2IntersectionPrequeryState>();
@@ -388,11 +389,24 @@ int CountIntersectionsAvx2(std::shared_ptr<Avx2IntersectionPrequeryState> preque
    return pass;
 }
 
+void QueryAnyIntersections(std::shared_ptr<Avx2IntersectionPrequeryState> prequeryState, const seg2i16* queries, int numQueries, uint8_t* results) {
+   auto numChunks = prequeryState->NumChunks;
+   auto buff = (__m256i*)prequeryState->ChunkBuffer.get();
+
+   for (auto i = 0; i < numQueries; i++) {
+      *results = AnyIntersectionsAvx2(*queries, buff, numChunks) ? 1 : 0;
+
+      queries++;
+      results++;
+   }
+}
+
+
 int main() {
    auto barriers = parse("barriers.txt");
    auto queries = parse("queries.txt");
 
-   auto prequeryState = LoadPrequeryBarriersIntersectionState(barriers);
+   auto prequeryState = LoadPrequeryBarriersIntersectionState(barriers.data(), barriers.size());
    std::cout << CountIntersections(barriers, queries) << " " << CountIntersectionsAvx2(prequeryState, queries) << std::endl;
 
    while (true) {

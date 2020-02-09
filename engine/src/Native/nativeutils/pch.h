@@ -16,4 +16,13 @@
 
 #define OPAQUE_HANDLE void*
 
+enum class ApiResult : int {
+   Success = 0,
+   ErrorUnknownHandle = -100,
+   ErrorUnknown = -999
+};
+
+#define DECLARE_API(Name) ApiResult __declspec(dllexport) NativeApi_##Name
+#define IMPLEMENT_API(Name) ApiResult NativeApi_##Name
+
 #endif //PCH_H

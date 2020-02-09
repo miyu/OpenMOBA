@@ -251,7 +251,7 @@ namespace Dargon.Terragami {
          }
       }
 
-      private static void Eval(CompilationInput input, IDebugCanvas debugCanvasOpt) {
+      private static unsafe void Eval(CompilationInput input, IDebugCanvas debugCanvasOpt) {
          var punch = PolygonOperations.Punch();
          punch.Include(input.Land.Blueprint.Root);
          foreach (var hole in input.Holes) {
@@ -286,7 +286,7 @@ namespace Dargon.Terragami {
             debugCanvasOpt.DrawPoints(input.PinPoints.ToArray(), StrokeStyle.RedThick25Solid);
             debugCanvasOpt.DrawPoints(input.TraversableCorners.ToArray(), StrokeStyle.LimeThick25Solid);
          }
-         return;
+         // return;
 
          var portals = input.Portals;
          var portalPoints = new IntVector2[portals.Count][];
@@ -312,6 +312,8 @@ namespace Dargon.Terragami {
          }
 
          // 50ms
+         NativeUtils.LoadPrequeryAnySegmentIntersections(segs, out var segsIntersectPrequeryState);
+
          var allLinkStates = new List<LinkState[]>();
          var pass = 0;
          for (var a = 0; a < portals.Count; a++) {
@@ -328,10 +330,33 @@ namespace Dargon.Terragami {
                   var pa = pointsA[i];
                   for (var j = 0; j < pointsB.Length; j++) {
                      var pb = pointsB[j];
-                     var occluded = pa == pb || bvh.Intersects(new IntLineSegment2(pa, pb), false);
+                     bool occluded = false;
+                     if (pa == pb) {
+                        occluded = true;
+                     } else {
+                        // 680ms w/ bvh, 570 w/ raw intersect, 463 with native intersect 
+                        // occluded = bvh.Intersects(new IntLineSegment2(pa, pb), false);
+                        // var papb = new IntLineSegment2(pa, pb);
+                        // foreach (var s in segs) {
+                        //    if (papb.OpenIntersects(s)) {
+                        //       occluded = true;
+                        //       break;
+                        //    }
+                        // }
+                        seg2i16 seg = new seg2i16();
+                        seg.x1 = (short)pa.X;
+                        seg.y1 = (short)pa.Y;
+                        seg.x2 = (short)pb.X;
+                        seg.y2 = (short)pb.Y;
+
+                        byte res = 0;
+                        NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, &seg, 1, &res);
+                        occluded = res != 0;
+                     }
                      linkStates[linkStateIndex] = new LinkState { 
                         Occluded = occluded,
                      };
+                     linkStateIndex++;
                      if (!occluded) pass++;
                   }
                }
@@ -339,6 +364,8 @@ namespace Dargon.Terragami {
                allLinkStates.Add(linkStates);
             }
          }
+
+         NativeUtils.FreePrequeryAnySegmentIntersections(segsIntersectPrequeryState);
 
          if (debugCanvasOpt != null) {
             Console.WriteLine(pass);

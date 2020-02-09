@@ -1,17 +1,45 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-     <TargetFramework>netcoreapp3.1</TargetFramework>
-  </PropertyGroup>
+   <PropertyGroup>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp3.1</TargetFramework>
+   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Poly2Tri" Version="1.0.1" />
-  </ItemGroup>
+   <PropertyGroup>
+      <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
-    <ProjectReference Include="..\Dargon.PlayOn\Dargon.PlayOn.csproj" />
-  </ItemGroup>
+
+   <PropertyGroup>
+      <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+      <RunPostBuildEvent>Always</RunPostBuildEvent>
+   </PropertyGroup>
+
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+   </PropertyGroup>
+
+
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+   </PropertyGroup>
+
+   <ItemGroup>
+      <PackageReference Include="Poly2Tri" Version="1.0.1" />
+   </ItemGroup>
+
+   <ItemGroup>
+      <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
+      <ProjectReference Include="..\Dargon.PlayOn\Dargon.PlayOn.csproj" />
+      <ProjectReference Include="..\Native\nativeutils\nativeutils.vcxproj">
+        <CopyLocalSatelliteAssemblies>true</CopyLocalSatelliteAssemblies>
+        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      </ProjectReference>
+   </ItemGroup>
+
+   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+     <Exec Command="copy $(SolutionDir)\x64\Release\nativeutils.dll $(TargetDir)&#xD;&#xA;copy $(SolutionDir)\x64\Release\nativeutils.pdb $(TargetDir)&#xD;&#xA;" />
+   </Target>
 
 </Project>

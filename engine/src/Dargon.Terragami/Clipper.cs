@@ -75,6 +75,7 @@
 using System;
 using System.Collections.Generic;
 using Dargon.Commons;
+using Dargon.Commons.Collections;
 using Dargon.Commons.Exceptions;
 using Dargon.Commons.Pooling;
 using Dargon.Terragami;
@@ -112,6 +113,10 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
    public class ClipperObjectPools {
       internal TakeManyReturnOnceObjectPool<TEdge> EdgePool;
       internal TakeManyReturnOnceObjectPool<OutPt> OutPtPool;
+      internal TakeManyReturnOnceObjectPool<Join> JoinPool;
+      internal TakeManyReturnOnceObjectPool<OutRec> OutRecPool;
+      internal TakeManyReturnOnceObjectPool<Scanbeam> ScanbeamPool;
+      internal TakeManyReturnOnceObjectPool<LocalMinima> LocalMinimaPool;
 
       public ClipperObjectPools() {
          EdgePool = TakeManyReturnOnceObjectPool.CreateWithObjectZeroAndReconstruction<TEdge>(
@@ -121,15 +126,28 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          // lv0 - clipper, lv1 - cleanpoly
          OutPtPool = TakeManyReturnOnceObjectPool.CreateWithObjectZeroAndReconstruction<OutPt>(1);
 
+         JoinPool = TakeManyReturnOnceObjectPool.Create<Join>(0);
+         OutRecPool = TakeManyReturnOnceObjectPool.Create<OutRec>(0);
+         ScanbeamPool = TakeManyReturnOnceObjectPool.Create<Scanbeam>(0);
+         LocalMinimaPool = TakeManyReturnOnceObjectPool.Create<LocalMinima>(0);
+
          ResetPools();
       }
 
       public void ResetPools() {
          EdgePool.LeaveAllLevelsReturningTakenInstances();
          OutPtPool.LeaveAllLevelsReturningTakenInstances();
+         JoinPool.LeaveAllLevelsReturningTakenInstances();
+         OutRecPool.LeaveAllLevelsReturningTakenInstances();
+         ScanbeamPool.LeaveAllLevelsReturningTakenInstances();
+         LocalMinimaPool.LeaveAllLevelsReturningTakenInstances();
 
          EdgePool.EnterLevel();
          OutPtPool.EnterLevel();
+         JoinPool.EnterLevel();
+         OutRecPool.EnterLevel();
+         ScanbeamPool.EnterLevel();
+         LocalMinimaPool.EnterLevel();
       }
    }
 
@@ -508,10 +526,10 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       public void ZeroForPool() {
          WindCnt = WindCnt2 = 0;
          NextInLML = null;
-         NextInAEL = null;
-         PrevInAEL = null;
-         NextInSEL = null;
-         PrevInSEL = null;
+         // NextInAEL = null;
+         // PrevInAEL = null;
+         // NextInSEL = null;
+         // PrevInSEL = null;
       }
    };
 
@@ -524,9 +542,10 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
    public class MyIntersectNodeSort : IComparer<IntersectNode> {
       public int Compare(IntersectNode node1, IntersectNode node2) {
          cInt i = node2.Pt.Y - node1.Pt.Y;
-         if (i > 0) return 1;
-         else if (i < 0) return -1;
-         else return 0;
+         return i;
+         // if (i > 0) return 1;
+         // else if (i < 0) return -1;
+         // else return 0;
       }
    }
 
@@ -742,7 +761,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
 
       internal LocalMinima m_MinimaList;
       internal LocalMinima m_CurrentLM;
-      internal List<List<TEdge>> m_edges = new List<List<TEdge>>();
+      internal List<ExposedArrayList<TEdge>> m_edges = new List<ExposedArrayList<TEdge>>();
       internal Scanbeam m_Scanbeam;
       internal List<OutRec> m_PolyOuts;
       internal TEdge m_ActiveEdges;
@@ -945,7 +964,10 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
                   E = Result.Next;
                else
                   E = Result.Prev;
-               LocalMinima locMin = new LocalMinima();
+
+               var locMin = pools.LocalMinimaPool.Take();
+               // LocalMinima locMin = new LocalMinima();
+
                locMin.Next = null;
                locMin.Y = E.Bot.Y;
                locMin.LeftBound = null;
@@ -1034,8 +1056,13 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          if ((Closed && highI < 2) || (!Closed && highI < 1)) return false;
 
          //create a new edge array ...
-         List<TEdge> edges = new List<TEdge>(highI + 1);
-         for (int i = 0; i <= highI; i++) edges.Add(pools.EdgePool.Take());
+         ExposedArrayList<TEdge> edges = new ExposedArrayList<TEdge>(highI + 1);
+
+         // faster than new TEdge() on .net core 3.1.101 veery slightly
+         pools.EdgePool.TakeMany(highI + 1, edges);
+         // edges.AddRange(pools.EdgePool.TakeMany(highI + 1));
+         // for (int i = 0; i <= highI; i++) edges.Add(pools.EdgePool.Take());
+         // for (int i = 0; i <= highI; i++) edges.Add(new TEdge());
 
 #if DEBUG
          foreach (var e in edges) {
@@ -1114,7 +1141,10 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          if (IsFlat) {
             if (Closed) return false;
             E.Prev.OutIdx = Skip;
-            LocalMinima locMin = new LocalMinima();
+            
+            var locMin = pools.LocalMinimaPool.Take();
+            // LocalMinima locMin = new LocalMinima();
+
             locMin.Next = null;
             locMin.Y = E.Bot.Y;
             locMin.LeftBound = null;
@@ -1147,7 +1177,10 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
 
             //E and E.Prev now share a local minima (left aligned if horizontal).
             //Compare their slopes to find which starts which bound ...
-            LocalMinima locMin = new LocalMinima();
+            
+            var locMin = pools.LocalMinimaPool.Take();
+            // LocalMinima locMin = new LocalMinima();
+
             locMin.Next = null;
             locMin.Y = E.Bot.Y;
             if (E.Dx < E.Prev.Dx) {
@@ -1304,11 +1337,13 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       internal void InsertScanbeam(cInt Y) {
          //single-linked list: sorted descending, ignoring dups.
          if (m_Scanbeam == null) {
-            m_Scanbeam = new Scanbeam();
+            // m_Scanbeam = new Scanbeam();
+            m_Scanbeam = pools.ScanbeamPool.Take();
             m_Scanbeam.Next = null;
             m_Scanbeam.Y = Y;
          } else if (Y > m_Scanbeam.Y) {
-            Scanbeam newSb = new Scanbeam();
+            var newSb = pools.ScanbeamPool.Take();
+            // Scanbeam newSb = new Scanbeam();
             newSb.Y = Y;
             newSb.Next = m_Scanbeam;
             m_Scanbeam = newSb;
@@ -1316,7 +1351,9 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
             Scanbeam sb2 = m_Scanbeam;
             while (sb2.Next != null && (Y <= sb2.Next.Y)) sb2 = sb2.Next;
             if (Y == sb2.Y) return; //ie ignores duplicates
-            Scanbeam newSb = new Scanbeam();
+            
+            var newSb = pools.ScanbeamPool.Take();
+            // Scanbeam newSb = new Scanbeam();
             newSb.Y = Y;
             newSb.Next = sb2.Next;
             sb2.Next = newSb;
@@ -1341,7 +1378,8 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       //------------------------------------------------------------------------------
 
       internal OutRec CreateOutRec() {
-         OutRec result = new OutRec();
+         var result = pools.OutRecPool.Take();
+         // OutRec result = new OutRec();
          result.Idx = Unassigned;
          result.IsHole = false;
          result.IsOpen = false;
@@ -1462,7 +1500,8 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       private Maxima m_Maxima;
       private TEdge m_SortedEdges;
       private List<IntersectNode> m_IntersectList;
-      IComparer<IntersectNode> m_IntersectNodeComparer;
+      // IComparer<IntersectNode> m_IntersectNodeComparer;
+      private static readonly MyIntersectNodeSort m_IntersectNodeComparer = new MyIntersectNodeSort();
       private bool m_ExecuteLocked;
       private PolyFillType m_ClipFillType;
       private PolyFillType m_SubjFillType;
@@ -1483,7 +1522,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          m_ActiveEdges = null;
          m_SortedEdges = null;
          m_IntersectList = new List<IntersectNode>();
-         m_IntersectNodeComparer = new MyIntersectNodeSort();
+         // m_IntersectNodeComparer = new MyIntersectNodeSort();
          m_ExecuteLocked = false;
          m_UsingPolyTree = false;
          m_PolyOuts = new List<OutRec>();
@@ -1668,7 +1707,8 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       //------------------------------------------------------------------------------
 
       private void AddJoin(OutPt Op1, OutPt Op2, IntPoint OffPt) {
-         Join j = new Join();
+         var j = pools.JoinPool.Take();
+         // Join j = new Join();
          j.OutPt1 = Op1;
          j.OutPt2 = Op2;
          j.OffPt = OffPt;
@@ -1677,7 +1717,8 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       //------------------------------------------------------------------------------
 
       private void AddGhostJoin(OutPt Op, IntPoint OffPt) {
-         Join j = new Join();
+         var j = pools.JoinPool.Take();
+         // Join j = new Join();
          j.OutPt1 = Op;
          j.OffPt = OffPt;
          m_GhostJoins.Add(j);

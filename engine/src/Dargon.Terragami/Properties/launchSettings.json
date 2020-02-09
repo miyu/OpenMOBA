@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Dargon.Terragami": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

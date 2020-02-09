@@ -8,9 +8,10 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <iostream>
 #include <fstream>
-#include <string>
-#include <sstream>
-#include <vector>
 #include <immintrin.h>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <vector>
