@@ -299,7 +299,7 @@ namespace Dargon.Terragami {
          }
 
          var segs = new BarrierCalculator().CalculateContourAndChildHoleBarriers(punchedLand);
-         var bvh = BvhILS2.Build(segs);
+         // var bvh = BvhILS2.Build(segs);
          foreach (var seg in segs) {
             // Console.WriteLine($"{seg.First.X},{seg.First.Y},{seg.Second.X},{seg.Second.Y}");
          }
@@ -345,6 +345,7 @@ namespace Dargon.Terragami {
 
                var results = stackalloc byte[numLinks];
                NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, queries, numLinks, results);
+
                for (var i = 0; i < pointsA.Length; i++) {
                   for (var j = 0; j < pointsB.Length; j++) {
                      var occluded = *results != 0;
