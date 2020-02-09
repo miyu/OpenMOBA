@@ -328,37 +328,61 @@ namespace Dargon.Terragami {
                var linkStateIndex = 0;
                for (var i = 0; i < pointsA.Length; i++) {
                   var pa = pointsA[i];
+                  var queries = stackalloc seg2i16[pointsB.Length];
+                  var pNextQuerySegment = queries;
                   for (var j = 0; j < pointsB.Length; j++) {
                      var pb = pointsB[j];
-                     bool occluded = false;
-                     if (pa == pb) {
-                        occluded = true;
-                     } else {
-                        // 680ms w/ bvh, 570 w/ raw intersect, 463 with native intersect 
-                        // occluded = bvh.Intersects(new IntLineSegment2(pa, pb), false);
-                        // var papb = new IntLineSegment2(pa, pb);
-                        // foreach (var s in segs) {
-                        //    if (papb.OpenIntersects(s)) {
-                        //       occluded = true;
-                        //       break;
-                        //    }
-                        // }
-                        seg2i16 seg = new seg2i16();
-                        seg.x1 = (short)pa.X;
-                        seg.y1 = (short)pa.Y;
-                        seg.x2 = (short)pb.X;
-                        seg.y2 = (short)pb.Y;
+                     pNextQuerySegment->x1 = (short)pa.X;
+                     pNextQuerySegment->y1 = (short)pa.Y;
+                     pNextQuerySegment->x2 = (short)pb.X;
+                     pNextQuerySegment->y2 = (short)pb.Y;
+                     pNextQuerySegment++;
+                  }
 
-                        byte res = 0;
-                        NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, &seg, 1, &res);
-                        occluded = res != 0;
-                     }
+                  var results = stackalloc byte[pointsB.Length];
+                  NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, queries, pointsB.Length, results);
+
+                  for (var j = 0; j < pointsB.Length; j++) {
+                     var occluded = *results != 0;
                      linkStates[linkStateIndex] = new LinkState { 
                         Occluded = occluded,
                      };
                      linkStateIndex++;
+                     results++;
                      if (!occluded) pass++;
                   }
+
+                  // for (var j = 0; j < pointsB.Length; j++) {
+                  //    var pb = pointsB[j];
+                  //    bool occluded = false;
+                  //    if (pa == pb) {
+                  //       occluded = true;
+                  //    } else {
+                  //       // 680ms w/ bvh, 570 w/ raw intersect, 463 with native intersect 
+                  //       // occluded = bvh.Intersects(new IntLineSegment2(pa, pb), false);
+                  //       // var papb = new IntLineSegment2(pa, pb);
+                  //       // foreach (var s in segs) {
+                  //       //    if (papb.OpenIntersects(s)) {
+                  //       //       occluded = true;
+                  //       //       break;
+                  //       //    }
+                  //       // }
+                  //       seg2i16 seg = new seg2i16();
+                  //       seg.x1 = (short)pa.X;
+                  //       seg.y1 = (short)pa.Y;
+                  //       seg.x2 = (short)pb.X;
+                  //       seg.y2 = (short)pb.Y;
+                  //
+                  //       byte res = 0;
+                  //       NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, &seg, 1, &res);
+                  //       occluded = res != 0;
+                  //    }
+                  //    linkStates[linkStateIndex] = new LinkState { 
+                  //       Occluded = occluded,
+                  //    };
+                  //    linkStateIndex++;
+                  //    if (!occluded) pass++;
+                  // }
                }
 
                allLinkStates.Add(linkStates);
