@@ -182,7 +182,7 @@ int CountIntersections(const std::vector<seg2i16>& barriers, const std::vector<s
 //    auto b = (int*)_malloca(sizeof(int) * numpoints);
 // }
 
-FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCount) {
+FORCEINLINE void LoadQuerySegmentRegisters(seg2i16 query, OUT __m256i& lhsadd, OUT __m256i& rhsleft) {
    short ax = query.x1;
    short ay = query.y1;
    short bx = query.x2;
@@ -191,26 +191,21 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
    short bax = bx - ax;
    short aby = ay - by;
 
-   __m256i ones8xi32 = _mm256_set1_epi32(1);
-   __m256i zeros8xi32 = _mm256_setzero_si256();
-   DumpI32s(ones8xi32);
-   DumpI32s(zeros8xi32);
+   // Note: This is computed before lhsadd. It improves perf 91ms->89ms reliably,
+   // likely due to instruction dependency ordering.
+   rhsleft = _mm256_setr_epi16(
+      by, bx, // by bx
+      by, bx, // by bx
+      ay, ax, // ay ax
+      by, bx, // by bx
 
-   __m256i rhsleft = _mm256_setr_epi16(
-      query.y2, query.x2, // by bx
-      query.y2, query.x2, // by bx
-      query.y1, query.x1, // ay ax
-      query.y2, query.x2, // by bx
-
-      query.y2, query.x2,
-      query.y2, query.x2,
-      query.y1, query.x1,
-      query.y2, query.x2);
+      by, bx,
+      by, bx,
+      ay, ax,
+      by, bx);
    DumpI16s(rhsleft);
 
-   __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
-
-   __m256i lhsadd = _mm256_setr_epi16(
+   lhsadd = _mm256_setr_epi16(
       bax, aby,
       bax, aby,
       0, 0,
@@ -221,8 +216,114 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
       0, 0,
       0, 0
    );
+}
+
+FORCEINLINE void ComputeQuerySegmentToFourPointClocknesses(__m256i lhsadd, __m256i rhsleft, __m256i chunk1, __m256i chunk2, OUT __m256i& clocknesses1, OUT __m256i& clocknesses2) {
+   __m256i ones8xi32 = _mm256_set1_epi32(1);
+   DumpI32s(ones8xi32);
+
+   __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
 
    __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
+
+   // __m256i rhsright1 = _mm256_setr_epi16(
+   //    cy1, cx1,
+   //    dy1, dx1,
+   //    dy1, dx1,
+   //    dy1, dx1,
+   //
+   //    cy2, cx2,
+   //    dy2, dx2,
+   //    dy2, dx2,
+   //    dy2, dx2
+   // );
+   __m256i rhsright1 = _mm256_permutevar8x32_epi32(chunk1, rhsrightswizzle);
+   DumpI16s(rhsright1);
+
+   __m256i rhs1 = _mm256_sub_epi16(rhsleft, rhsright1);
+   DumpI16s(rhs1);
+
+   // __m256i rhsright2 = _mm256_setr_epi16(
+   //    cy3, cx3,
+   //    dy3, dx3,
+   //    dy3, dx3,
+   //    dy3, dx3,
+   //
+   //    cy4, cx4,
+   //    dy4, dx4,
+   //    dy4, dx4,
+   //    dy4, dx4
+   // );
+   __m256i rhsright2 = _mm256_permutevar8x32_epi32(chunk2, rhsrightswizzle);
+   DumpI16s(rhsright2);
+
+   __m256i rhs2 = _mm256_sub_epi16(rhsleft, rhsright2);
+   DumpI16s(rhs2);
+
+   // int cdx1 = cx1 - dx1;
+   // int dcy1 = dy1 - cy1;
+   // int cdx2 = cx2 - dx2;
+   // int dcy2 = dy2 - cy2;
+   // int cdx3 = cx3 - dx3;
+   // int dcy3 = dy3 - cy3;
+   // int cdx4 = cx4 - dx4;
+   // int dcy4 = dy4 - cy4;
+
+   // __m256i lhs1 = _mm256_setr_epi16(
+   //    bax, aby,
+   //    bax, aby,
+   //    cdx1, dcy1,
+   //    cdx1, dcy1,
+   //
+   //    bax, aby,
+   //    bax, aby,
+   //    cdx2, dcy2,
+   //    cdx2, dcy2
+   // );
+   __m256i lhs1 = _mm256_add_epi16(
+      lhsadd,
+      _mm256_permutevar8x32_epi32(chunk1, lhsswizzle)
+   );
+   DumpI16s(lhs1);
+
+   // __m256i lhs2 = _mm256_setr_epi16(
+   //    bax, aby,
+   //    bax, aby,
+   //    cdx3, dcy3,
+   //    cdx3, dcy3,
+   //
+   //    bax, aby,
+   //    bax, aby,
+   //    cdx4, dcy4,
+   //    cdx4, dcy4
+   // );
+   __m256i lhs2 = _mm256_add_epi16(
+      lhsadd,
+      _mm256_permutevar8x32_epi32(chunk2, lhsswizzle)
+   );
+   DumpI16s(lhs1);
+   
+   // lhs rhs    lhs rhs
+   // bax .bcy + aby .bcx <---> clk(bax, bay, bcx, bcy), o1
+   // bax .bdy + aby .bdx <---> clk(bax, bay, bdx, bdy), o2
+   // cdx .ady + dcy .adx <---> clk(dcx, dcy, dax, day), o3
+   // cdx .bdy + dcy .bdx <---> clk(dcx, dcy, dbx, dby), o4
+   __m256i crosses1 = _mm256_madd_epi16(lhs1, rhs1); // Note: This gives 8 i32s
+   DumpI32s(crosses1);
+
+   clocknesses1 = _mm256_sign_epi32(ones8xi32, crosses1);
+   DumpI32s(clocknesses1);
+
+   __m256i crosses2 = _mm256_madd_epi16(lhs2, rhs2); // Note: This gives 8 i32s
+   DumpI32s(crosses2);
+
+   clocknesses2 = _mm256_sign_epi32(ones8xi32, crosses2);
+   DumpI32s(clocknesses2);
+}
+
+FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCount) {
+   __m256i lhsadd, rhsleft;
+   LoadQuerySegmentRegisters(query, OUT lhsadd, OUT rhsleft);
 
    auto nextChunk = segChunks;
    for (auto i = 0; i < chunkCount; i += 2) {
@@ -241,105 +342,17 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
       DumpI16s(chunk2);
       nextChunk += 2;
 
-      // __m256i rhsright1 = _mm256_setr_epi16(
-      //    cy1, cx1,
-      //    dy1, dx1,
-      //    dy1, dx1,
-      //    dy1, dx1,
-      //
-      //    cy2, cx2,
-      //    dy2, dx2,
-      //    dy2, dx2,
-      //    dy2, dx2
-      // );
-      __m256i rhsright1 = _mm256_permutevar8x32_epi32(chunk1, rhsrightswizzle);
-      DumpI16s(rhsright1);
-
-      __m256i rhs1 = _mm256_sub_epi16(rhsleft, rhsright1);
-      DumpI16s(rhs1);
-
-      // __m256i rhsright2 = _mm256_setr_epi16(
-      //    cy3, cx3,
-      //    dy3, dx3,
-      //    dy3, dx3,
-      //    dy3, dx3,
-      //
-      //    cy4, cx4,
-      //    dy4, dx4,
-      //    dy4, dx4,
-      //    dy4, dx4
-      // );
-      __m256i rhsright2 = _mm256_permutevar8x32_epi32(chunk2, rhsrightswizzle);
-      DumpI16s(rhsright2);
-
-      __m256i rhs2 = _mm256_sub_epi16(rhsleft, rhsright2);
-      DumpI16s(rhs2);
-
-      // int cdx1 = cx1 - dx1;
-      // int dcy1 = dy1 - cy1;
-      // int cdx2 = cx2 - dx2;
-      // int dcy2 = dy2 - cy2;
-      // int cdx3 = cx3 - dx3;
-      // int dcy3 = dy3 - cy3;
-      // int cdx4 = cx4 - dx4;
-      // int dcy4 = dy4 - cy4;
-
-      // __m256i lhs1 = _mm256_setr_epi16(
-      //    bax, aby,
-      //    bax, aby,
-      //    cdx1, dcy1,
-      //    cdx1, dcy1,
-      //
-      //    bax, aby,
-      //    bax, aby,
-      //    cdx2, dcy2,
-      //    cdx2, dcy2
-      // );
-      __m256i lhs1 = _mm256_add_epi16(
-         lhsadd,
-         _mm256_permutevar8x32_epi32(chunk1, lhsswizzle)
-      );
-      DumpI16s(lhs1);
-
-      // __m256i lhs2 = _mm256_setr_epi16(
-      //    bax, aby,
-      //    bax, aby,
-      //    cdx3, dcy3,
-      //    cdx3, dcy3,
-      //
-      //    bax, aby,
-      //    bax, aby,
-      //    cdx4, dcy4,
-      //    cdx4, dcy4
-      // );
-      __m256i lhs2 = _mm256_add_epi16(
-         lhsadd,
-         _mm256_permutevar8x32_epi32(chunk2, lhsswizzle)
-      );
-      DumpI16s(lhs1);
-
-      // lhs rhs    lhs rhs
-      // bax .bcy + aby .bcx
-      // bax .bdy + aby .bdx
-      // cdx .ady + dcy .adx
-      // cdx .bdy + dcy .bdx
-      __m256i crosses1 = _mm256_madd_epi16(lhs1, rhs1); // Note: This gives 8 i32s
-      DumpI32s(crosses1);
-
-      __m256i clocknesses1 = _mm256_sign_epi32(ones8xi32, crosses1);
-      DumpI32s(clocknesses1);
-
-      __m256i crosses2 = _mm256_madd_epi16(lhs2, rhs2); // Note: This gives 8 i32s
-      DumpI32s(crosses2); 
-
-      __m256i clocknesses2 = _mm256_sign_epi32(ones8xi32, crosses2);
-      DumpI32s(clocknesses2);
+      __m256i clocknesses1, clocknesses2;
+      ComputeQuerySegmentToFourPointClocknesses(lhsadd, rhsleft, chunk1, chunk2, OUT clocknesses1, OUT clocknesses2);
 
       // quirk: this interweaves the horizontal subtract.
       // (g1ao1 != g1ao2, g1ao3 != g1ao4, g2ao1 != g2ao2, g2ao3 != g2ao4,
       //  g1bo1 != g1bo2, g1bo3 != g1bo4, g2bo1 != g2bo2, g2bo3 != g2bo4)
       __m256i cmp = _mm256_hsub_epi32(clocknesses1, clocknesses2); // 8x i32
       DumpI32s(cmp);
+
+      __m256i zeros8xi32 = _mm256_setzero_si256();
+      DumpI32s(zeros8xi32);
 
       __m256i win = _mm256_cmpeq_epi32(cmp, zeros8xi32); // (a= o1 == o2, o3 == o4, ...), 32 bits per bool.
       DumpI32s(win);
