@@ -14,4 +14,5 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>

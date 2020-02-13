@@ -323,6 +323,21 @@ namespace Dargon.Terragami {
             for (var b = a + 1; b < portals.Count; b++) {
                var portalB = portals[b];
                var pointsB = portalPoints[b];
+               
+               // var hull = GeometryOperations.ConvexHull4(pointsA[0], pointsA[^1], pointsB[0], pointsB[^1]);
+               // var zs = new ExposedArrayList<seg2i16>();
+               // var filter = stackalloc seg2i16[segs.Length];
+               // var nfilseg = filter;
+               // var numfilseg = 0;
+               // foreach (var s in segs) {
+               //    if (GeometryOperations.SegmentIntersectsConvexPolygonInterior(s, hull)) {
+               //       *nfilseg = new seg2i16(s);
+               //       nfilseg++;
+               //       numfilseg++;
+               //    }
+               // }
+
+               // var sz = NativeUtils.LoadPrequeryAnySegmentIntersections(filter, numfilseg, out var han);
 
                var numLinks = pointsA.Length * pointsB.Length;
                var linkStates = new LinkState[numLinks];
@@ -345,6 +360,8 @@ namespace Dargon.Terragami {
 
                var results = stackalloc byte[numLinks];
                NativeUtils.QueryAnySegmentIntersections(segsIntersectPrequeryState, queries, numLinks, results);
+               // NativeUtils.QueryAnySegmentIntersections(han, queries, numLinks, results);
+               // NativeUtils.FreePrequeryAnySegmentIntersections(han);
 
                for (var i = 0; i < pointsA.Length; i++) {
                   for (var j = 0; j < pointsB.Length; j++) {

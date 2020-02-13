@@ -45,5 +45,12 @@ namespace Dargon.Terragami {
       public short y1;
       public short x2;
       public short y2;
+
+      public seg2i16(IntLineSegment2 s) {
+         x1 = (short)s.X1;
+         y1 = (short)s.Y1;
+         x2 = (short)s.X2;
+         y2 = (short)s.Y2;
+      }
    }
 }

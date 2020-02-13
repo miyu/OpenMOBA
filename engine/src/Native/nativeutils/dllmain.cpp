@@ -21,8 +21,20 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 }
 #endif
 
+struct point2i16 {
+   short x;
+   short y;
+};
+
 struct seg2i16 {
-   short x1, y1, x2, y2;
+   union {
+      struct {
+         short x1, y1, x2, y2;
+      };
+      struct {
+         point2i16 p1, p2;
+      };
+   };
 };
 
 static_assert(sizeof(seg2i16) == 8, "seg2i16 must be packed");
@@ -158,6 +170,17 @@ int CountIntersections(const std::vector<seg2i16>& barriers, const std::vector<s
    << _mm256_extract_epi32(reg, 4) << " " << _mm256_extract_epi32(reg, 5) << " " << _mm256_extract_epi32(reg, 6) << " " << (int16_t)_mm256_extract_epi32(reg, 7) << std::endl
 #define IfDump(x) x;
 #endif
+
+// FORCEINLINE bool ConvexPolygonContainment(point2i16* openContour, int numpoints, const __m256i* segChunks, int chunkCount) {
+//    auto a = (int*)_malloca(sizeof(int) * numpoints);
+//    assert(a);
+//
+//    for (auto [i, current] = std::tuple{ 0, a }; i < numpoints; i++, current++) {
+//       *current = i;
+//    }
+//
+//    auto b = (int*)_malloca(sizeof(int) * numpoints);
+// }
 
 FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, int chunkCount) {
    short ax = query.x1;
