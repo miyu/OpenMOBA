@@ -218,14 +218,16 @@ FORCEINLINE void LoadQuerySegmentRegisters(seg2i16 query, OUT __m256i& lhsadd, O
    );
 }
 
-FORCEINLINE void ComputeQuerySegmentToFourPointClocknesses(__m256i lhsadd, __m256i rhsleft, __m256i chunk1, __m256i chunk2, OUT __m256i& clocknesses1, OUT __m256i& clocknesses2) {
-   __m256i ones8xi32 = _mm256_set1_epi32(1);
+FORCEINLINE void LoadQuerySegmentIntersectConstantVectors(OUT __m256i& ones8xi32, OUT __m256i& rhsrightswizzle, OUT __m256i& lhsswizzle) {
+   ones8xi32 = _mm256_set1_epi32(1);
    DumpI32s(ones8xi32);
 
-   __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
+   rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
 
-   __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
+   lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
+}
 
+FORCEINLINE void ComputeQuerySegmentToFourPointClocknesses(__m256i ones8xi32, __m256i rhsrightswizzle, __m256i lhsswizzle, __m256i lhsadd, __m256i rhsleft, __m256i chunk1, __m256i chunk2, OUT __m256i& clocknesses1, OUT __m256i& clocknesses2) {
    // __m256i rhsright1 = _mm256_setr_epi16(
    //    cy1, cx1,
    //    dy1, dx1,
@@ -325,6 +327,16 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
    __m256i lhsadd, rhsleft;
    LoadQuerySegmentRegisters(query, OUT lhsadd, OUT rhsleft);
 
+   // __m256i ones8xi32, rhsrightswizzle, lhsswizzle;
+   // LoadQuerySegmentIntersectConstantVectors(OUT ones8xi32, OUT rhsrightswizzle, OUT lhsswizzle);
+
+   const __m256i ones8xi32 = _mm256_set1_epi32(1);
+   DumpI32s(ones8xi32);
+
+   const __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
+
+   const __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
+
    auto nextChunk = segChunks;
    for (auto i = 0; i < chunkCount; i += 2) {
       g_segs += 4;
@@ -343,7 +355,7 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
       nextChunk += 2;
 
       __m256i clocknesses1, clocknesses2;
-      ComputeQuerySegmentToFourPointClocknesses(lhsadd, rhsleft, chunk1, chunk2, OUT clocknesses1, OUT clocknesses2);
+      ComputeQuerySegmentToFourPointClocknesses(ones8xi32, rhsrightswizzle, lhsswizzle, lhsadd, rhsleft, chunk1, chunk2, OUT clocknesses1, OUT clocknesses2);
 
       // quirk: this interweaves the horizontal subtract.
       // (g1ao1 != g1ao2, g1ao3 != g1ao4, g2ao1 != g2ao2, g2ao3 != g2ao4,
