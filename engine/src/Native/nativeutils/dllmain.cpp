@@ -337,6 +337,9 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
 
    const __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
 
+   __m256i zeros8xi32 = _mm256_setzero_si256();
+   DumpI32s(zeros8xi32);
+
    auto nextChunk = segChunks;
    for (auto i = 0; i < chunkCount; i += 2) {
       g_segs += 4;
@@ -362,9 +365,6 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
       //  g1bo1 != g1bo2, g1bo3 != g1bo4, g2bo1 != g2bo2, g2bo3 != g2bo4)
       __m256i cmp = _mm256_hsub_epi32(clocknesses1, clocknesses2); // 8x i32
       DumpI32s(cmp);
-
-      __m256i zeros8xi32 = _mm256_setzero_si256();
-      DumpI32s(zeros8xi32);
 
       __m256i win = _mm256_cmpeq_epi32(cmp, zeros8xi32); // (a= o1 == o2, o3 == o4, ...), 32 bits per bool.
       DumpI32s(win);
