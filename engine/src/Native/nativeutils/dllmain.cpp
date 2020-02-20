@@ -218,7 +218,9 @@ FORCEINLINE void LoadQuerySegmentRegisters(seg2i16 query, OUT __m256i& lhsadd, O
    );
 }
 
-FORCEINLINE void LoadQuerySegmentIntersectConstantVectors(OUT __m256i& ones8xi32, OUT __m256i& rhsrightswizzle, OUT __m256i& lhsswizzle) {
+FORCEINLINE void LoadQuerySegmentIntersectConstantVectors(OUT __m256i& zeros8xi32, OUT __m256i& ones8xi32, OUT __m256i& rhsrightswizzle, OUT __m256i& lhsswizzle) {
+   zeros8xi32 = _mm256_setzero_si256();
+
    ones8xi32 = _mm256_set1_epi32(1);
    DumpI32s(ones8xi32);
 
@@ -327,18 +329,18 @@ FORCEINLINE bool AnyIntersectionsAvx2(seg2i16 query, const __m256i* segChunks, i
    __m256i lhsadd, rhsleft;
    LoadQuerySegmentRegisters(query, OUT lhsadd, OUT rhsleft);
 
-   // __m256i ones8xi32, rhsrightswizzle, lhsswizzle;
-   // LoadQuerySegmentIntersectConstantVectors(OUT ones8xi32, OUT rhsrightswizzle, OUT lhsswizzle);
+   __m256i zeros8xi32, ones8xi32, rhsrightswizzle, lhsswizzle;
+   LoadQuerySegmentIntersectConstantVectors(OUT zeros8xi32, OUT ones8xi32, OUT rhsrightswizzle, OUT lhsswizzle);
 
-   const __m256i ones8xi32 = _mm256_set1_epi32(1);
-   DumpI32s(ones8xi32);
-
-   const __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
-
-   const __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
-
-   __m256i zeros8xi32 = _mm256_setzero_si256();
-   DumpI32s(zeros8xi32);
+   // const __m256i ones8xi32 = _mm256_set1_epi32(1);
+   // DumpI32s(ones8xi32);
+   //
+   // const __m256i rhsrightswizzle = _mm256_setr_epi32(0, 1, 1, 1, 4, 5, 5, 5);
+   //
+   // const __m256i lhsswizzle = _mm256_setr_epi32(3, 3, 2, 2, 7, 7, 6, 6);
+   //
+   // __m256i zeros8xi32 = _mm256_setzero_si256();
+   // DumpI32s(zeros8xi32);
 
    auto nextChunk = segChunks;
    for (auto i = 0; i < chunkCount; i += 2) {

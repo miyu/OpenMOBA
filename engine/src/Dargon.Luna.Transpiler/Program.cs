@@ -4,7 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dargon.Commons;
+using Dargon.Commons.Collections;
 using Dargon.Luna.Lang;
+using Dargon.Luna.Transpiler.Deoop;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -14,9 +16,15 @@ using MemberAccessException = System.MemberAccessException;
 namespace Dargon.Luna.Transpiler {
    public static class Program {
       public async static Task Main(string[] args) {
-         var workspace = MSBuildWorkspace.Create();
+         Microsoft.Build.Locator.MSBuildLocator.RegisterDefaults();
+         // Environment.SetEnvironmentVariable("MSBuildSDKsPath", @"C:\Program Files\dotnet\sdk\3.1.101", EnvironmentVariableTarget.Process);
+         // Environment.SetEnvironmentVariable("COREHOST_TRACE", "1", EnvironmentVariableTarget.Process);
 
-         var project = await workspace.OpenProjectAsync(@"C:\my-repositories\miyu\derp\engine\src\Dargon.Luna\Dargon.Luna.csproj");
+         var workspace = MSBuildWorkspace.Create();
+         workspace.WorkspaceFailed += (s, e) => { Console.WriteLine(e.Diagnostic); };
+
+         var project = await workspace.OpenProjectAsync(@"V:\my-repositories\miyu\derp\engine\src\Dargon.Luna\Dargon.Luna.csproj");
+         Console.WriteLine("LOADED PROJECT: ");
          Console.WriteLine(project.Name);
          Console.WriteLine(typeof(Shader).FullName);
 
@@ -25,9 +33,18 @@ namespace Dargon.Luna.Transpiler {
 
          var shadersFound = TypeSearcher.FindShaders(compilation);
          Console.WriteLine(shadersFound.LangShaderSymbol);
+         Console.WriteLine(shadersFound.LunaIntrinsicsSymbol);
+
          foreach (var shaderImplementation in shadersFound.ShaderImplementations) {
+            Console.WriteLine("SHADER: " + shaderImplementation);
             var shaderCds = (ClassDeclarationSyntax)shaderImplementation.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
             var shaderInput = FindMembers(shaderImplementation);
+            var cgte = new ClassGraphTopologicalEnumerator(semanticModelCache);
+            cgte.VisitTypeDeclaration(shaderCds);
+            foreach (var c in cgte.TypesTopological) {
+               Console.WriteLine("Transpile " + c);
+            }
+            continue;
 
             var smil = new ShaderMethodInvocationLowerer {
                Compilation = compilation,
@@ -79,7 +96,7 @@ namespace Dargon.Luna.Transpiler {
 
    public static class Diag {
       public static void DumpExpressionAndSyntaxTree(SyntaxNode node) {
-         foreach (var (i, n) in (i: 0, node).Dfs(x => x.node.ChildNodes().Select(n => (x.i + 1, n))).Reverse()) {
+         foreach (var (i, n) in DfsSyntaxNodeWithDepth(node)) {
             Console.WriteLine(new string('\t', i) + n.GetType().Name + " " + n.ToString().Replace('\n', ' ').Replace('\r', ' '));
          }
          Console.WriteLine("Node: " + node);
@@ -89,6 +106,11 @@ namespace Dargon.Luna.Transpiler {
          DumpExpressionAndSyntaxTree(node);
          return new InvalidOperationException();
       }
+
+      public static EnumeratorToEnumerableAdapter<(int i, SyntaxNode node), Traverse.TraversalEnumeratorBase<(int i, SyntaxNode node), Stack<(int i, SyntaxNode node)>>> DfsSyntaxNodeWithDepth(SyntaxNode node) =>
+         (i: 0, node).Dfs((insert, kvp) => {
+            foreach (var child in kvp.node.ChildNodes()) insert((kvp.i + 1, child));
+         });
    }
 
    /// <summary>
@@ -110,9 +132,6 @@ namespace Dargon.Luna.Transpiler {
       }
 
       public SyntaxNode TransformToCStyleInvokes(ShaderTranspilationInput input) {
-         var template = "class GeneratedClass { }";
-         var generatedFileTree = CSharpSyntaxTree.ParseText(template);
-         var c = Compilation.AddSyntaxTrees(generatedFileTree);
 
          var shaderMethodInvocationRewriter = new ShaderMethodInvocationRewriter {
             SemanticModelCache = SemanticModelCache,
@@ -130,6 +149,8 @@ namespace Dargon.Luna.Transpiler {
          var rewrittenMethods = new Dictionary<string, (MethodDeclarationSyntax original, MethodDeclarationSyntax rewrite)>();
          for (var i = 0; i < methodsToExplore.Count; i++) {
             var (subjectMangledName, subjectMethodNode, subjectMethodSymbol) = methodsToExplore[i];
+            Console.WriteLine("Rewriting method: " + subjectMangledName);
+
             shaderMethodInvocationRewriter.Reset();
             shaderRefFlattener.Reset();
 
@@ -192,7 +213,7 @@ namespace Dargon.Luna.Transpiler {
          }
 
          public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node) {
-            var semanticModel = SemanticModelCache.Get(node.SyntaxTree);
+            var semanticModel = SemanticModelCache.Get(node.SyntaxTree.GetRoot().SyntaxTree);
 
             var stack = new Stack<string>();
             var currentExpression = node.Expression;
@@ -288,21 +309,31 @@ namespace Dargon.Luna.Transpiler {
    public static class TypeSearcher {
       public static InputSymbols FindShaders(Compilation compilation) {
          var langShaderSymbol = compilation.GetTypeByMetadataName(typeof(Shader).FullName);
+         var lunaIntrinsicsSymbol = compilation.GetTypeByMetadataName(typeof(LunaIntrinsics).FullName);
          var shaderImplementations =
             compilation.GlobalNamespace
-                       .Dfs(n => n.GetNamespaceMembers(), ns => ns.Name != "System" && ns.Name != "Microsoft")
+                       .Dfs((ins, n) => {
+                          foreach (var ns in n.GetNamespaceMembers()) {
+                             if (ns.Name != "System" && ns.Name != "Microsoft") {
+                                ins(ns);
+                             }
+                          }
+                       })
                        .SelectMany(ns => ns.GetTypeMembers())
                        .Where(nts => compilation.ClassifyConversion(nts, langShaderSymbol).IsImplicit &&
                                      !nts.IsAbstract)
                        .ToArray();
+
          return new InputSymbols {
             LangShaderSymbol = langShaderSymbol,
+            LunaIntrinsicsSymbol = lunaIntrinsicsSymbol,
             ShaderImplementations = shaderImplementations,
          };
       }
 
       public struct InputSymbols {
          public INamedTypeSymbol LangShaderSymbol;
+         public INamedTypeSymbol LunaIntrinsicsSymbol;
          public INamedTypeSymbol[] ShaderImplementations;
       }
    }
@@ -570,51 +601,6 @@ namespace Dargon.Luna.Transpiler {
 
       public override void VisitLiteralExpression(LiteralExpressionSyntax les) {
          e.EmitIdentifier(les.Token.Text);
-      }
-   }
-
-   public static class RoslynExtensions {
-      /// <summary>
-      /// From roslyn codebase https://stackoverflow.com/questions/30443616/is-there-any-way-to-get-members-of-a-type-and-all-subsequent-base-types
-      /// </summary>
-      public static IEnumerable<ITypeSymbol> GetBaseTypesAndThis(this ITypeSymbol type) {
-         var current = type;
-         while (current != null) {
-            yield return current;
-            current = current.BaseType;
-         }
-      }
-
-      public static IEnumerable<ISymbol> GetBaseAndThisMembers(this ITypeSymbol type) 
-         => type.GetBaseTypesAndThis().SelectMany(t => t.GetMembers());
-
-
-      /// <summary>
-      /// https://stackoverflow.com/questions/21435665/remove-extraneous-semicolons-in-c-sharp-using-roslyn-replace-w-empty-trivia
-      /// </summary>
-      public static T RemoveSemicolon<T>(this T node,
-         SyntaxToken semicolonToken,
-         Func<T, SyntaxToken, T> withSemicolonToken) where T : SyntaxNode {
-         if (semicolonToken.Kind() != SyntaxKind.None) {
-            var leadingTrivia = semicolonToken.LeadingTrivia;
-            var trailingTrivia = semicolonToken.TrailingTrivia;
-
-            SyntaxToken newToken = SyntaxFactory.Token(
-               leadingTrivia,
-               SyntaxKind.None,
-               trailingTrivia);
-
-            bool addNewline = semicolonToken.HasTrailingTrivia
-                              && trailingTrivia.FirstAndOnly().Kind() == SyntaxKind.EndOfLineTrivia;
-
-            var newNode = withSemicolonToken(node, newToken);
-
-            if (addNewline)
-               return newNode.WithTrailingTrivia(SyntaxFactory.Whitespace(Environment.NewLine));
-            else
-               return newNode;
-         }
-         return node;
       }
    }
 }

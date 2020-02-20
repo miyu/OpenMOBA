@@ -59,7 +59,6 @@ namespace Canvas3D {
          Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, -SNVector3.UnitX));
          Console.WriteLine(SH.EvaluateCosineConvolved(shCoeffs, -SNVector3.UnitY));
          Console.WriteLine(SH.y0_c0 + " " + SH.y1_c0 + " " + SH.y2_c0 + " " + SH.y2_c1 + " " + SH.y2_c2 + " " + SH.y2_c3);
-         return;
 
          var graphicsLoop = GraphicsLoop.CreateWithNewWindow(1280, 720, InitFlags.DisableVerticalSync | InitFlags.EnableDebugStats);
          graphicsLoop.Form.Resize += (s, e) => UpdateProjViewMatrix(graphicsLoop.Form.ClientSize);

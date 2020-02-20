@@ -16,7 +16,7 @@ namespace Canvas3D.LowLevel.Direct3D {
          _device = device;
       }
 
-      public string BasePath => @"C:\my-repositories\miyu\derp\engine\src\Canvas3D\Assets";
+      public string BasePath => @"V:\my-repositories\miyu\derp\engine\src\Canvas3D\Assets";
 
       public IPixelShader LoadPixelShaderFromFile(string relativePath, string entryPoint = null) {
          var bytecode = CompileShaderBytecodeFromFileOrThrow($"{BasePath}\\{relativePath}.hlsl", entryPoint ?? "PS", "ps_5_0");
