@@ -93,14 +93,14 @@ namespace Dargon.Luna.Lang {
       public float length() => LunaIntrinsics.length(this);
       public float3 normalize() => this / length();
 
-      public static float3 operator *(float a, float3 b) => default;
-      public static float3 operator *(float3 a, float b) => default;
-      public static float3 operator /(float a, float3 b) => default;
-      public static float3 operator /(float3 a, float b) => default;
+      [LunaIntrinsic] public static float3 operator *(float a, float3 b) => default;
+      [LunaIntrinsic] public static float3 operator *(float3 a, float b) => default;
+      [LunaIntrinsic] public static float3 operator /(float a, float3 b) => default;
+      [LunaIntrinsic] public static float3 operator /(float3 a, float b) => default;
 
-      public static float3 operator +(float3 a, float3 b) => default;
-      public static float3 operator -(float3 a, float3 b) => default;
-      public static float3 operator *(float3 a, float3 b) => default;
+      [LunaIntrinsic] public static float3 operator +(float3 a, float3 b) => default;
+      [LunaIntrinsic] public static float3 operator -(float3 a, float3 b) => default;
+      [LunaIntrinsic] public static float3 operator *(float3 a, float3 b) => default;
    }
 
    public struct float4 {

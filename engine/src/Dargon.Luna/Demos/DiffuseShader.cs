@@ -27,7 +27,7 @@ namespace Dargon.Luna.Demos {
 
       public float4 Frag(FragmentInput i) {
          float3 n = i.normalWorld.xyz.normalize();
-         ref var dl0 = ref Lighting.Directional[0];
+         var dl0 = Lighting.Directional[0];
          float lambert = dot(n, dl0.direction.xyz);
          return float4(lambert * (i.color * dl0.color).xyz, 1);
       }

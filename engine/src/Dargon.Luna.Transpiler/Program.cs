@@ -23,7 +23,7 @@ namespace Dargon.Luna.Transpiler {
          var workspace = MSBuildWorkspace.Create();
          workspace.WorkspaceFailed += (s, e) => { Console.WriteLine(e.Diagnostic); };
 
-         var project = await workspace.OpenProjectAsync(@"V:\my-repositories\miyu\derp\engine\src\Dargon.Luna\Dargon.Luna.csproj");
+         var project = await workspace.OpenProjectAsync(@"C:\my-repositories\miyu\derp\engine\src\Dargon.Luna\Dargon.Luna.csproj");
          Console.WriteLine("LOADED PROJECT: ");
          Console.WriteLine(project.Name);
          Console.WriteLine(typeof(Shader).FullName);
@@ -37,13 +37,15 @@ namespace Dargon.Luna.Transpiler {
 
          foreach (var shaderImplementation in shadersFound.ShaderImplementations) {
             Console.WriteLine("SHADER: " + shaderImplementation);
-            var shaderCds = (ClassDeclarationSyntax)shaderImplementation.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
             var shaderInput = FindMembers(shaderImplementation);
-            var cgte = new ClassGraphTopologicalEnumerator(semanticModelCache);
-            cgte.VisitTypeDeclaration(shaderCds);
-            foreach (var c in cgte.TypesTopological) {
-               Console.WriteLine("Transpile " + c);
-            }
+            new ShaderTranspiler(semanticModelCache).Transpile((MethodDeclarationSyntax)shaderInput.VertexShader.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax());
+
+            // var shaderCds = (ClassDeclarationSyntax)shaderImplementation.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
+            // var cgte = new ClassGraphTopologicalEnumerator(semanticModelCache);
+            // cgte.VisitTypeDeclaration(shaderCds);
+            // foreach (var c in cgte.TypesTopological) {
+            //    Console.WriteLine("Transpile " + c);
+            // }
             continue;
 
             var smil = new ShaderMethodInvocationLowerer {

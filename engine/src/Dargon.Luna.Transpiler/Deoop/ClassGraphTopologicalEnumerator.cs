@@ -31,6 +31,7 @@ namespace Dargon.Luna.Transpiler.Deoop {
       public IReadOnlyList<TypeDeclarationSyntax> TypesTopological => topologicalOrdering;
 
       private class TopologicalWalker {
+         private readonly HashSet<TypeDeclarationSyntax> TypesReversed = new HashSet<TypeDeclarationSyntax>();
          private readonly AddOnlyOrderedHashSet<TypeDeclarationSyntax> typesTopologicalReversed = new AddOnlyOrderedHashSet<TypeDeclarationSyntax>();
 
          private readonly SemanticModelCache semanticModelCache;
@@ -41,28 +42,56 @@ namespace Dargon.Luna.Transpiler.Deoop {
 
          public IReadOnlyList<TypeDeclarationSyntax> TypesTopologicalReversed => typesTopologicalReversed;
 
-         public void VisitTypeDeclaration(TypeDeclarationSyntax cds) {
-            if (!typesTopologicalReversed.TryAdd(cds, out _)) return;
+         public void VisitTypeDeclaration(TypeDeclarationSyntax tds) {
+            if (!typesTopologicalReversed.TryAdd(tds, out _)) return;
 
-            var semanticModel = semanticModelCache.Get(cds.SyntaxTree);
+            var typeIdentifier = tds.Identifier.Text;
+            Console.WriteLine("Visit Type Declaration: " + typeIdentifier);
 
-            var descendentsByType = cds.DescendantNodes().GroupBy(n => n.GetType()).ToDictionary(g => g.Key, g => g.ToArray());
-            IEnumerable<T> EnumerateDescendents<T>() => descendentsByType.GetValueOrDefault(typeof(T))?.OfType<T>() ?? new T[0];
+            var semanticModel = semanticModelCache.Get(tds.SyntaxTree);
 
-            foreach (var mds in EnumerateDescendents<MethodDeclarationSyntax>()) {
-               if (mds.DeclaresAttributeOfType<LunaIntrinsicAttribute>()) {
+            // var descendentsByType = tds.DescendantNodes().GroupBy(n => n.GetType()).ToDictionary(g => g.Key, g => g.ToArray());
+            // IEnumerable<T> EnumerateDescendents<T>() => descendentsByType.GetValueOrDefault(typeof(T))?.OfType<T>() ?? new T[0];
+
+            // Mostly MemberDeclarationSyntax & VariableDeclaratorSyntax
+            var memberDeclarators = tds.DescendantNodes().OfType<MemberDeclarationSyntax>().Cast<CSharpSyntaxNode>().ToList();
+            for (var i = 0; i < memberDeclarators.Count; i++) {
+               var member = memberDeclarators[i];
+               if (member is FieldDeclarationSyntax fds) {
+                  memberDeclarators.AddRange(fds.Declaration.Variables);
                   continue;
                }
 
-               foreach (var ies in mds.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
-                  var methodDeclaration = ies.GetMethodDeclarationSyntax(semanticModel);
-                  VisitTypeDeclaration(methodDeclaration.GetContainingTypeDeclaration());
+               if (member is MemberDeclarationSyntax mds && mds.DeclaresAttributeOfType<LunaIntrinsicAttribute>()) {
+                  continue;
                }
-            }
 
-            foreach (var ts in EnumerateDescendents<TypeSyntax>()) {
-               var classDeclaration = ts.GetTypeDeclaringSyntax(semanticModel);
-               VisitTypeDeclaration(classDeclaration);
+               var memberIdentifier =
+                  member is OperatorDeclarationSyntax ods ? ods.OperatorToken.Text :
+                  (((dynamic)member).Identifier).ToString();
+               Console.WriteLine("- " + typeIdentifier + "." + memberIdentifier);
+
+               foreach (var ins in member.DescendantNodes().OfType<IdentifierNameSyntax>()) {
+                  var insds = ins.GetDeclaringSyntaxOrNull<CSharpSyntaxNode>(semanticModel);
+
+                  if (insds == null) {
+                     Console.WriteLine("Couldn't find declaration of: " + ins.Identifier.Text + " (OK if it's an intrinsic)");
+                     continue;
+                  } else if (insds is TypeDeclarationSyntax insdstds) {
+                     VisitTypeDeclaration(insdstds);
+                  } else if (insds is VariableDeclaratorSyntax vds) {
+                     VisitTypeDeclaration(vds.GetContainingTypeDeclaration());
+                  } else if (insds is ParameterSyntax ps) {
+                     var parameterTdsOrNull = ps.Type.GetTypeDeclaringSyntaxOrNull(semanticModel);
+                     if (parameterTdsOrNull != null) {
+                        VisitTypeDeclaration(parameterTdsOrNull);
+                     }
+                  } else if (insds is MemberDeclarationSyntax memds) {
+                     VisitTypeDeclaration(memds.GetContainingTypeDeclaration());
+                  } else {
+                     throw new NotImplementedException("UNKNOWN " + insds.GetType().Name + " " + insds);
+                  }
+               }
             }
          }
       }

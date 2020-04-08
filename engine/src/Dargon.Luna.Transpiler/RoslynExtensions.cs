@@ -12,13 +12,13 @@ namespace Dargon.Luna.Transpiler {
       public static MethodDeclarationSyntax GetMethodDeclarationSyntax(this InvocationExpressionSyntax sn, SemanticModel semanticModel)
          => sn.Expression.GetDeclaringSyntax<MethodDeclarationSyntax>(semanticModel);
 
-      public static bool DeclaresAttributeOfType<TAttribute>(this MethodDeclarationSyntax mds) {
+      public static bool DeclaresAttributeOfType<TAttribute>(this MemberDeclarationSyntax mds) {
          var attributeName = typeof(TAttribute).Name.Replace("Attribute", "");
          return mds.AttributeLists.Any(a => a.ToString().Contains(attributeName));
       }
 
-      public static TypeDeclarationSyntax GetContainingTypeDeclaration(this MethodDeclarationSyntax mds)
-         => mds.Ancestors().OfType<TypeDeclarationSyntax>().First();
+      public static TypeDeclarationSyntax GetContainingTypeDeclaration(this CSharpSyntaxNode node)
+         => node.Ancestors().OfType<TypeDeclarationSyntax>().First();
 
       public static TypeDeclarationSyntax GetTypeDeclaringSyntax(this TypeSyntax sn, SemanticModel semanticModel)
          => sn.GetDeclaringSyntax<TypeDeclarationSyntax>(semanticModel);
@@ -28,6 +28,21 @@ namespace Dargon.Luna.Transpiler {
          var symbol = symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstAndOnly();
          var declarations = symbol.DeclaringSyntaxReferences;
          Assert.Equals(1, declarations.Length);
+
+         var declaration = declarations[0];
+         return (TSyntax)(object)declaration.GetSyntax();
+      }
+
+      public static TypeDeclarationSyntax GetTypeDeclaringSyntaxOrNull(this TypeSyntax sn, SemanticModel semanticModel)
+         => sn.GetDeclaringSyntaxOrNull<TypeDeclarationSyntax>(semanticModel);
+
+      public static TSyntax GetDeclaringSyntaxOrNull<TSyntax>(this SyntaxNode sn, SemanticModel semanticModel) where TSyntax : class {
+         var symbolInfo = semanticModel.GetSymbolInfo(sn);
+         var symbol = symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstAndOnlyOrDefault();
+         if (symbol == null) return null;
+
+         var declarations = symbol.DeclaringSyntaxReferences;
+         if (declarations.Length == 0) return null;
 
          var declaration = declarations[0];
          return (TSyntax)(object)declaration.GetSyntax();
