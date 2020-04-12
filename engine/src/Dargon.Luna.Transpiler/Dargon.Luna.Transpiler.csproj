@@ -6,6 +6,7 @@
       <OutputType>Exe</OutputType>
       <ApplicationIcon />
       <StartupObject />
+      <LangVersion>latest</LangVersion>
    </PropertyGroup>
 
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

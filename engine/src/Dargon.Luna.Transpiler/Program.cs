@@ -31,14 +31,14 @@ namespace Dargon.Luna.Transpiler {
          var compilation = await project.GetCompilationAsync();
          var semanticModelCache = new SemanticModelCache(compilation);
 
-         var shadersFound = TypeSearcher.FindShaders(compilation);
-         Console.WriteLine(shadersFound.LangShaderSymbol);
-         Console.WriteLine(shadersFound.LunaIntrinsicsSymbol);
+         var typeSearcherResult = TypeSearcher.FindShaders(compilation);
+         Console.WriteLine(typeSearcherResult.LangShaderSymbol);
+         Console.WriteLine(typeSearcherResult.LunaIntrinsicsSymbol);
 
-         foreach (var shaderImplementation in shadersFound.ShaderImplementations) {
+         foreach (var shaderImplementation in typeSearcherResult.ShaderImplementations) {
             Console.WriteLine("SHADER: " + shaderImplementation);
             var shaderInput = FindMembers(shaderImplementation);
-            new ShaderTranspiler(semanticModelCache).Transpile((MethodDeclarationSyntax)shaderInput.VertexShader.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax());
+            new ShaderTranspiler(semanticModelCache, typeSearcherResult).Transpile(shaderInput.VertexShader);
 
             // var shaderCds = (ClassDeclarationSyntax)shaderImplementation.DeclaringSyntaxReferences.FirstAndOnly().GetSyntax();
             // var cgte = new ClassGraphTopologicalEnumerator(semanticModelCache);
@@ -309,9 +309,10 @@ namespace Dargon.Luna.Transpiler {
    }
 
    public static class TypeSearcher {
-      public static InputSymbols FindShaders(Compilation compilation) {
+      public static KnownTypes FindShaders(Compilation compilation) {
          var langShaderSymbol = compilation.GetTypeByMetadataName(typeof(Shader).FullName);
          var lunaIntrinsicsSymbol = compilation.GetTypeByMetadataName(typeof(LunaIntrinsics).FullName);
+         var constantBufferAttributeSymbol = compilation.GetTypeByMetadataName(typeof(ConstantBufferAttribute).FullName);
          var shaderImplementations =
             compilation.GlobalNamespace
                        .Dfs((ins, n) => {
@@ -325,18 +326,27 @@ namespace Dargon.Luna.Transpiler {
                        .Where(nts => compilation.ClassifyConversion(nts, langShaderSymbol).IsImplicit &&
                                      !nts.IsAbstract)
                        .ToArray();
+         var floatSymbol = compilation.GetTypeByMetadataName(typeof(float).FullName);
 
-         return new InputSymbols {
+         return new KnownTypes {
             LangShaderSymbol = langShaderSymbol,
             LunaIntrinsicsSymbol = lunaIntrinsicsSymbol,
+            ConstantBufferAttributeSymbol = constantBufferAttributeSymbol,
             ShaderImplementations = shaderImplementations,
+            FloatSymbol = floatSymbol,
          };
       }
+   }
 
-      public struct InputSymbols {
-         public INamedTypeSymbol LangShaderSymbol;
-         public INamedTypeSymbol LunaIntrinsicsSymbol;
-         public INamedTypeSymbol[] ShaderImplementations;
+   public struct KnownTypes {
+      public INamedTypeSymbol LangShaderSymbol;
+      public INamedTypeSymbol LunaIntrinsicsSymbol;
+      public INamedTypeSymbol ConstantBufferAttributeSymbol;
+      public INamedTypeSymbol[] ShaderImplementations;
+      public INamedTypeSymbol FloatSymbol;
+
+      public bool IsFrameworkType(ITypeSymbol x) {
+         return SymbolEqualityComparer.Default.Equals(x, FloatSymbol);
       }
    }
 

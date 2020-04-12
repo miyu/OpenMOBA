@@ -22,6 +22,8 @@ namespace Dargon.Luna.Demos {
          o.position = ObjectToClipPosition(i.vertex);
          o.normalWorld = ObjectToWorldNormal(i.normal);
          o.color = i.color;
+
+         var dummy = new float4();
          return o;
       }
 

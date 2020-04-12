@@ -38,7 +38,8 @@ namespace Dargon.Luna.Lang {
 
       public string Name { get; set; }
    }
-   
+
+   [ConstantBuffer("Scene")]
    public struct SceneBuffer {
       public float4 Time;
    }
@@ -53,6 +54,7 @@ namespace Dargon.Luna.Lang {
       public float4x4 MAT_V, MAT_P, MAT_PV;
    }
 
+   [ConstantBuffer("Transform")]
    public struct TransformBuffer {
       public float4x4 MAT_W;
    }
