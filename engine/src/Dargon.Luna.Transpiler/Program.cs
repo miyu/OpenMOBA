@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,7 +24,8 @@ namespace Dargon.Luna.Transpiler {
          var workspace = MSBuildWorkspace.Create();
          workspace.WorkspaceFailed += (s, e) => { Console.WriteLine(e.Diagnostic); };
 
-         var project = await workspace.OpenProjectAsync(@"C:\my-repositories\miyu\derp\engine\src\Dargon.Luna\Dargon.Luna.csproj");
+         var drive = Directory.Exists(@"V:") ? "V:" : "C:";
+         var project = await workspace.OpenProjectAsync(@$"{drive}\my-repositories\miyu\derp\engine\src\Dargon.Luna\Dargon.Luna.csproj");
          Console.WriteLine("LOADED PROJECT: ");
          Console.WriteLine(project.Name);
          Console.WriteLine(typeof(Shader).FullName);
@@ -312,7 +314,6 @@ namespace Dargon.Luna.Transpiler {
       public static KnownTypes FindShaders(Compilation compilation) {
          var langShaderSymbol = compilation.GetTypeByMetadataName(typeof(Shader).FullName);
          var lunaIntrinsicsSymbol = compilation.GetTypeByMetadataName(typeof(LunaIntrinsics).FullName);
-         var constantBufferAttributeSymbol = compilation.GetTypeByMetadataName(typeof(ConstantBufferAttribute).FullName);
          var shaderImplementations =
             compilation.GlobalNamespace
                        .Dfs((ins, n) => {
@@ -331,7 +332,8 @@ namespace Dargon.Luna.Transpiler {
          return new KnownTypes {
             LangShaderSymbol = langShaderSymbol,
             LunaIntrinsicsSymbol = lunaIntrinsicsSymbol,
-            ConstantBufferAttributeSymbol = constantBufferAttributeSymbol,
+            ConstantBufferAttributeSymbol = compilation.GetTypeByMetadataName(typeof(ConstantBufferAttribute).FullName),
+            TranspilerBakedArrayLengthAttributeSymbol = compilation.GetTypeByMetadataName(typeof(TranspilerBakedArrayLengthAttribute).FullName),
             ShaderImplementations = shaderImplementations,
             FloatSymbol = floatSymbol,
          };
@@ -342,6 +344,7 @@ namespace Dargon.Luna.Transpiler {
       public INamedTypeSymbol LangShaderSymbol;
       public INamedTypeSymbol LunaIntrinsicsSymbol;
       public INamedTypeSymbol ConstantBufferAttributeSymbol;
+      public INamedTypeSymbol TranspilerBakedArrayLengthAttributeSymbol;
       public INamedTypeSymbol[] ShaderImplementations;
       public INamedTypeSymbol FloatSymbol;
 

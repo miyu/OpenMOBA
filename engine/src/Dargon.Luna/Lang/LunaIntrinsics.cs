@@ -46,7 +46,7 @@ namespace Dargon.Luna.Lang {
 
    [ConstantBuffer("Lighting")]
    public struct LightingBuffer {
-      public DirectionalLight[] Directional;
+      [TranspilerBakedArrayLength(4)] public DirectionalLight[] Directional;
    }
 
    [ConstantBuffer("Camera")]
@@ -73,6 +73,14 @@ namespace Dargon.Luna.Lang {
 
    public class COLORAttribute : SlotAttribute {
       public COLORAttribute(int slot = 0) : base(slot) { }
+   }
+
+   public class TranspilerBakedArrayLengthAttribute : Attribute {
+      public TranspilerBakedArrayLengthAttribute(int length) {
+         Length = length;
+      }
+
+      public int Length { get; }
    }
 
    public class SlotAttribute : Attribute {
