@@ -465,7 +465,7 @@ namespace Dargon.PlayOn.Geometry {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
-         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
+         return GeometryOperations.Clockness(s.X1, s.Y1, s.X2, s.Y2, p.X, p.Y) != Clockness.ClockWise;
       }
 
       public bool Contains(DoubleVector2 p) {
@@ -476,7 +476,7 @@ namespace Dargon.PlayOn.Geometry {
             return false;
          }
          ref var s = ref rangeAtTheta.Segment;
-         return GeometryOperations.Clockness((cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2, p.X, p.Y) != Clockness.CounterClockwise;
+         return GeometryOperations.Clockness((cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2, p.X, p.Y) != Clockness.ClockWise;
       }
 
       public VisibilityPolygon Clone() {
@@ -516,7 +516,7 @@ namespace Dargon.PlayOn.Geometry {
 
             // front-face looks CCW to us
             var clk = GeometryOperations.Clockness(origin.X, origin.Y, (cDouble)s.X1, (cDouble)s.Y1, (cDouble)s.X2, (cDouble)s.Y2);
-            if (clk != Clockness.Clockwise) {
+            if (clk != Clockness.CounterClockWise) {
                continue;
             }
 

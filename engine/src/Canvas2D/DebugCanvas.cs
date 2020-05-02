@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
@@ -204,6 +205,7 @@ namespace Dargon.Dviz {
                   g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                   g.SmoothingMode = SmoothingMode.AntiAlias;
                   g.Transform = new Matrix(1, 0, 0, 1, drawPadding.X, drawPadding.Y);
+                  g.TextRenderingHint = TextRenderingHint.AntiAlias;
                   isRecursion = true;
                   callback();
                   isRecursion = false;

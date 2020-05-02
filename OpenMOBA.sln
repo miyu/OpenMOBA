@@ -89,9 +89,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyTreeRasterizerTests", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Funkeln", "engine\src\Dargon.Funkeln\Dargon.Funkeln.csproj", "{174D478F-DC4C-4DDF-8B99-AB80212F0327}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dargon.Luna", "engine\src\Dargon.Luna\Dargon.Luna.csproj", "{21D9002E-6E75-4E69-8DA5-785A23C19D68}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Luna", "engine\src\Dargon.Luna\Dargon.Luna.csproj", "{21D9002E-6E75-4E69-8DA5-785A23C19D68}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dargon.Luna.Transpiler", "engine\src\Dargon.Luna.Transpiler\Dargon.Luna.Transpiler.csproj", "{38C365E8-2962-4C82-A2FD-C2F47A6D8670}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.Luna.Transpiler", "engine\src\Dargon.Luna.Transpiler\Dargon.Luna.Transpiler.csproj", "{38C365E8-2962-4C82-A2FD-C2F47A6D8670}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dargon.PolyClip", "engine\src\Dargon.PolyClip\Dargon.PolyClip.csproj", "{2A6D7ED2-5C7E-420B-82DB-2C538E337EAB}"
 EndProject
@@ -102,6 +102,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Native", "Native", "{7201D5A9-772F-4075-AEE0-CA7D53892BD6}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nativeutils", "engine\src\Native\nativeutils\nativeutils.vcxproj", "{A5A9666E-1A4A-4080-9562-A9068FFFCC78}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dargon.Terragami.Tests", "engine\test\Dargon.Terragami.Tests\Dargon.Terragami.Tests.csproj", "{686501CB-FADB-4455-B43B-37199EF5D31D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -627,6 +629,18 @@ Global
 		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x64.Build.0 = Release|x64
 		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x86.ActiveCfg = Release|Win32
 		{A5A9666E-1A4A-4080-9562-A9068FFFCC78}.Release|x86.Build.0 = Release|Win32
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Debug|x64.Build.0 = Debug|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Debug|x86.Build.0 = Debug|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Release|x64.ActiveCfg = Release|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Release|x64.Build.0 = Release|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Release|x86.ActiveCfg = Release|Any CPU
+		{686501CB-FADB-4455-B43B-37199EF5D31D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

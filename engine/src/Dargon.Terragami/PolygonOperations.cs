@@ -16,14 +16,14 @@ namespace Dargon.Terragami {
       private static readonly TlsBackedObjectPool<ClipperObjectPools> clipperPoolPools = new TlsBackedObjectPool<ClipperObjectPools>(
          _ => new ClipperObjectPools());
 
-      public static Clipper AllocClipper() => new Clipper { StrictlySimple = true, pools = clipperPoolPools.TakeObject() };
+      public static Clipper AllocClipper() => new Clipper { StrictlySimple = true, pools = clipperPoolPools.TakeObject(), ReverseSolution = true };
       public static void FreeClipper(ref Clipper c) {
          c.pools.ResetPools();
          clipperPoolPools.ReturnObject(c.pools);
          c = null;
       }
 
-      public static ClipperOffset AllocClipperOffset() => new ClipperOffset { pools = clipperPoolPools.TakeObject() };
+      public static ClipperOffset AllocClipperOffset() => new ClipperOffset { pools = clipperPoolPools.TakeObject(), IsReverseModeEnabled = true };
 
       public static void FreeClipperOffset(ref ClipperOffset c) {
          c.pools.ResetPools();
@@ -49,7 +49,7 @@ namespace Dargon.Terragami {
       /// Fails if result would be empty
       /// </summary>
       public static bool TryConvexClip(Polygon2 subject, Polygon2 clip, out Polygon2 result) {
-         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.CounterClockwise;
+         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.ClockWise;
 
          List<IntVector2> outputList = subject.Points;
          for (var i = 0; i < clip.Points.Count - 1; i++) {
@@ -120,25 +120,24 @@ namespace Dargon.Terragami {
          }
       }
 
-      public static List<(Polygon2 polygon, bool isHole)> FlattenToPolygonAndIsHoles(this PolyNode polytree, bool includeOuterPolygon = true, bool flipIsHoleResult = false) {
+      public static List<(Polygon2 polygon, bool isHole)> FlattenToPolygonAndIsHoles(this PolygonNode polytree, bool includeOuterPolygon = true, bool flipIsHoleResult = false) {
          var results = new List<(Polygon2, bool)>();
          var depthFilter = includeOuterPolygon ? 0 : 2; // 2 for outer void level and outer land poly level
          FlattenPolyTreeToPolygonsHelper(polytree, polytree.IsHole, results, depthFilter, flipIsHoleResult);
          return results;
       }
 
-      private static void FlattenPolyTreeToPolygonsHelper(PolyNode current, bool isHole, List<(Polygon2, bool)> results, int depthFilter, bool flipIsHoleResult) {
-         if (current.Contour.Count > 0 && depthFilter <= 0) {
-            var contour = current.Contour;
+      private static void FlattenPolyTreeToPolygonsHelper(PolygonNode current, bool isHole, List<(Polygon2, bool)> results, int depthFilter, bool flipIsHoleResult) {
+         if (current.Contour != null && current.Contour.Length > 0 && depthFilter <= 0) {
+            var contour = current.Contour.ToList();
             if (isHole) {
-               contour = contour.ToList();
                contour.Reverse();
             }
 
             results.Add((new Polygon2(contour), isHole ^ flipIsHoleResult));
          }
 
-         foreach (var child in current.Childs) {
+         foreach (var child in current.Children) {
             // We avoid node.isHole as that traverses upwards recursively and wastefully.
             FlattenPolyTreeToPolygonsHelper(child, !isHole, results, depthFilter - 1, flipIsHoleResult);
          }
@@ -156,11 +155,12 @@ namespace Dargon.Terragami {
             return this;
          }
 
-         public PolyTree Execute() {
+         public PolygonNode Execute() {
             var polytree = new PolyTree();
-            clipper.Execute(ClipType.ctUnion, polytree, PolyFillType.pftPositive, PolyFillType.pftPositive);
+            clipper.ReverseSolution = true;
+            clipper.Execute(ClipType.ctUnion, polytree, PolyFillType.pftNegative, PolyFillType.pftNegative);
             ClipperAllocator.FreeClipper(ref clipper);
-            return polytree;
+            return PolygonNode.FromClipperPolyTree(polytree);
          }
       }
 
@@ -268,26 +268,28 @@ namespace Dargon.Terragami {
 
          public PolygonNode Execute(Double additionalErosionDilation = default, bool cleanupDegeneraciesWithOffset = true) {
             var polytree = new PolyTree();
-            clipper.Execute(ClipType.ctDifference, polytree, PolyFillType.pftPositive, PolyFillType.pftPositive);
+            clipper.ReverseSolution = true;
+            clipper.Execute(ClipType.ctDifference, polytree, PolyFillType.pftNegative, PolyFillType.pftNegative);
+            return PolygonNode.FromClipperPolyTree(polytree);
 
-            if (!cleanupDegeneraciesWithOffset) {
-               ClipperAllocator.FreeClipper(ref clipper);
-               return PolygonNode.FromClipperPolyTree(polytree);
-            }
-
-            // Used to remove degeneracies where additionalErosion is 0.
-#if use_fixed
-            cDouble baseErosion = (cDouble)0.05;
-#else
-            const double baseErosion = 0.05;
-#endif
-            var res = Offset().Include(FlattenToPolygonAndIsHoles(polytree))
-                              .Erode(baseErosion)
-                              .Dilate(baseErosion)
-                              .ErodeOrDilate(additionalErosionDilation)
-                              .Execute();
-            ClipperAllocator.FreeClipper(ref clipper);
-            return res;
+//             if (!cleanupDegeneraciesWithOffset) {
+//                ClipperAllocator.FreeClipper(ref clipper);
+//                return PolygonNode.FromClipperPolyTree(polytree);
+//             }
+//
+//             // Used to remove degeneracies where additionalErosion is 0.
+// #if use_fixed
+//             cDouble baseErosion = (cDouble)0.05;
+// #else
+//             const double baseErosion = 0.05;
+// #endif
+//             var res = Offset().Include(FlattenToPolygonAndIsHoles(polytree))
+//                               .Erode(baseErosion)
+//                               .Dilate(baseErosion)
+//                               .ErodeOrDilate(additionalErosionDilation)
+//                               .Execute();
+//             ClipperAllocator.FreeClipper(ref clipper);
+//             return res;
          }
       }
 
@@ -410,43 +412,48 @@ namespace Dargon.Terragami {
 
                var polytree = new PolyTree();
                var clipper = ClipperAllocator.AllocClipperOffset();
-               foreach (var contour in currentContours) {
-                  clipper.AddPath(contour, JoinType.jtMiter, EndType.etClosedPolygon);
-               }
+               clipper.IsReverseModeEnabled = true;
 
-               clipper.Execute(ref polytree, offset, Clipper.ioStrictlySimple);
-
-               // hack: cleanup
-               while (i + 1 != offsets.Count && offsets[i + 1] == kSpecialOffsetCleanup) {
-                  i++;
-                  polytree.Prune(clipper, CDoubleMath.c0);
-               }
-
-               if (i + 1 == offsets.Count) {
-                  // clipper offset (presumably at mitering) can create slightly self-intersecting
-                  // polygons like 282, 554; 285, 557; 261, 576; 272, 557; 283, 554
-                  // This in turn will break p2t, which wants simple polygons.
-                  // As a workaround, do a click clean polygon pass.
-                  // TODO: Avoid gcalloc by editing list in-place?
-                  var s = new AddOnlyOrderedHashSet<PolyNode> { polytree };
-                  for (var j = 0; j < s.Count; j++) {
-                     var initialContour = s[j].Contour;
-                     var cleanedContour = clipper.CleanPolygon(initialContour);
-                     if (initialContour.Count != 0 && cleanedContour.Count == 0) {
-                        s[j].Parent.Childs.Remove(s[j]);
-                        continue;
-                     }
-
-                     s[j].Contour = cleanedContour;
-                     foreach (var child in s[j].Childs) s.Add(child);
+               try {
+                  foreach (var contour in currentContours) {
+                     clipper.AddPath(contour, JoinType.jtMiter, EndType.etClosedPolygon);
                   }
 
-                  return PolygonNode.FromClipperPolyTree(polytree);
-               } else {
-                  currentContours = polytree.FlattenToContours();
-               }
+                  // flip offset, because we're working in reverse mode.
+                  clipper.Execute(ref polytree, -offset, Clipper.ioStrictlySimple);
 
-               ClipperAllocator.FreeClipperOffset(ref clipper);
+                  // hack: cleanup
+                  while (i + 1 != offsets.Count && offsets[i + 1] == kSpecialOffsetCleanup) {
+                     i++;
+                     polytree.Prune(clipper, CDoubleMath.c0);
+                  }
+
+                  if (i + 1 == offsets.Count) {
+                     // clipper offset (presumably at mitering) can create slightly self-intersecting
+                     // polygons like 282, 554; 285, 557; 261, 576; 272, 557; 283, 554
+                     // This in turn will break p2t, which wants simple polygons.
+                     // As a workaround, do a click clean polygon pass.
+                     // TODO: Avoid gcalloc by editing list in-place?
+                     var s = new AddOnlyOrderedHashSet<PolyNode> { polytree };
+                     for (var j = 0; j < s.Count; j++) {
+                        var initialContour = s[j].Contour;
+                        var cleanedContour = clipper.CleanPolygon(initialContour);
+                        if (initialContour.Count != 0 && cleanedContour.Count == 0) {
+                           s[j].Parent.Childs.Remove(s[j]);
+                           continue;
+                        }
+
+                        s[j].Contour = cleanedContour;
+                        foreach (var child in s[j].Childs) s.Add(child);
+                     }
+
+                     return PolygonNode.FromClipperPolyTree(polytree);
+                  } else {
+                     currentContours = polytree.FlattenToContours();
+                  }
+               } finally {
+                  ClipperAllocator.FreeClipperOffset(ref clipper);
+               }
             }
 
             throw new ArgumentException("Must specify some polygons to include!");

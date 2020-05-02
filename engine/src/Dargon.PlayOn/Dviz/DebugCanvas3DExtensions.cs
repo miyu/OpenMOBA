@@ -64,9 +64,9 @@ namespace Dargon.Dviz {
          });
       }
 
-      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment3> segments, StrokeStyle strokeStyle) {
-         canvas.DrawLineList(segments.SelectMany(s => s.Points).Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
-      }
+      // public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment3> segments, StrokeStyle strokeStyle) {
+      //    canvas.DrawLineList(segments.SelectMany(s => s.Points).Select(p => p.ToDoubleVector3()).ToList(), strokeStyle);
+      // }
 
       public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<IntVector3> points, StrokeStyle strokeStyle) {
          canvas.DrawLineStrip(ToDoublePoints(points), strokeStyle);

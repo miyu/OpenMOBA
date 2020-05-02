@@ -9,11 +9,85 @@ using Dargon.Commons;
 using Dargon.Dviz;
 using Dargon.PlayOn;
 using Dargon.PlayOn.DataStructures;
-using Dargon.PlayOn.Dviz;
 using Dargon.PlayOn.Geometry;
+using Poly2Tri.Triangulation;
 
 namespace Dargon.Terragami.Dviz {
    public static class DebugCanvasExtensions {
+      private static Vector3 ToV3(IntVector2 p) => new Vector3(p.X, p.Y, 0);
+      private static Vector3 ToV3(DoubleVector2 p) => new Vector3((float)p.X, (float)p.Y, 0);
+      private static Vector3 ToV3(TriangulationPoint p) => new Vector3((float)p.X, (float)p.Y, 0);
+
+      public static void DrawPoint(this IDebugCanvas canvas, IntVector2 p, StrokeStyle strokeStyle) {
+         canvas.DrawPoint(ToV3(p), strokeStyle);
+      }
+
+      public static void DrawPoint(this IDebugCanvas canvas, DoubleVector2 p, StrokeStyle strokeStyle) {
+         canvas.DrawPoint(ToV3(p), strokeStyle);
+      }
+
+      public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<IntVector2> p, StrokeStyle strokeStyle) {
+         canvas.DrawPoints(p.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawPoints(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> p, StrokeStyle strokeStyle) {
+         canvas.DrawPoints(p.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToV3(p1), ToV3(p2), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToV3(p1), ToV3(p2), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, IntLineSegment2 segment, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToV3(segment.First), ToV3(segment.Second), strokeStyle);
+      }
+
+      public static void DrawLine(this IDebugCanvas canvas, DoubleLineSegment2 segment, StrokeStyle strokeStyle) {
+         canvas.DrawLine(ToV3(segment.First), ToV3(segment.Second), strokeStyle);
+      }
+
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(points.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(points.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntLineSegment2> segments, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(segments.Map(s => ToV3(s.First)), segments.Map(s => ToV3(s.Second)), strokeStyle);
+      }
+
+      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(points.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(points.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<IntVector2> poly, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(poly.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> poly, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(poly.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
+         canvas.DrawLineStrip(poly.Points.Map(ToV3), strokeStyle);
+      }
+
+      public static void DrawPolygonContours(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
+         foreach (var poly in polys) {
+            canvas.DrawPolygonContour(poly, strokeStyle);
+         }
+      }
+
       public static void DrawPolygonNode(this IDebugCanvas canvas, PolygonNode polytree, StrokeStyle landStroke = null, StrokeStyle holeStroke = null) {
          landStroke = landStroke ?? new StrokeStyle(Color.Black); // Orange
          holeStroke = holeStroke ?? new StrokeStyle(Color.Red); // Brown
@@ -34,7 +108,7 @@ namespace Dargon.Terragami.Dviz {
 
       public static void DrawTriangle(this IDebugCanvas canvas, Triangle3 triangle, StrokeStyle strokeStyle) {
          canvas.DrawLineStrip(
-            triangle.Points.Concat(new[] { triangle.Points.A }).Select(p => new DoubleVector3(p.X, p.Y, 0)).ToList(),
+            triangle.Points.Concat(new[] { triangle.Points.A }).Select(p => new Vector3((float)p.X, (float)p.Y, 0)).ToList(),
             strokeStyle);
       }
 
@@ -50,11 +124,11 @@ namespace Dargon.Terragami.Dviz {
       public static void DrawRectangle(this IDebugCanvas canvas, IntRect2 nodeRect, float z, StrokeStyle strokeStyle) {
          canvas.DrawLineStrip(
             new[] {
-               new DoubleVector3(nodeRect.Left, nodeRect.Top, z),
-               new DoubleVector3(nodeRect.Right, nodeRect.Top, z),
-               new DoubleVector3(nodeRect.Right, nodeRect.Bottom, z),
-               new DoubleVector3(nodeRect.Left, nodeRect.Bottom, z),
-               new DoubleVector3(nodeRect.Left, nodeRect.Top, z)
+               new Vector3(nodeRect.Left, nodeRect.Top, z),
+               new Vector3(nodeRect.Right, nodeRect.Top, z),
+               new Vector3(nodeRect.Right, nodeRect.Bottom, z),
+               new Vector3(nodeRect.Left, nodeRect.Bottom, z),
+               new Vector3(nodeRect.Left, nodeRect.Top, z)
             }, strokeStyle);
       }
 
@@ -73,7 +147,8 @@ namespace Dargon.Terragami.Dviz {
                Helper(node.Second, d + 1);
             } else {
                for (var i = node.SegmentsStartIndexInclusive; i < node.SegmentsEndIndexExclusive; i++) {
-                  canvas.DrawLine(node.Segments[i].First, node.Segments[i].Second, StrokeStyle3);
+                  canvas.DrawLine(
+                     node.Segments[i].First.ToDotNetVector(), node.Segments[i].Second.ToDotNetVector(), StrokeStyle3);
                }
             }
          }

@@ -359,7 +359,8 @@ namespace Dargon.Luna.Transpiler.Deoop {
                if (invocationTarget != null) {
                   Visit(invocationTarget);
                } else {
-                  Emit(SELF_TOKEN, node);
+                  var semanticModel = context.SemanticModelCache.Get(invocationTarget.SyntaxTree);
+                  semanticModel
                }
             }
 

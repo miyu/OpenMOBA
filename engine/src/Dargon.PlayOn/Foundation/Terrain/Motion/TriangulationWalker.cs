@@ -199,7 +199,7 @@ namespace Dargon.PlayOn.Foundation.ECS {
                // round corner to determine next triangle.
                var cornerIndex = walkToEdgeVertex1 ? (outEdgeOpposingVertexIndex + 2) % 3 : (outEdgeOpposingVertexIndex + 1) % 3;
                var edgeToExit = walkToEdgeVertex1 ? (outEdgeOpposingVertexIndex + 1) % 3 : (outEdgeOpposingVertexIndex + 2) % 3;
-               var wrapDirection = walkToEdgeVertex1 ? Clockness.Clockwise : Clockness.CounterClockwise;
+               var wrapDirection = walkToEdgeVertex1 ? Clockness.CounterClockWise : Clockness.ClockWise;
                logger.Debug?.WriteLine("Wrapping " + currentTriangleIndex + " " + cornerIndex + " " + edgeToExit + " " + wrapDirection);
 
                var res = FindExitTriangle(island, currentTriangleIndex, cornerIndex, edgeToExit, direction, wrapDirection, debugCanvas);

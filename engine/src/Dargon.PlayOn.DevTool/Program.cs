@@ -86,8 +86,8 @@ I: (-770, -455), (-781, -137), (-473, -144), (-517, -410), (-770, -455)
          var c6000 = SectorMetadataPresets.DesiredSectorExtents * 1 / 5;
          var left1 = new IntLineSegment2(new IntVector2(-c30000, -c6000), new IntVector2(-c30000, c6000));
          var right1 = new IntLineSegment2(new IntVector2(c30000, -c6000), new IntVector2(c30000, c6000));
-         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(a, b, right1, Clockness.CounterClockwise, left1, Clockness.Clockwise));
-         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(b, a, left1, Clockness.Clockwise, right1, Clockness.CounterClockwise));
+         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(a, b, right1, Clockness.ClockWise, left1, Clockness.CounterClockWise));
+         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(b, a, left1, Clockness.CounterClockWise, right1, Clockness.ClockWise));
       }
 
       private static void ConnectTwoLink(Game game, SectorNodeDescription a, SectorNodeDescription b) {
@@ -98,10 +98,10 @@ I: (-770, -455), (-781, -137), (-473, -144), (-517, -410), (-770, -455)
          var left2 = new IntLineSegment2(new IntVector2(-c30000, c6000), new IntVector2(-c30000, c18000));
          var right1 = new IntLineSegment2(new IntVector2(c30000, -c18000), new IntVector2(c30000, -c6000));
          var right2 = new IntLineSegment2(new IntVector2(c30000, c6000), new IntVector2(c30000, c18000));
-         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(a, b, right1, Clockness.CounterClockwise, left1, Clockness.Clockwise));
-         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(a, b, right2, Clockness.CounterClockwise, left2, Clockness.Clockwise));
-         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(b, a, left1, Clockness.Clockwise, right1, Clockness.CounterClockwise));
-         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(b, a, left2, Clockness.Clockwise, right2, Clockness.CounterClockwise));
+         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(a, b, right1, Clockness.ClockWise, left1, Clockness.CounterClockWise));
+         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(a, b, right2, Clockness.ClockWise, left2, Clockness.CounterClockWise));
+         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(b, a, left1, Clockness.CounterClockWise, right1, Clockness.ClockWise));
+         game.TerrainFacade.AddSectorEdgeDescription(PortalSectorEdgeDescription.Build(b, a, left2, Clockness.CounterClockWise, right2, Clockness.ClockWise));
       }
    }
 }

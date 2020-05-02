@@ -69,6 +69,9 @@
 //use_intvector: Don't use Clipper's intpoint type.
 #define use_intvector
 
+//BLAZING_FAST: Define to try more risky optimizations.
+// #define BLAZING_FAST
+
 //using System.Text;          //for Int128.AsString() & StringBuilder
 //using System.IO;            //debugging with streamReader & StreamWriter
 //using System.Windows.Forms; //debugging to clipboard
@@ -96,7 +99,7 @@ using cInt = System.Int32;
 #else
    using cInt = System.Int64;
 #endif
-
+using Dargon.PlayOn;
 #if use_fixed
   using cDouble = System.Fix64;
 #else
@@ -526,10 +529,14 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       public void ZeroForPool() {
          WindCnt = WindCnt2 = 0;
          NextInLML = null;
-         // NextInAEL = null;
-         // PrevInAEL = null;
-         // NextInSEL = null;
-         // PrevInSEL = null;
+
+         // these 4 are optional, in that clipper sets them immediately without reading? --miyu
+#if !BLAZING_FAST
+         NextInAEL = null;
+         PrevInAEL = null;
+         NextInSEL = null;
+         PrevInSEL = null;
+#endif
       }
    };
 
@@ -1064,7 +1071,7 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          // for (int i = 0; i <= highI; i++) edges.Add(pools.EdgePool.Take());
          // for (int i = 0; i <= highI; i++) edges.Add(new TEdge());
 
-#if DEBUG
+#if DEBUG && !BLAZING_FAST
          foreach (var e in edges) {
             if (e.PrevInSEL != null || e.PrevInAEL != null || e.NextInLML != null || e.NextInAEL != null) {
                throw new InvalidOperationException();
@@ -4059,6 +4066,8 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
       }
       //------------------------------------------------------------------------------
 
+         public bool IsReverseModeEnabled { get; set; }
+
       public void Clear() {
          m_polyNodes.Childs.Clear();
          m_lowest.X = -1;
@@ -4334,10 +4343,12 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
          DoOffset(delta);
          //now clean up 'corners' ...
          Clipper clpr = new Clipper();
+         clpr.ReverseSolution = IsReverseModeEnabled;
          clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
          if (delta > cDouble_0) {
             clpr.Execute(ClipType.ctUnion, solution,
-               PolyFillType.pftPositive, PolyFillType.pftPositive);
+               IsReverseModeEnabled ? PolyFillType.pftNegative : PolyFillType.pftPositive,
+               IsReverseModeEnabled ? PolyFillType.pftNegative : PolyFillType.pftPositive);
          } else {
             IntRect r = Clipper.GetBounds(m_destPolys);
             Path outer = new Path(4);
@@ -4347,26 +4358,42 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
             outer.Add(new IntPoint(r.right + 10, r.top - 10));
             outer.Add(new IntPoint(r.left - 10, r.top - 10));
 
+            if (IsReverseModeEnabled) {
+               outer.Reverse();
+            }
+
             clpr.AddPath(outer, PolyType.ptSubject, true);
-            clpr.ReverseSolution = true;
-            clpr.Execute(ClipType.ctUnion, solution, PolyFillType.pftNegative, PolyFillType.pftNegative);
+            clpr.ReverseSolution = !IsReverseModeEnabled;
+            clpr.Execute(ClipType.ctUnion, solution,
+               IsReverseModeEnabled ? PolyFillType.pftPositive : PolyFillType.pftNegative,
+               IsReverseModeEnabled ? PolyFillType.pftPositive : PolyFillType.pftNegative);
+
             if (solution.Count > 0) solution.RemoveAt(0);
          }
       }
       //------------------------------------------------------------------------------
 
       public void Execute(ref PolyTree solution, cDouble delta, int clipperInitOptions = 0) {
+         if (IsReverseModeEnabled) {
+            Assert.Equals(0, clipperInitOptions & Clipper.ioReverseSolution); // not supporteds
+         }
+
          solution.Clear();
-         FixOrientations();
+         // note: this method made 0 sense at all? It reversed paths if they were reversed, making holes into land!? --miyu
+         // FixOrientations();
          DoOffset(delta);
 
          //now clean up 'corners' ...
          // Clipper clpr =  new Clipper(clipperInitOptions);
          var clpr = ClipperAllocator.AllocClipper();
-         clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
          if (delta > cDouble_0) {
+            clpr.ReverseSolution = IsReverseModeEnabled;
+            clpr.AddPaths(m_destPolys, PolyType.ptSubject, true);
             clpr.Execute(ClipType.ctUnion, solution,
-               PolyFillType.pftPositive, PolyFillType.pftPositive);
+               // PolyFillType.pftPositive,
+               // PolyFillType.pftPositive);
+            IsReverseModeEnabled ? PolyFillType.pftNegative : PolyFillType.pftPositive,
+            IsReverseModeEnabled ? PolyFillType.pftNegative : PolyFillType.pftPositive);
          } else {
             IntRect r = Clipper.GetBounds(m_destPolys);
             Path outer = new Path(4);
@@ -4377,18 +4404,26 @@ namespace Dargon.Terragami.ThirdParty.ClipperLib {
             outer.Add(new IntPoint(r.left - 10, r.top - 10));
 
             clpr.AddPath(outer, PolyType.ptSubject, true);
-            clpr.ReverseSolution = true;
-            clpr.Execute(ClipType.ctUnion, solution, PolyFillType.pftNegative, PolyFillType.pftNegative);
+            clpr.AddPaths(m_destPolys, PolyType.ptClip, true);
+
+            // clpr.ReverseSolution = !IsReverseModeEnabled;
+            // clpr.Execute(ClipType.ctUnion, solution, PolyFillType.pftNegative, IsReverseModeEnabled ? PolyFillType.pftPositive : PolyFillType.pftNegative);
+            // clpr.Execute(ClipType.ctUnion, solution, PolyFillType.pftNegative, PolyFillType.pftNegative);
+            clpr.ReverseSolution = !IsReverseModeEnabled;
+            clpr.Execute(ClipType.ctDifference, solution, PolyFillType.pftNegative, IsReverseModeEnabled ? PolyFillType.pftNegative : PolyFillType.pftPositive);
+
+            // if (IsReverseModeEnabled) {
             //remove the outer PolyNode rectangle ...
             if (solution.ChildCount == 1 && solution.Childs[0].ChildCount > 0) {
-               PolyNode outerNode = solution.Childs[0];
-               solution.Childs.Capacity = outerNode.ChildCount;
-               solution.Childs[0] = outerNode.Childs[0];
-               solution.Childs[0].m_Parent = solution;
-               for (int i = 1; i < outerNode.ChildCount; i++)
-                  solution.AddChild(outerNode.Childs[i]);
-            } else
-               solution.Clear();
+                  PolyNode outerNode = solution.Childs[0];
+                  solution.Childs.Capacity = outerNode.ChildCount;
+                  solution.Childs[0] = outerNode.Childs[0];
+                  solution.Childs[0].m_Parent = solution;
+                  for (int i = 1; i < outerNode.ChildCount; i++)
+                     solution.AddChild(outerNode.Childs[i]);
+               } else
+                  solution.Clear();
+            // }
          }
          ClipperAllocator.FreeClipper(ref clpr);
       }

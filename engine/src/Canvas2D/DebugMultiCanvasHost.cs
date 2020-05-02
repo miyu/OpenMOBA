@@ -165,6 +165,12 @@ namespace Dargon.Dviz {
          }
       }
 
+      public void WaitForClose() {
+         var mre = new ManualResetEvent(false);
+         form.Closed += (s, e) => mre.Set();
+         mre.WaitOne();
+      }
+
       private struct CanvasAndFrameIndex {
          public DebugCanvas Canvas { get; set; }
          public int FrameIndex { get; set; }

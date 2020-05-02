@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using Dargon.Commons;
 using Dargon.Vox;
 #if use_fixed
 using cDouble = FixMath.NET.Fix64;
@@ -80,9 +81,9 @@ namespace Dargon.PlayOn.Geometry {
       public static Polygon2 CreateRect(int x, int y, int width, int height, bool rev = false) {
          var points = new List<IntVector2> {
             new IntVector2(x, y),
-            new IntVector2(x + width, y),
-            new IntVector2(x + width, y + height),
             new IntVector2(x, y + height),
+            new IntVector2(x + width, y + height),
+            new IntVector2(x + width, y),
          };
          ValidateHoleClockness(points);
          if (rev) points.Reverse();
@@ -93,8 +94,8 @@ namespace Dargon.PlayOn.Geometry {
          var points = new List<IntVector2>();
          for (var i = 0; i < n; i++) {
             points.Add(new DoubleVector2(
-               (cDouble)x + (cDouble)radius * CDoubleMath.Sin((cDouble)(-i) * CDoubleMath.Pi * CDoubleMath.c2 / (cDouble)n), 
-               (cDouble)y + (cDouble)radius * CDoubleMath.Cos((cDouble)(-i) * CDoubleMath.Pi * CDoubleMath.c2 / (cDouble)n)
+               (cDouble)x + (cDouble)radius * CDoubleMath.Sin((cDouble)(i) * CDoubleMath.Pi * CDoubleMath.c2 / (cDouble)n), 
+               (cDouble)y + (cDouble)radius * CDoubleMath.Cos((cDouble)(i) * CDoubleMath.Pi * CDoubleMath.c2 / (cDouble)n)
             ).LossyToIntVector2());
          }
          ValidateHoleClockness(points);
@@ -105,7 +106,7 @@ namespace Dargon.PlayOn.Geometry {
          var a = PolygonOperations.Punch()
                                   .Include(new Polygon2(points))
                                   .Execute();
-         Trace.Assert(a.Childs.Count == 1);
+         Assert.Equals(1, a.Childs.Count);
          return points;
       }
    }

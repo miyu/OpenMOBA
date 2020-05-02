@@ -121,7 +121,7 @@ namespace Dargon.Terragami {
             Polygon2.CreateRect(600, 0, 200, 1000),
             Polygon2.CreateRect(0, 200, 1000, 200),
             Polygon2.CreateRect(0, 600, 1000, 200),
-            Polygon2.CreateCircle(500, 500, 105, 64),
+            Polygon2.CreateCircle(500, 500, 105, false, 64),
             Polygon2.CreateRect(450, 300, 100, 400),
             Polygon2.CreateRect(300, 450, 400, 100)
          },
@@ -160,13 +160,13 @@ namespace Dargon.Terragami {
          LocalExcludedContours: new[] {
             new Polygon2(Polygon2.ValidateHoleClockness(new List<IntVector2> {
                new IntVector2(kLaneThickness, kNearCorner),
-               new IntVector2(kFarCorner, 1000 - kLaneThickness),
                new IntVector2(kLaneThickness, 1000 - kLaneThickness),
+               new IntVector2(kFarCorner, 1000 - kLaneThickness),
             })),
             new Polygon2(Polygon2.ValidateHoleClockness(new List<IntVector2> {
                new IntVector2(kNearCorner, kLaneThickness),
-               new IntVector2(1000 - kLaneThickness, kLaneThickness),
                new IntVector2(1000 - kLaneThickness, kFarCorner),
+               new IntVector2(1000 - kLaneThickness, kLaneThickness),
             })),
          });
    }

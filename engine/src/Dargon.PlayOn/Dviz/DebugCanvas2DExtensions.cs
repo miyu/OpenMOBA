@@ -19,7 +19,6 @@ namespace Dargon.PlayOn.Dviz {
       private static Vector3 ToV3(DoubleVector2 p) => new Vector3((float)p.X, (float)p.Y, 0);
       private static Vector3 ToV3(TriangulationPoint p) => new Vector3((float)p.X, (float)p.Y, 0);
       private static IntVector3 ToIV3(IntVector2 p) => new IntVector3(p);
-      private static IntLineSegment3 ToILS3(IntLineSegment2 p) => new IntLineSegment3(ToIV3(p.First), ToIV3(p.Second));
 
       public static void DrawPoint(this IDebugCanvas canvas, IntVector2 p, StrokeStyle strokeStyle) {
          canvas.DrawPoint(ToV3(p), strokeStyle);

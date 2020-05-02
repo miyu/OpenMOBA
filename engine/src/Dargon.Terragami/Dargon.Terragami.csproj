@@ -3,16 +3,9 @@
    <PropertyGroup>
       <OutputType>Exe</OutputType>
       <TargetFramework>netcoreapp3.1</TargetFramework>
-   </PropertyGroup>
-
-   <PropertyGroup>
-      <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
-   </PropertyGroup>
-
-
-   <PropertyGroup>
       <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
       <RunPostBuildEvent>Always</RunPostBuildEvent>
+      <StartupObject>Dargon.Terragami.Program</StartupObject>
    </PropertyGroup>
 
 
@@ -31,15 +24,17 @@
 
    <ItemGroup>
       <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Commons\src\Dargon.Commons.csproj" />
-      <ProjectReference Include="..\Dargon.PlayOn\Dargon.PlayOn.csproj" />
-      <ProjectReference Include="..\Native\nativeutils\nativeutils.vcxproj">
-        <CopyLocalSatelliteAssemblies>true</CopyLocalSatelliteAssemblies>
+      <ProjectReference Include="..\..\dependencies\dargon\framework\src\Dargon.Vox\src\Dargon.Vox\Dargon.Vox.csproj" />
+      <ProjectReference Include="..\Canvas2D\Dargon.Dviz.csproj" />
+      <ProjectReference Include="..\Native\nativeutils\nativeutils.vcxproj" Condition="'$(VCTargetsPath)'!=''">
+         <CopyLocalSatelliteAssemblies>true</CopyLocalSatelliteAssemblies>
         <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
       </ProjectReference>
    </ItemGroup>
 
    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-     <Exec Command="copy $(SolutionDir)\x64\Release\nativeutils.dll $(TargetDir)&#xD;&#xA;copy $(SolutionDir)\x64\Release\nativeutils.pdb $(TargetDir)&#xD;&#xA;" />
+     <Message Importance="High" Text="Build environment detection: VCTargetsPath is '$(VCTargetsPath)'" />
+     <Exec Command="copy $(ProjectDir)\..\..\..\x64\Release\nativeutils.dll $(TargetDir)&#xD;&#xA;copy $(ProjectDir)\..\..\..\x64\Release\nativeutils.pdb $(TargetDir)&#xD;&#xA;" />
    </Target>
 
 </Project>

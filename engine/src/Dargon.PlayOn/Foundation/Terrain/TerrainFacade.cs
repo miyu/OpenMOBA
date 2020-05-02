@@ -272,7 +272,7 @@ namespace Dargon.PlayOn.Foundation.Terrain {
 
                   // Neither case: The segment is overlapping with a segment on the contour.
                   // Insertion didn't happen prior (segment-segment intersection doesn't allow overlapping segments)
-                  if (clockP1P2Potato == Clockness.Neither || clockP1P2Potato == Clockness.CounterClockwise) {
+                  if (clockP1P2Potato == Clockness.Neither || clockP1P2Potato == Clockness.ClockWise) {
                      localBreakpoints.Add((polyNode, t));
 
                      // todo: does this return make sense. Dear god I ahve no clue what I'm doing.
@@ -302,10 +302,10 @@ namespace Dargon.PlayOn.Foundation.Terrain {
             var clocknessSecond = GeometryOperations.Clockness(seg.First, seg.Second, contourSegment.Second);
             if (clocknessFirst == Clockness.Neither) {
                Debug.Assert(clocknessSecond != Clockness.Neither);
-               if (clocknessSecond == Clockness.Clockwise) return;
+               if (clocknessSecond == Clockness.CounterClockWise) return;
             } else if (clocknessSecond == Clockness.Neither) {
                Debug.Assert(clocknessFirst != Clockness.Neither);
-               if (clocknessFirst == Clockness.Clockwise) return;
+               if (clocknessFirst == Clockness.CounterClockWise) return;
             }
 
             localBreakpoints.Add((polyNode, t));

@@ -13,7 +13,7 @@ using cInt = System.Int32;
 using cInt = System.Int64;
 #endif
 
-namespace Dargon.Terragami {
+namespace Dargon.PlayOn {
    public static class CDoubleMath {
       public static readonly cDouble c0;
       public static readonly cDouble c0_001 = (cDouble)1 / (cDouble)1000;

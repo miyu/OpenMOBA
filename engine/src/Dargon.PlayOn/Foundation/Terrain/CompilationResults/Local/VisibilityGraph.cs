@@ -85,7 +85,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local {
             var c = contour[(i + 2) % pointCount];
 
             var clockness = GeometryOperations.Clockness(a.X, a.Y, b.X, b.Y, c.X, c.Y);
-            if (clockness == Clockness.CounterClockwise) res.Add(b);
+            if (clockness == Clockness.ClockWise) res.Add(b);
          }
       }
 

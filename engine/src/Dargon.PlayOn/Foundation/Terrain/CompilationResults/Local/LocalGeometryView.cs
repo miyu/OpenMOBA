@@ -88,7 +88,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local {
             var extrusionMagnitude = HoleDilationRadius + (cDouble)2;
             var inward = perp * (extrusionMagnitude / perp.Norm2D());
             var outward = perp * (CDoubleMath.cNeg2 / perp.Norm2D());
-            if (inClockness == Clockness.CounterClockwise) {
+            if (inClockness == Clockness.ClockWise) {
                inward *= -1;
                outward *= -1;
             }
@@ -101,7 +101,7 @@ namespace Dargon.PlayOn.Foundation.Terrain.CompilationResults.Local {
                (segment.Second.ToDoubleVector2() + outward - shrink).LossyToIntVector2()
             });
 
-            if (inClockness == Clockness.CounterClockwise) {
+            if (inClockness == Clockness.ClockWise) {
                points.Reverse();
             }
 

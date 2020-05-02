@@ -29,7 +29,7 @@ namespace Dargon.PlayOn.Geometry {
       /// Fails if result would be empty
       /// </summary>
       public static bool TryConvexClip(Polygon2 subject, Polygon2 clip, out Polygon2 result) {
-         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.CounterClockwise;
+         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.ClockWise;
 
          List<IntVector2> outputList = subject.Points;
          for (var i = 0; i < clip.Points.Count - 1; i++) {

@@ -66,7 +66,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
 //         Console.WriteLine("====");
 
          foreach (var seg in terrainNode.LandPolyNode.FindContourAndChildHoleBarriers()) {
-            if (GeometryOperations.Clockness(visibilityPolygon.Origin, seg.First.ToDoubleVector2(), seg.Second.ToDoubleVector2()) == Clockness.CounterClockwise) {
+            if (GeometryOperations.Clockness(visibilityPolygon.Origin, seg.First.ToDoubleVector2(), seg.Second.ToDoubleVector2()) == Clockness.ClockWise) {
                continue;
             }
             visibilityPolygon.Insert(seg);
@@ -102,7 +102,7 @@ namespace Dargon.PlayOn.DevTool.Debugging {
                var ranges = visibilityPolygon.Get();
 
                (IntLineSegment2, bool) FlipMaybeSorta(IntLineSegment2 x) =>
-                  GeometryOperations.Clockness(visibilityPolygonOrigin, x.First, x.Second) == Clockness.CounterClockwise
+                  GeometryOperations.Clockness(visibilityPolygonOrigin, x.First, x.Second) == Clockness.ClockWise
                      ? (new IntLineSegment2(x.Second, x.First), true)
                      : (x, false);
 
