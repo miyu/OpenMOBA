@@ -159,7 +159,20 @@ namespace Dargon.Terragami {
                if (canvas != null) {
                   canvas.DrawVisibilityPolygon(vp);
                }
-         
+
+               var t1 = sw.Elapsed.TotalMilliseconds;
+               for (var it = 0; it < 10000; it++) {
+                  foreach (var node in compilation.PunchedLand.Dfs((push, n) => n.Children.ForEach(push))) {
+                     if (node.Contour == null) continue;
+                     foreach (var p in node.Contour) {
+                        SectorVisibilityPolygon.Create(p.ToDoubleVector2(), compilation.VisibilityBarriers);
+                     }
+                  }
+               }
+
+               var t2 = sw.Elapsed.TotalMilliseconds;
+               Console.WriteLine("VP 10000 " + (t2 -  t1));
+
                if (i + 1 == ntrialiters) {
                   sw.Restart();
                }

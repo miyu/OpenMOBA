@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Dargon.Commons.Exceptions;
 using Dargon.Commons.Pooling;
 using Dargon.PlayOn;
@@ -28,15 +29,33 @@ namespace Dargon.Terragami.Sectors {
       public static readonly cDouble TwoPi = CDoubleMath.TwoPi;
       private static readonly cDouble PiDiv2 = CDoubleMath.PiDiv2;
 #else
-      public const double TwoPi = 2.0 * Math.PI;
-      private const double PiDiv2 = Math.PI / 2.0;
+      public const float TwoPi = 2.0f * MathF.PI;
+      private const float PiDiv2 = MathF.PI / 2.0f;
 #endif
       private readonly DoubleVector2 _origin;
       private IntervalRange[] _intervalRanges;
       private readonly IComparer<IntLineSegment2> _segmentComparer;
       private int rangeIdCounter = RANGE_ID_INITIAL;
 
-      private static TlsPow2BufferManager<(cDouble, int, bool)> tlsEventBuffer = new TlsPow2BufferManager<(cDouble, int, bool)>();
+      public struct VisiblityEvent {
+         public float Theta;
+         public short Index;
+         public bool IsStartElseEnd;
+
+         public VisiblityEvent(float theta, short index, bool isStartElseEnd) {
+            Theta = theta;
+            Index = index;
+            IsStartElseEnd = isStartElseEnd;
+         }
+
+         public void Deconstruct(out float theta, out int index, out bool isStartElseEnd) {
+            theta = Theta;
+            index = Index;
+            isStartElseEnd = IsStartElseEnd;
+         }
+      }
+
+      private static TlsPow2BufferManager<VisiblityEvent> tlsEventBuffer = new TlsPow2BufferManager<VisiblityEvent>();
       private static TlsPow2BufferManager<int> tlsEventOrder = new TlsPow2BufferManager<int>();
       private static TlsPow2BufferManager<bool> tlsEventBugCheck = new TlsPow2BufferManager<bool>();
 
@@ -494,16 +513,18 @@ namespace Dargon.Terragami.Sectors {
       }
 
       private class EventIndexComparer : IComparer<int> {
-         private readonly (cDouble, int, bool)[] events;
+         private readonly VisiblityEvent[] events;
 
-         public EventIndexComparer((double, int, bool)[] events) {
+         public EventIndexComparer(VisiblityEvent[] events) {
             this.events = events;
          }
 
          public int Compare(int a, int b) {
-            var res = events[a].Item1.CompareTo(events[b].Item1);
+            var a1 = events[a].Theta;
+            var b1 = events[b].Theta;
+            var res = a1 == b1 ? 0 : (a1 < b1 ? -1 : 1);
             if (res != 0) return res;
-            return events[a].Item3.CompareTo(events[b].Item3);
+            return events[a].IsStartElseEnd.CompareTo(events[b].IsStartElseEnd);
          }
       }
       
@@ -514,7 +535,7 @@ namespace Dargon.Terragami.Sectors {
          var numEvents = 0;
 
          // Initialize PQ with events
-         for (var i = 0; i < barriers.Length; i++) {
+         for (short i = 0; i < barriers.Length; i++) {
             var s = barriers[i];
 
             // for legacy reasons, flip barrier, prior we said front-faces were CCW, now they're CW.
@@ -527,8 +548,8 @@ namespace Dargon.Terragami.Sectors {
             }
 
             var id = i;
-            var theta1 = (cDouble)FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X1, (cDouble)s.Y1);
-            var theta2 = (cDouble)FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X2, (cDouble)s.Y2);
+            var theta1 = (float)FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X1, (cDouble)s.Y1);
+            var theta2 = (float)FindXYRadiansRelativeToOrigin(origin, (cDouble)s.X2, (cDouble)s.Y2);
 
             // Even though we check clockness above, thetas can be equal because of floating point error.
             // ReSharper disable once CompareOfFloatsByEqualityOperator
@@ -537,7 +558,7 @@ namespace Dargon.Terragami.Sectors {
             // ensure theta1 < theta2
             if (theta1 > theta2) (theta1, theta2) = (theta2, theta1);
 
-            void Enqueue((cDouble, int, bool) item) {
+            void Enqueue(VisiblityEvent item) {
                // Console.WriteLine(
                //    "TASK " + item.Item1 + " " +
                //    (item.Item2 ? "ADD" : "REM") + " " +
@@ -550,16 +571,16 @@ namespace Dargon.Terragami.Sectors {
 
             if (theta2 - theta1 > PlayOn.CDoubleMath.Pi) {
                if (theta1 > PlayOn.CDoubleMath.c0) {
-                  Enqueue((PlayOn.CDoubleMath.c0, id, true));
-                  Enqueue((theta1, id, false));
+                  Enqueue(new VisiblityEvent(0, id, true));
+                  Enqueue(new VisiblityEvent(theta1, id, false));
                }
                if (theta2 < PlayOn.CDoubleMath.TwoPi) {
-                  Enqueue((theta2, id, true));
-                  Enqueue((PlayOn.CDoubleMath.TwoPi, id, false));
+                  Enqueue(new VisiblityEvent(theta2, id, true));
+                  Enqueue(new VisiblityEvent(TwoPi, id, false));
                }
             } else {
-               Enqueue((theta1, id, true));
-               Enqueue((theta2, id, false));
+               Enqueue(new VisiblityEvent(theta1, id, true));
+               Enqueue(new VisiblityEvent(theta2, id, false));
             }
          }
 
