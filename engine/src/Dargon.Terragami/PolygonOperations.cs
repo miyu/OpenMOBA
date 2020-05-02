@@ -49,16 +49,16 @@ namespace Dargon.Terragami {
       /// Fails if result would be empty
       /// </summary>
       public static bool TryConvexClip(Polygon2 subject, Polygon2 clip, out Polygon2 result) {
-         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.ClockWise;
+         bool Inside(IntVector2 p, IntLineSegment2 edge) => GeometryOperations.Clockness(edge.First, edge.Second, p) != Clockness.CounterClockWise;
 
          List<IntVector2> outputList = subject.Points;
-         for (var i = 0; i < clip.Points.Count - 1; i++) {
-            var clipEdge = new IntLineSegment2(clip.Points[i], clip.Points[i + 1]);
+         for (var i = 0; i < clip.Points.Count; i++) {
+            var clipEdge = new IntLineSegment2(clip.Points[i], clip.Points[i == clip.Points.Count - 1 ? 0 : i + 1]);
             List<IntVector2> inputList = outputList;
             outputList = new List<IntVector2>();
 
-            var S = inputList[inputList.Count - 2];
-            for (var j = 0; j < inputList.Count - 1; j++) {
+            var S = inputList[inputList.Count - 1];
+            for (var j = 0; j < inputList.Count; j++) {
                var E = inputList[j];
                if (Inside(E, clipEdge)) {
                   if (!Inside(S, clipEdge)) {
@@ -91,6 +91,15 @@ namespace Dargon.Terragami {
             outputList.Add(outputList[0]);
          }
 
+         // enforce open poly
+         // todo: fix bug where last point is added many times
+         while (outputList[0] == outputList[^1]) {
+            outputList.RemoveAt(outputList.Count - 1);
+            if (outputList.Count == 0) {
+               result = null;
+               return false;
+            }
+         }
          result = new Polygon2(outputList);
          return true;
       }

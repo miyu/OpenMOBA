@@ -605,10 +605,10 @@ namespace Dargon.Terragami.Sectors {
          }
          for (var i = 0; i < numEvents; i++) {
             var item = events[eventIndices[i]];
-            if (temp[item.Item2] == item.Item3) {
+            if (temp[item.Index] == item.IsStartElseEnd) {
                throw new Exception();
             }
-            temp[item.Item2] = item.Item3;
+            temp[item.Index] = item.IsStartElseEnd;
          }
 #endif
 

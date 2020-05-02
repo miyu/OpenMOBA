@@ -89,18 +89,18 @@ namespace Dargon.PlayOn {
    }
 
    public class Triangulator {
-      public Triangulation TriangulateRoot(PolyTree polyTree) {
-         if (!polyTree.IsHole || polyTree.Contour.Any()) {
+      public Triangulation TriangulateRoot(PolygonNode polyTree) {
+         if (!polyTree.IsHole || polyTree.Contour != null) {
             throw new ArgumentException("Expected polytree to be contourless root hole!");
          }
          var islands = new List<TriangulationIsland>();
-         foreach (var child in polyTree.Childs) {
+         foreach (var child in polyTree.Children) {
             TriangulateHelper(child, islands);
          }
          return new Triangulation { Islands = islands };
       }
 
-      public Triangulation TriangulateLandNode(PolyNode landNode) {
+      public Triangulation TriangulateLandNode(PolygonNode landNode) {
          if (landNode.IsHole || !landNode.Contour.Any() || landNode.Parent == null) {
             throw new ArgumentException("Expected polynode to be contourful non-root hole!");
          }
@@ -109,12 +109,16 @@ namespace Dargon.PlayOn {
          return new Triangulation { Islands = islands };
       }
 
-      private void TriangulateHelper(PolyNode node, List<TriangulationIsland> islands) {
+      private void TriangulateHelper(PolygonNode node, List<TriangulationIsland> islands) {
          DebugPrint("TriangulateRoot out");
 
-         var cps = new Polygon(ConvertToTriangulationPoints(node.Contour));
-         foreach (var hole in node.Childs) {
-            cps.AddHole(new Polygon(ConvertToTriangulationPoints(hole.Contour)));
+         var outer = ConvertToTriangulationPoints(node.Contour);
+         outer.Reverse();
+         var cps = new Polygon(outer);
+         foreach (var hole in node.Children) {
+            var inner = ConvertToTriangulationPoints(hole.Contour);
+            inner.Reverse();
+            cps.AddHole(new Polygon(inner));
          }
          P2T.Triangulate(cps);
 
@@ -198,7 +202,7 @@ namespace Dargon.PlayOn {
             FixedOptimizationTriangleBounds = triangles.Map(t => AxisAlignedBoundingBox2.BoundingPoints(new []{ t.Points[0], t.Points[1], t.Points[2] })),
 #endif
          });
-         foreach (var innerChild in node.Childs.SelectMany(hole => hole.Childs)) {
+         foreach (var innerChild in node.Children.SelectMany(hole => hole.Children)) {
             TriangulateHelper(innerChild, islands);
          }
       }
@@ -222,10 +226,10 @@ namespace Dargon.PlayOn {
          };
       }
 
-      private List<PolygonPoint> ConvertToTriangulationPoints(List<IntVector2> points) {
-         var isOpen = points[0] != points[points.Count - 1];
-         var results = new List<PolygonPoint>(points.Count);
-         var limit = isOpen ? points.Count : points.Count - 1;
+      private List<PolygonPoint> ConvertToTriangulationPoints(IntVector2[] points) {
+         var isOpen = points[0] != points[points.Length - 1];
+         var results = new List<PolygonPoint>(points.Length);
+         var limit = isOpen ? points.Length : points.Length - 1;
          for (var i = 0; i < limit; i++) {
             var p = points[i];
             DebugPrint($"P: {p.X}, {p.Y}");

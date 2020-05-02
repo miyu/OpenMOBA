@@ -7,6 +7,7 @@ namespace Dargon.Terragami.Tests {
       public static void Main(string[] args) {
          // new CoordinateSystemConventionsTests().TerrainDefinitionIsPositiveClockWiseNegativeCounterClockWise();
          // new CoordinateSystemConventionsTests().PolygonUnionPunchOperationsOrientationsArentBorked_FourSquareDonutTests();
+         new ArrangementOfLinesTests().Test();
       }
    }
 }

@@ -60,7 +60,7 @@ namespace Dargon.Terragami {
       public Polygon2(List<IntVector2> points) {
          // enforce open poly
          if (points[0] == points.Last()) {
-            Console.WriteLine("Warn: Polygon took closed (non-open) poly");
+            // Console.WriteLine("Warn: Polygon took closed (non-open) poly");
             points.RemoveAt(points.Count - 1);
          }
 

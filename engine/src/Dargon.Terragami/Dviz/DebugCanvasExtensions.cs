@@ -71,15 +71,15 @@ namespace Dargon.Terragami.Dviz {
       }
 
       public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<IntVector2> poly, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(poly.Map(ToV3), strokeStyle);
+         canvas.DrawLineStrip(poly.Map(ToV3).Concat(new[] { ToV3(poly[0]) }).ToArray(), strokeStyle);
       }
 
       public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> poly, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(poly.Map(ToV3), strokeStyle);
+         canvas.DrawLineStrip(poly.Map(ToV3).Concat(new[] { ToV3(poly[0]) }).ToArray(), strokeStyle);
       }
 
       public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(poly.Points.Map(ToV3), strokeStyle);
+         canvas.DrawLineStrip(poly.Points.Map(ToV3).Concat(new[] { ToV3(poly.Points[0]) }).ToArray(), strokeStyle);
       }
 
       public static void DrawPolygonContours(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
@@ -119,6 +119,18 @@ namespace Dargon.Terragami.Dviz {
             new Vector3((float)triangle.Points.B.X, (float)triangle.Points.B.Y, 0),
             new Vector3((float)triangle.Points.C.X, (float)triangle.Points.C.Y, 0),
             fillStyle);
+      }
+
+      public static void DrawTriangulation(this IDebugCanvas canvas, Triangulation triangulation, StrokeStyle strokeStyle) {
+         canvas.BatchDraw(() => {
+            foreach (var island in triangulation.Islands) foreach (var triangle in island.Triangles) canvas.DrawTriangle(triangle, strokeStyle);
+         });
+      }
+
+      public static void FillTriangulation(this IDebugCanvas canvas, Triangulation triangulation, FillStyle fillStyle) {
+         canvas.BatchDraw(() => {
+            foreach (var island in triangulation.Islands) foreach (var triangle in island.Triangles) canvas.FillTriangle(triangle, fillStyle);
+         });
       }
 
       public static void DrawRectangle(this IDebugCanvas canvas, IntRect2 nodeRect, float z, StrokeStyle strokeStyle) {
