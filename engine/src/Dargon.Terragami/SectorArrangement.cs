@@ -18,28 +18,25 @@ namespace Dargon.Terragami {
 
       public static SectorArrangement Create(DoubleLineSegment2[] lines, IDebugCanvas debugCanvas) {
          // pq with intersection site events
-         var q = new PriorityQueue<(DoubleVector2 p, int i1, int i2)>((a, b) => a.p.Y.CompareTo(b.p.Y));
+         var intersections = new PriorityQueue<(DoubleVector2 p, int i1, int i2)>((a, b) => a.p.Y.CompareTo(b.p.Y));
          for (var i = 0; i < lines.Length; i++) {
             var a = lines[i];
             for (var j = i + 1; j < lines.Length; j++) {
                var b = lines[j];
+
+               // Note this is robust to vertical lines.
                if (GeometryOperations.TryFindLineLineIntersection(a.First, a.Second, b.First, b.Second, out var x)) {
-                  q.Enqueue((x, i, j));
+                  intersections.Enqueue((x, i, j));
                   Trace.Assert(GeometryOperations.IsReal(x));
                   debugCanvas?.DrawPoint(x, StrokeStyle.RedThick10Solid);
                }
             }
-
-            // if (lines[i].PointAtX(-50).To(lines[i].PointAtX(bounds.Width + 50)).Norm2D() > bounds.Width * 1.3) {
-            //    debugCanvas?.DrawLine(lines[i].PointAtY(-50), lines[i].PointAtY(bounds.Height + 50), StrokeStyle.BlackHairLineDashed5);
-            // } else {
-            //    debugCanvas?.DrawLine(lines[i].PointAtX(-50), lines[i].PointAtX(bounds.Width + 50), StrokeStyle.BlackHairLineDashed5);
-            // }
          }
 
-         Console.WriteLine("Setup initial");
+         // We'll maintain a beachfront of lines progressing through the sweep. 
+
          // Start vertical line sweep above first site.
-         var initialSweepY = q.Peek().p.Y - 10;
+         var initialSweepY = intersections.Peek().p.Y - 10;
          var initialLineXs = lines.Map(line => line.PointAtY(initialSweepY).X);
 
          // Build initial beachfront (order segments intersecting sweepY).
@@ -70,7 +67,7 @@ namespace Dargon.Terragami {
          }
 
          (DoubleVector2 p, int i1, int i2) Pick(double? expectedY = null) {
-            var t = q.Dequeue();
+            var t = intersections.Dequeue();
             var (p, first, second) = t;
 
 
@@ -90,7 +87,7 @@ namespace Dargon.Terragami {
                return t;
             } else {
                var res = Pick(p.Y);
-               q.Enqueue(t);
+               intersections.Enqueue(t);
                return res;
             }
 
@@ -101,7 +98,7 @@ namespace Dargon.Terragami {
          Console.WriteLine("Sweep");
          const int NONE = -1;
          // foreach (var t in q) {
-         while (q.Count > 0) {
+         while (intersections.Count > 0) {
             var (p, first, second) = Pick();
             if (initialLineXs[first] > initialLineXs[second]) (first, second) = (second, first);
             var priorARightCi = lineIndexToRightCellIndex[first];

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Dargon.Commons.Collections;
 using Dargon.Dviz;
+using Dargon.PlayOn;
 using Dargon.PlayOn.Geometry;
 using Dargon.Terragami.Dviz;
 
@@ -15,6 +16,7 @@ namespace Dargon.Terragami.Sectors {
 
          var punchedLand = ComputePunchedLand(input, debugCanvasOpt);
          var barriers = ComputeVisibilityBarriers(punchedLand);
+         var triangulation = ComputeTriangulation(punchedLand);
 
          var portalPointLinkStates = ComputePortalPointLinkStates(debugCanvasOpt, portals, portalPoints, barriers);
 
@@ -24,7 +26,12 @@ namespace Dargon.Terragami.Sectors {
             PunchedLand = punchedLand,
             VisibilityBarriers = barriers,
             PortalPointLinkStates = portalPointLinkStates,
+            Triangulation = triangulation,
          };
+      }
+
+      private Triangulation ComputeTriangulation(PolygonNode punchedLand) {
+         return new Triangulator().TriangulateRoot(punchedLand);
       }
 
       private static unsafe List<LinkState[]> ComputePortalPointLinkStates(IDebugCanvas debugCanvasOpt, ExposedArrayList<SectorPortal> portals, IntVector2[][] portalPoints, IntLineSegment2[] barriers) {
@@ -153,5 +160,6 @@ namespace Dargon.Terragami.Sectors {
       public IntVector2[][] PortalPoints;
       public IntLineSegment2[] VisibilityBarriers;
       public List<LinkState[]> PortalPointLinkStates;
+      public Triangulation Triangulation;
    }
 }

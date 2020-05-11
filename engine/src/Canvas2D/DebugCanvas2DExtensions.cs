@@ -62,5 +62,13 @@ namespace Dargon.Dviz {
       public static void DrawText(this IDebugCanvas canvas, string text, Vector2 point) {
          canvas.DrawText(text, ToV3(point));
       }
+
+      public static void DrawPolygon(this IDebugCanvas canvas, IReadOnlyList<Vector2> points, StrokeStyle strokeStyle) {
+         canvas.DrawPolygon(points.Map(ToV3), strokeStyle);
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<Vector2> points, FillStyle fillStyle) {
+         canvas.FillPolygon(points.Map(ToV3), fillStyle);
+      }
    }
 }

@@ -222,7 +222,56 @@ namespace Dargon.PlayOn.Geometry {
       // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, segments should not have more than 1 point of intersection.
       // if segments DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindNonoverlappingSegmentSegmentIntersectionT(ref DoubleLineSegment2 a, ref DoubleLineSegment2 b, out cDouble tForA) {
+         // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+         var p = a.First;
+         var r = a.First.To(a.Second);
+         var q = b.First;
+         var s = b.First.To(b.Second);
+
+         var rxs = Cross(r, s);
+         if (rxs == 0) {
+            goto fail;
+         }
+
+         var qmp = q - p;
+         var t = (cDouble)Cross(qmp, s) / (cDouble)rxs;
+         if (t < CDoubleMath.c0 || t > CDoubleMath.c1) {
+            goto fail;
+         }
+
+         var u = (cDouble)Cross(qmp, r) / (cDouble)rxs;
+         if (u < CDoubleMath.c0 || u > CDoubleMath.c1) {
+            goto fail;
+         }
+
+         tForA = t;
+         return true;
+
+         fail:
+         tForA = default;
+         return false;
+      }
+
+      // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, segments should not have more than 1 point of intersection.
+      // if segments DO have more than 1 point of intersection, this returns no intersection found.
       public static bool TryFindSegmentSegmentIntersection(ref IntLineSegment2 a, ref IntLineSegment2 b, out DoubleVector2 result) {
+         if (TryFindNonoverlappingSegmentSegmentIntersectionT(ref a, ref b, out cDouble t)) {
+            var p = a.First;
+            var r = a.First.To(a.Second);
+
+            result = new DoubleVector2((cDouble)p.X + t * (cDouble)r.X, (cDouble)p.Y + t * (cDouble)r.Y);
+            return true;
+         }
+         result = DoubleVector2.Zero;
+         return false;
+      }
+
+      // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
+      // that is, segments should not have more than 1 point of intersection.
+      // if segments DO have more than 1 point of intersection, this returns no intersection found.
+      public static bool TryFindSegmentSegmentIntersection(ref DoubleLineSegment2 a, ref DoubleLineSegment2 b, out DoubleVector2 result) {
          if (TryFindNonoverlappingSegmentSegmentIntersectionT(ref a, ref b, out cDouble t)) {
             var p = a.First;
             var r = a.First.To(a.Second);
@@ -300,7 +349,7 @@ namespace Dargon.PlayOn.Geometry {
       // NOTE: Assumes segments are valid (two distinct endpoints) NOT line-OVERLAPPING
       // that is, segments should not have more than 1 point of intersection.
       // if segments DO have more than 1 point of intersection, this returns no intersection found.
-      public static bool TryFindNonoverlappingLineSegmentIntersectionT(ref IntLineSegment2 line, ref IntLineSegment2 segment, out cDouble tForRay) {
+      public static bool TryFindNonoverlappingLineSegmentIntersectionT(ref IntLineSegment2 line, ref IntLineSegment2 segment, out cDouble tForLine) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var p = line.First;
          var r = line.First.To(line.Second);
@@ -320,15 +369,15 @@ namespace Dargon.PlayOn.Geometry {
             goto fail;
          }
 
-         tForRay = t;
+         tForLine = t;
          return true;
 
          fail:
-         tForRay = default;
+         tForLine = default;
          return false;
       }
 
-      public static bool TryFindNonoverlappingLineSegmentIntersectionT(in DoubleLineSegment2 line, in DoubleLineSegment2 segment, out cDouble tForRay) {
+      public static bool TryFindNonoverlappingLineSegmentIntersectionT(in DoubleLineSegment2 line, in DoubleLineSegment2 segment, out cDouble tForLine) {
          // via http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
          var p = line.First;
          var r = line.First.To(line.Second);
@@ -348,11 +397,11 @@ namespace Dargon.PlayOn.Geometry {
             goto fail;
          }
 
-         tForRay = t;
+         tForLine = t;
          return true;
 
          fail:
-         tForRay = default;
+         tForLine = default;
          return false;
       }
 

@@ -62,6 +62,10 @@ namespace Dargon.Terragami.Dviz {
          canvas.DrawLineList(segments.Map(s => ToV3(s.First)), segments.Map(s => ToV3(s.Second)), strokeStyle);
       }
 
+      public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<DoubleLineSegment2> segments, StrokeStyle strokeStyle) {
+         canvas.DrawLineList(segments.Map(s => ToV3(s.First)), segments.Map(s => ToV3(s.Second)), strokeStyle);
+      }
+
       public static void DrawLineStrip(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
          canvas.DrawLineStrip(points.Map(ToV3), strokeStyle);
       }
@@ -70,21 +74,39 @@ namespace Dargon.Terragami.Dviz {
          canvas.DrawLineStrip(points.Map(ToV3), strokeStyle);
       }
 
-      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<IntVector2> poly, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(poly.Map(ToV3).Concat(new[] { ToV3(poly[0]) }).ToArray(), strokeStyle);
+      public static void DrawPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> poly, StrokeStyle strokeStyle) {
+         canvas.DrawPolygon(poly.Map(ToV3), strokeStyle);
       }
 
-      public static void DrawPolygonContour(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> poly, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(poly.Map(ToV3).Concat(new[] { ToV3(poly[0]) }).ToArray(), strokeStyle);
+      public static void DrawPolygon(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> poly, StrokeStyle strokeStyle) {
+         canvas.DrawPolygon(poly.Map(ToV3), strokeStyle);
       }
 
-      public static void DrawPolygonContour(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
-         canvas.DrawLineStrip(poly.Points.Map(ToV3).Concat(new[] { ToV3(poly.Points[0]) }).ToArray(), strokeStyle);
+      public static void DrawPolygon(this IDebugCanvas canvas, Polygon2 poly, StrokeStyle strokeStyle) {
+         canvas.DrawPolygon(poly.Points.Map(ToV3), strokeStyle);
       }
 
-      public static void DrawPolygonContours(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
+      public static void DrawPolygons(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
          foreach (var poly in polys) {
-            canvas.DrawPolygonContour(poly, strokeStyle);
+            canvas.DrawPolygon(poly, strokeStyle);
+         }
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<IntVector2> poly, FillStyle fillStyle) {
+         canvas.FillPolygon(poly.Map(ToV3), fillStyle);
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<DoubleVector2> poly, FillStyle fillStyle) {
+         canvas.FillPolygon(poly.Map(ToV3), fillStyle);
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, Polygon2 poly, FillStyle fillStyle) {
+         canvas.FillPolygon(poly.Points.Map(ToV3), fillStyle);
+      }
+
+      public static void FillPolygon(this IDebugCanvas canvas, IReadOnlyList<Polygon2> polys, StrokeStyle strokeStyle) {
+         foreach (var poly in polys) {
+            canvas.DrawPolygon(poly, strokeStyle);
          }
       }
 

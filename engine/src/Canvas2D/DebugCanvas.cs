@@ -75,7 +75,7 @@ namespace Dargon.Dviz {
    }
 
    public interface IDebugMultiCanvasHost {
-      IDebugCanvas CreateAndAddCanvas(int frameIndex);
+      IDebugCanvas CreateAndAddCanvas(int? frameIndexOpt = null);
    }
 
    public interface IProjector {
@@ -189,7 +189,12 @@ namespace Dargon.Dviz {
       public Size PaddedSize { get; }
       public Rectangle EffectiveRect { get; }
 
-      public Font Font => SystemFonts.DefaultFont;
+      public Font Font { get; private set; } = SystemFonts.DefaultFont;
+
+      public void SetFontScale(float s) {
+         var defaultFont = SystemFonts.DefaultFont;
+         Font = new Font(defaultFont.FontFamily, defaultFont.SizeInPoints * s, defaultFont.Style, defaultFont.Unit, defaultFont.GdiCharSet);
+      }
 
       private bool isRecursion = false;
       private Graphics g;

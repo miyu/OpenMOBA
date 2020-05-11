@@ -1,4 +1,6 @@
-﻿using Dargon.PlayOn.Geometry;
+﻿using System;
+using Dargon.PlayOn.Geometry;
+using Dargon.Terragami;
 using cInt = System.Int32;
 
 #if use_fixed
@@ -100,6 +102,25 @@ namespace Dargon.PlayOn.DataStructures {
                 CDoubleMath.Abs(d.Y) <= Extents.Y;
       }
 
+      public static AxisAlignedBoundingBox2 BoundingPolygon(Polygon2 poly) {
+         return BoundingPoints(poly.Points.ToArray());
+      }
+
+      public static AxisAlignedBoundingBox2 BoundingPolygonNode(PolygonNode node) {
+         if (node.Contour != null) {
+            return BoundingPoints(node.Contour);
+         } else {
+            AxisAlignedBoundingBox2 res = null;
+            foreach (var child in node.Children) {
+               var childBounds = BoundingPoints(child.Contour);
+               res = res == null
+                  ? childBounds
+                  : res.Merge(childBounds);
+            }
+            return res;
+         }
+      }
+
       public static AxisAlignedBoundingBox2 BoundingPoints(IntVector2[] points, int startIndexInclusive = 0, int endIndexExclusive = -1) {
          if (endIndexExclusive == -1) endIndexExclusive = points.Length;
          cInt minX = cInt.MaxValue, minY = cInt.MaxValue, maxX = cInt.MinValue, maxY = cInt.MinValue;
@@ -157,6 +178,26 @@ namespace Dargon.PlayOn.DataStructures {
          if (otherLbn.Y > rtf.Y) return false;
 
          return true;
+      }
+
+      public AxisAlignedBoundingBox2 Merge(AxisAlignedBoundingBox2 other) {
+         var low1 = Center - Extents;
+         var high1 = Center + Extents;
+         var low2 = other.Center - other.Extents;
+         var high2 = other.Center + other.Extents;
+
+         var low = new DoubleVector2(
+            Math.Min(low1.X, low2.X),
+            Math.Min(low1.Y, low2.Y));
+
+         var high = new DoubleVector2(
+            Math.Max(high1.X, high2.X),
+            Math.Max(high1.Y, high2.Y));
+
+         return new AxisAlignedBoundingBox2 {
+            Center = (low + high) / 2,
+            Extents = (high - low) / 2,
+         };
       }
    }
 }

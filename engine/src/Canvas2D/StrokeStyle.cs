@@ -30,6 +30,7 @@ namespace Dargon.Dviz {
       public static StrokeStyle BlackThick5Solid = new StrokeStyle(Color.Black, 5.0f);
       public static StrokeStyle BlackThick25Solid = new StrokeStyle(Color.Black, 25.0f);
       public static StrokeStyle GrayHairLineSolid = new StrokeStyle(Color.Gray);
+      public static StrokeStyle GrayThick5Solid = new StrokeStyle(Color.Gray, 5.0f);
       public static StrokeStyle OrangeHairLineSolid = new StrokeStyle(Color.Orange, 1.0f);
       public static StrokeStyle OrangeThick3Solid = new StrokeStyle(Color.Orange, 3.0f);
       public static StrokeStyle OrangeThick10Solid = new StrokeStyle(Color.Orange, 10.0f);

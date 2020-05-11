@@ -18,4 +18,8 @@
     <ProjectReference Include="..\..\src\Dargon.Terragami\Dargon.Terragami.csproj" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy $(ProjectDir)\..\..\..\x64\Release\nativeutils.dll $(TargetDir)&#xD;&#xA;copy $(ProjectDir)\..\..\..\x64\Release\nativeutils.pdb $(TargetDir)&#xD;&#xA;" />
+  </Target>
+
 </Project>

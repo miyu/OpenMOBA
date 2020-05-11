@@ -9,6 +9,7 @@ using Dargon.Commons;
 using Dargon.Commons.Collections;
 using Dargon.Commons.Pooling;
 using Dargon.Dviz;
+using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.Geometry;
 using Dargon.Terragami.Dviz;
 using Dargon.Terragami.Sectors;
@@ -153,30 +154,41 @@ namespace Dargon.Terragami {
             var niters = 10000;
             for (var i = 0; i < niters; i++, totalIters++) {
                var canvas = totalIters < ntrialiters ? debugMultiCanvasHost.CreateAndAddCanvas(i) : null;
-               var compilation = new SectorCompiler().Compile(input, canvas);
+               var compilation = new SectorCompiler().Compile(input, null);
 
                if (canvas != null) {
-                  SectorArrangement.Create(
+                  var arrangement = SectorArrangement2.Create(
                      compilation.VisibilityBarriers.Map(
                         b => new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2())),
+                     new AxisAlignedBoundingBox2 {
+                        Center = new DoubleVector2(0, 0),
+                        Extents = new DoubleVector2(100000, 100000),
+                     }, 
                      canvas);
-               }
-               // var vp = SectorVisibilityPolygon.Create(new DoubleVector2(0, 0), compilation.VisibilityBarriers);
-               // if (canvas != null) {
-               //    canvas.DrawVisibilityPolygon(vp);
-               // }
+                  arrangement.Visualize(canvas);
 
-               // var t1 = sw.Elapsed.TotalMilliseconds;
-               // for (var it = 0; it < 10000; it++) {
-               //    foreach (var node in compilation.PunchedLand.Dfs((push, n) => n.Children.ForEach(push))) {
-               //       if (node.Contour == null) continue;
-               //       foreach (var p in node.Contour) {
-               //          SectorVisibilityPolygon.Create(p.ToDoubleVector2(), compilation.VisibilityBarriers);
-               //       }
-               //    }
-               // }
-               // var t2 = sw.Elapsed.TotalMilliseconds;
-               // Console.WriteLine("VP 10000 " + (t2 -  t1));
+                  compilation.PunchedLand.Visualize(canvas);
+               }
+
+
+               /*
+               var vp = SectorVisibilityPolygon.Create(new DoubleVector2(0, 0), compilation.VisibilityBarriers);
+               if (canvas != null) {
+                  canvas.DrawVisibilityPolygon(vp);
+               }
+
+               var t1 = sw.Elapsed.TotalMilliseconds;
+               for (var it = 0; it < 10000; it++) {
+                  foreach (var node in compilation.PunchedLand.Dfs((push, n) => n.Children.ForEach(push))) {
+                     if (node.Contour == null) continue;
+                     foreach (var p in node.Contour) {
+                        SectorVisibilityPolygon.Create(p.ToDoubleVector2(), compilation.VisibilityBarriers);
+                     }
+                  }
+               }
+               var t2 = sw.Elapsed.TotalMilliseconds;
+               Console.WriteLine("VP 10000 " + (t2 -  t1));
+               */
 
                if (i + 1 == ntrialiters) {
                   sw.Restart();

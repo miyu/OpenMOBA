@@ -70,12 +70,22 @@ namespace Dargon.Dviz {
          };
       }
 
-      public IDebugCanvas CreateAndAddCanvas(int frameIndex) {
+      public int greatestFrameIndex = -1;
+
+      public float FontScale { get; set; } = 1;
+
+      public IDebugCanvas CreateAndAddCanvas(int? frameIndex = null) {
+         frameIndex ??= greatestFrameIndex + 1;
+         if (frameIndex <= greatestFrameIndex) throw new NotSupportedException("Haven't tested if this works");
+         greatestFrameIndex = Math.Max(greatestFrameIndex, frameIndex.Value);
+
          var canvas = new DebugCanvas(canvasSize, canvasPadding, projector);
+         canvas.SetFontScale(FontScale);
+
          lock (synchronization) {
             frames.Add(new CanvasAndFrameIndex {
                Canvas = canvas,
-               FrameIndex = frameIndex,
+               FrameIndex = frameIndex.Value,
                Timestamp = DateTime.Now
             });
             UpdateSlider();

@@ -211,7 +211,7 @@ namespace Dargon.Terragami {
 
          public PunchOperation Include(IEnumerable<Polygon2> polygons) {
             foreach (var polygon in polygons) {
-               clipper.AddPath(polygon.Points, PolyType.ptSubject, polygon.IsClosed);
+               clipper.AddPath(polygon.Points, PolyType.ptSubject, true);
             }
             return this;
          }
@@ -224,7 +224,7 @@ namespace Dargon.Terragami {
                   points.Reverse();
                }
 
-               clipper.AddPath(points, PolyType.ptSubject, polygon.IsClosed);
+               clipper.AddPath(points, PolyType.ptSubject, true);
 
             }
 
@@ -252,7 +252,7 @@ namespace Dargon.Terragami {
 
          public PunchOperation Exclude(IEnumerable<Polygon2> polygons) {
             foreach (var polygon in polygons) {
-               clipper.AddPath(polygon.Points, PolyType.ptClip, polygon.IsClosed);
+               clipper.AddPath(polygon.Points, PolyType.ptClip, true);
             }
 
             return this;
@@ -267,7 +267,7 @@ namespace Dargon.Terragami {
                   points.Reverse();
                }
 
-               clipper.AddPath(points, PolyType.ptClip, polygon.IsClosed);
+               clipper.AddPath(points, PolyType.ptClip, true);
 
             }
 
@@ -279,26 +279,35 @@ namespace Dargon.Terragami {
             var polytree = new PolyTree();
             clipper.ReverseSolution = true;
             clipper.Execute(ClipType.ctDifference, polytree, PolyFillType.pftNegative, PolyFillType.pftNegative);
-            return PolygonNode.FromClipperPolyTree(polytree);
+            // return PolygonNode.FromClipperPolyTree(polytree);
 
-//             if (!cleanupDegeneraciesWithOffset) {
-//                ClipperAllocator.FreeClipper(ref clipper);
-//                return PolygonNode.FromClipperPolyTree(polytree);
-//             }
-//
-//             // Used to remove degeneracies where additionalErosion is 0.
-// #if use_fixed
-//             cDouble baseErosion = (cDouble)0.05;
-// #else
-//             const double baseErosion = 0.05;
-// #endif
-//             var res = Offset().Include(FlattenToPolygonAndIsHoles(polytree))
-//                               .Erode(baseErosion)
-//                               .Dilate(baseErosion)
-//                               .ErodeOrDilate(additionalErosionDilation)
-//                               .Execute();
-//             ClipperAllocator.FreeClipper(ref clipper);
-//             return res;
+            if (!cleanupDegeneraciesWithOffset) {
+               ClipperAllocator.FreeClipper(ref clipper);
+               return PolygonNode.FromClipperPolyTree(polytree);
+            }
+
+            // Used to remove clipping artifacts where additionalErosion is 0.
+            // Without this code, even Test2D gets an errant hairline on its island.
+            // Can totally optimize this code with something faster than an erode/dliate (e.g. just walk the contours &
+            // toss out obviouis artifacts like the follows:
+            //
+            // 3__2____4
+            //    |    |
+            //    |____|
+            //   1      5
+
+#if use_fixed
+            cDouble baseErosion = (cDouble)0.05;
+#else
+            const double baseErosion = 0.05;
+#endif
+            var res = Offset().Include(FlattenToPolygonAndIsHoles(PolygonNode.FromClipperPolyTree(polytree)))
+                              .Erode(baseErosion)
+                              .Dilate(baseErosion)
+                              .ErodeOrDilate(additionalErosionDilation)
+                              .Execute();
+            ClipperAllocator.FreeClipper(ref clipper);
+            return res;
          }
       }
 

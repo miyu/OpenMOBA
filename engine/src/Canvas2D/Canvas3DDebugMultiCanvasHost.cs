@@ -27,7 +27,7 @@ namespace Dargon.Dviz {
          this.presets = presets;
       }
 
-      public IDebugCanvas CreateAndAddCanvas(int frameIndex) {
+      public IDebugCanvas CreateAndAddCanvas(int? frameIndexOpt) {
          var scene = new Scene();
          sceneQueue.Enqueue(scene);
          return new Canvas3DDebugCanvas(graphicsFacade, presets, scene);
