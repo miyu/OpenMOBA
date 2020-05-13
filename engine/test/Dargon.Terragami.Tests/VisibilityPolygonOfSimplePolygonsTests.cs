@@ -12,7 +12,7 @@ using Dargon.Terragami.Dviz;
 namespace Dargon.Terragami.Tests {
    public class VisibilityPolygonOfSimplePolygonsTests {
       public const float TWO_PI = MathF.PI * 2;
-      private const bool kEnableDebugPrint = false;
+      private const bool kEnableDebugPrint = true;
 
       public struct StackEntry {
          public DoubleVector2 Cartesian;
@@ -84,14 +84,34 @@ namespace Dargon.Terragami.Tests {
          // poly.Visualize(labelIndices: true);
 
          // var initialIndex = 0;
-         ComputeVisibilityPolygon(poly, 19);
+         ComputeVisibilityPolygon(poly, 1, null, DebugDrawMode.Steps);
+         return;
 
-         // for (var initialIndex = 0; initialIndex < poly.Points.Count; initialIndex++) {
-         // ComputeVisibilityPolygon(poly, initialIndex);
-         // }
+         var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
+            AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray()),
+            new Size(2350, 1200),
+            new Point(50, 50));
+         
+         for (var initialIndex = 0; initialIndex < poly.Points.Count; initialIndex++) {
+            ComputeVisibilityPolygon(poly, initialIndex, dmch, DebugDrawMode.Result);
+         }
       }
 
-      private void ComputeVisibilityPolygon(Polygon2 poly, int initialIndex) {
+      enum DebugDrawMode {
+         None,
+         Steps,
+         Result,
+      }
+
+      public const float EPSILON = 1E-5f;
+      public const float NEGATIVE_EPSILON = -EPSILON;
+
+      public bool WithinEpsilon(float a, float b) {
+         var c = a - b;
+         return c > NEGATIVE_EPSILON & c < EPSILON;
+      }
+
+      private void ComputeVisibilityPolygon(Polygon2 poly, int initialIndex, DebugMultiCanvasHost dmch = null, DebugDrawMode debugDrawMode = DebugDrawMode.None) {
          // With ForwardPolygonIterator, we now observe poly as if v0 is what was at poly[initialIndex].
          // This means windingOffset[0] corresponds to v0.
          var it = new ForwardPolygonIterator(poly, initialIndex);
@@ -111,10 +131,12 @@ namespace Dargon.Terragami.Tests {
          }
 
          var bounds = AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray());
-         var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
-            bounds,
-            new Size(2350, 1200),
-            new Point(50, 50));
+         if (debugDrawMode != DebugDrawMode.None) {
+            dmch ??= SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
+               bounds,
+               new Size(2350, 1200),
+               new Point(50, 50));
+         }
 
          it.ResetToInitialIndex(); // i := 0 is curIndex == initialIndex
          var s = new List<StackEntry>();
@@ -163,7 +185,7 @@ namespace Dargon.Terragami.Tests {
                   // canvas.DrawLine(l[i].Cartesian, l[i].Cartesian + RayDirectionFromPoint(l[i]) * 30, StrokeStyle.LimeHairLineSolid);
                }
 
-               canvas.DrawText($"@({it.PrevVertexIndex} => {it.CurVertexIndex} => {it.NextWindingIndex}) {state}", new Vector2(-10, -30) + bounds.Center.ToDotNetVector());
+               canvas.DrawText($"{initialIndex} @({it.PrevWindingIndex} => {it.CurWindingIndex} => {it.NextWindingIndex}) {state}", new Vector2(-10, -30) + bounds.Center.ToDotNetVector());
             });
          }
 
@@ -181,8 +203,11 @@ namespace Dargon.Terragami.Tests {
 
          for (var iteration = 0;; iteration++) {
             if (iteration == 50) break;
-            Render();
-            if (kEnableDebugPrint) Console.WriteLine($"it {iteration}: {it.PrevVertexIndex}/{it.PrevWindingIndex} => {it.CurVertexIndex}/{it.CurWindingIndex} => {it.NextVertexIndex}/{it.NextWindingIndex}: {state} {stateScanCcw} {stateScanWindowEnd.IsRayElsePointEndpoint} {stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint}");
+            if (debugDrawMode == DebugDrawMode.Steps) {
+               Render();
+            }
+
+            if (kEnableDebugPrint) Console.WriteLine($"{initialIndex}, it {iteration}: {it.PrevVertexIndex}/{it.PrevWindingIndex} => {it.CurVertexIndex}/{it.CurWindingIndex} => {it.NextVertexIndex}/{it.NextWindingIndex}: {state} {stateScanCcw} {stateScanWindowEnd.IsRayElsePointEndpoint} {stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint}");
 
             if (it.IndexOffset > it.NumPoints) {
                Assert.Equals(Vpstate.Finish, state);
@@ -209,6 +234,7 @@ namespace Dargon.Terragami.Tests {
                      if (kEnableDebugPrint) Console.WriteLine($"CLK {clk} WR {windingRegression}; woc = {windingOffsets[it.CurWindingIndex]}, won = {windingOffsets[it.NextWindingIndex]}");
 
                      if (windingRegression && clk == Clockness.CounterClockWise) {
+                        if (kEnableDebugPrint) Console.WriteLine(".. adv 1 => scan");
                         state = Vpstate.Scan;
                         stateScanWindowEnd = new WindowEnd {
                            IsRayElsePointEndpoint = true,
@@ -216,11 +242,14 @@ namespace Dargon.Terragami.Tests {
                         };
                         stateScanCcw = true; // ccw := true
                      } else if (windingRegression && clk == Clockness.ClockWise) {
+                        if (kEnableDebugPrint) Console.WriteLine(".. adv 1 => retard");
                         state = Vpstate.Retard;
                      } else {
+                        if (kEnableDebugPrint) Console.WriteLine(".. adv 1 => adv");
                         state = Vpstate.Advance;
                      }
                   } else {
+                     if (kEnableDebugPrint) Console.WriteLine($".. adv 2 {s[^1].WindingOffset}");
                      // winds away from visibility
                      if (s[^1].WindingOffset < TWO_PI) {
                         var intersect = GeometryOperations.TryFindNonoverlappingLineSegmentIntersectionT(
@@ -230,6 +259,7 @@ namespace Dargon.Terragami.Tests {
                         // Assert.IsTrue(intersect);
 
                         // There's a chance of no intersect, e.g. 
+                        if (kEnableDebugPrint) Console.WriteLine($".. adv 2 INTERSEC {intersect}");
                         if (intersect) {
                            var intersectionPoint = zv0.First + zv0.First.To(zv0.Second) * tForRay;
                            s.Add(new StackEntry {
@@ -243,6 +273,7 @@ namespace Dargon.Terragami.Tests {
                         }
                      }
 
+                     if (kEnableDebugPrint) Console.WriteLine($".. adv 2 => scan v0");
                      state = Vpstate.Scan; // ccw := false, w := v0
                      stateScanWindowEnd = new WindowEnd {
                         IsRayElsePointEndpoint = false,
@@ -312,29 +343,59 @@ namespace Dargon.Terragami.Tests {
                   // (a) α(s_j) < α(vnext) <= α(s_j+1) or
                   // (a) α(vnext) <= α(s_j) == α(s_j+1) and vcur-vnext intersects sj-sj+1
                   int j = -1337;
+                  var jCaseA = false;
                   for (var candidateJ = s.Count - 2; candidateJ >= 0; candidateJ--) {
                      var alphaSj = s[candidateJ].WindingOffset;
                      var alphaSjnext = s[candidateJ + 1].WindingOffset;
                      var alphaVnext = windingOffsets[it.NextWindingIndex];
 
-                     if (kEnableDebugPrint) Console.WriteLine($"RETARDING j={candidateJ}, α(s_j)={alphaSj}, α(s_j+1)={alphaSjnext} α(vnext)={alphaVnext}");
+                     var clk = GeometryOperations.Clockness(
+                        s[candidateJ].Cartesian,
+                        s[candidateJ + 1].Cartesian,
+                        it.Next.ToDoubleVector2());
 
+                     if (kEnableDebugPrint) Console.WriteLine($"RETARDING j={candidateJ}, α(s_j)={alphaSj}, α(s_j+1)={alphaSjnext} α(vnext)={alphaVnext} clk={clk}");
+
+                     var shouldContinueScanningStack = false;
                      if (alphaSj < alphaVnext && alphaVnext <= alphaSjnext) {
-                        if (kEnableDebugPrint) Console.WriteLine("cond (a)");
-                        j = candidateJ;
+                        // NOTE: The paper doesn't perform this check. Without this check, observed points
+                        // will "cut" / occlude the segments in front of them, which is broken! To observe 
+                        // this, run on vertex 0 of my squiddy test polygon.
+                        var nextIsInFrontOfJSegment = clk == Clockness.ClockWise;
+                        if (kEnableDebugPrint) Console.WriteLine("cond (a) " + nextIsInFrontOfJSegment);
+                        if (nextIsInFrontOfJSegment) {
+                           j = candidateJ;
+                           jCaseA = true;
+                           shouldContinueScanningStack = true;
+                        }
                         // break; // (a)
                      }
 
-                     if (alphaVnext <= alphaSj && alphaSj == alphaSjnext) {
+                     if (alphaVnext <= alphaSj && WithinEpsilon(alphaSj, alphaSjnext)) {
                         // TODO: vivinext intersects sj sj+1
                         if (kEnableDebugPrint) Console.WriteLine("cond (b)");
                         j = candidateJ;
+                        jCaseA = false;
+                        shouldContinueScanningStack = true;
                         // break; // (b), fp precision?
                      }
+
+                     // only keep scanning if the point is in front of stack top w/ lower winding or cond a/b
+                     // https://imgur.com/a/beAUx6o, note this is tolerant to collinearity too https://imgur.com/a/4EJhibK
+                     if (!shouldContinueScanningStack && (alphaSj > alphaVnext || (clk != Clockness.CounterClockWise && WithinEpsilon(alphaSj, alphaVnext)))) {
+                        if (kEnableDebugPrint) Console.WriteLine("cond (a) II");
+                        j = candidateJ;
+                        jCaseA = true;
+                        shouldContinueScanningStack = true;
+                     }
+
+                     if (!shouldContinueScanningStack) break;
                   }
                   Assert.NotEquals(-1337, j);
 
-                  if (s[j].WindingOffset < s[j + 1].WindingOffset) {
+                  // Note: Explicitly store whether j is for case a vs b, rather than rederiving here
+                  // like done in paper.
+                  if (jCaseA) {
                      it.Step();
 
                      // t := j+1. Note t is last valid index in s.
@@ -392,7 +453,7 @@ namespace Dargon.Terragami.Tests {
                      //   alphaVnext = alphaVcur & r(vnext) > r(vcur)
                   } else {
                      // case (b)
-                     if (windingOffsets[it.NextWindingIndex] == s[j].WindingOffset &&
+                     if (WithinEpsilon(windingOffsets[it.NextWindingIndex], s[j].WindingOffset) &&
                          windingOffsets[it.NextNextWindingIndex] > windingOffsets[it.NextWindingIndex] &&
                          it.ClocknessCurNext_NextNext == Clockness.CounterClockWise) {
                         state = Vpstate.Advance;
@@ -445,7 +506,9 @@ namespace Dargon.Terragami.Tests {
          }
 
          done:
-         Render();
+         if (debugDrawMode == DebugDrawMode.Result) {
+            Render();
+         }
       }
 
       public class ForwardPolygonIterator {

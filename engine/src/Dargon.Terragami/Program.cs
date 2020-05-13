@@ -156,19 +156,19 @@ namespace Dargon.Terragami {
                var canvas = totalIters < ntrialiters ? debugMultiCanvasHost.CreateAndAddCanvas(i) : null;
                var compilation = new SectorCompiler().Compile(input, null);
 
-               if (canvas != null) {
-                  var arrangement = SectorArrangement2.Create(
-                     compilation.VisibilityBarriers.Map(
-                        b => new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2())),
-                     new AxisAlignedBoundingBox2 {
-                        Center = new DoubleVector2(0, 0),
-                        Extents = new DoubleVector2(100000, 100000),
-                     }, 
-                     canvas);
-                  arrangement.Visualize(canvas);
-
-                  compilation.PunchedLand.Visualize(canvas);
-               }
+               // if (canvas != null) {
+               //    var arrangement = SectorArrangement2.Create(
+               //       compilation.VisibilityBarriers.Map(
+               //          b => new DoubleLineSegment2(b.First.ToDoubleVector2(), b.Second.ToDoubleVector2())),
+               //       new AxisAlignedBoundingBox2 {
+               //          Center = new DoubleVector2(0, 0),
+               //          Extents = new DoubleVector2(100000, 100000),
+               //       }, 
+               //       canvas);
+               //    arrangement.Visualize(canvas);
+               //
+               //    compilation.PunchedLand.Visualize(canvas);
+               // }
 
 
                /*

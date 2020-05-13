@@ -28,7 +28,7 @@ namespace Dargon.Terragami.Tests {
          var canvas = canvasHost.CreateAndAddCanvas(0);
          canvas.FillTriangulation(compilation.Triangulation, new FillStyle(Color.White));
          // canvas.DrawPolygonNode(compilation.PunchedLand);
-
+         
          foreach (var island in compilation.Triangulation.Islands) {
             var poly = ConvertTriangulationToWeaklySimplePolygon(island, canvas);
             var eroded = PolygonOperations.Offset()
