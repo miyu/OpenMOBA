@@ -48,11 +48,12 @@ namespace Dargon.Dviz {
                return;
             }
             var speedup = 1;
+            var rewindSpeedup = 1;
             if (e.Shift) {
                new Thread(() => {
                   var v = slider.Value;
                   while (slider.Value == v && v != 0) {
-                     v = Math.Max(v - 2 * speedup, 0);
+                     v = Math.Max(v - rewindSpeedup * speedup, 0);
                      slider.Invoke(new Action(() => { slider.Value = v; }));
                      Thread.Sleep(25);
                   }
