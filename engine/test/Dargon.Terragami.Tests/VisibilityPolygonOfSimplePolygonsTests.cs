@@ -12,17 +12,95 @@ using Dargon.Terragami.Dviz;
 namespace Dargon.Terragami.Tests {
    public class VisibilityPolygonOfSimplePolygonsTests {
       public const float TWO_PI = MathF.PI * 2;
-      private const bool kEnableDebugPrint = false;
+      private const bool kEnableDebugPrint = true;
 
       public struct StackEntry {
          public DoubleVector2 Cartesian;
          public float WindingOffset;
+
+         /// <summary>
+         /// Note: PointIndex is vanity data - it's not required for computing
+         /// the visibility polygon's contour, but tracking it is useful information
+         /// for any consuming client.
+         /// 
+         /// PointIndex is non-null if the stack entry represents an initial vertex of the
+         /// source polygon.
+         /// </summary>
          public int? PointIndex;
+
+         /// <summary>
+         /// Note: WindowEndpointData is vanity data - it's not required for computing
+         /// the visibility polygon's contour, but tracking it is useful information
+         /// for any consuming client.
+         ///
+         /// WindowEndpointData is non-null if the stack entry represents a window vertex.
+         /// </summary>
+         public WindowEndpointData? WindowEndpointData;
+      }
+
+      public struct WindowEndpointData {
+         /// <summary>
+         /// This might be redundantly tracked? One can derive this from a final vispoly
+         /// where the reflex vertex will either be immediately before or after the window
+         /// in the output contour.
+         /// </summary>
+         public int WindowReflexVertexIndex;
+
+         /// <summary>
+         /// The first index of the line segment our window endpoint is sitting on.
+         /// The line segment is v[WindowSegmentFirstIndex] to v[WindowSegmentFirstIndex + 1]
+         /// </summary>
+         public int WindowSegmentFirstIndex;
+
+         /// <summary>
+         /// T of line segment our window endpoint is sitting on.
+         /// T = 0 means we're at v[WindowSegmentFirstIndex], T=1 means we're at v[WindowSegmentFirstIndex + 1].
+         /// </summary>
+         public double WindowSegmentT;
       }
 
       public struct WindowEnd {
          public bool IsRayElsePointEndpoint;
+
+         /// <summary>
+         /// From ADVANCE there are two cases:
+         /// 1. the direction from v0 to s[^1] (window captures points
+         /// returning back to visibility, e.g. after an advance, we have a
+         /// winding regression & advancement continues once the contour walk
+         /// returns to / surpassed the winding angle we just advanced to).
+         ///
+         /// 2. v0, e.g. winding angle has advanced beyond 2pi, and vispoly building
+         /// will only continue once it regresses back past 2pi, through the line
+         /// segment from s[^1] to v0.
+         ///
+         /// From RETARD there are two cases:
+         /// 1. Note below, v0 will see A, B, C, then retard with D, scanning past
+         /// the window ray from D in direction v0-D.
+         /// 
+         ///          *v0
+         /// 
+         ///   C+---+ D
+         ///    | E'
+         ///    +--------+
+         ///    B        A
+         ///
+         /// 2. See https://imgur.com/a/EHQAIgH -- in this case, we've cut an old
+         /// window, and will return to visibility through the segment from s[4]
+         /// to intersection(v9-v10, v4-s[5]).
+         /// </summary>
          public DoubleVector2 DirectionFromStackTopIfWindowIsRayElsePointEndpoint;
+
+         /// <summary>
+         /// Windows either extend from either v0 (for ADVANCE case 2 above) or
+         /// reflex vertices of our input polygon (every other case).
+         ///
+         /// In fact, in the case of ADVANCE Case 2 above, we have a degenerate
+         /// case where v0 is a reflex vertex with internal angle 2pi.
+         /// 
+         /// This captures the index of that vertex. It's useful for later when we
+         /// might ask "what windows come from this vertex".
+         /// </summary>
+         public int WindowReflexVertexIndex;
       }
 
       public float ComputeWindingOffset(float prevWindingOffset, DoubleVector2 v0, DoubleVector2 prev, DoubleVector2 cur) {
@@ -86,23 +164,23 @@ namespace Dargon.Terragami.Tests {
          }.Map(p => new IntVector2(p.X, 400 - p.Y)).Reverse().ToList());
          // poly.Visualize(labelIndices: true);
 
-         // var initialIndex = 0;
-
          var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
             AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray()),
             new Size(2250, 1100),
             new Point(100, 100));
 
-         var canvas = dmch.CreateAndAddCanvas();
-         canvas.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+         // ComputeVisibilityPolygon(poly, 20, dmch, DebugDrawMode.Steps);
+         // return;
 
-         for (var i = 0; i < poly.Points.Count; i++) {
-            var lines = ComputeVisibilityPolygon(poly, i);
-            canvas.DrawLineList(lines, new StrokeStyle(Color.Gray, 1.0f, new[] { 100.0f, 100.0f }));
-         }
-
-         return;
-
+         // var canvas = dmch.CreateAndAddCanvas();
+         // canvas.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+         //
+         // for (var i = 0; i < poly.Points.Count; i++) {
+         //    var lines = ComputeVisibilityPolygon(poly, i);
+         //    canvas.DrawLineList(lines, new StrokeStyle(Color.Gray, 1.0f, new[] { 100.0f, 100.0f }));
+         // }
+         //
+         // return;
 
          ComputeVisibilityPolygon(poly, 0, dmch, DebugDrawMode.Steps);
          for (var i = 0; i < 10; i++) ComputeVisibilityPolygon(poly, 0, dmch, DebugDrawMode.Result);
@@ -188,7 +266,22 @@ namespace Dargon.Terragami.Tests {
                for (var i = 0; i < s.Count; i++) {
                   var x = s[i];
                   canvas.DrawPoint(x.Cartesian, StrokeStyle.RedThick25Solid);
-                  canvas.DrawText($"s[{i}], wo {s[i].WindingOffset:F2}", x.Cartesian.ToDotNetVector() + new Vector2(-20, 0));
+                  var debugText = $"s[{i}], wo {s[i].WindingOffset:F2}";
+
+                  if (x.PointIndex == null) {
+                     var windowEndpointData = x.WindowEndpointData.Value;
+                     var reflexVertex = poly.Points[windowEndpointData.WindowReflexVertexIndex].ToDoubleVector2();
+
+                     // Note, seg[T] should be the same as x.Cartesian (w/ maybe some fp error).
+                     var seg = new DoubleLineSegment2(
+                        poly.Points[windowEndpointData.WindowSegmentFirstIndex].ToDoubleVector2(),
+                        poly.Points[(windowEndpointData.WindowSegmentFirstIndex + 1) % poly.Points.Count].ToDoubleVector2());
+                     canvas.DrawLine(seg.PointAt(windowEndpointData.WindowSegmentT), reflexVertex, StrokeStyle.MagentaThick10Solid);
+
+                     debugText += $"\nwsfi {windowEndpointData.WindowSegmentFirstIndex} wst {windowEndpointData.WindowSegmentT:F2}";
+                  }
+
+                  canvas.DrawText(debugText, x.Cartesian.ToDotNetVector() + new Vector2(-20, 0));
                }
 
                var it2 = new ForwardPolygonIterator(poly, initialIndex);
@@ -201,9 +294,20 @@ namespace Dargon.Terragami.Tests {
                      // Assert.Equals(i, it2.CurIndex);
                   }
 
-                  var windingIndex = it2.CurWindingIndex;
-                  canvas.DrawText($"{i} ({windingIndex})\n{windingOffsets[windingIndex]:F2}\n<{it2.Cur.X:F2}, {it2.Cur.Y:F2}>", p);
+                  var vertexIndex = it2.CurVertexIndex;
+                  canvas.DrawText($"{i} ({vertexIndex})\n{windingOffsets[i]:F2}\n<{it2.Cur.X:F2}, {it2.Cur.Y:F2}>", p);
                   // canvas.DrawLine(l[i].Cartesian, l[i].Cartesian + RayDirectionFromPoint(l[i]) * 30, StrokeStyle.LimeHairLineSolid);
+               }
+
+               if (state == Vpstate.Scan) {
+                  if (stateScanWindowEnd.IsRayElsePointEndpoint) {
+                     var ro = s[^1].Cartesian;
+                     var rd = stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint;
+                     canvas.DrawLine(ro, ro + rd.ToUnit() * 1000, StrokeStyle.LimeThick5Solid);
+                  } else {
+                     var endpoint = stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint;
+                     canvas.DrawLine(s[^1].Cartesian, endpoint, StrokeStyle.LimeThick5Solid);
+                  }
                }
 
                canvas.DrawText($"it={iteration}, v0={initialIndex} @({it.PrevWindingIndex} => {it.CurWindingIndex} => {it.NextWindingIndex}) {state}", new Vector2(-10, -30) + bounds.Center.ToDotNetVector());
@@ -279,6 +383,7 @@ namespace Dargon.Terragami.Tests {
                         stateScanWindowEnd = new WindowEnd {
                            IsRayElsePointEndpoint = true,
                            DirectionFromStackTopIfWindowIsRayElsePointEndpoint = v0.To(it.Cur.ToDoubleVector2()),
+                           WindowReflexVertexIndex = it.CurVertexIndex,
                         };
                         stateScanCcw = true; // ccw := true
                      } else if (isNextPointWindingRegressed && clk == Clockness.ClockWise) {
@@ -296,10 +401,11 @@ namespace Dargon.Terragami.Tests {
                         // In the case where the prior point is <2pi in the vispoly, we'll want to update
                         // the vispoly to extend to 2pi. Find intersection with zv0 (initial segment of
                         // vispoly, aka a line going in the direction of winding offset 0 / 2pi winding line).
-                        var intersect = GeometryOperations.TryFindNonoverlappingLineSegmentIntersectionT(
+                        var seg = new DoubleLineSegment2(it.Cur.ToDoubleVector2(), it.Next.ToDoubleVector2());
+                        var intersect = GeometryOperations.TryFindNonoverlappingSegmentLineIntersectionT(
+                           seg,
                            zv0,
-                           new DoubleLineSegment2(it.Cur.ToDoubleVector2(), it.Next.ToDoubleVector2()),
-                           out double tForLine);
+                           out double tForSeg);
 
                         // If the two points are within epsilon in terms of winding, they're collinear w/
                         // v0 / zv0. In this case, intersection is nonreliable. We want to treat this
@@ -309,7 +415,13 @@ namespace Dargon.Terragami.Tests {
                         // There's a chance of no intersect. This happens in the case where we're intersecting
                         // zv0 with a line parallel to it. We would still like to retain the contour point we're
                         // advancing to, so we will consider it the intersection point & add it to stack.
-                        var intersectionPoint = intersect ? zv0.PointAt(tForLine) : it.Next.ToDoubleVector2();
+                        DoubleVector2 intersectionPoint;
+                        if (intersect) {
+                           intersectionPoint = seg.PointAt(tForSeg);
+                        } else {
+                           intersectionPoint = it.Next.ToDoubleVector2();
+                           tForSeg = 1;
+                        }
 
                         if (kEnableDebugPrint) Console.WriteLine($".. adv 2 INTERSEC {intersect}");
                         s.Add(new StackEntry {
@@ -318,7 +430,18 @@ namespace Dargon.Terragami.Tests {
                               windingOffsets[it.CurWindingIndex],
                               v0,
                               it.Cur.ToDoubleVector2(),
-                              intersectionPoint)
+                              intersectionPoint),
+                           PointIndex = null,
+                           WindowEndpointData = new WindowEndpointData {
+                              // Technically this is correct? In practice this value should never actually
+                              // be output by the system, as we should expect a RETARD event to eventually
+                              // remove this stack entry. The only case where we should expect this output
+                              // is in a degenerate input, where vnv0v1 and form angle 0.
+                              WindowReflexVertexIndex = 0,
+
+                              WindowSegmentFirstIndex = it.CurVertexIndex,
+                              WindowSegmentT = tForSeg,
+                           },
                         });
                      }
 
@@ -330,6 +453,7 @@ namespace Dargon.Terragami.Tests {
                      stateScanWindowEnd = new WindowEnd {
                         IsRayElsePointEndpoint = false,
                         DirectionFromStackTopIfWindowIsRayElsePointEndpoint = v0,
+                        WindowReflexVertexIndex = initialIndex,
                      };
                      stateScanCcw = false;
                   }
@@ -354,33 +478,36 @@ namespace Dargon.Terragami.Tests {
                   if (!cond1 && !cond2) break;
 
                   var sega = new DoubleLineSegment2(it.Cur.ToDoubleVector2(), it.Next.ToDoubleVector2());
-
+                  
                   bool intersec;
                   DoubleVector2 intersectionPoint;
+                  double tForSega;
                   if (stateScanWindowEnd.IsRayElsePointEndpoint) {
-                     var ro = s[^1].Cartesian;
-                     var rd = stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint;
-                     intersec = GeometryOperations.TryFindNonoverlappingRaySegmentIntersectionT(
-                        ro,
-                        rd,
-                        sega,
-                        out var tForRay
-                     );
-                     intersectionPoint = ro + rd * tForRay;
+                     var directionFromStackTop = stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint;
+                     var ray = new DoubleLineSegment2(s[^1].Cartesian, s[^1].Cartesian + directionFromStackTop);
+                     intersec = GeometryOperations.TryFindNonoverlappingLineLineIntersectionEx(sega, ray, out tForSega, out var tForRay) &&
+                                tForSega >= 0 && tForSega <= 1 &&
+                                tForRay >= 0;
+                     intersectionPoint = sega.PointAt(tForSega);
                   } else {
-                     var segb = new DoubleLineSegment2(s[^1].Cartesian, stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint);
-                     intersec = GeometryOperations.TryFindNonoverlappingSegmentSegmentIntersectionT(
-                        ref sega,
-                        ref segb,
-                        out var tForSegA);
-                     intersectionPoint = sega.First + sega.First.To(sega.Second) * tForSegA;
+                     var windowEndpoint = stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint;
+                     var segb = new DoubleLineSegment2(s[^1].Cartesian, windowEndpoint);
+                     intersec = GeometryOperations.TryFindNonoverlappingLineLineIntersectionEx(sega, segb, out tForSega, out var tForSegb) &&
+                                tForSega >= 0 && tForSega <= 1 &&
+                                tForSegb >= 0 && tForSegb <= 1;
+                     intersectionPoint = sega.PointAt(tForSega);
                   }
-                  // GeometryOperations.TryFindNonoverlappingRaySegmentIntersectionT()
 
                   if (cond1 && intersec) {
                      s.Add(new StackEntry {
                         Cartesian = intersectionPoint,
-                        WindingOffset = ComputeWindingOffset(windingOffsets[it.CurWindingIndex], v0, it.Cur.ToDoubleVector2(), intersectionPoint)
+                        WindingOffset = ComputeWindingOffset(windingOffsets[it.CurWindingIndex], v0, it.Cur.ToDoubleVector2(), intersectionPoint),
+                        PointIndex = null,
+                        WindowEndpointData = new WindowEndpointData {
+                           WindowReflexVertexIndex = stateScanWindowEnd.WindowReflexVertexIndex,
+                           WindowSegmentFirstIndex = it.CurVertexIndex,
+                           WindowSegmentT = tForSega,
+                        }
                      });
                      state = Vpstate.Advance;
                      stateScanWindowEnd = default;
@@ -532,21 +659,49 @@ namespace Dargon.Terragami.Tests {
 
                      Assert.Equals(j + 1, s.Count - 1);
 
+                     // Note: The paper will do an intersection between s[j]-s[j+1] and z-vcur
+                     // This is correct behavior, but makes it hard to derive tForSeg (as s[j]-s[j+1] might
+                     // just be a subsegment). As we are occluding s[j]-s[j+1], it MUST be the case that
+                     // we are also occluding its weak super-segment (weak as seg might be that super-segment).
+                     // 
+                     // Note, it is possible that BOTH endpoints are window endpoints. In this and all cases,
+                     // they are guaranteed to be on the same segment. It is likewise possible that only one of
+                     // s[j] or s[j+1] is a window endpoint. Regardless, s[j] is always the index of the segment
+                     // that we care about intersecting. 
+                     //
+                     // One <could> assert that our intersection point is between the parameterized t of the
+                     // endpoints (subject to floating point error), though I've not implemented that for now.
+                     //
+                     // Alternatively, one can intersect with s[j]-s[j+1], then scale tForSeg of that subsegment
+                     // to compute the true tForSeg of the supersegment. This is the approach I've taken.
+                     var seg = new DoubleLineSegment2(s[j].Cartesian, s[j + 1].Cartesian);
                      var line = new DoubleLineSegment2(z, it.Cur.ToDoubleVector2());
-                     var intersec = GeometryOperations.TryFindNonoverlappingLineSegmentIntersectionT(
-                        line,
-                        new DoubleLineSegment2(s[j].Cartesian, s[j + 1].Cartesian),
-                        out var tForLine);
+                     var intersec = GeometryOperations.TryFindNonoverlappingSegmentLineIntersectionT(seg, line, out var tForSeg);
                      Assert.IsTrue(intersec);
 
-                     var intersectionPoint = line.PointAt(tForLine);
+                     var intersectionPoint = seg.PointAt(tForSeg);
+                     
+                     // Adjust tForSeg to be on the supersegment of seg, constructed from 2 vertices in poly.
+                     // If seg is already that segment, then do nothing.
+                     if (s[j].WindowEndpointData != null || s[j + 1].WindowEndpointData != null) {
+                        var trueSegTInitial = s[j].WindowEndpointData?.WindowSegmentT ?? 0;
+                        var trueSegTFinal = s[j + 1].WindowEndpointData?.WindowSegmentT ?? 1;
+                        tForSeg = trueSegTInitial + tForSeg * (trueSegTFinal - trueSegTInitial);
+                     }
+
                      s[^1] = new StackEntry {
                         Cartesian = intersectionPoint,
                         WindingOffset = ComputeWindingOffset(
                            s[^1].WindingOffset,
                            v0,
                            s[^1].Cartesian,
-                           intersectionPoint)
+                           intersectionPoint),
+                        PointIndex = null,
+                        WindowEndpointData = new WindowEndpointData {
+                           WindowReflexVertexIndex = it.CurVertexIndex,
+                           WindowSegmentFirstIndex = s[j].PointIndex ?? s[j].WindowEndpointData.Value.WindowSegmentFirstIndex,
+                           WindowSegmentT = tForSeg,
+                        },
                      };
                      s.Add(new StackEntry {
                         Cartesian = it.Cur.ToDoubleVector2(),
@@ -570,6 +725,7 @@ namespace Dargon.Terragami.Tests {
                         stateScanWindowEnd = new WindowEnd {
                            IsRayElsePointEndpoint = false,
                            DirectionFromStackTopIfWindowIsRayElsePointEndpoint = it.Cur.ToDoubleVector2(),
+                           WindowReflexVertexIndex = it.CurVertexIndex,
                         };
                         s.RemoveAt(s.Count - 1);
                      } else {
@@ -622,6 +778,7 @@ namespace Dargon.Terragami.Tests {
                         stateScanWindowEnd = new WindowEnd {
                            IsRayElsePointEndpoint = false,
                            DirectionFromStackTopIfWindowIsRayElsePointEndpoint = intersectionPoint,
+                           WindowReflexVertexIndex = s[^1].PointIndex.Value,
                         };
                      }
                   }

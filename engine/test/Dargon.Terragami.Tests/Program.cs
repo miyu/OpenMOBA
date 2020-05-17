@@ -12,12 +12,12 @@ namespace Dargon.Terragami.Tests {
          // new VisibilityPolygonQueryTests().Exec();
          // new VisibilityPolygonOfSimplePolygonsTests().Exec();
 
-         try {
+         // try {
             new VisibilityPolygonOfSimplePolygonsTests().Execute();
-         } catch (Exception e) {
-            Console.Error.WriteLine(e);
-            while (true) ;
-         }
+         // } catch (Exception e) {
+            // Console.Error.WriteLine(e);
+            // while (true) ;
+         // }
       }
    }
 }
