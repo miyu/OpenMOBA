@@ -12,7 +12,7 @@ using Dargon.Terragami.Dviz;
 namespace Dargon.Terragami.Tests {
    public class VisibilityPolygonOfSimplePolygonsTests {
       public const float TWO_PI = MathF.PI * 2;
-      private const bool kEnableDebugPrint = true;
+      private const bool kEnableDebugPrint = false;
 
       public struct StackEntry {
          public DoubleVector2 Cartesian;
@@ -123,7 +123,7 @@ namespace Dargon.Terragami.Tests {
          var poly = new Polygon2(new List<IntVector2> {
             new IntVector2(165, 326),
             new IntVector2(191, 300),
-            new IntVector2(238, 300),
+            new IntVector2(240, 300),
             new IntVector2(381, 216),
             new IntVector2(300, 150),
             new IntVector2(280, 75),
@@ -136,7 +136,7 @@ namespace Dargon.Terragami.Tests {
             new IntVector2(250, 75),
             new IntVector2(300, 225),
             new IntVector2(225, 275),
-            new IntVector2(200, 225),
+            new IntVector2(195, 225),
             new IntVector2(235, 150),
             new IntVector2(165, 100),
             new IntVector2(100, 150),
@@ -169,7 +169,7 @@ namespace Dargon.Terragami.Tests {
             new Size(2250, 1100),
             new Point(100, 100));
 
-         // ComputeVisibilityPolygon(poly, 20, dmch, DebugDrawMode.Steps);
+         // ComputeVisibilityPolygon(poly, 24, dmch, DebugDrawMode.Steps); // this commit also fixed 37
          // return;
 
          // var canvas = dmch.CreateAndAddCanvas();
@@ -268,7 +268,7 @@ namespace Dargon.Terragami.Tests {
                   canvas.DrawPoint(x.Cartesian, StrokeStyle.RedThick25Solid);
                   var debugText = $"s[{i}], wo {s[i].WindingOffset:F2}";
 
-                  if (x.PointIndex == null) {
+                  if (x.WindowEndpointData != null) {
                      var windowEndpointData = x.WindowEndpointData.Value;
                      var reflexVertex = poly.Points[windowEndpointData.WindowReflexVertexIndex].ToDoubleVector2();
 
@@ -351,12 +351,25 @@ namespace Dargon.Terragami.Tests {
                      it.Step();
                      if (kEnableDebugPrint) Console.WriteLine($"STEPPED {it.PrevVertexIndex}/{it.PrevWindingIndex} => {it.CurVertexIndex}/{it.CurWindingIndex} => {it.NextVertexIndex}/{it.NextWindingIndex}, n = {n}: {state} {stateScanCcw} {stateScanWindowEnd.IsRayElsePointEndpoint} {stateScanWindowEnd.DirectionFromStackTopIfWindowIsRayElsePointEndpoint}");
 
-                     // add current point to stack
-                     s.Add(new StackEntry {
-                        Cartesian = it.Cur.ToDoubleVector2(),
-                        WindingOffset = windingOffsets[it.CurWindingIndex],
-                        PointIndex = it.CurVertexIndex,
-                     });
+                     // add current point to stack. handle the degenerate collinear case where 
+                     // the prior stack entry is a window vertex at our exact point, by merging the
+                     // point-to-add with that window vertex.
+                     {
+                        var lastStackEntry = s[^1]; // scoped to not be accessible later, as wrong after else case.
+                        var lastStackEntryDistance = (lastStackEntry.Cartesian - it.Cur.ToDoubleVector2()).SquaredNorm2D();
+                        if (lastStackEntry.WindowEndpointData.HasValue && lastStackEntryDistance < EPSILON) {
+                           lastStackEntry.Cartesian = it.Cur.ToDoubleVector2();
+                           lastStackEntry.WindingOffset = windingOffsets[it.CurWindingIndex];
+                           lastStackEntry.PointIndex = it.CurVertexIndex;
+                           s[^1] = lastStackEntry;
+                        } else {
+                           s.Add(new StackEntry {
+                              Cartesian = it.Cur.ToDoubleVector2(),
+                              WindingOffset = windingOffsets[it.CurWindingIndex],
+                              PointIndex = it.CurVertexIndex,
+                           });
+                        }
+                     }
 
                      // transition to finish if done iterating contour
                      if (it.IndexOffset == n) {
@@ -689,20 +702,47 @@ namespace Dargon.Terragami.Tests {
                         tForSeg = trueSegTInitial + tForSeg * (trueSegTFinal - trueSegTInitial);
                      }
 
-                     s[^1] = new StackEntry {
-                        Cartesian = intersectionPoint,
-                        WindingOffset = ComputeWindingOffset(
-                           s[^1].WindingOffset,
-                           v0,
-                           s[^1].Cartesian,
-                           intersectionPoint),
-                        PointIndex = null,
-                        WindowEndpointData = new WindowEndpointData {
-                           WindowReflexVertexIndex = it.CurVertexIndex,
-                           WindowSegmentFirstIndex = s[j].PointIndex ?? s[j].WindowEndpointData.Value.WindowSegmentFirstIndex,
-                           WindowSegmentT = tForSeg,
-                        },
+                     // Normally we'd push a window endpoint & push the current endpoint onto stack.
+                     // In the case where we have collinear points, the window endpoint would overlap
+                     // with an existing vertex, so handle that case specially & update the existing
+                     // stack element instead.
+                     //
+                     // Here, for example, we'll visit v0...s[^3], s[^2], s[^1], q, vn.
+                     // Case (a) will normally cover s[^2]-s[^1], introducing a window from q to some
+                     // endpoint on line v0-q intersecting s[^2]-s[^1]. Normally, this is in the middle
+                     // of the second segment, though in the collinear degenerate case this middle point
+                     // is s[^2]. We update s[^2] with data about the window endpoint rather than
+                     // introducing a new point after s[^2] at the same position.
+                     // 
+                     // |
+                     // |     q  s[^2]
+                     // *-*---*   *--*
+                     //   v0   \ /   s[^3]
+                     //         *s[^1]
+                     var windowEndpointData = new WindowEndpointData {
+                        WindowReflexVertexIndex = it.CurVertexIndex,
+                        WindowSegmentFirstIndex = s[j].PointIndex ?? s[j].WindowEndpointData.Value.WindowSegmentFirstIndex,
+                        WindowSegmentT = tForSeg,
                      };
+                     if ((s[^2].Cartesian - intersectionPoint).SquaredNorm2D() < EPSILON) {
+                        s.RemoveAt(s.Count - 1);
+
+                        var lastEntry = s[^1];
+                        lastEntry.WindowEndpointData = windowEndpointData;
+                        s[^1] = lastEntry;
+                     } else {
+                        s[^1] = new StackEntry {
+                           Cartesian = intersectionPoint,
+                           WindingOffset = ComputeWindingOffset(
+                              s[^1].WindingOffset,
+                              v0,
+                              s[^1].Cartesian,
+                              intersectionPoint),
+                           PointIndex = null,
+                           WindowEndpointData = windowEndpointData,
+                        };
+                     }
+
                      s.Add(new StackEntry {
                         Cartesian = it.Cur.ToDoubleVector2(),
                         WindingOffset = windingOffsets[it.CurWindingIndex],
