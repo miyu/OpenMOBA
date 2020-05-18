@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Dargon.Commons;
 using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
@@ -103,16 +105,13 @@ namespace Dargon.Terragami.Tests {
          public int WindowReflexVertexIndex;
       }
 
-      public float ComputeWindingOffset(float prevWindingOffset, DoubleVector2 v0, DoubleVector2 prev, DoubleVector2 cur) {
-         // Note that while winding is conceptually the angle between zv0 and a point, we instead iteratively compute winding.
-         // This is because winding can surpass 0,2pi e.g. in spirals, and this is important information for the algo.
-         var clk = GeometryOperations.Clockness(v0, prev, cur); // clockwise is positive.
+      // No inlining takes vispoly from 7us to 5.9us.
+      [MethodImpl(MethodImplOptions.NoInlining)]
+      public float ComputeWindingOffset(float prevWindingOffset, in DoubleVector2 v0, in DoubleVector2 prev, in DoubleVector2 cur) {
          var angle = MathUtils.SignedAngleBetweenVectorsF(
-            v0.To(prev),
-            v0.To(cur));
-         angle = Math.Abs(angle);
-         angle = Math.Min(angle, TWO_PI - angle); // unnecessary due to atan2 range?
-         return prevWindingOffset + angle * (int)clk;
+            v0.To(cur),
+            v0.To(prev));
+         return prevWindingOffset + angle;
       }
 
       public void Execute() {
@@ -169,31 +168,45 @@ namespace Dargon.Terragami.Tests {
             new Size(2250, 1100),
             new Point(100, 100));
 
-         // ComputeVisibilityPolygon(poly, 24, dmch, DebugDrawMode.Steps); // this commit also fixed 37
+         // ComputeVisibilityPolygon(poly, 6, dmch, DebugDrawMode.Steps); // this commit also fixed 37
          // return;
 
-         // var canvas = dmch.CreateAndAddCanvas();
-         // canvas.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
-         //
-         // for (var i = 0; i < poly.Points.Count; i++) {
-         //    var lines = ComputeVisibilityPolygon(poly, i);
-         //    canvas.DrawLineList(lines, new StrokeStyle(Color.Gray, 1.0f, new[] { 100.0f, 100.0f }));
-         // }
-         //
-         // return;
+         var canvas = dmch.CreateAndAddCanvas();
+         canvas.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
 
+         for (var i = 0; i < poly.Points.Count; i++) {
+            var lines = ComputeVisibilityPolygon(poly, i);
+            canvas.DrawLineList(lines, new StrokeStyle(Color.Gray, 1.0f, new[] { 100.0f, 100.0f }));
+         }
+
+         return;
+         //
          ComputeVisibilityPolygon(poly, 0, dmch, DebugDrawMode.Steps);
          for (var i = 0; i < 10; i++) ComputeVisibilityPolygon(poly, 0, dmch, DebugDrawMode.Result);
-
+         
          for (var initialIndex = 0; initialIndex < poly.Points.Count; initialIndex++) {
             ComputeVisibilityPolygon(poly, initialIndex, dmch, DebugDrawMode.Result);
             ComputeVisibilityPolygon(poly, initialIndex, dmch, DebugDrawMode.Result);
             ComputeVisibilityPolygon(poly, initialIndex, dmch, DebugDrawMode.Result);
          }
-
+         
          for (var i = 0; i < 5; i++) ComputeVisibilityPolygon(poly, 0, dmch, DebugDrawMode.Result);
          ComputeVisibilityPolygon(poly, 0, dmch, DebugDrawMode.Steps);
+         return;
 
+         while (true) {
+            var sw = new Stopwatch();
+            sw.Start();
+            for (var i = 0; i < 1000; i++) {
+               for (var j = 0; j < poly.Points.Count; j++) {
+                  ComputeVisibilityPolygon(poly, j);
+               }
+            }
+
+            var ms = sw.Elapsed.TotalMilliseconds;
+            var numVispolies = 1000 * poly.Points.Count;
+            Console.WriteLine($"{numVispolies} {ms} {ms / 1000} {ms * 1000 / numVispolies}");
+         }
       }
 
       enum DebugDrawMode {
@@ -218,8 +231,10 @@ namespace Dargon.Terragami.Tests {
          var z = v0;
          var windingOffsets = new float[it.NumPoints + 1];
          for (var i = 0; i < windingOffsets.Length; i++, it.Step()) {
-            if (i == 0) {
+            if (i == 0 || i == 1) {
                windingOffsets[i] = 0; // if z on boundary(P), 
+            } else if (i == windingOffsets.Length - 1) {
+               windingOffsets[i] = windingOffsets[i - 1];
             } else {
                windingOffsets[i] = ComputeWindingOffset(
                   windingOffsets[i - 1],
@@ -229,16 +244,16 @@ namespace Dargon.Terragami.Tests {
             }
          }
 
-         var bounds = AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray());
+         AxisAlignedBoundingBox2 ComputePolyPointsBounds() => AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray());
          if (debugDrawMode != DebugDrawMode.None) {
             dmch ??= SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
-               bounds,
+               ComputePolyPointsBounds(),
                new Size(2250, 1100),
                new Point(100, 100));
          }
 
          it.ResetToInitialIndex(); // i := 0 is curIndex == initialIndex
-         var s = new List<StackEntry>();
+         var s = new List<StackEntry>(poly.Points.Count);
          var isZVertex = true;
          var n = isZVertex ? windingOffsets.Length - 1 : windingOffsets.Length;
 
@@ -310,6 +325,7 @@ namespace Dargon.Terragami.Tests {
                   }
                }
 
+               var bounds = ComputePolyPointsBounds();
                canvas.DrawText($"it={iteration}, v0={initialIndex} @({it.PrevWindingIndex} => {it.CurWindingIndex} => {it.NextWindingIndex}) {state}", new Vector2(-10, -30) + bounds.Center.ToDotNetVector());
             });
          }
@@ -356,8 +372,8 @@ namespace Dargon.Terragami.Tests {
                      // point-to-add with that window vertex.
                      {
                         var lastStackEntry = s[^1]; // scoped to not be accessible later, as wrong after else case.
-                        var lastStackEntryDistance = (lastStackEntry.Cartesian - it.Cur.ToDoubleVector2()).SquaredNorm2D();
-                        if (lastStackEntry.WindowEndpointData.HasValue && lastStackEntryDistance < EPSILON) {
+                        if (lastStackEntry.WindowEndpointData.HasValue &&
+                            (lastStackEntry.Cartesian - it.Cur.ToDoubleVector2()).SquaredNorm2D() < EPSILON) {
                            lastStackEntry.Cartesian = it.Cur.ToDoubleVector2();
                            lastStackEntry.WindingOffset = windingOffsets[it.CurWindingIndex];
                            lastStackEntry.PointIndex = it.CurVertexIndex;
@@ -838,11 +854,13 @@ namespace Dargon.Terragami.Tests {
          }
 
          var windows = new List<DoubleLineSegment2>();
-         for (var i = 0; i < s.Count - 1; i++) {
+         for (var i = 0; i < s.Count; i++) {
             var cur = s[i];
-            var next = s[i + 1];
-            if (cur.PointIndex.HasValue != next.PointIndex.HasValue) {
-               windows.Add(new DoubleLineSegment2(cur.Cartesian, next.Cartesian));
+            if (cur.WindowEndpointData.HasValue) {
+               windows.Add(new DoubleLineSegment2(
+                  cur.Cartesian,
+                  poly.Points[cur.WindowEndpointData.Value.WindowReflexVertexIndex].ToDoubleVector2()
+               ));
             }
          }
 

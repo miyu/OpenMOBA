@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Xunit.Sdk;
 using Exception = System.Exception;
 
 namespace Dargon.Terragami.Tests {
@@ -12,11 +13,13 @@ namespace Dargon.Terragami.Tests {
          // new VisibilityPolygonQueryTests().Exec();
          // new VisibilityPolygonOfSimplePolygonsTests().Exec();
 
+         // new MathUtilsTests().FastAtan2ErrorBounds();
+
          // try {
-            new VisibilityPolygonOfSimplePolygonsTests().Execute();
+         new VisibilityPolygonOfSimplePolygonsTests().Execute();
          // } catch (Exception e) {
-            // Console.Error.WriteLine(e);
-            // while (true) ;
+         // Console.Error.WriteLine(e);
+         // while (true) ;
          // }
       }
    }
