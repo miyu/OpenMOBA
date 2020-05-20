@@ -302,6 +302,9 @@ namespace Dargon.PlayOn.Geometry {
       public cDouble X2 => Second.X;
       public cDouble Y2 => Second.Y;
 
+      public cDouble Length => DoubleVector2.DistanceNorm2(First, Second);
+      public cDouble SquaredLength => DoubleVector2.SquaredDistanceNorm2(First, Second);
+
       public DoubleVector2[] Points => new[] { First, Second };
 
       public bool Intersects(DoubleLineSegment2 other) {

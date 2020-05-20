@@ -215,11 +215,17 @@ namespace Dargon.Dviz {
                scene.AddRenderable(
                   presets.UnitCube,
                   Matrix.Multiply(offset, Matrix.Multiply(lookat, scale)),
-                  new MaterialDescription{
+                  new MaterialDescription {
                      Properties = new MaterialProperties { Metallic = 0, Roughness = 1.00f }
                   },
                   Color.FromBgra(strokeStyle.Color.ToArgb()));
             }
+         }
+
+
+         // todo: update this to actually draw an arrowhead
+         public void DrawVector(Vector3 p1, Vector3 p2, StrokeStyle strokeStyle, float arrowheadScale = 1) {
+            DrawLine(p1, p2, strokeStyle);
          }
 
          public void DrawTriangle(SNVector3 p1, SNVector3 p2, SNVector3 p3, StrokeStyle strokeStyle) {

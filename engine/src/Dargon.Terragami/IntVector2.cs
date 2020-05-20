@@ -97,6 +97,16 @@ namespace Dargon.PlayOn.Geometry {
       }
 
       public override string ToString() => $"[{X}, {Y}]";
+
+      public static cDouble DistanceNorm2(DoubleVector2 first, DoubleVector2 second) {
+         return Math.Sqrt(SquaredDistanceNorm2(first, second));
+      }
+
+      public static cDouble SquaredDistanceNorm2(DoubleVector2 first, DoubleVector2 second) {
+         var dx = first.X - second.X;
+         var dy = first.Y - second.Y;
+         return dx * dx + dy * dy;
+      }
    }
 
    [AutoSerializable]

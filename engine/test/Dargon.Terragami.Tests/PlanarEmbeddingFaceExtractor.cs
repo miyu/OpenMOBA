@@ -45,32 +45,6 @@ namespace Dargon.Terragami.Tests {
          IDebugCanvas Render() {
             var canvas = dmch.CreateAndAddCanvas();
             canvas.BatchDraw(() => {
-               foreach (var node in nodes) {
-                  canvas.DrawPoint(node.Vertex, StrokeStyle.RedThick5Solid);
-                  canvas.DrawText(node.Id.ToString(), node.Vertex.ToDotNetVector());
-
-                  foreach (var outedge in node.OutboundEdges) {
-                     canvas.DrawLine(
-                        node.Vertex,
-                        outedge.Other(node).Vertex,
-                        StrokeStyle.BlackHairLineSolid);
-
-                     canvas.DrawText(
-                        "e" + outedge.Id.ToString(),
-                        ((outedge.Source.Vertex + outedge.Destination.Vertex) / 2).ToDotNetVector()
-                     );
-                  }
-               }
-
-               var events = activatableNodeQueue.ToArray();
-               foreach (var (i, e) in events.Enumerate()) {
-                  canvas.DrawPoint(
-                     e.Vertex,
-                     i == 0
-                        ? StrokeStyle.RedThick25Solid
-                        : StrokeStyle.RedThick10Solid);
-               }
-
                var cellColors = new[] {
                   Color.Red,
                   Color.Orange,
@@ -84,6 +58,8 @@ namespace Dargon.Terragami.Tests {
                   Color.Gray,
                };
 
+               ((DebugCanvas)canvas).SetFontScale(5);
+
                foreach (var (i, cell) in allCells.Enumerate()) {
                   var contour = cell.Left.Concat(cell.Right.Skip(1).Reverse())
                                     .Select(x => x.Vertex)
@@ -96,6 +72,38 @@ namespace Dargon.Terragami.Tests {
                   
                   var transparentColor = Color.FromArgb(125, color);
                   canvas.FillPolygon(contour, new FillStyle(transparentColor));
+               }
+
+               var graphScale = Math.Sqrt(nodes.Max(n => n.OutboundEdges.Count == 0 ? -1 : n.OutboundEdges.Max(e => DoubleVector2.SquaredDistanceNorm2(e.Source.Vertex, e.Destination.Vertex))));
+               var pointSize = 10.0f * (float)graphScale / 315.42986542177647f; // found by hand
+               var arrowPadding = 10.0f * (float)graphScale / 315.42986542177647f; // found by hand
+
+               var activatableNodes = activatableNodeQueue.ToArray().ToHashSet();
+               foreach (var node in nodes) {
+                  var strokeStyle = activatableNodes.Contains(node)
+                     ? (activatableNodeQueue.Peek() == node
+                        ? new StrokeStyle(Color.Lime, pointSize * 5)
+                        : new StrokeStyle(Color.Orange, pointSize * 4))
+                     : new StrokeStyle(Color.Red, pointSize * 3);
+                  canvas.DrawPoint(node.Vertex, strokeStyle);
+                  canvas.DrawText(node.Id.ToString(), node.Vertex.ToDotNetVector());
+
+                  foreach (var outedge in node.OutboundEdges) {
+                     var seg = new DoubleLineSegment2(node.Vertex, outedge.Other(node).Vertex);
+                     var segLength = seg.Length;
+                     var effectiveArrowPadding = segLength < arrowPadding ? 0 : arrowPadding; // todo: tween this
+
+                     canvas.DrawVector(
+                        seg.PointAt(effectiveArrowPadding / segLength),
+                        seg.PointAt((segLength - effectiveArrowPadding) / segLength),
+                        StrokeStyle.BlackThick3Solid,
+                        arrowPadding * 2);
+
+                     canvas.DrawText(
+                        "e" + outedge.Id.ToString(),
+                        ((outedge.Source.Vertex + outedge.Destination.Vertex) / 2).ToDotNetVector()
+                     );
+                  }
                }
             });
 
@@ -241,11 +249,11 @@ namespace Dargon.Terragami.Tests {
             nodes[it].Id = it;
          }
 
-         var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
-            AxisAlignedBoundingBox2.BoundingPoints(nodes.Map(n => n.Vertex)),
-            // new Size(2250, 1100),
-            new Size(1920 / 2, 1080 / 2),
-            new Point(100, 100));
+         // var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
+         //    AxisAlignedBoundingBox2.BoundingPoints(nodes.Map(n => n.Vertex)),
+         //    // new Size(2250, 1100),
+         //    new Size(1920 / 2, 1080 / 2),
+         //    new Point(100, 100));
 
          new PlanarEmbeddingFaceExtractor().X(nodes, edgeCounter, null, DebugDrawMode.Steps);
       }

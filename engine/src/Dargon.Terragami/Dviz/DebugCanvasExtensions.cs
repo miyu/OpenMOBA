@@ -50,6 +50,22 @@ namespace Dargon.Terragami.Dviz {
          canvas.DrawLine(ToV3(segment.First), ToV3(segment.Second), strokeStyle);
       }
 
+      public static void DrawVector(this IDebugCanvas canvas, IntVector2 p1, IntVector2 p2, StrokeStyle strokeStyle, float arrowheadScale = 1) {
+         canvas.DrawVector(ToV3(p1), ToV3(p2), strokeStyle, arrowheadScale);
+      }
+
+      public static void DrawVector(this IDebugCanvas canvas, DoubleVector2 p1, DoubleVector2 p2, StrokeStyle strokeStyle, float arrowheadScale = 1) {
+         canvas.DrawVector(ToV3(p1), ToV3(p2), strokeStyle, arrowheadScale);
+      }
+
+      public static void DrawVector(this IDebugCanvas canvas, IntLineSegment2 segment, StrokeStyle strokeStyle, float arrowheadScale = 1) {
+         canvas.DrawVector(ToV3(segment.First), ToV3(segment.Second), strokeStyle, arrowheadScale);
+      }
+
+      public static void DrawVector(this IDebugCanvas canvas, DoubleLineSegment2 segment, StrokeStyle strokeStyle, float arrowheadScale = 1) {
+         canvas.DrawVector(ToV3(segment.First), ToV3(segment.Second), strokeStyle, arrowheadScale);
+      }
+
       public static void DrawLineList(this IDebugCanvas canvas, IReadOnlyList<IntVector2> points, StrokeStyle strokeStyle) {
          canvas.DrawLineList(points.Map(ToV3), strokeStyle);
       }
