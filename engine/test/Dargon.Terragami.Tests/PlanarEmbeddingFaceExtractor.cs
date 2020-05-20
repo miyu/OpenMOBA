@@ -11,10 +11,11 @@ using Dargon.Dviz;
 using Dargon.PlayOn.DataStructures;
 using Dargon.PlayOn.Geometry;
 using Dargon.Terragami.Dviz;
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 namespace Dargon.Terragami.Tests {
    public class PlanarEmbeddingFaceExtractor {
-      public void X(List<PgeNode> nodes, int edgeCounter, DebugMultiCanvasHost dmch = null, DebugDrawMode debugDrawMode = DebugDrawMode.None) {
+      public void X(List<PgeNode> nodes, List<PgeEdge> edges, DebugMultiCanvasHost dmch = null, DebugDrawMode debugDrawMode = DebugDrawMode.None) {
          // traverse nodes in topological order
          var nodeToUnactivatedInEdgeCount = new int[nodes.Count];
          var activatableNodeQueue = new Queue<PgeNode>();
@@ -30,8 +31,9 @@ namespace Dargon.Terragami.Tests {
             }
          }
 
-         var edgeToLeftCell = new Cell[edgeCounter];
-         var edgeToRightCell = new Cell[edgeCounter];
+         var edgeToLeftCell = new Cell[edges.Count];
+         var edgeToRightCell = new Cell[edges.Count];
+
          var allCells = new List<Cell>();
          var activeCells = new HashSet<Cell>();
 
@@ -45,38 +47,99 @@ namespace Dargon.Terragami.Tests {
          IDebugCanvas Render() {
             var canvas = dmch.CreateAndAddCanvas();
             canvas.BatchDraw(() => {
-               var cellColors = new[] {
-                  Color.Red,
-                  Color.Orange,
-                  Color.Yellow,
-                  Color.YellowGreen,
-                  Color.Lime,
-                  Color.Cyan,
-                  Color.Blue,
-                  Color.Purple,
-                  Color.Magenta,
-                  Color.Gray,
-               };
+               // ripped from https://bhaskarvk.github.io/colormap/reference/colormap.html lul
+               var colorMap = @"
+440154ff 440558ff 450a5cff 450e60ff 451465ff 461969ff 
+461d6dff 462372ff 472775ff 472c7aff 46307cff 45337dff 
+433880ff 423c81ff 404184ff 3f4686ff 3d4a88ff 3c4f8aff 
+3b518bff 39558bff 37598cff 365c8cff 34608cff 33638dff 
+31678dff 2f6b8dff 2d6e8eff 2c718eff 2b748eff 29788eff 
+287c8eff 277f8eff 25848dff 24878dff 238b8dff 218f8dff 
+21918dff 22958bff 23988aff 239b89ff 249f87ff 25a186ff 
+25a584ff 26a883ff 27ab82ff 29ae80ff 2eb17dff 35b479ff 
+3cb875ff 42bb72ff 49be6eff 4ec16bff 55c467ff 5cc863ff 
+61c960ff 6bcc5aff 72ce55ff 7cd04fff 85d349ff 8dd544ff 
+97d73eff 9ed93aff a8db34ff b0dd31ff b8de30ff c3df2eff 
+cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOptions.RemoveEmptyEntries).Map(x => x.Trim())
+                                                       .Map(hex => {
+                                                          int r = int.Parse(hex[0..2], System.Globalization.NumberStyles.HexNumber); // jfc
+                                                          int g = int.Parse(hex[2..4], System.Globalization.NumberStyles.HexNumber); // jfc
+                                                          int b = int.Parse(hex[4..6], System.Globalization.NumberStyles.HexNumber); // jfc
+                                                          return Color.FromArgb(r, g, b);
+                                                       });
 
-               ((DebugCanvas)canvas).SetFontScale(5);
+               canvas.FillPolygon(Polygon2.CreateRect(
+                  -1000, -1000,
+                  3000, 3000), new FillStyle(Color.White));
 
-               foreach (var (i, cell) in allCells.Enumerate()) {
-                  var contour = cell.Left.Concat(cell.Right.Skip(1).Reverse())
-                                    .Select(x => x.Vertex)
-                                    .ToList();
+               var cellColors = colorMap.Shuffle(new Random(0)).ToArray();
 
-                  var color = cellColors[i % cellColors.Length];
-                  canvas.DrawPolygon(contour, new StrokeStyle(color));
-
-                  if (contour.Count <= 2) continue;
-                  
-                  var transparentColor = Color.FromArgb(125, color);
-                  canvas.FillPolygon(contour, new FillStyle(transparentColor));
-               }
+               ((DebugCanvas)canvas).SetFontScale(3);
 
                var graphScale = Math.Sqrt(nodes.Max(n => n.OutboundEdges.Count == 0 ? -1 : n.OutboundEdges.Max(e => DoubleVector2.SquaredDistanceNorm2(e.Source.Vertex, e.Destination.Vertex))));
                var pointSize = 10.0f * (float)graphScale / 315.42986542177647f; // found by hand
                var arrowPadding = 10.0f * (float)graphScale / 315.42986542177647f; // found by hand
+               var neighborEdgePadding = 5.0f * (float)graphScale / 315.42986542177647f; // found by hand
+
+               var cellToContourAndCentroid = new Dictionary<Cell, (List<DoubleVector2> contour, DoubleVector2 centroid)>();
+               foreach (var (i, cell) in allCells.Enumerate()) {
+                  var contour = cell.Left.MapList(c => c.node.Vertex);
+
+                  // either closed cell or freshly opened
+                  var j0 =
+                     !activeCells.Contains(cell) ? cell.Right.Count - 2 : // last element in right chain matches last element in left chain
+                     cell.Left[^1] == cell.Right[^1] ? -1 : // right chain has 1 item, which is first item in left chain
+                     cell.Right.Count - 1; // right chain hasn't met left chain yet
+
+                  for (var j = j0; j >= 1; j--) {
+                     contour.Add(cell.Right[j].node.Vertex);
+                  }
+
+                  var centroid = contour.Aggregate(DoubleVector2.Zero, (a, b) => a + b) / contour.Count;
+                  cellToContourAndCentroid.Add(cell, (contour, centroid));
+               }
+
+               foreach (var (i, cell) in allCells.Enumerate()) {
+                  var (contour, centroid) = cellToContourAndCentroid[cell];
+
+                  var color = cellColors[i % cellColors.Length];
+                  canvas.DrawPolygon(contour, new StrokeStyle(color));
+
+                  if (contour.Count > 2) {
+                     var transparentColor = Color.FromArgb(125, color);
+                     canvas.FillPolygon(contour, new FillStyle(transparentColor));
+                  }
+               }
+
+               var asdf = 0;
+               foreach (var (i, cell) in allCells.Enumerate()) {
+                  var (contour, centroid) = cellToContourAndCentroid[cell];
+
+                  foreach (var ((_, edgeIndex), isLeftChain) in cell.Left.Select(x => (x, true)).Concat(cell.Right.Select(x => (x, false)))) {
+                     if (edgeIndex < 0) continue;
+
+                     var neighborCell = isLeftChain ? edgeToLeftCell[edgeIndex] : edgeToRightCell[edgeIndex];
+                     if (neighborCell == null) continue;
+
+                     var edge = edges[edgeIndex];
+                     var edgeSegment = edge.Source.Vertex.SegmentTo(edge.Destination.Vertex);
+                     var edgeCenter = edgeSegment.PointAt(0.5);
+                     var edgeDirection = edgeSegment.First.To(edgeSegment.Second).ToUnit();
+                     var edgeDirectionPerp = isLeftChain ? edgeDirection.PerpLeft() : edgeDirection.PerpRight();
+                     var vectorOffset = (isLeftChain ? edgeDirection : -edgeDirection) * neighborEdgePadding;
+
+                     canvas.DrawVector(
+                        edgeCenter + vectorOffset + edgeDirectionPerp * (neighborEdgePadding * 2),
+                        edgeCenter + vectorOffset - edgeDirectionPerp * (neighborEdgePadding * 2),
+                        StrokeStyle.BlackThick3Solid, 
+                        arrowPadding);
+
+                     // if (asdf == 11) Debugger.Break();
+                     // canvas.DrawText("d" + asdf.ToString(), ((centroid + offset + neighborCentroid + offset) / 2).ToDotNetVector());
+
+                     asdf++;
+                  }
+               }
 
                var activatableNodes = activatableNodeQueue.ToArray().ToHashSet();
                foreach (var node in nodes) {
@@ -86,7 +149,8 @@ namespace Dargon.Terragami.Tests {
                         : new StrokeStyle(Color.Orange, pointSize * 4))
                      : new StrokeStyle(Color.Red, pointSize * 3);
                   canvas.DrawPoint(node.Vertex, strokeStyle);
-                  canvas.DrawText(node.Id.ToString(), node.Vertex.ToDotNetVector());
+                  canvas.DrawText($"{node.Id}", node.Vertex.ToDotNetVector());
+                  // canvas.DrawText($"{node.Id}\n{node.Vertex.X:F2},{node.Vertex.Y:F2}", node.Vertex.ToDotNetVector());
 
                   foreach (var outedge in node.OutboundEdges) {
                      var seg = new DoubleLineSegment2(node.Vertex, outedge.Other(node).Vertex);
@@ -101,7 +165,7 @@ namespace Dargon.Terragami.Tests {
 
                      canvas.DrawText(
                         "e" + outedge.Id.ToString(),
-                        ((outedge.Source.Vertex + outedge.Destination.Vertex) / 2).ToDotNetVector()
+                        outedge.Source.Vertex.SegmentTo(outedge.Destination.Vertex).PointAt(0.3).ToDotNetVector()
                      );
                   }
                }
@@ -139,8 +203,8 @@ namespace Dargon.Terragami.Tests {
                var rightEdge = n.OutboundEdges[i];
 
                var cell = new Cell();
-               cell.Left.Add(n);
-               cell.Right.Add(n);
+               cell.Left.Add((n, -1));
+               cell.Right.Add((n, -1));
 
                edgeToRightCell[leftEdge.Id] = cell;
                edgeToLeftCell[rightEdge.Id] = cell;
@@ -158,20 +222,23 @@ namespace Dargon.Terragami.Tests {
 
                if (edgeToLeftCell[lastInboundEdge.Id] != null) {
                   var lastOutboundEdgeLeftCell = edgeToLeftCell[lastOutboundEdge.Id] = edgeToLeftCell[lastInboundEdge.Id];
-                  lastOutboundEdgeLeftCell.Right.Add(n);
+                  lastOutboundEdgeLeftCell.Right.Add((n, lastInboundEdge.Id));
                }
 
                if (edgeToRightCell[firstInboundEdge.Id] != null) {
                   var lastOutboundEdgeRightCell = edgeToRightCell[firstOutboundEdge.Id] = edgeToRightCell[firstInboundEdge.Id];
-                  lastOutboundEdgeRightCell.Left.Add(n);
+                  lastOutboundEdgeRightCell.Left.Add((n, firstInboundEdge.Id));
                }
             }
 
-            // foreach inbound cell we're terminating, add self.
+            // foreach inbound cell we're terminating, add self to both left/right
+            // chains, as we need to track both segments' edges.
             // first/last inbound cells added to above already
             for (var i = 0; i < n.InboundEdges.Count - 1; i++) {
-               var inboundEdge = n.InboundEdges[i];
-               var leftCell = edgeToLeftCell[inboundEdge.Id];
+               var rightEdge = n.InboundEdges[i];
+               var leftEdge = n.InboundEdges[i + 1];
+               var cell = edgeToLeftCell[rightEdge.Id];
+               Assert.Equals(edgeToLeftCell[rightEdge.Id], edgeToRightCell[leftEdge.Id]);
 
                // left cell can be null in case
                // *--->
@@ -179,11 +246,25 @@ namespace Dargon.Terragami.Tests {
                //   * here
                //  / 
                // *--->
-               if (leftCell == null) continue;
+               if (cell == null) continue;
 
-               leftCell.Right.Add(n);
-               activeCells.Remove(leftCell);
+               cell.Left.Add((n, leftEdge.Id));
+               cell.Right.Add((n, rightEdge.Id));
+               activeCells.Remove(cell);
             }
+         }
+
+         // cleanup: kill cells with just 1 left & right vertex.
+         // these're <-shaped verts at the end of our scan.
+         // these should actually be all our final active cells
+         foreach (var cell in activeCells) {
+            Assert.Equals(1, cell.Left.Count);
+            Assert.Equals(1, cell.Right.Count);
+         }
+
+         for (var i = 0; i < edges.Count; i++) {
+            if (activeCells.Contains(edgeToLeftCell[i])) edgeToLeftCell[i] = null;
+            if (activeCells.Contains(edgeToRightCell[i])) edgeToRightCell[i] = null;
          }
 
          if (debugDrawMode != DebugDrawMode.None) {
@@ -192,8 +273,10 @@ namespace Dargon.Terragami.Tests {
       }
 
       public class Cell {
-         public List<PgeNode> Left = new List<PgeNode>();
-         public List<PgeNode> Right = new List<PgeNode>();
+         // (node, edge last responsible for adding node as destination)
+         // such that node[i] to node[i+1] is through edgeIndex[i+1]
+         public List<(PgeNode node, int edgeIndex)> Left = new List<(PgeNode node, int edgeIndex)>();
+         public List<(PgeNode node, int edgeIndex)> Right = new List<(PgeNode node, int edgeIndex)>();
       }
 
       public static void Exec() {
@@ -216,6 +299,7 @@ namespace Dargon.Terragami.Tests {
          }
 
          var edgeCounter = 0;
+         var edges = new List<PgeEdge>();
          void AddEdge(PgeNode src, PgeNode dst) {
             var srcToDest = src.Vertex.To(dst.Vertex);
             Assert.IsLessThanOrEqualTo(src.Vertex.X, dst.Vertex.X);
@@ -229,6 +313,8 @@ namespace Dargon.Terragami.Tests {
 
             src.OutboundEdges.Add(edge);
             dst.InboundEdges.Add(edge);
+
+            edges.Add(edge);
          }
 
          AddEdge(a, c);
@@ -255,7 +341,7 @@ namespace Dargon.Terragami.Tests {
          //    new Size(1920 / 2, 1080 / 2),
          //    new Point(100, 100));
 
-         new PlanarEmbeddingFaceExtractor().X(nodes, edgeCounter, null, DebugDrawMode.Steps);
+         new PlanarEmbeddingFaceExtractor().X(nodes, edges, null, DebugDrawMode.Steps);
       }
    }
 

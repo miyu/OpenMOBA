@@ -29,6 +29,7 @@ namespace Dargon.PlayOn.Geometry {
       public cDouble Norm2D() => CDoubleMath.Sqrt(SquaredNorm2D());
 
       [Pure] public DoubleVector2 To(DoubleVector2 other) => other - this;
+      [Pure] public DoubleLineSegment2 SegmentTo(DoubleVector2 other) => new DoubleLineSegment2(this, other);
 
       /// <summary>
       /// result * other ~= Proj(this onto other)
@@ -55,6 +56,8 @@ namespace Dargon.PlayOn.Geometry {
       }
 
       public DoubleVector2 ToUnit() => this / Norm2D();
+      public DoubleVector2 PerpLeft() => new DoubleVector2(-this.Y, this.X); // such that X+ goes to Y+
+      public DoubleVector2 PerpRight() => new DoubleVector2(this.Y, -this.X); // such that X+ goes to Y-
 
       [DebuggerStepThrough] [Pure] public IntVector2 LossyToIntVector2() => new IntVector2((cInt)CDoubleMath.Floor(X), (cInt)CDoubleMath.Floor(Y));
 
