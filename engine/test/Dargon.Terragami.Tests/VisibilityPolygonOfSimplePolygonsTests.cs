@@ -225,12 +225,6 @@ namespace Dargon.Terragami.Tests {
          }
       }
 
-      enum DebugDrawMode {
-         None,
-         Steps,
-         Result,
-      }
-
       public const float EPSILON = 1E-5f;
       public const float NEGATIVE_EPSILON = -EPSILON;
 

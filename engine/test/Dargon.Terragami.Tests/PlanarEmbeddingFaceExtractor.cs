@@ -14,12 +14,33 @@ using Dargon.Terragami.Dviz;
 
 namespace Dargon.Terragami.Tests {
    public class PlanarEmbeddingFaceExtractor {
-      public void X(List<PgeNode> nodes, int edgeCounter, DebugMultiCanvasHost dmch = null) {
-         var pq = new PriorityQueue<PgeNode>((a, b) => a.Vertex.X.CompareTo(b.Vertex.X));
+      public void X(List<PgeNode> nodes, int edgeCounter, DebugMultiCanvasHost dmch = null, DebugDrawMode debugDrawMode = DebugDrawMode.None) {
+         // traverse nodes in topological order
+         var nodeToUnactivatedInEdgeCount = new int[nodes.Count];
+         var activatableNodeQueue = new Queue<PgeNode>();
+         for (var i = 0; i < nodes.Count; i++) {
+            var node = nodes[i];
+
+            var inboundEdgesCount = node.InboundEdges.Count;
+            nodeToUnactivatedInEdgeCount[i] = inboundEdgesCount;
+            Assert.Equals(i, node.Id);
+
+            if (inboundEdgesCount == 0) {
+               activatableNodeQueue.Enqueue(node);
+            }
+         }
+
          var edgeToLeftCell = new Cell[edgeCounter];
          var edgeToRightCell = new Cell[edgeCounter];
          var allCells = new List<Cell>();
          var activeCells = new HashSet<Cell>();
+
+         if (dmch == null && debugDrawMode != DebugDrawMode.None) {
+            dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
+               AxisAlignedBoundingBox2.BoundingPoints(nodes.Map(n => n.Vertex)),
+               new Size(2250, 1100), // new Size(1920 / 2, 1080 / 2),
+               new Point(100, 100));
+         }
 
          IDebugCanvas Render() {
             var canvas = dmch.CreateAndAddCanvas();
@@ -41,7 +62,7 @@ namespace Dargon.Terragami.Tests {
                   }
                }
 
-               var events = pq.ToArray();
+               var events = activatableNodeQueue.ToArray();
                foreach (var (i, e) in events.Enumerate()) {
                   canvas.DrawPoint(
                      e.Vertex,
@@ -81,19 +102,26 @@ namespace Dargon.Terragami.Tests {
             return canvas;
          }
 
-         foreach (var node in nodes) {
-            pq.Enqueue(node);
+         if (debugDrawMode == DebugDrawMode.Steps) {
+            Render();
          }
 
-         Render();
-
          var it = 0;
-         while (!pq.IsEmpty) {
-            // if (it == 4) Debugger.Break();
+         while (activatableNodeQueue.Count > 0) {
             it++;
 
-            var canvas = Render();
-            var n = pq.Dequeue();
+            if (debugDrawMode == DebugDrawMode.Steps) {
+               var canvas = Render();
+            }
+
+            var n = activatableNodeQueue.Dequeue();
+
+            foreach (var outedge in n.OutboundEdges) {
+               var dest = outedge.Destination;
+               if (--nodeToUnactivatedInEdgeCount[dest.Id] == 0) {
+                  activatableNodeQueue.Enqueue(dest);
+               }
+            }
 
             n.InboundEdges.Sort((a, b) => -a.Slope.CompareTo(b.Slope));
             n.OutboundEdges.Sort((a, b) => a.Slope.CompareTo(b.Slope));
@@ -150,9 +178,9 @@ namespace Dargon.Terragami.Tests {
             }
          }
 
-         Render();
-
-         Debugger.Break();
+         if (debugDrawMode != DebugDrawMode.None) {
+            Render();
+         }
       }
 
       public class Cell {
@@ -219,7 +247,7 @@ namespace Dargon.Terragami.Tests {
             new Size(1920 / 2, 1080 / 2),
             new Point(100, 100));
 
-         new PlanarEmbeddingFaceExtractor().X(nodes, edgeCounter, dmch);
+         new PlanarEmbeddingFaceExtractor().X(nodes, edgeCounter, null, DebugDrawMode.Steps);
       }
    }
 
