@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Xunit.Sdk;
-using Exception = System.Exception;
 
 namespace Dargon.Terragami.Tests {
    public static class Program {
@@ -15,12 +11,13 @@ namespace Dargon.Terragami.Tests {
 
          // new MathUtilsTests().FastAtan2ErrorBounds();
 
-         // try {
-         new VisibilityPolygonOfSimplePolygonsTests().Execute();
-         // } catch (Exception e) {
-         // Console.Error.WriteLine(e);
-         // while (true) ;
-         // }
+         try {
+            // new VisibilityPolygonOfSimplePolygonsTests().Execute();
+            PlanarEmbeddingFaceExtractor.Exec();
+         } catch (Exception e) {
+            Console.Error.WriteLine(e);
+            while (true) ;
+         }
       }
    }
 }

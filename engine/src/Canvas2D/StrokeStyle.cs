@@ -23,7 +23,7 @@ namespace Dargon.Dviz {
       public static StrokeStyle CyanThick3Solid = new StrokeStyle(Color.Cyan, 3.0f);
       public static StrokeStyle CyanThick5Solid = new StrokeStyle(Color.Cyan, 5.0f);
       public static StrokeStyle CyanThick10Solid = new StrokeStyle(Color.Cyan, 10.0f);
-      public static StrokeStyle CyanThick25Solid = new StrokeStyle(Color.Cyan, 25.0f);
+      public static StrokeStyle CyanThick25Solid = new StrokeStyle(Color.Cyan, 25.0f); // no blue because you can't see in night mode lol
       public static StrokeStyle WhiteThick3Solid = new StrokeStyle(Color.White, 3.0f);
       public static StrokeStyle BlackHairLineSolid = new StrokeStyle(Color.Black);
       public static StrokeStyle BlackHairLineDashed5 = new StrokeStyle(Color.Black, 1.0f, Dash5);
@@ -39,6 +39,7 @@ namespace Dargon.Dviz {
       public static StrokeStyle OrangeThick35Solid = new StrokeStyle(Color.Orange, 35.0f);
       public static StrokeStyle MagentaHairLineSolid = new StrokeStyle(Color.Magenta);
       public static StrokeStyle MagentaThick3Solid = new StrokeStyle(Color.Magenta, 3.0f);
+      public static StrokeStyle MagentaThick5Solid = new StrokeStyle(Color.Magenta, 5.0f);
       public static StrokeStyle MagentaThick10Solid = new StrokeStyle(Color.Magenta, 10.0f);
       public static StrokeStyle MagentaThick25Solid = new StrokeStyle(Color.Magenta, 25.0f);
       public static StrokeStyle MagentaThick3Dashed5 = new StrokeStyle(Color.Magenta, 3.0f, Dash5);
