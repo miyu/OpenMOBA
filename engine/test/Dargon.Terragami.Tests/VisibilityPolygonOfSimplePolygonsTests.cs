@@ -13,6 +13,7 @@ using Dargon.Terragami.Dviz;
 
 namespace Dargon.Terragami.Tests {
    public struct VisibilityPolygonWindow {
+      public int? EndpointPolygonPointIndexOrNull;
       public DoubleVector2 Endpoint;
       public int ReflexVertexIndex;
       public int SegmentFirstPointIndex;
@@ -174,8 +175,8 @@ namespace Dargon.Terragami.Tests {
          }.Map(p => new IntVector2(p.X, 400 - p.Y)).Reverse().ToList());
 
          var bounds = AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray());
-         bounds.Center += new DoubleVector2(-0.3 * Math.Abs(bounds.Extents.X), -0.78 * Math.Abs(bounds.Extents.Y));
-         bounds.Extents *= 0.06;
+         // bounds.Center += new DoubleVector2(0.8 * Math.Abs(bounds.Extents.X), 0.2 * Math.Abs(bounds.Extents.Y));
+         // bounds.Extents *= 0.5;
          // bounds.Center += new DoubleVector2(-0.7 * Math.Abs(bounds.Extents.X), -0.8 * Math.Abs(bounds.Extents.Y));
          // bounds.Extents *= 0.05;
          var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
@@ -192,6 +193,7 @@ namespace Dargon.Terragami.Tests {
 
          var allWindows = new List<VisibilityPolygonWindow>();
          var reflexVertexAndSegmentFirstPointIndexToWindowEndpoints = new Dictionary<(int, int), List<DoubleVector2>>();
+         var addedVertexToVertexWindows = new HashSet<(int, int)>();
          for (var i = 0; i < poly.Points.Count; i++) {
             var windows = ComputeVisibilityPolygon(poly, i, dmch, DebugDrawMode.None);
             var lines = windows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2()));
@@ -200,11 +202,23 @@ namespace Dargon.Terragami.Tests {
             // allWindows.AddRange(windows);
 
             foreach (var window in windows) {
+               // dedupe windows where endpoint and reflex vertex are both polygon points
+               if (window.EndpointPolygonPointIndexOrNull != null) {
+                  var endpointIndex = window.EndpointPolygonPointIndexOrNull.Value;
+                  var reflexIndex = window.ReflexVertexIndex;
+                  var (a, b) = (endpointIndex, reflexIndex);
+                  if (a > b) (a, b) = (b, a);
+
+                  if (!addedVertexToVertexWindows.Add((a, b))) {
+                     // window already visited
+                     continue;
+                  }
+               }
+
+               // Handle cases where two vispolies would add an identical window (e.g. because they're
+               // both collinear with the reflex vertex)
                var key = (window.ReflexVertexIndex, window.SegmentFirstPointIndex);
                if (reflexVertexAndSegmentFirstPointIndexToWindowEndpoints.TryGetValue(key, out var existing)) {
-
-                  // Handle cases where two vispolies would add an identical window (e.g. because they're
-                  // both collinear with the reflex vertex)
                   bool endpointAlreadyAdded = false;
                   foreach (var priorEndpoint in existing) {
                      if (DoubleVector2.SquaredDistanceNorm2(window.Endpoint, priorEndpoint) < EPSILON) {
@@ -899,6 +913,7 @@ namespace Dargon.Terragami.Tests {
             var cur = s[i];
             if (cur.WindowEndpointData.HasValue) {
                windows.Add(new VisibilityPolygonWindow {
+                  EndpointPolygonPointIndexOrNull = cur.PointIndex,
                   Endpoint = cur.Cartesian,
                   ReflexVertexIndex = cur.WindowEndpointData.Value.WindowReflexVertexIndex,
                   SegmentFirstPointIndex = cur.WindowEndpointData.Value.WindowSegmentFirstIndex,

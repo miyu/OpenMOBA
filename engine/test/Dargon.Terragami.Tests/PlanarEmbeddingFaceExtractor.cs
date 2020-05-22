@@ -35,7 +35,7 @@ namespace Dargon.Terragami.Tests {
          var edgeToLeftCell = new Cell[edges.Count];
          var edgeToRightCell = new Cell[edges.Count];
 
-         var allCells = new List<Cell>();
+         var allCells = new HashSet<Cell>();
          var activeCells = new HashSet<Cell>();
 
          if (dmch == null && debugDrawMode != DebugDrawMode.None) {
@@ -158,10 +158,11 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                   var r = new Random(i * 1337);
                   var jitter = new Vector2(0.5f - (float)r.NextDouble(), 0.5f - (float)r.NextDouble()) * 20;
                   if ((mode & 1) == 1) {
-                     var textPositoin = node.Vertex.ToDotNetVector(); // + new Vector2(2, 2) + jitter;
-                     canvas.DrawText($"{node.Id} ({nodeToUnactivatedInEdgeCount[node.Id]})", textPositoin);
-                     // canvas.DrawText($"{node.Id}\n{node.Vertex.X:F2},{node.Vertex.Y:F2}", textPositoin);
-                     // canvas.DrawLine(node.Vertex, textPositoin.ToOpenMobaVector(), new StrokeStyle(Color.MediumSlateBlue, 1));
+                     var textPositoin = node.Vertex.ToDotNetVector(); 
+                     textPositoin += new Vector2(2, 2) + jitter;
+                     // canvas.DrawText($"{node.Id} ({nodeToUnactivatedInEdgeCount[node.Id]})", textPositoin);
+                     canvas.DrawText($"{node.Id} ({nodeToUnactivatedInEdgeCount[node.Id]})\n{node.Vertex.X:F2},{node.Vertex.Y:F2}", textPositoin);
+                     canvas.DrawLine(node.Vertex, textPositoin.ToOpenMobaVector(), new StrokeStyle(Color.MediumSlateBlue, 1));
                   }
 
                   // canvas.DrawText($"{node.Id}\n{node.Vertex.X:F2},{node.Vertex.Y:F2}", node.Vertex.ToDotNetVector());
@@ -196,10 +197,14 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
          var it = 0;
          // try {
          while (activatableNodeQueue.Count > 0) {
-            it++;
+            Console.WriteLine($"it{it}: activatable nodes: {activatableNodeQueue.Count + 1}");
 
+            it++;
+            
             if (debugDrawMode == DebugDrawMode.Steps) {
-               Render(1);
+               Render(0);
+               // Render(1);
+               // Render(2);
                // Render(false);
             }
 
@@ -286,6 +291,14 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
             if (activeCells.Contains(edgeToLeftCell[i])) edgeToLeftCell[i] = null;
             if (activeCells.Contains(edgeToRightCell[i])) edgeToRightCell[i] = null;
          }
+
+
+         foreach (var activeCell in activeCells) {
+            allCells.Remove(activeCell);
+         }
+
+         activeCells.Clear();
+
          // } catch (Exception) when (new [] { 1 }.Map(x => {
          //    if (debugDrawMode != DebugDrawMode.None) {
          //       Render(false);
