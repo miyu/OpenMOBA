@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using Dargon.Commons;
 using Dargon.Commons.Collections;
@@ -44,7 +45,7 @@ namespace Dargon.Terragami.Tests {
                new Point(100, 100));
          }
 
-         IDebugCanvas Render() {
+         IDebugCanvas Render(int mode = 0) {
             var canvas = dmch.CreateAndAddCanvas();
             canvas.BatchDraw(() => {
                // ripped from https://bhaskarvk.github.io/colormap/reference/colormap.html lul
@@ -66,7 +67,8 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                                                           int g = int.Parse(hex[2..4], System.Globalization.NumberStyles.HexNumber); // jfc
                                                           int b = int.Parse(hex[4..6], System.Globalization.NumberStyles.HexNumber); // jfc
                                                           return Color.FromArgb(r, g, b);
-                                                       });
+                                                       })
+                                                       .Shuffle(new Random(0));
 
                canvas.FillPolygon(Polygon2.CreateRect(
                   -1000, -1000,
@@ -131,7 +133,7 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                      canvas.DrawVector(
                         edgeCenter + vectorOffset + edgeDirectionPerp * (neighborEdgePadding * 2),
                         edgeCenter + vectorOffset - edgeDirectionPerp * (neighborEdgePadding * 2),
-                        StrokeStyle.BlackThick3Solid, 
+                        StrokeStyle.BlackThick3Solid,
                         arrowPadding);
 
                      // if (asdf == 11) Debugger.Break();
@@ -142,14 +144,26 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                }
 
                var activatableNodes = activatableNodeQueue.ToArray().ToHashSet();
-               foreach (var node in nodes) {
-                  var strokeStyle = activatableNodes.Contains(node)
-                     ? (activatableNodeQueue.Peek() == node
-                        ? new StrokeStyle(Color.Lime, pointSize * 5)
-                        : new StrokeStyle(Color.Orange, pointSize * 4))
-                     : new StrokeStyle(Color.Red, pointSize * 3);
+               foreach (var (i, node) in nodes.Enumerate()) {
+                  var strokeStyle =
+                     i == -12
+                        ? new StrokeStyle(Color.LightSalmon, pointSize * 10)
+                        : activatableNodes.Contains(node)
+                           ? (
+                              activatableNodeQueue.Peek() == node
+                                 ? new StrokeStyle(Color.Lime, pointSize * 5)
+                                 : new StrokeStyle(Color.Orange, pointSize * 4))
+                           : new StrokeStyle(Color.Red, pointSize * 3);
                   canvas.DrawPoint(node.Vertex, strokeStyle);
-                  canvas.DrawText($"{node.Id}", node.Vertex.ToDotNetVector());
+                  var r = new Random(i * 1337);
+                  var jitter = new Vector2(0.5f - (float)r.NextDouble(), 0.5f - (float)r.NextDouble()) * 20;
+                  if ((mode & 1) == 1) {
+                     var textPositoin = node.Vertex.ToDotNetVector(); // + new Vector2(2, 2) + jitter;
+                     canvas.DrawText($"{node.Id} ({nodeToUnactivatedInEdgeCount[node.Id]})", textPositoin);
+                     // canvas.DrawText($"{node.Id}\n{node.Vertex.X:F2},{node.Vertex.Y:F2}", textPositoin);
+                     // canvas.DrawLine(node.Vertex, textPositoin.ToOpenMobaVector(), new StrokeStyle(Color.MediumSlateBlue, 1));
+                  }
+
                   // canvas.DrawText($"{node.Id}\n{node.Vertex.X:F2},{node.Vertex.Y:F2}", node.Vertex.ToDotNetVector());
 
                   foreach (var outedge in node.OutboundEdges) {
@@ -158,15 +172,16 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                      var effectiveArrowPadding = segLength < arrowPadding ? 0 : arrowPadding; // todo: tween this
 
                      canvas.DrawVector(
-                        seg.PointAt(effectiveArrowPadding / segLength),
-                        seg.PointAt((segLength - effectiveArrowPadding) / segLength),
+                        seg.PointAt((effectiveArrowPadding / 2) / segLength),
+                        seg.PointAt((segLength - (effectiveArrowPadding / 2)) / segLength),
                         StrokeStyle.BlackThick3Solid,
                         arrowPadding * 2);
 
-                     canvas.DrawText(
-                        "e" + outedge.Id.ToString(),
-                        outedge.Source.Vertex.SegmentTo(outedge.Destination.Vertex).PointAt(0.3).ToDotNetVector()
-                     );
+                     if ((mode & 2) == 2)
+                        canvas.DrawText(
+                           "e" + outedge.Id.ToString(),
+                           outedge.Source.Vertex.SegmentTo(outedge.Destination.Vertex).PointAt(0.3).ToDotNetVector()
+                        );
                   }
                }
             });
@@ -175,15 +190,17 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
          }
 
          if (debugDrawMode == DebugDrawMode.Steps) {
-            Render();
+            // Render();
          }
 
          var it = 0;
+         // try {
          while (activatableNodeQueue.Count > 0) {
             it++;
 
             if (debugDrawMode == DebugDrawMode.Steps) {
-               var canvas = Render();
+               Render(1);
+               // Render(false);
             }
 
             var n = activatableNodeQueue.Dequeue();
@@ -237,35 +254,45 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
             for (var i = 0; i < n.InboundEdges.Count - 1; i++) {
                var rightEdge = n.InboundEdges[i];
                var leftEdge = n.InboundEdges[i + 1];
-               var cell = edgeToLeftCell[rightEdge.Id];
-               Assert.Equals(edgeToLeftCell[rightEdge.Id], edgeToRightCell[leftEdge.Id]);
 
-               // left cell can be null in case
-               // *--->
-               //  \
-               //   * here
-               //  / 
-               // *--->
+               var leftEdgeRightCell = edgeToRightCell[leftEdge.Id];
+               var rightEdgeLeftCell = edgeToLeftCell[rightEdge.Id];
+
+               // The cells don't necessarily match, one or the other can be null
+               // See https://imgur.com/a/cRCsmLH
+               //
+               // If they mismatch or one is null, then nothing to do here.
+               if (leftEdgeRightCell != rightEdgeLeftCell || leftEdgeRightCell == null) {
+                  if (leftEdgeRightCell != null) {
+                     activeCells.Remove(leftEdgeRightCell);
+                  }
+                  if (rightEdgeLeftCell != null) {
+                     activeCells.Remove(rightEdgeLeftCell);
+                  }
+                  continue;
+               }
+
+               var cell = leftEdgeRightCell;
                if (cell == null) continue;
-
                cell.Left.Add((n, leftEdge.Id));
                cell.Right.Add((n, rightEdge.Id));
                activeCells.Remove(cell);
             }
          }
 
-         // cleanup: kill cells with just 1 left & right vertex.
-         // these're <-shaped verts at the end of our scan.
-         // these should actually be all our final active cells
-         foreach (var cell in activeCells) {
-            Assert.Equals(1, cell.Left.Count);
-            Assert.Equals(1, cell.Right.Count);
-         }
-
+         // cleanup: kill remaining unclosed cells - they' walking nonconverging
+         // paths on the contour
          for (var i = 0; i < edges.Count; i++) {
             if (activeCells.Contains(edgeToLeftCell[i])) edgeToLeftCell[i] = null;
             if (activeCells.Contains(edgeToRightCell[i])) edgeToRightCell[i] = null;
          }
+         // } catch (Exception) when (new [] { 1 }.Map(x => {
+         //    if (debugDrawMode != DebugDrawMode.None) {
+         //       Render(false);
+         //       Render(true);
+         //    }
+         //    return false;
+         // })[0]) { }
 
          if (debugDrawMode != DebugDrawMode.None) {
             Render();
@@ -349,8 +376,8 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
    /// todo: figure out what graph representation is best
    /// </summary>
    public class PgeNode {
-      public DoubleVector2 Vertex;
       public int Id;
+      public DoubleVector2 Vertex;
 
       public List<PgeEdge> InboundEdges = new List<PgeEdge>();
       public List<PgeEdge> OutboundEdges = new List<PgeEdge>();

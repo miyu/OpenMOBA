@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Dargon.Terragami.Tests {
    public static class Program {
@@ -12,9 +13,9 @@ namespace Dargon.Terragami.Tests {
          // new MathUtilsTests().FastAtan2ErrorBounds();
 
          try {
-            // new VisibilityPolygonOfSimplePolygonsTests().Execute();
-            PlanarEmbeddingFaceExtractor.Exec();
-         } catch (Exception e) {
+            new VisibilityPolygonOfSimplePolygonsTests().Execute();
+            // PlanarEmbeddingFaceExtractor.Exec();
+         } catch (Exception e) when (!Debugger.IsAttached) {
             Console.Error.WriteLine(e);
             while (true) ;
          }

@@ -3,5 +3,6 @@
       None,
       Steps,
       Result,
+      Failure,
    }
 }

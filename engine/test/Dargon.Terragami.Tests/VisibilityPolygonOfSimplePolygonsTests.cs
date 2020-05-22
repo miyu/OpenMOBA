@@ -123,59 +123,63 @@ namespace Dargon.Terragami.Tests {
 
       public void Execute() {
          // Compute(Polygon2.CreateRect(0, 0, 200, 200), new IntVector2(0, 0));
-         var poly = Polygon2.CreateCircle(0, 0, 200, n: 8);
-         poly.Points[2] = new IntVector2(50, 80);
-         poly.Points[4] = new IntVector2(-20, -40);
-         poly.Points[5] = new IntVector2(-25, -80);
-         poly.Points[6] = new IntVector2(-50, 50);
+         // var poly = Polygon2.CreateCircle(0, 0, 200, n: 8);
+         // poly.Points[2] = new IntVector2(50, 80);
+         // poly.Points[4] = new IntVector2(-20, -40);
+         // poly.Points[5] = new IntVector2(-25, -80);
+         // poly.Points[6] = new IntVector2(-50, 50);
          // poly.Visualize(labelIndices: true);
 
-         // var poly = new Polygon2(new List<IntVector2> {
-         //    new IntVector2(165, 326),
-         //    new IntVector2(191, 300),
-         //    new IntVector2(240, 300),
-         //    new IntVector2(381, 216),
-         //    new IntVector2(300, 150),
-         //    new IntVector2(280, 75),
-         //    new IntVector2(300, 50),
-         //    new IntVector2(200, 50),
-         //    new IntVector2(185, 25),
-         //    new IntVector2(170, 50),
-         //    new IntVector2(155, 25),
-         //    new IntVector2(120, 75),
-         //    new IntVector2(250, 75),
-         //    new IntVector2(300, 225),
-         //    new IntVector2(225, 275),
-         //    new IntVector2(195, 225),
-         //    new IntVector2(235, 150),
-         //    new IntVector2(165, 100),
-         //    new IntVector2(100, 150),
-         //    new IntVector2(150, 225),
-         //    new IntVector2(100, 275),
-         //    new IntVector2(115, 225),
-         //    new IntVector2(80, 150),
-         //    new IntVector2(150, 100),
-         //    new IntVector2(115, 100),
-         //    new IntVector2(40, 150),
-         //    new IntVector2(40, 200),
-         //    new IntVector2(75, 200),
-         //    new IntVector2(75, 250),
-         //    new IntVector2(50, 250),
-         //    new IntVector2(50, 225),
-         //    new IntVector2(25, 225),
-         //    new IntVector2(25, 275),
-         //    new IntVector2(50, 275),
-         //    new IntVector2(50, 260),
-         //    new IntVector2(75, 260),
-         //    new IntVector2(75, 285),
-         //    new IntVector2(40, 285),
-         //    new IntVector2(40, 300),
-         //    new IntVector2(150, 300)
-         // }.Map(p => new IntVector2(p.X, 400 - p.Y)).Reverse().ToList());
-         // poly.Visualize(labelIndices: true);
+         var poly = new Polygon2(new List<IntVector2> {
+            new IntVector2(165, 326),
+            new IntVector2(191, 300),
+            new IntVector2(240, 300),
+            new IntVector2(381, 216),
+            new IntVector2(300, 150),
+            new IntVector2(280, 75),
+            new IntVector2(300, 50),
+            new IntVector2(200, 50),
+            new IntVector2(185, 25),
+            new IntVector2(170, 50),
+            new IntVector2(155, 25),
+            new IntVector2(120, 75),
+            new IntVector2(250, 75),
+            new IntVector2(300, 225),
+            new IntVector2(225, 275),
+            new IntVector2(195, 225),
+            new IntVector2(235, 150),
+            new IntVector2(165, 100),
+            new IntVector2(100, 150),
+            new IntVector2(150, 225),
+            new IntVector2(100, 275),
+            new IntVector2(115, 225),
+            new IntVector2(80, 150),
+            new IntVector2(150, 100),
+            new IntVector2(115, 100),
+            new IntVector2(40, 150),
+            new IntVector2(40, 200),
+            new IntVector2(75, 200),
+            new IntVector2(75, 250),
+            new IntVector2(50, 250),
+            new IntVector2(50, 225),
+            new IntVector2(25, 225),
+            new IntVector2(25, 275),
+            new IntVector2(50, 275),
+            new IntVector2(50, 260),
+            new IntVector2(75, 260),
+            new IntVector2(75, 285),
+            new IntVector2(40, 285),
+            new IntVector2(40, 300),
+            new IntVector2(150, 300)
+         }.Map(p => new IntVector2(p.X, 400 - p.Y)).Reverse().ToList());
 
+         var bounds = AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray());
+         bounds.Center += new DoubleVector2(-0.3 * Math.Abs(bounds.Extents.X), -0.78 * Math.Abs(bounds.Extents.Y));
+         bounds.Extents *= 0.06;
+         // bounds.Center += new DoubleVector2(-0.7 * Math.Abs(bounds.Extents.X), -0.8 * Math.Abs(bounds.Extents.Y));
+         // bounds.Extents *= 0.05;
          var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
-            AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray()),
+            bounds,
             new Size(2250, 1100),
             new Point(100, 100));
 
@@ -184,16 +188,43 @@ namespace Dargon.Terragami.Tests {
 
          var canvas = dmch.CreateAndAddCanvas();
          canvas.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+         poly.Visualize(canvas, labelIndices: true, labelCoordinates: true);
 
          var allWindows = new List<VisibilityPolygonWindow>();
+         var reflexVertexAndSegmentFirstPointIndexToWindowEndpoints = new Dictionary<(int, int), List<DoubleVector2>>();
          for (var i = 0; i < poly.Points.Count; i++) {
-            var windows = ComputeVisibilityPolygon(poly, i);
+            var windows = ComputeVisibilityPolygon(poly, i, dmch, DebugDrawMode.None);
             var lines = windows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2()));
             canvas.DrawLineList(lines, new StrokeStyle(Color.Gray, 1.0f, new[] { 100.0f, 100.0f }));
-            allWindows.AddRange(windows);
+            // Console.WriteLine($"idx {i} {allWindows.Count}-{(allWindows.Count + lines.Length - 1)}");
+            // allWindows.AddRange(windows);
+
+            foreach (var window in windows) {
+               var key = (window.ReflexVertexIndex, window.SegmentFirstPointIndex);
+               if (reflexVertexAndSegmentFirstPointIndexToWindowEndpoints.TryGetValue(key, out var existing)) {
+
+                  // Handle cases where two vispolies would add an identical window (e.g. because they're
+                  // both collinear with the reflex vertex)
+                  bool endpointAlreadyAdded = false;
+                  foreach (var priorEndpoint in existing) {
+                     if (DoubleVector2.SquaredDistanceNorm2(window.Endpoint, priorEndpoint) < EPSILON) {
+                        endpointAlreadyAdded = true;
+                        break;
+                     }
+                  }
+
+                  if (endpointAlreadyAdded) continue;
+               } else {
+                  existing = reflexVertexAndSegmentFirstPointIndexToWindowEndpoints[key] = new List<DoubleVector2>();
+               }
+               existing.Add(window.Endpoint);
+
+               allWindows.Add(window);
+            }
          }
          
-         SimplePolygonVisibilityDecomposition.ExtractCells(poly, allWindows, dmch);
+         var (nodes, edges) = SimplePolygonVisibilityDecomposition.Imstreafmingontwitch(poly, allWindows, dmch, DebugDrawMode.None);
+         new PlanarEmbeddingFaceExtractor().X(nodes, edges, dmch, DebugDrawMode.Steps);
          Console.WriteLine("done");
          return;
          

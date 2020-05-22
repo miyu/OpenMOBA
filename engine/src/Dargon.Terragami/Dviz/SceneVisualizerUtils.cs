@@ -12,13 +12,17 @@ using Dargon.PlayOn.Geometry;
 
 namespace Dargon.Terragami.Dviz {
    public static class SceneVisualizerUtils {
-      public static Polygon2 Visualize(this Polygon2 poly, IDebugCanvas canvas = null, bool labelIndices = false) {
+      public static Polygon2 Visualize(this Polygon2 poly, IDebugCanvas canvas = null, bool labelIndices = false, bool labelCoordinates = false) {
          VisualizeInternal(AxisAlignedBoundingBox2.BoundingPolygon(poly), canvas, c => {
             c.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
             
             if (labelIndices) {
                foreach (var (i, p) in poly.Points.Enumerate()) {
-                  c.DrawText(i.ToString(), p.ToDotNetVector());
+                  var str = i.ToString();
+                  if (labelCoordinates) {
+                     str += $"\n{p.X:F2}, {p.Y:F2}";
+                  }
+                  c.DrawText(str, p.ToDotNetVector());
                }
             }
          });
