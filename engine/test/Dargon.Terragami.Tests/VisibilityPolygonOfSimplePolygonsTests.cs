@@ -177,8 +177,8 @@ namespace Dargon.Terragami.Tests {
          var bounds = AxisAlignedBoundingBox2.BoundingPoints(poly.Points.ToArray());
          // bounds.Center += new DoubleVector2(0.8 * Math.Abs(bounds.Extents.X), 0.2 * Math.Abs(bounds.Extents.Y));
          // bounds.Extents *= 0.5;
-         // bounds.Center += new DoubleVector2(-0.7 * Math.Abs(bounds.Extents.X), -0.8 * Math.Abs(bounds.Extents.Y));
-         // bounds.Extents *= 0.05;
+         // bounds.Center += new DoubleVector2(-0.75 * Math.Abs(bounds.Extents.X), -0.75 * Math.Abs(bounds.Extents.Y));
+         // bounds.Extents *= 0.1;
          var dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
             bounds,
             new Size(2250, 1100),
@@ -238,7 +238,31 @@ namespace Dargon.Terragami.Tests {
          }
          
          var (nodes, edges) = SimplePolygonVisibilityDecomposition.Imstreafmingontwitch(poly, allWindows, dmch, DebugDrawMode.None);
-         var pfe = new PlanarEmbeddingFaceExtractor().X(nodes, edges, dmch, DebugDrawMode.None);
+         var pfe = new PlanarEmbeddingFaceExtractor().X(nodes, edges, dmch, DebugDrawMode.Result);
+
+         var cellCentroids = pfe.Cells.Map(c => c.Contour.Aggregate(DoubleVector2.Zero, (a, b) => a + b) / c.Contour.Length);
+
+         var ca = dmch.CreateAndAddCanvas();
+         ca.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+
+         foreach (var (i, cell) in pfe.Cells.Enumerate()) {
+            var colors = ColorMap.ViridisSamples;
+            var colorIndex = i * 122400002653L % colors.Length;
+            var color = Color.FromArgb(55, colors[colorIndex]);
+            ca.FillPolygon(cell.Contour, new FillStyle(color));
+
+            foreach (var n in cell.Neighbors) {
+               if (n == null) continue;
+               ca.DrawLine(cellCentroids[cell.Index], cellCentroids[n.Index], StrokeStyle.CyanHairLineSolid);
+               // var seg = new DoubleLineSegment2(cellCentroids[cell.Index], cellCentroids[n.Index]);
+               // var offset = seg.First.To(seg.Second).PerpLeft().ToUnit() * 5;
+               // ca.DrawVector(seg.First + offset, seg.Second + offset, StrokeStyle.CyanHairLineSolid, 10);
+            }
+         }
+
+         // ca.DrawLineList(
+         //    allWindows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2())),
+         //    StrokeStyle.GrayHairLineSolid);
 
          var bvh = BvhTreeAABB2<PlanarEmbeddingFaceExtractor.Cell>.Build(
             pfe.Cells.Map(c => {
@@ -258,6 +282,12 @@ namespace Dargon.Terragami.Tests {
             new StrokeStyle(Color.MediumOrchid),
          };
 
+         foreach (var bvhNode in bvh.AllNodes) {
+            var strokeStyle = bvhDepthStrokeStyles[bvhNode.Depth];
+            ca.DrawRectangle(bvhNode.Bounds, 0, strokeStyle);
+         }
+
+
          var greatestDepth = bvh.AllNodes.Max(x => x.Depth);
 
          for (var i = 0; i <= greatestDepth; i++) {
@@ -267,49 +297,79 @@ namespace Dargon.Terragami.Tests {
                allWindows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2())),
                StrokeStyle.GrayHairLineSolid);
 
-            foreach (var bvhNode in bvh.AllNodes) {
-               if (bvhNode.Depth > i) continue;
-               var strokeStyle = bvhDepthStrokeStyles[bvhNode.Depth];
-               c.DrawRectangle(bvhNode.Bounds, 0, strokeStyle);
+            foreach (var node in bvh.AllNodes) {
+               if (node.Depth > i) continue;
+               var thickness = (greatestDepth - node.Depth) * 2 + 1;
+               var strokeStyle = new StrokeStyle(
+                  bvhDepthStrokeStyles[node.Depth].Color,
+                  thickness);
+               c.DrawRectangle(node.Bounds, 0, strokeStyle);
             }
          }
 
-         for (var frame = 0; frame < 1155; frame++) { // 3 * 5 * 7 * 11
+         for (var frame = 0; frame <= 1155; frame++) { // 3 * 5 * 7 * 11
          // for (var frame = 90; frame < 110; frame++) {
             var c = dmch.CreateAndAddCanvas();
-            c.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
-            c.DrawLineList(
-               allWindows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2())),
-               StrokeStyle.GrayHairLineSolid);
+            c.BatchDraw(() => {
+               c.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+               c.DrawLineList(
+                  allWindows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2())),
+                  StrokeStyle.GrayHairLineSolid);
 
-            var r = new Random(frame);
-            var q = new DoubleVector2(
-               200 + (Math.Sin((frame / (1155 / 3.0)) * Math.PI * 2) + Math.Sin((frame / (1155 / 11.0)) * Math.PI * 2)) * 100,
-               200 + (Math.Sin((frame / (1155 / 5.0)) * Math.PI * 2) + Math.Sin((frame / (1155 / 7.0)) * Math.PI * 2)) * 100);
-            //r.NextDouble() * 400, r.NextDouble() * 400);
+               var r = new Random(frame);
+               var q = new DoubleVector2(
+                  200 + (Math.Sin((frame / (1155 / 3.0)) * Math.PI * 2) + Math.Sin((frame / (1155 / 11.0)) * Math.PI * 2)) * 100,
+                  200 + (Math.Sin((frame / (1155 / 5.0)) * Math.PI * 2) + Math.Sin((frame / (1155 / 7.0)) * Math.PI * 2)) * 100);
+               //r.NextDouble() * 400, r.NextDouble() * 400);
 
-            var leaves = bvh.FindIntersectingLeaves(q);
+               var leaves = bvh.FindIntersectingLeaves(q);
 
-            var nodesInPathToLeaves = leaves.SelectMany(l => l.Dfs((push, cur) => {
-               if (cur.Parent != null) push(cur.Parent);
-            })).ToHashSet();
+               // var nodesInPathToLeaves = leaves.SelectMany(l => l.Dfs((push, cur) => {
+               // if (cur.Parent != null) push(cur.Parent);
+               // })).ToHashSet();
+               var nodesInPathToLeaves = bvh.AllNodes.Where(n => n.Bounds.Contains(q)).ToHashSet();
 
-            foreach (var node in bvh.AllNodes) {
-               if (!nodesInPathToLeaves.Contains(node)) continue;
+               var cellsInLeaves = leaves.SelectMany(n => n.Values.ToArray()).ToHashSet();
 
-               var strokeStyle = bvhDepthStrokeStyles[node.Depth];
-               c.DrawRectangle(node.Bounds, 0, strokeStyle);
-            }
+               // foreach (var leaf in leaves) {
+               //    foreach (var cell in leaf.Values) {
+               //       var contour = cell.Contour;
+               //       var contained = PointInConvexPolygonTests.Pip(contour, q);
+               //       c.FillPolygon(cell.Contour, new FillStyle(contained ? Color.Lime : Color.DarkRed));
+               //    }
+               // }
 
-            foreach (var leaf in leaves) {
-               foreach (var cell in leaf.Values) {
-                  var contour = cell.Contour;
-                  var contained = PointInConvexPolygonTests.Pip(contour, q);
-                  c.FillPolygon(cell.Contour, new FillStyle(contained ? Color.Lime : Color.DarkRed));
+               foreach (var cell in pfe.Cells) {
+                  var colors = ColorMap.ViridisSamples;
+                  var colorIndex = cell.Index * 122400002653L % colors.Length;
+                  var color = colors[colorIndex];
+
+                  if (cellsInLeaves.Contains(cell)) {
+                     if (!PointInConvexPolygonTests.Pip(cell.Contour, q)) {
+                        color = Color.FromArgb((color.R + 255) / 2, (color.G + 0) / 2, (color.B + 0) / 2);
+                        color = Color.FromArgb(55, color);
+                     }
+                  } else {
+                     color = Color.FromArgb(55, color);
+                  }
+
+                  c.FillPolygon(cell.Contour, new FillStyle(color));
                }
-            }
 
-            c.DrawPoint(q, StrokeStyle.MagentaThick25Solid);
+               foreach (var node in bvh.AllNodes) {
+                  if (!nodesInPathToLeaves.Contains(node)) continue;
+
+                  var thickness = (greatestDepth - node.Depth) * 2 + 1;
+                  var strokeStyle = new StrokeStyle(
+                     bvhDepthStrokeStyles[node.Depth].Color,
+                     thickness);
+
+                  var rect = node.Bounds.Offset(thickness / 2);
+                  c.DrawRectangle(rect, 0, strokeStyle);
+               }
+
+               c.DrawPoint(q, StrokeStyle.MagentaThick25Solid);
+            });
          }
 
          Console.WriteLine("done");

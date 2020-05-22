@@ -37,6 +37,7 @@ namespace Dargon.Terragami.Tests {
 
          var allCells = new HashSet<Cell>();
          var activeCells = new HashSet<Cell>();
+         var killedCells = new HashSet<Cell>();
 
          if (dmch == null && debugDrawMode != DebugDrawMode.None) {
             dmch = SceneVisualizerUtils.CreateAndShowFittingCanvasHost(
@@ -48,33 +49,11 @@ namespace Dargon.Terragami.Tests {
          IDebugCanvas Render(int mode = 0) {
             var canvas = dmch.CreateAndAddCanvas();
             canvas.BatchDraw(() => {
-               // ripped from https://bhaskarvk.github.io/colormap/reference/colormap.html lul
-               var colorMap = @"
-440154ff 440558ff 450a5cff 450e60ff 451465ff 461969ff 
-461d6dff 462372ff 472775ff 472c7aff 46307cff 45337dff 
-433880ff 423c81ff 404184ff 3f4686ff 3d4a88ff 3c4f8aff 
-3b518bff 39558bff 37598cff 365c8cff 34608cff 33638dff 
-31678dff 2f6b8dff 2d6e8eff 2c718eff 2b748eff 29788eff 
-287c8eff 277f8eff 25848dff 24878dff 238b8dff 218f8dff 
-21918dff 22958bff 23988aff 239b89ff 249f87ff 25a186ff 
-25a584ff 26a883ff 27ab82ff 29ae80ff 2eb17dff 35b479ff 
-3cb875ff 42bb72ff 49be6eff 4ec16bff 55c467ff 5cc863ff 
-61c960ff 6bcc5aff 72ce55ff 7cd04fff 85d349ff 8dd544ff 
-97d73eff 9ed93aff a8db34ff b0dd31ff b8de30ff c3df2eff 
-cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOptions.RemoveEmptyEntries).Map(x => x.Trim())
-                                                       .Map(hex => {
-                                                          int r = int.Parse(hex[0..2], System.Globalization.NumberStyles.HexNumber); // jfc
-                                                          int g = int.Parse(hex[2..4], System.Globalization.NumberStyles.HexNumber); // jfc
-                                                          int b = int.Parse(hex[4..6], System.Globalization.NumberStyles.HexNumber); // jfc
-                                                          return Color.FromArgb(r, g, b);
-                                                       })
-                                                       .Shuffle(new Random(0));
-
                canvas.FillPolygon(Polygon2.CreateRect(
                   -1000, -1000,
                   3000, 3000), new FillStyle(Color.White));
 
-               var cellColors = colorMap.Shuffle(new Random(0)).ToArray();
+               var cellColors = ColorMap.ViridisSamples.ToList().Shuffle(new Random(0)).ToArray();
 
                ((DebugCanvas)canvas).SetFontScale(3);
 
@@ -231,8 +210,8 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                edgeToRightCell[leftEdge.Id] = cell;
                edgeToLeftCell[rightEdge.Id] = cell;
 
-               allCells.Add(cell);
-               activeCells.Add(cell);
+               allCells.Add(cell).AssertIsTrue();
+               activeCells.Add(cell).AssertIsTrue();
             }
 
             if (n.OutboundEdges.Count > 0 && n.InboundEdges.Count > 0) {
@@ -269,35 +248,34 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
                // If they mismatch or one is null, then nothing to do here.
                if (leftEdgeRightCell != rightEdgeLeftCell || leftEdgeRightCell == null) {
                   if (leftEdgeRightCell != null) {
-                     activeCells.Remove(leftEdgeRightCell);
+                     killedCells.Add(leftEdgeRightCell).AssertIsTrue();
+                     activeCells.Remove(leftEdgeRightCell).AssertIsTrue();
                   }
                   if (rightEdgeLeftCell != null) {
-                     activeCells.Remove(rightEdgeLeftCell);
+                     killedCells.Add(rightEdgeLeftCell).AssertIsTrue();
+                     activeCells.Remove(rightEdgeLeftCell).AssertIsTrue();
                   }
                   continue;
                }
 
                var cell = leftEdgeRightCell;
-               if (cell == null) continue;
                cell.Left.Add((n, leftEdge.Id));
                cell.Right.Add((n, rightEdge.Id));
-               activeCells.Remove(cell);
+               activeCells.Remove(cell).AssertIsTrue();
             }
          }
 
          // cleanup: kill remaining unclosed cells - they' walking nonconverging
          // paths on the contour
-         for (var i = 0; i < edges.Count; i++) {
-            if (activeCells.Contains(edgeToLeftCell[i])) edgeToLeftCell[i] = null;
-            if (activeCells.Contains(edgeToRightCell[i])) edgeToRightCell[i] = null;
-         }
-
-
-         foreach (var activeCell in activeCells) {
-            allCells.Remove(activeCell);
-         }
-
+         foreach (var c in activeCells) killedCells.Add(c);
          activeCells.Clear();
+
+         for (var i = 0; i < edges.Count; i++) {
+            if (killedCells.Contains(edgeToLeftCell[i])) edgeToLeftCell[i] = null;
+            if (killedCells.Contains(edgeToRightCell[i])) edgeToRightCell[i] = null;
+         }
+
+         foreach (var c in killedCells) allCells.Remove(c);
 
          // } catch (Exception) when (new [] { 1 }.Map(x => {
          //    if (debugDrawMode != DebugDrawMode.None) {
@@ -318,11 +296,17 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
             EdgeToRightCell = edgeToRightCell,
          }; // todo: API for fetching cell neighbors not via lookup of etlc/etrc
 
-         foreach (var cell in allCells) {
+         for (var cellIndex = 0; cellIndex < allCellsList.Count; cellIndex++) {
+            var cell = allCellsList[cellIndex];
+            cell.Index = cellIndex;
+
             // edgeIndices[i] corresponds to edge of contour[i] + contour[i + 1]
             var contour = new DoubleVector2[cell.Left.Count + cell.Right.Count - 2];
             var neighbors = new Cell[contour.Length];
             var edgeIndices = new int[contour.Length];
+
+            Assert.Equals(cell.Left[0].node, cell.Right[0].node);
+            Assert.Equals(cell.Left[^1].node, cell.Right[^1].node);
 
             var nextIndex = 0;
             for (var i = 0; i < cell.Left.Count - 1; i++) {
@@ -362,6 +346,7 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
          public List<(PgeNode node, int edgeIndex)> Right = new List<(PgeNode node, int edgeIndex)>();
 
          // Computed at cleanup step of face extraction
+         public int Index;
          public DoubleVector2[] Contour;
          public Cell[] Neighbors;
          public int[] EdgeIndices;

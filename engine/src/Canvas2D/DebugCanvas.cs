@@ -274,21 +274,23 @@ namespace Dargon.Dviz {
       }
 
       public void DrawVector(Vector3 point1, Vector3 point2, StrokeStyle strokeStyle, float arrowheadScale = 1) {
-         var p1 = projector.Project(point1);
-         var p2 = projector.Project(point2);
-         var p1ToP2 = p2 - p1;
-         var p1ToP2Unit = Vector2.Normalize(p1ToP2);
-         var left = new Vector2(-p1ToP2Unit.Y, p1ToP2Unit.X);
+         BatchDraw(() => {
+            var p1 = projector.Project(point1);
+            var p2 = projector.Project(point2);
+            var p1ToP2 = p2 - p1;
+            var p1ToP2Unit = Vector2.Normalize(p1ToP2);
+            var left = new Vector2(-p1ToP2Unit.Y, p1ToP2Unit.X);
 
-         using (var pen = new Pen(strokeStyle.Color, (float)strokeStyle.Thickness)) {
-            g.DrawLines(pen,
-               new [] {
-                  p1, p2,
-                  p2, p2 - (p1ToP2Unit + left) * arrowheadScale,
-                  p2, p2 - (p1ToP2Unit - left) * arrowheadScale,
-               }.Map(v => new PointF(v.X, v.Y)));
-            return;
-         }
+            using (var pen = new Pen(strokeStyle.Color, (float)strokeStyle.Thickness)) {
+               g.DrawLines(pen,
+                  new[] {
+                     p1, p2,
+                     p2, p2 - (p1ToP2Unit + left) * arrowheadScale,
+                     p2, p2 - (p1ToP2Unit - left) * arrowheadScale,
+                  }.Map(v => new PointF(v.X, v.Y)));
+               return;
+            }
+         });
       }
 
       public void DrawTriangle(Vector3 p1, Vector3 p2, Vector3 p3, StrokeStyle strokeStyle) {

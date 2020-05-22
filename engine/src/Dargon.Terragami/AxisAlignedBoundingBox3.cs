@@ -102,6 +102,13 @@ namespace Dargon.PlayOn.DataStructures {
                 CDoubleMath.Abs(d.Y) <= Extents.Y;
       }
 
+      public AxisAlignedBoundingBox2 Offset(cDouble amount) {
+         return new AxisAlignedBoundingBox2 {
+            Center = Center,
+            Extents = new DoubleVector2(Extents.X + amount, Extents.Y + amount)
+         };
+      }
+
       public static AxisAlignedBoundingBox2 BoundingPolygon(Polygon2 poly) {
          return BoundingPoints(poly.Points.ToArray());
       }
