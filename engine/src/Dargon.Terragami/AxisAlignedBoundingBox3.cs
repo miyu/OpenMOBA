@@ -96,7 +96,7 @@ namespace Dargon.PlayOn.DataStructures {
       public DoubleVector2 Center;
       public DoubleVector2 Extents;
 
-      public bool Contains(ref DoubleVector2 point) {
+      public bool Contains(in DoubleVector2 point) {
          var d = point - Center;
          return CDoubleMath.Abs(d.X) <= Extents.X &&
                 CDoubleMath.Abs(d.Y) <= Extents.Y;

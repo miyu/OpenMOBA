@@ -238,7 +238,80 @@ namespace Dargon.Terragami.Tests {
          }
          
          var (nodes, edges) = SimplePolygonVisibilityDecomposition.Imstreafmingontwitch(poly, allWindows, dmch, DebugDrawMode.None);
-         new PlanarEmbeddingFaceExtractor().X(nodes, edges, dmch, DebugDrawMode.Steps);
+         var pfe = new PlanarEmbeddingFaceExtractor().X(nodes, edges, dmch, DebugDrawMode.None);
+
+         var bvh = BvhTreeAABB2<PlanarEmbeddingFaceExtractor.Cell>.Build(
+            pfe.Cells.Map(c => {
+               var bbox = AxisAlignedBoundingBox2.BoundingPoints(c.Left.Concat(c.Right).Select(x => x.node.Vertex).ToArray());
+               return new KeyValuePair<AxisAlignedBoundingBox2, PlanarEmbeddingFaceExtractor.Cell>(bbox, c);
+            }));
+
+         var bvhDepthStrokeStyles = new[] {
+            StrokeStyle.BlackHairLineSolid,
+            StrokeStyle.RedHairLineSolid,
+            StrokeStyle.LimeHairLineSolid,
+            StrokeStyle.CyanHairLineSolid,
+            StrokeStyle.MagentaHairLineSolid,
+            StrokeStyle.OrangeHairLineSolid,
+            new StrokeStyle(Color.SpringGreen), 
+            new StrokeStyle(Color.Teal),
+            new StrokeStyle(Color.MediumOrchid),
+         };
+
+         var greatestDepth = bvh.AllNodes.Max(x => x.Depth);
+
+         for (var i = 0; i <= greatestDepth; i++) {
+            var c = dmch.CreateAndAddCanvas();
+            c.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+            c.DrawLineList(
+               allWindows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2())),
+               StrokeStyle.GrayHairLineSolid);
+
+            foreach (var bvhNode in bvh.AllNodes) {
+               if (bvhNode.Depth > i) continue;
+               var strokeStyle = bvhDepthStrokeStyles[bvhNode.Depth];
+               c.DrawRectangle(bvhNode.Bounds, 0, strokeStyle);
+            }
+         }
+
+         for (var frame = 0; frame < 1155; frame++) { // 3 * 5 * 7 * 11
+         // for (var frame = 90; frame < 110; frame++) {
+            var c = dmch.CreateAndAddCanvas();
+            c.DrawPolygon(poly, StrokeStyle.BlackHairLineSolid);
+            c.DrawLineList(
+               allWindows.Map(w => new DoubleLineSegment2(w.Endpoint, poly.Points[w.ReflexVertexIndex].ToDoubleVector2())),
+               StrokeStyle.GrayHairLineSolid);
+
+            var r = new Random(frame);
+            var q = new DoubleVector2(
+               200 + (Math.Sin((frame / (1155 / 3.0)) * Math.PI * 2) + Math.Sin((frame / (1155 / 11.0)) * Math.PI * 2)) * 100,
+               200 + (Math.Sin((frame / (1155 / 5.0)) * Math.PI * 2) + Math.Sin((frame / (1155 / 7.0)) * Math.PI * 2)) * 100);
+            //r.NextDouble() * 400, r.NextDouble() * 400);
+
+            var leaves = bvh.FindIntersectingLeaves(q);
+
+            var nodesInPathToLeaves = leaves.SelectMany(l => l.Dfs((push, cur) => {
+               if (cur.Parent != null) push(cur.Parent);
+            })).ToHashSet();
+
+            foreach (var node in bvh.AllNodes) {
+               if (!nodesInPathToLeaves.Contains(node)) continue;
+
+               var strokeStyle = bvhDepthStrokeStyles[node.Depth];
+               c.DrawRectangle(node.Bounds, 0, strokeStyle);
+            }
+
+            foreach (var leaf in leaves) {
+               foreach (var cell in leaf.Values) {
+                  var contour = cell.Contour;
+                  var contained = PointInConvexPolygonTests.Pip(contour, q);
+                  c.FillPolygon(cell.Contour, new FillStyle(contained ? Color.Lime : Color.DarkRed));
+               }
+            }
+
+            c.DrawPoint(q, StrokeStyle.MagentaThick25Solid);
+         }
+
          Console.WriteLine("done");
          return;
          

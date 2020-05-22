@@ -13,6 +13,7 @@ namespace Dargon.Terragami.Tests {
          // new MathUtilsTests().FastAtan2ErrorBounds();
 
          try {
+            // PointInConvexPolygonTests.Exec();
             new VisibilityPolygonOfSimplePolygonsTests().Execute();
             // PlanarEmbeddingFaceExtractor.Exec();
          } catch (Exception e) when (!Debugger.IsAttached) {

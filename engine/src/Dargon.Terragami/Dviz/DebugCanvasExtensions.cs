@@ -171,6 +171,19 @@ namespace Dargon.Terragami.Dviz {
          });
       }
 
+      public static void DrawRectangle(this IDebugCanvas canvas, AxisAlignedBoundingBox2 nodeRect, float z, StrokeStyle strokeStyle) {
+         var center = nodeRect.Center;
+         var extents = nodeRect.Extents;
+         DrawRectangle(canvas,
+            new IntRect2(
+               (int)(center.X - extents.X),
+               (int)(center.Y - extents.Y),
+               (int)(center.X + extents.X),
+               (int)(center.Y + extents.Y)),
+            z,
+            strokeStyle);
+      }
+
       public static void DrawRectangle(this IDebugCanvas canvas, IntRect2 nodeRect, float z, StrokeStyle strokeStyle) {
          canvas.DrawLineStrip(
             new[] {

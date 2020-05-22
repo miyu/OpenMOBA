@@ -16,7 +16,7 @@ using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 namespace Dargon.Terragami.Tests {
    public class PlanarEmbeddingFaceExtractor {
-      public void X(List<PgeNode> nodes, List<PgeEdge> edges, DebugMultiCanvasHost dmch = null, DebugDrawMode debugDrawMode = DebugDrawMode.None) {
+      public PlanarEmbeddingFaceExtraction X(List<PgeNode> nodes, List<PgeEdge> edges, DebugMultiCanvasHost dmch = null, DebugDrawMode debugDrawMode = DebugDrawMode.None) {
          // traverse nodes in topological order
          var nodeToUnactivatedInEdgeCount = new int[nodes.Count];
          var activatableNodeQueue = new Queue<PgeNode>();
@@ -310,6 +310,49 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
          if (debugDrawMode != DebugDrawMode.None) {
             Render();
          }
+
+         var allCellsList = allCells.ToList();
+         var res = new PlanarEmbeddingFaceExtraction {
+            Cells = allCellsList,
+            EdgeToLeftCell = edgeToLeftCell,
+            EdgeToRightCell = edgeToRightCell,
+         }; // todo: API for fetching cell neighbors not via lookup of etlc/etrc
+
+         foreach (var cell in allCells) {
+            // edgeIndices[i] corresponds to edge of contour[i] + contour[i + 1]
+            var contour = new DoubleVector2[cell.Left.Count + cell.Right.Count - 2];
+            var neighbors = new Cell[contour.Length];
+            var edgeIndices = new int[contour.Length];
+
+            var nextIndex = 0;
+            for (var i = 0; i < cell.Left.Count - 1; i++) {
+               contour[nextIndex] = cell.Left[i].node.Vertex;
+               var edgeIndex = cell.Left[i + 1].edgeIndex;
+               neighbors[nextIndex] = edgeToLeftCell[edgeIndex];
+               edgeIndices[nextIndex] = edgeIndex;
+               nextIndex++;
+            }
+
+            for (var i = cell.Right.Count - 1; i >= 1; i--) {
+               contour[nextIndex] = cell.Right[i].node.Vertex;
+               var edgeIndex = cell.Right[i].edgeIndex;
+               neighbors[nextIndex] = edgeToRightCell[edgeIndex];
+               edgeIndices[nextIndex] = edgeIndex;
+               nextIndex++;
+            }
+
+            cell.Contour = contour;
+            cell.Neighbors = neighbors;
+            cell.EdgeIndices = edgeIndices;
+         }
+
+         return res;
+      }
+
+      public class PlanarEmbeddingFaceExtraction {
+         public List<Cell> Cells;
+         public Cell[] EdgeToLeftCell;
+         public Cell[] EdgeToRightCell;
       }
 
       public class Cell {
@@ -317,6 +360,11 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
          // such that node[i] to node[i+1] is through edgeIndex[i+1]
          public List<(PgeNode node, int edgeIndex)> Left = new List<(PgeNode node, int edgeIndex)>();
          public List<(PgeNode node, int edgeIndex)> Right = new List<(PgeNode node, int edgeIndex)>();
+
+         // Computed at cleanup step of face extraction
+         public DoubleVector2[] Contour;
+         public Cell[] Neighbors;
+         public int[] EdgeIndices;
       }
 
       public static void Exec() {
@@ -381,7 +429,7 @@ cbe02dff d6e22bff e1e329ff eae428ff f5e626ff fde725ff ".Split(' ', StringSplitOp
          //    new Size(1920 / 2, 1080 / 2),
          //    new Point(100, 100));
 
-         new PlanarEmbeddingFaceExtractor().X(nodes, edges, null, DebugDrawMode.Steps);
+         var cells = new PlanarEmbeddingFaceExtractor().X(nodes, edges, null, DebugDrawMode.Steps);
       }
    }
 
